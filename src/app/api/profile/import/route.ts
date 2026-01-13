@@ -65,8 +65,40 @@ export async function POST(request: NextRequest) {
       location: parsed.location,
     });
 
+    // Also log if no work history was found to help debug
+    if (parsed.work_history?.length === 0) {
+      console.log("No work history extracted. Check if 'Experience' section exists in the text.");
+    }
+
+    // Upload resume file to storage
+    const fileExt = file.name.split(".").pop() || "pdf";
+    const fileName = `${user.id}/resume.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("resumes")
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    let resumeUrl: string | null = null;
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage
+        .from("resumes")
+        .getPublicUrl(fileName);
+      resumeUrl = urlData.publicUrl;
+    } else {
+      console.error("Error uploading resume:", uploadError);
+    }
+
     // Update profile with parsed data (only non-null values)
     const profileUpdates: Record<string, unknown> = {};
+
+    // Always store resume info if uploaded successfully
+    if (resumeUrl) {
+      profileUpdates.resume_url = resumeUrl;
+      profileUpdates.resume_filename = file.name;
+    }
 
     if (parsed.full_name) {
       profileUpdates.full_name = parsed.full_name;
@@ -141,6 +173,7 @@ export async function POST(request: NextRequest) {
         skills: parsed.skills?.slice(0, 10) || [],
         location: parsed.location,
         work_history_count: insertedWorkHistory.length,
+        resume_url: resumeUrl,
       },
       work_history: insertedWorkHistory,
     });

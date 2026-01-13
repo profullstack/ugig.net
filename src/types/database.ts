@@ -24,6 +24,8 @@ export type Database = {
           timezone: string | null;
           is_available: boolean;
           profile_completed: boolean;
+          resume_url: string | null;
+          resume_filename: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -41,6 +43,8 @@ export type Database = {
           timezone?: string | null;
           is_available?: boolean;
           profile_completed?: boolean;
+          resume_url?: string | null;
+          resume_filename?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -58,6 +62,8 @@ export type Database = {
           timezone?: string | null;
           is_available?: boolean;
           profile_completed?: boolean;
+          resume_url?: string | null;
+          resume_filename?: string | null;
           created_at?: string;
           updated_at?: string;
         };

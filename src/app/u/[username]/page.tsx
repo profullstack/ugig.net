@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
+import { Button } from "@/components/ui/button";
 import {
   MapPin,
   Clock,
@@ -12,6 +13,7 @@ import {
   Briefcase,
   ExternalLink,
   CheckCircle,
+  Download,
 } from "lucide-react";
 
 interface Props {
@@ -60,6 +62,8 @@ export default async function PublicProfilePage({ params }: Props) {
       location,
       timezone,
       is_available,
+      resume_url,
+      resume_filename,
       created_at
     `
     )
@@ -315,6 +319,29 @@ export default async function PublicProfilePage({ params }: Props) {
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Resume Download */}
+            {profile.resume_url && (
+              <div className="p-6 bg-card rounded-lg border border-border">
+                <h2 className="text-lg font-semibold mb-4">Resume</h2>
+                <a
+                  href={profile.resume_url}
+                  download={profile.resume_filename || "resume.pdf"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline" className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Resume
+                  </Button>
+                </a>
+                {profile.resume_filename && (
+                  <p className="text-xs text-muted-foreground mt-2 text-center truncate">
+                    {profile.resume_filename}
+                  </p>
+                )}
               </div>
             )}
 
