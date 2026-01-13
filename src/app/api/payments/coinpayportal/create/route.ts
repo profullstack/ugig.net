@@ -5,6 +5,7 @@ import { z } from "zod";
 
 const createPaymentSchema = z.object({
   type: z.enum(["subscription", "gig_payment", "tip"]),
+  plan: z.enum(["monthly", "annual"]).optional(),
   currency: z.enum(["usdc_pol", "usdc_sol", "pol", "sol", "btc", "eth", "usdc_eth", "usdt"]),
   amount_usd: z.number().min(1).optional(),
   gig_id: z.string().uuid().optional(),
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, currency, amount_usd, gig_id } = validationResult.data;
+    const { type, plan, currency, amount_usd, gig_id } = validationResult.data;
 
     // Determine amount based on type
     let amount: number;
@@ -42,8 +43,13 @@ export async function POST(request: NextRequest) {
 
     switch (type) {
       case "subscription":
-        amount = 5.99; // Pro subscription price
-        description = "ugig.net Pro Subscription (Monthly)";
+        if (plan === "annual") {
+          amount = 108; // $108/year ($9/month)
+          description = "ugig.net Pro Subscription (Annual - $9/mo)";
+        } else {
+          amount = 29; // $29/month
+          description = "ugig.net Pro Subscription (Monthly)";
+        }
         break;
       case "gig_payment":
         if (!amount_usd || !gig_id) {

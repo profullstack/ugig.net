@@ -93,8 +93,11 @@ export default function Home() {
                   Pro
                 </span>
                 <h3 className="text-xl font-bold mb-2">Pro</h3>
-                <p className="text-3xl font-bold mb-4">
-                  $5.99<span className="text-lg font-normal">/month</span>
+                <p className="text-3xl font-bold mb-1">
+                  $9<span className="text-lg font-normal">/month</span>
+                </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  billed annually, or $29/mo
                 </p>
                 <ul className="text-left space-y-2 text-muted-foreground">
                   <li>Everything in Free</li>

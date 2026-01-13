@@ -348,7 +348,7 @@ export default async function DashboardPage() {
                     Upgrade to Pro for unlimited gig posts and premium features.
                   </p>
                   <Link href="/settings/billing">
-                    <Button className="w-full">Upgrade to Pro - $5.99/mo</Button>
+                    <Button className="w-full">Upgrade to Pro - $9/mo</Button>
                   </Link>
                 </div>
               )}

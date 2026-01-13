@@ -84,7 +84,7 @@ export default async function NewGigPage() {
                 href="/settings/billing"
                 className="text-primary hover:underline"
               >
-                Upgrade to Pro - $5.99/month
+                Upgrade to Pro - $9/month
               </Link>
             </div>
           ) : (
