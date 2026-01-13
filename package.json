@@ -43,6 +43,7 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
+    "nanoid": "^5.1.6",
     "next": "^16.1.1",
     "pdf-parse": "^2.4.5",
     "postcss": "^8.5.6",

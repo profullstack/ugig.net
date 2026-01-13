@@ -108,4 +108,47 @@ describe("MessageBubble", () => {
     const avatar = screen.getByRole("img");
     expect(avatar).toHaveAttribute("src", "https://example.com/avatar.jpg");
   });
+
+  it("shows single check mark for unread own messages", () => {
+    const { container } = render(
+      <MessageBubble
+        message={mockMessage}
+        isOwn={true}
+        otherParticipantId="other-user-123"
+      />
+    );
+    // Should show single check (not read by other)
+    expect(container.querySelector('[title="Sent"]')).toBeInTheDocument();
+    expect(container.querySelector('[title="Read"]')).not.toBeInTheDocument();
+  });
+
+  it("shows double check mark for read own messages", () => {
+    const readMessage = {
+      ...mockMessage,
+      read_by: ["user-789", "other-user-123"],
+    };
+    const { container } = render(
+      <MessageBubble
+        message={readMessage}
+        isOwn={true}
+        otherParticipantId="other-user-123"
+      />
+    );
+    // Should show double check (read by other)
+    expect(container.querySelector('[title="Read"]')).toBeInTheDocument();
+    expect(container.querySelector('[title="Sent"]')).not.toBeInTheDocument();
+  });
+
+  it("does not show check marks for other people's messages", () => {
+    const { container } = render(
+      <MessageBubble
+        message={mockMessage}
+        isOwn={false}
+        otherParticipantId="other-user-123"
+      />
+    );
+    // Should not show any check marks
+    expect(container.querySelector('[title="Sent"]')).not.toBeInTheDocument();
+    expect(container.querySelector('[title="Read"]')).not.toBeInTheDocument();
+  });
 });

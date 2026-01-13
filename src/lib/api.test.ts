@@ -3,10 +3,15 @@ import {
   auth,
   profile,
   gigs,
+  savedGigs,
   applications,
   payments,
+  subscriptions,
   conversations,
   messages,
+  videoCalls,
+  reviews,
+  notifications,
 } from "./api";
 
 describe("API client", () => {
@@ -281,6 +286,21 @@ describe("API client", () => {
       });
     });
 
+    it("updateStatus makes PATCH request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ gig: { id: "123", status: "closed" } }),
+      });
+
+      await gigs.updateStatus("123", "closed");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/gigs/123/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "closed" }),
+      });
+    });
+
     it("getMy makes GET request", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -292,6 +312,63 @@ describe("API client", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/gigs/my", {
         headers: { "Content-Type": "application/json" },
       });
+    });
+  });
+
+  describe("savedGigs", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ gigs: [] }),
+      });
+
+      await savedGigs.list();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/saved-gigs", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("save makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ saved: { id: "saved-123" } }),
+      });
+
+      await savedGigs.save("gig-456");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/saved-gigs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gig_id: "gig-456" }),
+      });
+    });
+
+    it("unsave makes DELETE request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Gig unsaved successfully" }),
+      });
+
+      await savedGigs.unsave("gig-456");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/saved-gigs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gig_id: "gig-456" }),
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Gig not found" }),
+      });
+
+      const result = await savedGigs.save("invalid-id");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Gig not found");
     });
   });
 
@@ -349,6 +426,28 @@ describe("API client", () => {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "accepted" }),
+      });
+    });
+
+    it("bulkUpdateStatus makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            updated: 3,
+            applications: [{ id: "1" }, { id: "2" }, { id: "3" }],
+          }),
+      });
+
+      await applications.bulkUpdateStatus(["1", "2", "3"], "rejected");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/applications/bulk-status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          application_ids: ["1", "2", "3"],
+          status: "rejected",
+        }),
       });
     });
   });
@@ -526,6 +625,538 @@ describe("API client", () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBe("Network error. Please try again.");
+    });
+
+    it("sendTyping makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      await messages.sendTyping("conv-123");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/conversations/conv-123/typing",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("getTyping makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ typing: ["user-456"] }),
+      });
+
+      const result = await messages.getTyping("conv-123");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/conversations/conv-123/typing",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      expect(result.data).toEqual({ typing: ["user-456"] });
+    });
+  });
+
+  describe("videoCalls", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      await videoCalls.list();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("list with params makes GET request with query string", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      await videoCalls.list({ upcoming: true, limit: 10 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/video-calls?upcoming=true&limit=10",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("get makes GET request with ID", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "call-123", room_id: "ugig-abc123" },
+          }),
+      });
+
+      await videoCalls.get("call-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls/call-123", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("create makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "call-123", room_id: "ugig-xyz789" },
+          }),
+      });
+
+      await videoCalls.create({
+        participant_id: "user-456",
+        gig_id: "gig-789",
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participant_id: "user-456",
+          gig_id: "gig-789",
+        }),
+      });
+    });
+
+    it("start makes PATCH request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "call-123", started_at: "2024-01-01T00:00:00Z" },
+          }),
+      });
+
+      await videoCalls.start("call-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls/call-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
+      });
+    });
+
+    it("end makes PATCH request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "call-123", ended_at: "2024-01-01T01:00:00Z" },
+          }),
+      });
+
+      await videoCalls.end("call-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls/call-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "end" }),
+      });
+    });
+
+    it("cancel makes DELETE request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Video call canceled" }),
+      });
+
+      await videoCalls.cancel("call-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/video-calls/call-123", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Call not found" }),
+      });
+
+      const result = await videoCalls.get("invalid-id");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Call not found");
+    });
+  });
+
+  describe("reviews", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [],
+            pagination: { total: 0, limit: 20, offset: 0 },
+          }),
+      });
+
+      await reviews.list();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/reviews", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("list with params makes GET request with query string", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [],
+            pagination: { total: 0, limit: 10, offset: 0 },
+          }),
+      });
+
+      await reviews.list({ gig_id: "gig-123", limit: 10 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/reviews?gig_id=gig-123&limit=10",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("get makes GET request with ID", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "review-123", rating: 5 },
+          }),
+      });
+
+      await reviews.get("review-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/reviews/review-123", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("getForUser makes GET request with username", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [],
+            summary: { average_rating: 4.5, total_reviews: 10 },
+            pagination: { total: 10, limit: 10, offset: 0 },
+          }),
+      });
+
+      await reviews.getForUser("testuser", { limit: 10 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/users/testuser/reviews?limit=10",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("create makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "review-123", rating: 5 },
+          }),
+      });
+
+      await reviews.create({
+        gig_id: "gig-123",
+        reviewee_id: "user-456",
+        rating: 5,
+        comment: "Great work!",
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gig_id: "gig-123",
+          reviewee_id: "user-456",
+          rating: 5,
+          comment: "Great work!",
+        }),
+      });
+    });
+
+    it("update makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "review-123", rating: 4 },
+          }),
+      });
+
+      await reviews.update("review-123", { rating: 4 });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/reviews/review-123", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating: 4 }),
+      });
+    });
+
+    it("delete makes DELETE request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Review deleted" }),
+      });
+
+      await reviews.delete("review-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/reviews/review-123", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Review not found" }),
+      });
+
+      const result = await reviews.get("invalid-id");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Review not found");
+    });
+  });
+
+  describe("notifications", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            notifications: [],
+            unread_count: 0,
+            pagination: { total: 0, limit: 50, offset: 0 },
+          }),
+      });
+
+      await notifications.list();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/notifications", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("list with params makes GET request with query string", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            notifications: [],
+            unread_count: 0,
+            pagination: { total: 0, limit: 10, offset: 0 },
+          }),
+      });
+
+      await notifications.list({ unread: true, limit: 10 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/notifications?unread=true&limit=10",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("get makes GET request with ID", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "notif-123", title: "Test notification" },
+          }),
+      });
+
+      await notifications.get("notif-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/notifications/notif-123", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("markRead makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { id: "notif-123", read_at: "2024-01-01" },
+          }),
+      });
+
+      await notifications.markRead("notif-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/notifications/notif-123", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("markAllRead makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            message: "All notifications marked as read",
+            count: 5,
+          }),
+      });
+
+      await notifications.markAllRead();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/notifications/read-all", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("delete makes DELETE request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      await notifications.delete("notif-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/notifications/notif-123", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Unauthorized" }),
+      });
+
+      const result = await notifications.list();
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Unauthorized");
+    });
+  });
+
+  describe("subscriptions", () => {
+    it("get makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { plan: "free", status: "active" },
+          }),
+      });
+
+      await subscriptions.get();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("createCheckout makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sessionId: "cs_test_123",
+            url: "https://checkout.stripe.com/...",
+          }),
+      });
+
+      await subscriptions.createCheckout();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("createPortalSession makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            url: "https://billing.stripe.com/...",
+          }),
+      });
+
+      await subscriptions.createPortalSession();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("cancel makes DELETE request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            message: "Subscription will be canceled at the end of the billing period",
+          }),
+      });
+
+      await subscriptions.cancel();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("reactivate makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            message: "Subscription reactivated",
+          }),
+      });
+
+      await subscriptions.reactivate();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "No subscription found" }),
+      });
+
+      const result = await subscriptions.cancel();
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("No subscription found");
     });
   });
 });

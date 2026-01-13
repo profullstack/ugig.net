@@ -117,12 +117,38 @@ export const gigs = {
       body: JSON.stringify(data),
     }),
 
+  updateStatus: (
+    id: string,
+    status: "draft" | "active" | "paused" | "closed" | "filled"
+  ) =>
+    request(`/api/gigs/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
   delete: (id: string) =>
     request(`/api/gigs/${id}`, {
       method: "DELETE",
     }),
 
   getMy: () => request("/api/gigs/my"),
+};
+
+// Saved Gigs API
+export const savedGigs = {
+  list: () => request("/api/saved-gigs"),
+
+  save: (gigId: string) =>
+    request("/api/saved-gigs", {
+      method: "POST",
+      body: JSON.stringify({ gig_id: gigId }),
+    }),
+
+  unsave: (gigId: string) =>
+    request("/api/saved-gigs", {
+      method: "DELETE",
+      body: JSON.stringify({ gig_id: gigId }),
+    }),
 };
 
 // Applications API
@@ -142,6 +168,15 @@ export const applications = {
       method: "PUT",
       body: JSON.stringify({ status }),
     }),
+
+  bulkUpdateStatus: (
+    applicationIds: string[],
+    status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted"
+  ) =>
+    request("/api/applications/bulk-status", {
+      method: "PUT",
+      body: JSON.stringify({ application_ids: applicationIds, status }),
+    }),
 };
 
 // Payments API
@@ -155,6 +190,31 @@ export const payments = {
     request("/api/payments/coinpayportal/create", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+};
+
+// Subscriptions API
+export const subscriptions = {
+  get: () => request("/api/subscriptions"),
+
+  createCheckout: () =>
+    request("/api/subscriptions/checkout", {
+      method: "POST",
+    }),
+
+  createPortalSession: () =>
+    request("/api/subscriptions/portal", {
+      method: "POST",
+    }),
+
+  cancel: () =>
+    request("/api/subscriptions", {
+      method: "DELETE",
+    }),
+
+  reactivate: () =>
+    request("/api/subscriptions", {
+      method: "PUT",
     }),
 };
 
@@ -187,5 +247,127 @@ export const messages = {
   markRead: (messageId: string) =>
     request(`/api/messages/${messageId}/read`, {
       method: "PUT",
+    }),
+
+  sendTyping: (conversationId: string) =>
+    request(`/api/conversations/${conversationId}/typing`, {
+      method: "POST",
+    }),
+
+  getTyping: (conversationId: string) =>
+    request<{ typing: string[] }>(`/api/conversations/${conversationId}/typing`),
+};
+
+// Video Calls API
+export const videoCalls = {
+  list: (params?: { upcoming?: boolean; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.upcoming) searchParams.set("upcoming", "true");
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    const query = searchParams.toString();
+    return request(`/api/video-calls${query ? `?${query}` : ""}`);
+  },
+
+  get: (id: string) => request(`/api/video-calls/${id}`),
+
+  create: (data: {
+    participant_id: string;
+    gig_id?: string;
+    application_id?: string;
+    scheduled_at?: string;
+  }) =>
+    request("/api/video-calls", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  start: (id: string) =>
+    request(`/api/video-calls/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: "start" }),
+    }),
+
+  end: (id: string) =>
+    request(`/api/video-calls/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: "end" }),
+    }),
+
+  cancel: (id: string) =>
+    request(`/api/video-calls/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Reviews API
+export const reviews = {
+  list: (params?: { gig_id?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.gig_id) searchParams.set("gig_id", params.gig_id);
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/reviews${query ? `?${query}` : ""}`);
+  },
+
+  get: (id: string) => request(`/api/reviews/${id}`),
+
+  getForUser: (username: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/users/${username}/reviews${query ? `?${query}` : ""}`);
+  },
+
+  create: (data: {
+    gig_id: string;
+    reviewee_id: string;
+    rating: number;
+    comment?: string;
+  }) =>
+    request("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { rating?: number; comment?: string }) =>
+    request(`/api/reviews/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request(`/api/reviews/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Notifications API
+export const notifications = {
+  list: (params?: { unread?: boolean; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.unread) searchParams.set("unread", "true");
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/notifications${query ? `?${query}` : ""}`);
+  },
+
+  get: (id: string) => request(`/api/notifications/${id}`),
+
+  markRead: (id: string) =>
+    request(`/api/notifications/${id}`, {
+      method: "PUT",
+    }),
+
+  markAllRead: () =>
+    request("/api/notifications/read-all", {
+      method: "PUT",
+    }),
+
+  delete: (id: string) =>
+    request(`/api/notifications/${id}`, {
+      method: "DELETE",
     }),
 };

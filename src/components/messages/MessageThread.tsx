@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
+import { TypingIndicator } from "./TypingIndicator";
+import { StartVideoCallButton } from "@/components/video/StartVideoCallButton";
 import { useMessageStream } from "@/hooks/useMessageStream";
 import type { MessageWithSender, Profile, Gig } from "@/types";
 import { ArrowLeft, Wifi, WifiOff, ExternalLink } from "lucide-react";
@@ -53,7 +55,7 @@ export function MessageThread({
     });
   }, []);
 
-  const { isConnected, reconnect } = useMessageStream(conversationId, {
+  const { isConnected, reconnect, sendTyping, isOtherTyping } = useMessageStream(conversationId, {
     onMessage: handleNewMessage,
   });
 
@@ -180,6 +182,16 @@ export function MessageThread({
           )}
         </div>
 
+        {/* Video call button */}
+        {otherParticipant && (
+          <StartVideoCallButton
+            participantId={otherParticipant.id}
+            gigId={gig?.id}
+            variant="ghost"
+            size="sm"
+          />
+        )}
+
         {/* Connection status */}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           {isConnected ? (
@@ -239,6 +251,7 @@ export function MessageThread({
                     message={message}
                     isOwn={isOwn}
                     showAvatar={showAvatar}
+                    otherParticipantId={otherParticipant?.id}
                   />
                 );
               })}
@@ -249,8 +262,17 @@ export function MessageThread({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing indicator */}
+      {isOtherTyping && (
+        <div className="px-4 py-2 border-t border-border bg-card/50">
+          <TypingIndicator
+            userName={otherParticipant?.full_name || otherParticipant?.username}
+          />
+        </div>
+      )}
+
       {/* Input */}
-      <MessageInput onSend={handleSend} />
+      <MessageInput onSend={handleSend} onTyping={sendTyping} />
     </div>
   );
 }

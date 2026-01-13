@@ -655,6 +655,42 @@ export type Database = {
           }
         ];
       };
+      saved_gigs: {
+        Row: {
+          id: string;
+          user_id: string;
+          gig_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          gig_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          gig_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_gigs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "saved_gigs_gig_id_fkey";
+            columns: ["gig_id"];
+            isOneToOne: false;
+            referencedRelation: "gigs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

@@ -149,34 +149,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check gig limit for free users
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("plan")
-      .eq("user_id", user.id)
-      .single();
+    const isActivePost = validationResult.data.status === "active";
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
 
-    if (!subscription || subscription.plan === "free") {
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-
-      const { data: usage } = await supabase
-        .from("gig_usage")
-        .select("posts_count")
+    // Only check gig limit for active posts
+    if (isActivePost) {
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan")
         .eq("user_id", user.id)
-        .eq("month", month)
-        .eq("year", year)
         .single();
 
-      if (usage && usage.posts_count >= 10) {
-        return NextResponse.json(
-          {
-            error:
-              "You've reached your monthly limit of 10 gig posts. Upgrade to Pro for unlimited posts.",
-          },
-          { status: 403 }
-        );
+      if (!subscription || subscription.plan === "free") {
+        const { data: usage } = await supabase
+          .from("gig_usage")
+          .select("posts_count")
+          .eq("user_id", user.id)
+          .eq("month", month)
+          .eq("year", year)
+          .single();
+
+        if (usage && usage.posts_count >= 10) {
+          return NextResponse.json(
+            {
+              error:
+                "You've reached your monthly limit of 10 gig posts. Upgrade to Pro for unlimited posts.",
+            },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -194,29 +197,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Update usage count
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
+    // Only update usage count for active posts
+    if (isActivePost) {
+      await supabase.from("gig_usage").upsert(
+        {
+          user_id: user.id,
+          month,
+          year,
+          posts_count: 1,
+        },
+        {
+          onConflict: "user_id,month,year",
+        }
+      );
 
-    await supabase.from("gig_usage").upsert(
-      {
-        user_id: user.id,
-        month,
-        year,
-        posts_count: 1,
-      },
-      {
-        onConflict: "user_id,month,year",
-      }
-    );
-
-    // Increment posts_count if record exists
-    await supabase.rpc("increment_gig_usage", {
-      p_user_id: user.id,
-      p_month: month,
-      p_year: year,
-    });
+      await supabase.rpc("increment_gig_usage", {
+        p_user_id: user.id,
+        p_month: month,
+        p_year: year,
+      });
+    }
 
     return NextResponse.json({ gig }, { status: 201 });
   } catch {

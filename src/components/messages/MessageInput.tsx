@@ -7,12 +7,14 @@ import { Send, Loader2 } from "lucide-react";
 
 interface MessageInputProps {
   onSend: (content: string) => Promise<void>;
+  onTyping?: () => void;
   disabled?: boolean;
   placeholder?: string;
 }
 
 export function MessageInput({
   onSend,
+  onTyping,
   disabled = false,
   placeholder = "Type a message...",
 }: MessageInputProps) {
@@ -58,7 +60,10 @@ export function MessageInput({
       <Textarea
         ref={textareaRef}
         value={content}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={(e) => {
+          setContent(e.target.value);
+          onTyping?.();
+        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled || isSending}

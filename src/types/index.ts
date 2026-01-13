@@ -47,6 +47,12 @@ export type ReviewWithUsers = Review & {
   reviewee: Profile;
 };
 
+export type VideoCallWithParticipants = VideoCall & {
+  initiator: Profile;
+  participants: Profile[];
+  gig?: Pick<Gig, "id" | "title"> | null;
+};
+
 // Action result types
 export type ActionResult<T = void> = {
   success: boolean;

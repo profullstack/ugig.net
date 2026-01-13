@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MapPin, Clock, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SaveGigButton } from "./SaveGigButton";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import type { Gig, Profile } from "@/types";
 
@@ -11,9 +12,17 @@ interface GigCardProps {
   gig: Gig & {
     poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
   };
+  showSaveButton?: boolean;
+  isSaved?: boolean;
+  onSaveChange?: (saved: boolean) => void;
 }
 
-export function GigCard({ gig }: GigCardProps) {
+export function GigCard({
+  gig,
+  showSaveButton = false,
+  isSaved = false,
+  onSaveChange,
+}: GigCardProps) {
   const budgetDisplay =
     gig.budget_type === "fixed"
       ? gig.budget_min && gig.budget_max
@@ -37,19 +46,28 @@ export function GigCard({ gig }: GigCardProps) {
             {gig.description}
           </p>
         </div>
-        {gig.poster && (
-          <Avatar className="h-10 w-10 flex-shrink-0">
-            <AvatarImage
-              src={gig.poster.avatar_url || undefined}
-              alt={gig.poster.full_name || gig.poster.username}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {showSaveButton && (
+            <SaveGigButton
+              gigId={gig.id}
+              initialSaved={isSaved}
+              onSaveChange={onSaveChange}
             />
-            <AvatarFallback>
-              {(gig.poster.full_name || gig.poster.username)
-                .charAt(0)
-                .toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        )}
+          )}
+          {gig.poster && (
+            <Avatar className="h-10 w-10">
+              <AvatarImage
+                src={gig.poster.avatar_url || undefined}
+                alt={gig.poster.full_name || gig.poster.username}
+              />
+              <AvatarFallback>
+                {(gig.poster.full_name || gig.poster.username)
+                  .charAt(0)
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mt-4">

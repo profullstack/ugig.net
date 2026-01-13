@@ -3,16 +3,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { GigActions } from "@/components/gigs/GigActions";
 import {
   Plus,
   ArrowLeft,
   Eye,
   Users,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Pause,
-  Play,
 } from "lucide-react";
 
 export const metadata = {
@@ -144,38 +140,7 @@ export default async function MyGigsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Link href={`/gigs/${gig.id}/edit`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-
-                      <div className="relative group">
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                        <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                          <div className="p-1">
-                            {gig.status === "active" ? (
-                              <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2">
-                                <Pause className="h-4 w-4" />
-                                Pause Gig
-                              </button>
-                            ) : gig.status === "paused" ? (
-                              <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2">
-                                <Play className="h-4 w-4" />
-                                Activate Gig
-                              </button>
-                            ) : null}
-                            <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2 text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                              Delete Gig
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <GigActions gigId={gig.id} status={gig.status} />
                   </div>
 
                   {/* Quick stats bar */}

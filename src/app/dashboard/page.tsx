@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   Briefcase,
   FileText,
@@ -123,6 +124,7 @@ export default async function DashboardPage() {
             >
               Browse Gigs
             </Link>
+            <NotificationBell />
             <Link href="/gigs/new">
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
@@ -388,6 +390,12 @@ export default async function DashboardPage() {
                   className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
                 >
                   Messages
+                </Link>
+                <Link
+                  href="/dashboard/notifications"
+                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                >
+                  Notifications
                 </Link>
                 <Link
                   href="/profile"

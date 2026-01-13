@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Check, CheckCheck } from "lucide-react";
 import type { MessageWithSender } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -8,12 +9,14 @@ interface MessageBubbleProps {
   message: MessageWithSender;
   isOwn: boolean;
   showAvatar?: boolean;
+  otherParticipantId?: string;
 }
 
 export function MessageBubble({
   message,
   isOwn,
   showAvatar = true,
+  otherParticipantId,
 }: MessageBubbleProps) {
   const sender = message.sender;
   const initials = (sender.full_name || sender.username || "U")
@@ -24,6 +27,12 @@ export function MessageBubble({
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
+
+  // Check if message has been read by the other participant
+  const isRead =
+    isOwn &&
+    otherParticipantId &&
+    message.read_by?.includes(otherParticipantId);
 
   return (
     <div
@@ -57,9 +66,20 @@ export function MessageBubble({
         >
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         </div>
-        <span className="text-xs text-muted-foreground mt-1">
-          {formatTime(message.created_at)}
-        </span>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-xs text-muted-foreground">
+            {formatTime(message.created_at)}
+          </span>
+          {isOwn && (
+            <span className="text-muted-foreground" title={isRead ? "Read" : "Sent"}>
+              {isRead ? (
+                <CheckCheck className="h-3 w-3 text-primary" />
+              ) : (
+                <Check className="h-3 w-3" />
+              )}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -17,12 +17,20 @@ export async function POST(request: NextRequest) {
     const { email, password, username } = validationResult.data;
     const supabase = await createClient();
 
-    // Check if username is already taken
-    const { data: existingUser } = await supabase
+    // Check if username is already taken (use maybeSingle to avoid error when not found)
+    const { data: existingUser, error: usernameError } = await supabase
       .from("profiles")
       .select("id")
       .eq("username", username)
-      .single();
+      .maybeSingle();
+
+    if (usernameError) {
+      console.error("Username check error:", usernameError);
+      return NextResponse.json(
+        { error: "Failed to check username availability" },
+        { status: 500 }
+      );
+    }
 
     if (existingUser) {
       return NextResponse.json(
@@ -50,7 +58,8 @@ export async function POST(request: NextRequest) {
       message: "Check your email to confirm your account",
       user: data.user,
     });
-  } catch {
+  } catch (err) {
+    console.error("Signup error:", err);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
