@@ -94,13 +94,15 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
 
   // Multiple date range patterns to handle different formats:
   // "Jan 2020 - Present", "January 2020 – Dec 2023", "2020 - 2023", "(Mar 2021 – Jan 2022)"
+  // Note: PDF extraction often corrupts parentheses and dashes, so we use permissive patterns
   const dateRangePatterns = [
-    // Month Year - Month Year/Present with optional parentheses (most common)
-    /\(?\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}\s*[-–—]+\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}|present|current|now|ongoing|part[- ]?time)\s*\)?/gi,
+    // Month Year - Month Year/Present (most common) - permissive with any surrounding chars
+    // Matches: "Mar 2018 – part-time", "(Mar 2021 – Jan 2022)", corrupted variants
+    /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}\s*[^\w\s]*\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}|present|current|now|ongoing|part[- ]?time)/gi,
     // Year - Year/Present
-    /\b(19|20)\d{2}\s*[-–—to]+\s*(?:(19|20)\d{2}|present|current|now|ongoing)\b/gi,
+    /\b(19|20)\d{2}\s*[-–—to\u2013\u2014]+\s*(?:(19|20)\d{2}|present|current|now|ongoing)\b/gi,
     // MM/YYYY - MM/YYYY
-    /\d{1,2}\/\d{4}\s*[-–—to]+\s*(?:\d{1,2}\/\d{4}|present|current|now)/gi,
+    /\d{1,2}\/\d{4}\s*[-–—to\u2013\u2014]+\s*(?:\d{1,2}\/\d{4}|present|current|now)/gi,
   ];
 
   // Try each pattern
