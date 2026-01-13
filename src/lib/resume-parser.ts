@@ -281,7 +281,9 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
   let text = "";
 
   if (mimeType === "application/pdf") {
-    const { text: pdfText } = await extractText(buffer);
+    // Convert Buffer to Uint8Array for unpdf
+    const uint8Array = new Uint8Array(buffer);
+    const { text: pdfText } = await extractText(uint8Array);
     text = Array.isArray(pdfText) ? pdfText.join("\n") : pdfText;
   } else if (
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
