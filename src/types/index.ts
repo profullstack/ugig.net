@@ -1,0 +1,149 @@
+import type { Tables } from "./database";
+
+// Re-export database types
+export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./database";
+
+// Convenience type aliases
+export type Profile = Tables<"profiles">;
+export type Gig = Tables<"gigs">;
+export type Application = Tables<"applications">;
+export type Conversation = Tables<"conversations">;
+export type Message = Tables<"messages">;
+export type Subscription = Tables<"subscriptions">;
+export type GigUsage = Tables<"gig_usage">;
+export type Review = Tables<"reviews">;
+export type Notification = Tables<"notifications">;
+export type VideoCall = Tables<"video_calls">;
+
+// Extended types with relations
+export type GigWithPoster = Gig & {
+  poster: Profile;
+};
+
+export type ApplicationWithDetails = Application & {
+  gig: Gig;
+  applicant: Profile;
+};
+
+export type ConversationWithParticipants = Conversation & {
+  participants: Profile[];
+  gig?: Gig | null;
+};
+
+export type MessageWithSender = Message & {
+  sender: Profile;
+};
+
+export type ReviewWithUsers = Review & {
+  reviewer: Profile;
+  reviewee: Profile;
+};
+
+// Action result types
+export type ActionResult<T = void> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+};
+
+export type PaginatedResult<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+// Form types
+export type GigFormData = {
+  title: string;
+  description: string;
+  category: string;
+  skills_required: string[];
+  ai_tools_preferred: string[];
+  budget_type: "fixed" | "hourly";
+  budget_min?: number;
+  budget_max?: number;
+  duration?: string;
+  location_type: "remote" | "onsite" | "hybrid";
+  location?: string;
+};
+
+export type ApplicationFormData = {
+  cover_letter: string;
+  proposed_rate?: number;
+  proposed_timeline?: string;
+  portfolio_items: string[];
+  ai_tools_to_use: string[];
+};
+
+export type ProfileFormData = {
+  username: string;
+  full_name?: string;
+  bio?: string;
+  skills: string[];
+  ai_tools: string[];
+  hourly_rate?: number;
+  portfolio_urls: string[];
+  location?: string;
+  timezone?: string;
+  is_available: boolean;
+};
+
+// Filter types
+export type GigFilters = {
+  search?: string;
+  category?: string;
+  skills?: string[];
+  ai_tools?: string[];
+  budget_min?: number;
+  budget_max?: number;
+  budget_type?: "fixed" | "hourly";
+  location_type?: "remote" | "onsite" | "hybrid";
+  posted_within?: "day" | "week" | "month";
+};
+
+// Constants
+export const GIG_CATEGORIES = [
+  "Development",
+  "Design",
+  "Writing & Content",
+  "Data",
+  "Marketing",
+  "Business",
+] as const;
+
+export const AI_TOOLS = [
+  "ChatGPT",
+  "Claude",
+  "Gemini",
+  "GitHub Copilot",
+  "Cursor",
+  "Midjourney",
+  "DALL-E",
+  "Stable Diffusion",
+  "Runway",
+  "ElevenLabs",
+  "Notion AI",
+  "Other",
+] as const;
+
+export const SKILLS = [
+  "JavaScript",
+  "TypeScript",
+  "Python",
+  "React",
+  "Next.js",
+  "Node.js",
+  "PostgreSQL",
+  "MongoDB",
+  "AWS",
+  "Docker",
+  "GraphQL",
+  "REST APIs",
+  "UI/UX Design",
+  "Figma",
+  "Technical Writing",
+  "Data Analysis",
+  "Machine Learning",
+] as const;
