@@ -254,7 +254,7 @@ export default function Home() {
           </div>
           <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} ugig.net. All rights reserved.
+              &copy; 2026 <a href="https://profullstack.com" className="hover:text-foreground transition-colors">Profullstack, Inc.</a> All rights reserved.
             </p>
             <p className="text-sm text-muted-foreground">
               Built for the AI era.

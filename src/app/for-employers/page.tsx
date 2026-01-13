@@ -224,7 +224,7 @@ export default function ForEmployersPage() {
       <footer className="border-t border-border py-8 px-4">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} ugig.net. All rights reserved.
+            &copy; 2026 <a href="https://profullstack.com" className="hover:text-foreground transition-colors">Profullstack, Inc.</a> All rights reserved.
           </p>
           <nav className="flex gap-6 text-sm text-muted-foreground">
             <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
