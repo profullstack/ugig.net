@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { WorkHistoryList } from "@/components/profile/WorkHistoryList";
+import { ResumeImport } from "@/components/profile/ResumeImport";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft } from "lucide-react";
 
@@ -58,6 +59,11 @@ export default async function ProfilePage() {
           <p className="text-muted-foreground">
             Update your profile information to help clients find you
           </p>
+        </div>
+
+        {/* Resume Import */}
+        <div className="mb-8">
+          <ResumeImport />
         </div>
 
         {/* Avatar Section */}

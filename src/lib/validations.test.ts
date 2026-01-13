@@ -9,6 +9,8 @@ import {
   gigFiltersSchema,
   applicationSchema,
   applicationStatusSchema,
+  messageSchema,
+  conversationCreateSchema,
 } from "./validations";
 
 describe("signupSchema", () => {
@@ -405,6 +407,97 @@ describe("applicationStatusSchema", () => {
   it("rejects invalid status", () => {
     const result = applicationStatusSchema.safeParse({
       status: "invalid",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("messageSchema", () => {
+  it("validates valid message content", () => {
+    const result = messageSchema.safeParse({
+      content: "Hello, this is a test message!",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty message", () => {
+    const result = messageSchema.safeParse({
+      content: "",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Message is required");
+    }
+  });
+
+  it("rejects message over 5000 characters", () => {
+    const result = messageSchema.safeParse({
+      content: "a".repeat(5001),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        "Message must be at most 5000 characters"
+      );
+    }
+  });
+
+  it("accepts message at max length", () => {
+    const result = messageSchema.safeParse({
+      content: "a".repeat(5000),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts multiline message", () => {
+    const result = messageSchema.safeParse({
+      content: "Line 1\nLine 2\nLine 3",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("conversationCreateSchema", () => {
+  it("validates valid conversation creation data", () => {
+    const result = conversationCreateSchema.safeParse({
+      gig_id: "123e4567-e89b-12d3-a456-426614174000",
+      recipient_id: "987fcdeb-51a2-3bc4-a567-890123456789",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid gig_id", () => {
+    const result = conversationCreateSchema.safeParse({
+      gig_id: "not-a-uuid",
+      recipient_id: "987fcdeb-51a2-3bc4-a567-890123456789",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Invalid gig ID");
+    }
+  });
+
+  it("rejects invalid recipient_id", () => {
+    const result = conversationCreateSchema.safeParse({
+      gig_id: "123e4567-e89b-12d3-a456-426614174000",
+      recipient_id: "not-a-uuid",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Invalid recipient ID");
+    }
+  });
+
+  it("rejects missing gig_id", () => {
+    const result = conversationCreateSchema.safeParse({
+      recipient_id: "987fcdeb-51a2-3bc4-a567-890123456789",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing recipient_id", () => {
+    const result = conversationCreateSchema.safeParse({
+      gig_id: "123e4567-e89b-12d3-a456-426614174000",
     });
     expect(result.success).toBe(false);
   });

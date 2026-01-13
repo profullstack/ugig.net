@@ -157,3 +157,35 @@ export const payments = {
       body: JSON.stringify(data),
     }),
 };
+
+// Conversations API
+export const conversations = {
+  list: () => request("/api/conversations"),
+
+  get: (id: string) => request(`/api/conversations/${id}`),
+
+  create: (data: { gig_id: string; recipient_id: string }) =>
+    request("/api/conversations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+// Messages API
+export const messages = {
+  list: (conversationId: string, cursor?: string) =>
+    request(
+      `/api/conversations/${conversationId}/messages${cursor ? `?cursor=${cursor}` : ""}`
+    ),
+
+  send: (conversationId: string, content: string) =>
+    request(`/api/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+
+  markRead: (messageId: string) =>
+    request(`/api/messages/${messageId}/read`, {
+      method: "PUT",
+    }),
+};

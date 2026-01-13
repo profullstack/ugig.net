@@ -152,6 +152,22 @@ export const workHistorySchema = z.object({
 });
 
 // =============================================
+// MESSAGING SCHEMAS
+// =============================================
+
+export const messageSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Message is required")
+    .max(5000, "Message must be at most 5000 characters"),
+});
+
+export const conversationCreateSchema = z.object({
+  gig_id: z.string().uuid("Invalid gig ID"),
+  recipient_id: z.string().uuid("Invalid recipient ID"),
+});
+
+// =============================================
 // TYPE EXPORTS
 // =============================================
 
@@ -165,3 +181,5 @@ export type GigFiltersInput = z.infer<typeof gigFiltersSchema>;
 export type ApplicationInput = z.infer<typeof applicationSchema>;
 export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
 export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
+export type MessageInput = z.infer<typeof messageSchema>;
+export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;

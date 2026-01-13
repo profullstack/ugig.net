@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { auth, profile, gigs, applications, payments } from "./api";
+import {
+  auth,
+  profile,
+  gigs,
+  applications,
+  payments,
+  conversations,
+  messages,
+} from "./api";
 
 describe("API client", () => {
   const mockFetch = vi.fn();
@@ -369,6 +377,155 @@ describe("API client", () => {
           currency: "usdc_pol",
         }),
       });
+    });
+  });
+
+  describe("conversations", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      await conversations.list();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/conversations", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("get makes GET request with ID", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: { id: "conv-123" } }),
+      });
+
+      await conversations.get("conv-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/conversations/conv-123", {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("create makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: { id: "conv-123" } }),
+      });
+
+      await conversations.create({
+        gig_id: "gig-123",
+        recipient_id: "user-456",
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gig_id: "gig-123",
+          recipient_id: "user-456",
+        }),
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Conversation not found" }),
+      });
+
+      const result = await conversations.get("invalid-id");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Conversation not found");
+    });
+  });
+
+  describe("messages", () => {
+    it("list makes GET request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [], hasMore: false }),
+      });
+
+      await messages.list("conv-123");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/conversations/conv-123/messages",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("list with cursor makes GET request with query param", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [], hasMore: false }),
+      });
+
+      await messages.list("conv-123", "2024-01-01T00:00:00Z");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/conversations/conv-123/messages?cursor=2024-01-01T00:00:00Z",
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
+
+    it("send makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ data: { id: "msg-123", content: "Hello!" } }),
+      });
+
+      await messages.send("conv-123", "Hello!");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/conversations/conv-123/messages",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "Hello!" }),
+        }
+      );
+    });
+
+    it("markRead makes PUT request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      await messages.markRead("msg-123");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/messages/msg-123/read", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    it("handles API errors", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Message not found" }),
+      });
+
+      const result = await messages.markRead("invalid-id");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Message not found");
+    });
+
+    it("handles network errors", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await messages.send("conv-123", "Hello!");
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe("Network error. Please try again.");
     });
   });
 });

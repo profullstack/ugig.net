@@ -35,6 +35,13 @@ export type MessageWithSender = Message & {
   sender: Profile;
 };
 
+export type ConversationWithPreview = Conversation & {
+  participants: Profile[];
+  gig?: Pick<Gig, "id" | "title"> | null;
+  last_message?: Pick<Message, "content" | "sender_id" | "created_at"> | null;
+  unread_count: number;
+};
+
 export type ReviewWithUsers = Review & {
   reviewer: Profile;
   reviewee: Profile;

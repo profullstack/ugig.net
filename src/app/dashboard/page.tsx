@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Plus,
   ArrowRight,
+  MessageSquare,
 } from "lucide-react";
 
 export const metadata = {
@@ -248,6 +249,17 @@ export default async function DashboardPage() {
                     Track your job applications
                   </p>
                 </Link>
+
+                <Link
+                  href="/dashboard/messages"
+                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <MessageSquare className="h-5 w-5 text-primary mb-2" />
+                  <h3 className="font-medium">Messages</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Chat with gig posters and applicants
+                  </p>
+                </Link>
               </div>
             </div>
 
@@ -370,6 +382,12 @@ export default async function DashboardPage() {
                   className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
                 >
                   My Applications
+                </Link>
+                <Link
+                  href="/dashboard/messages"
+                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                >
+                  Messages
                 </Link>
                 <Link
                   href="/profile"
