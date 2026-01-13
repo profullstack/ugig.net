@@ -50,7 +50,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log("Profile update request body:", JSON.stringify(body, null, 2));
+
     const validationResult = profileSchema.safeParse(body);
+    console.log("Validation result:", validationResult.success, validationResult.data);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -81,21 +84,26 @@ export async function PUT(request: NextRequest) {
         validationResult.data.skills.length > 0
     );
 
+    const updateData = {
+      ...validationResult.data,
+      profile_completed: isComplete,
+      updated_at: new Date().toISOString(),
+    };
+    console.log("Updating profile with:", JSON.stringify(updateData, null, 2));
+
     const { data: profile, error } = await supabase
       .from("profiles")
-      .update({
-        ...validationResult.data,
-        profile_completed: isComplete,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", user.id)
       .select()
       .single();
 
     if (error) {
+      console.error("Profile update error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    console.log("Profile updated successfully, portfolio_urls:", profile?.portfolio_urls);
     return NextResponse.json({ profile });
   } catch {
     return NextResponse.json(
