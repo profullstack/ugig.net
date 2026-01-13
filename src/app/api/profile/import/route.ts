@@ -126,43 +126,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert work history entries
-    const insertedWorkHistory = [];
-    if (parsed.work_history && parsed.work_history.length > 0) {
-      // First, mark all existing as not current if we're importing current positions
-      const hasCurrentPosition = parsed.work_history.some((wh) => wh.is_current);
-      if (hasCurrentPosition) {
-        await supabase
-          .from("work_history")
-          .update({ is_current: false })
-          .eq("user_id", user.id)
-          .eq("is_current", true);
-      }
-
-      for (const wh of parsed.work_history) {
-        if (wh.company && wh.position && wh.start_date) {
-          const { data, error } = await supabase
-            .from("work_history")
-            .insert({
-              user_id: user.id,
-              company: wh.company,
-              position: wh.position,
-              description: wh.description,
-              start_date: wh.start_date,
-              end_date: wh.end_date,
-              is_current: wh.is_current,
-              location: wh.location,
-            })
-            .select()
-            .single();
-
-          if (!error && data) {
-            insertedWorkHistory.push(data);
-          }
-        }
-      }
-    }
-
+    // Return parsed work history for user to review/edit before saving
+    // Work history is NOT automatically inserted - user must save manually
     return NextResponse.json({
       success: true,
       imported: {
@@ -172,10 +137,11 @@ export async function POST(request: NextRequest) {
         skills_count: parsed.skills?.length || 0,
         skills: parsed.skills?.slice(0, 10) || [],
         location: parsed.location,
-        work_history_count: insertedWorkHistory.length,
+        work_history_count: parsed.work_history?.length || 0,
         resume_url: resumeUrl,
       },
-      work_history: insertedWorkHistory,
+      // Return parsed work history for editing (not yet saved)
+      parsed_work_history: parsed.work_history || [],
     });
   } catch (error) {
     console.error("Resume import error:", error);

@@ -3,7 +3,20 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, FileText, Check, AlertCircle, Loader2, Trash2, Save } from "lucide-react";
+
+interface ParsedWorkHistory {
+  company: string;
+  position: string;
+  description: string | null;
+  start_date: string;
+  end_date: string | null;
+  is_current: boolean;
+  location: string | null;
+}
 
 interface ImportResult {
   success: boolean;
@@ -16,20 +29,26 @@ interface ImportResult {
     location: string | null;
     work_history_count: number;
   };
+  parsed_work_history: ParsedWorkHistory[];
 }
 
 export function ResumeImport() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [workHistoryEntries, setWorkHistoryEntries] = useState<ParsedWorkHistory[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
 
   const handleFile = async (file: File) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setWorkHistoryEntries([]);
+    setSavedCount(0);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -48,11 +67,62 @@ export function ResumeImport() {
       }
 
       setResult(data);
-      router.refresh();
+      setWorkHistoryEntries(data.parsed_work_history || []);
+      router.refresh(); // Refresh to update profile fields (name, bio, skills)
     } catch {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateWorkHistoryEntry = (index: number, field: keyof ParsedWorkHistory, value: string | boolean | null) => {
+    setWorkHistoryEntries(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeWorkHistoryEntry = (index: number) => {
+    setWorkHistoryEntries(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveAllWorkHistory = async () => {
+    setIsSaving(true);
+    setError(null);
+    let saved = 0;
+
+    try {
+      for (const entry of workHistoryEntries) {
+        if (!entry.company || !entry.position || !entry.start_date) continue;
+
+        const response = await fetch("/api/work-history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company: entry.company,
+            position: entry.position,
+            description: entry.description,
+            start_date: entry.start_date,
+            end_date: entry.end_date,
+            is_current: entry.is_current,
+            location: entry.location,
+          }),
+        });
+
+        if (response.ok) {
+          saved++;
+        }
+      }
+
+      setSavedCount(saved);
+      setWorkHistoryEntries([]);
+      router.refresh();
+    } catch {
+      setError("Failed to save some work history entries");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -153,7 +223,7 @@ export function ResumeImport() {
         <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-green-600 mb-3">
             <Check className="h-5 w-5" />
-            <span className="font-medium">Profile imported successfully!</span>
+            <span className="font-medium">Resume parsed successfully!</span>
           </div>
 
           <div className="space-y-2 text-sm">
@@ -189,13 +259,13 @@ export function ResumeImport() {
                 <span>Location: {result.imported.location}</span>
               </div>
             )}
-            {result.imported.work_history_count > 0 && (
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span>{result.imported.work_history_count} work history entries imported</span>
-              </div>
-            )}
           </div>
+
+          {savedCount > 0 && workHistoryEntries.length === 0 && (
+            <div className="mt-3 p-2 bg-green-500/20 rounded text-sm text-green-700">
+              {savedCount} work history {savedCount === 1 ? "entry" : "entries"} saved!
+            </div>
+          )}
 
           <Button
             variant="outline"
@@ -204,10 +274,125 @@ export function ResumeImport() {
             onClick={() => {
               setResult(null);
               setError(null);
+              setWorkHistoryEntries([]);
+              setSavedCount(0);
             }}
           >
             Import another file
           </Button>
+        </div>
+      )}
+
+      {/* Editable Work History Entries */}
+      {workHistoryEntries.length > 0 && (
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">
+              Work History ({workHistoryEntries.length} {workHistoryEntries.length === 1 ? "entry" : "entries"})
+            </h3>
+            <Button onClick={saveAllWorkHistory} disabled={isSaving} size="sm">
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save All
+            </Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Review and edit the parsed work history below, then click &quot;Save All&quot; to add them to your profile.
+          </p>
+
+          {workHistoryEntries.map((entry, index) => (
+            <div key={index} className="p-4 border border-border rounded-lg bg-muted/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Entry {index + 1}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeWorkHistoryEntry(index)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Company *</Label>
+                  <Input
+                    value={entry.company}
+                    onChange={(e) => updateWorkHistoryEntry(index, "company", e.target.value)}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Position *</Label>
+                  <Input
+                    value={entry.position}
+                    onChange={(e) => updateWorkHistoryEntry(index, "position", e.target.value)}
+                    placeholder="Job title"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Start Date *</Label>
+                  <Input
+                    type="date"
+                    value={entry.start_date}
+                    onChange={(e) => updateWorkHistoryEntry(index, "start_date", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">End Date</Label>
+                  <Input
+                    type="date"
+                    value={entry.end_date || ""}
+                    onChange={(e) => updateWorkHistoryEntry(index, "end_date", e.target.value || null)}
+                    disabled={entry.is_current}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={entry.is_current}
+                      onChange={(e) => {
+                        updateWorkHistoryEntry(index, "is_current", e.target.checked);
+                        if (e.target.checked) {
+                          updateWorkHistoryEntry(index, "end_date", null);
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    Current
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Location</Label>
+                <Input
+                  value={entry.location || ""}
+                  onChange={(e) => updateWorkHistoryEntry(index, "location", e.target.value || null)}
+                  placeholder="City, State or Remote"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Description</Label>
+                <Textarea
+                  value={entry.description || ""}
+                  onChange={(e) => updateWorkHistoryEntry(index, "description", e.target.value || null)}
+                  placeholder="Job responsibilities and achievements"
+                  rows={3}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

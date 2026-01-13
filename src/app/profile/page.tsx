@@ -64,7 +64,7 @@ export default async function ProfilePage() {
         </div>
 
         {/* Work History */}
-        <WorkHistoryList />
+        <WorkHistoryList key={profile.updated_at || profile.id} />
       </main>
     </div>
   );
