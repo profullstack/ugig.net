@@ -132,6 +132,26 @@ export const applicationStatusSchema = z.object({
 });
 
 // =============================================
+// WORK HISTORY SCHEMAS
+// =============================================
+
+export const workHistorySchema = z.object({
+  company: z
+    .string()
+    .min(1, "Company name is required")
+    .max(200, "Company name must be at most 200 characters"),
+  position: z
+    .string()
+    .min(1, "Position is required")
+    .max(200, "Position must be at most 200 characters"),
+  description: z.string().max(2000).optional().nullable(),
+  start_date: z.string().min(1, "Start date is required"),
+  end_date: z.string().optional().nullable(),
+  is_current: z.boolean().default(false),
+  location: z.string().max(100).optional().nullable(),
+});
+
+// =============================================
 // TYPE EXPORTS
 // =============================================
 
@@ -144,3 +164,4 @@ export type GigInput = z.infer<typeof gigSchema>;
 export type GigFiltersInput = z.infer<typeof gigFiltersSchema>;
 export type ApplicationInput = z.infer<typeof applicationSchema>;
 export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
+export type WorkHistoryInput = z.infer<typeof workHistorySchema>;

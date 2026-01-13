@@ -14,6 +14,7 @@ export type GigUsage = Tables<"gig_usage">;
 export type Review = Tables<"reviews">;
 export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
+export type WorkHistory = Tables<"work_history">;
 
 // Extended types with relations
 export type GigWithPoster = Gig & {
@@ -88,6 +89,16 @@ export type ProfileFormData = {
   location?: string;
   timezone?: string;
   is_available: boolean;
+};
+
+export type WorkHistoryFormData = {
+  company: string;
+  position: string;
+  description?: string;
+  start_date: string;
+  end_date?: string;
+  is_current: boolean;
+  location?: string;
 };
 
 // Filter types

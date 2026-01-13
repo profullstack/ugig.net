@@ -605,6 +605,56 @@ export type Database = {
           }
         ];
       };
+      work_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          company: string;
+          position: string;
+          description: string | null;
+          start_date: string;
+          end_date: string | null;
+          is_current: boolean;
+          location: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company: string;
+          position: string;
+          description?: string | null;
+          start_date: string;
+          end_date?: string | null;
+          is_current?: boolean;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          company?: string;
+          position?: string;
+          description?: string | null;
+          start_date?: string;
+          end_date?: string | null;
+          is_current?: boolean;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_history_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

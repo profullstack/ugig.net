@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
 import {
   Briefcase,
   FileText,
@@ -346,19 +347,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Profile Completion */}
-            {!profile?.profile_completed && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-2">Complete Your Profile</h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  A complete profile helps you stand out to potential clients and gig posters.
-                </p>
-                <Link href="/profile">
-                  <Button variant="outline" className="w-full">
-                    Complete Profile
-                  </Button>
-                </Link>
-              </div>
-            )}
+            {profile && <ProfileCompletion profile={profile} />}
 
             {/* Navigation */}
             <div className="p-6 bg-card rounded-lg border border-border">
