@@ -30,6 +30,11 @@ interface ImportResult {
     work_history_count: number;
   };
   parsed_work_history: ParsedWorkHistory[];
+  _debug?: {
+    text_length: number;
+    text_preview: string;
+    has_experience_section: boolean;
+  };
 }
 
 export function ResumeImport() {
@@ -259,7 +264,26 @@ export function ResumeImport() {
                 <span>Location: {result.imported.location}</span>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span>Work history entries found: {result.imported.work_history_count}</span>
+            </div>
           </div>
+
+          {/* Debug info */}
+          {result._debug && (
+            <details className="mt-3 text-xs">
+              <summary className="cursor-pointer text-muted-foreground">Debug Info</summary>
+              <div className="mt-2 p-2 bg-muted rounded text-xs font-mono">
+                <p>Text length: {result._debug.text_length}</p>
+                <p>Has experience section: {result._debug.has_experience_section ? "Yes" : "No"}</p>
+                <p className="mt-2">Text preview:</p>
+                <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-40 bg-background p-2 rounded mt-1">
+                  {result._debug.text_preview}
+                </pre>
+              </div>
+            </details>
+          )}
 
           {savedCount > 0 && workHistoryEntries.length === 0 && (
             <div className="mt-3 p-2 bg-green-500/20 rounded text-sm text-green-700">

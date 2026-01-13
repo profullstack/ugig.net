@@ -142,6 +142,14 @@ export async function POST(request: NextRequest) {
       },
       // Return parsed work history for editing (not yet saved)
       parsed_work_history: parsed.work_history || [],
+      // Debug info - remove in production
+      _debug: {
+        work_history_entries: parsed.work_history?.length || 0,
+        work_history_sample: parsed.work_history?.slice(0, 2) || [],
+        text_length: parsed._debug?.text_length || 0,
+        text_preview: parsed._debug?.text_preview || "",
+        has_experience_section: parsed._debug?.has_experience_section || false,
+      },
     });
   } catch (error) {
     console.error("Resume import error:", error);

@@ -17,6 +17,11 @@ export interface ParsedResumeProfile {
   skills: string[];
   work_history: ParsedWorkHistory[];
   location: string | null;
+  _debug?: {
+    text_length: number;
+    text_preview: string;
+    has_experience_section: boolean;
+  };
 }
 
 // Parse month/year string to ISO date (first day of month)
@@ -378,11 +383,24 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
   // Normalize whitespace
   text = text.replace(/\r\n/g, "\n").replace(/\t/g, " ");
 
+  // Check if experience section exists
+  const hasExperienceSection = /(?:work experience|experience|work history|employment|professional experience)/i.test(text);
+
+  // Log the raw text for debugging
+  console.log("=== RAW TEXT PREVIEW ===");
+  console.log(text.slice(0, 2000));
+  console.log("========================");
+
   return {
     full_name: extractName(text),
     bio: extractBio(text),
     skills: extractSkills(text),
     work_history: extractWorkHistory(text),
     location: extractLocation(text),
+    _debug: {
+      text_length: text.length,
+      text_preview: text.slice(0, 500),
+      has_experience_section: hasExperienceSection,
+    },
   };
 }
