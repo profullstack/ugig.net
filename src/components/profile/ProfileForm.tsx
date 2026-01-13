@@ -23,6 +23,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
+  const [newSkill, setNewSkill] = useState("");
+  const [newTool, setNewTool] = useState("");
 
   const {
     register,
@@ -72,6 +74,26 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       );
     } else if (current.length < 20) {
       setValue("ai_tools", [...current, tool]);
+    }
+  };
+
+  const addCustomSkill = () => {
+    const skill = newSkill.trim();
+    if (!skill) return;
+    const current = selectedSkills || [];
+    if (current.length < 20 && !current.includes(skill)) {
+      setValue("skills", [...current, skill]);
+      setNewSkill("");
+    }
+  };
+
+  const addCustomTool = () => {
+    const tool = newTool.trim();
+    if (!tool) return;
+    const current = selectedTools || [];
+    if (current.length < 20 && !current.includes(tool)) {
+      setValue("ai_tools", [...current, tool]);
+      setNewTool("");
     }
   };
 
@@ -181,6 +203,44 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       {/* Skills */}
       <div className="space-y-2">
         <Label>Skills (select up to 20)</Label>
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="Add custom skill..."
+            value={newSkill}
+            onChange={(e) => setNewSkill(e.target.value)}
+            disabled={isLoading || (selectedSkills?.length || 0) >= 20}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomSkill();
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addCustomSkill}
+            disabled={isLoading || (selectedSkills?.length || 0) >= 20}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        {/* Show selected custom skills first */}
+        {selectedSkills && selectedSkills.filter(s => !(SKILLS as readonly string[]).includes(s)).length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedSkills.filter(s => !(SKILLS as readonly string[]).includes(s)).map((skill) => (
+              <Badge
+                key={skill}
+                variant="default"
+                className="cursor-pointer bg-primary/80"
+                onClick={() => toggleSkill(skill)}
+              >
+                {skill}
+                <X className="h-3 w-3 ml-1" />
+              </Badge>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {SKILLS.map((skill) => (
             <Badge
@@ -202,6 +262,44 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       {/* AI Tools */}
       <div className="space-y-2">
         <Label>AI Tools You Use</Label>
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="Add custom AI tool..."
+            value={newTool}
+            onChange={(e) => setNewTool(e.target.value)}
+            disabled={isLoading || (selectedTools?.length || 0) >= 20}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomTool();
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addCustomTool}
+            disabled={isLoading || (selectedTools?.length || 0) >= 20}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        {/* Show selected custom tools first */}
+        {selectedTools && selectedTools.filter(t => !(AI_TOOLS as readonly string[]).includes(t)).length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedTools.filter(t => !(AI_TOOLS as readonly string[]).includes(t)).map((tool) => (
+              <Badge
+                key={tool}
+                variant="default"
+                className="cursor-pointer bg-primary/80"
+                onClick={() => toggleTool(tool)}
+              >
+                {tool}
+                <X className="h-3 w-3 ml-1" />
+              </Badge>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {AI_TOOLS.map((tool) => (
             <Badge

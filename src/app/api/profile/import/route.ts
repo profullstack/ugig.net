@@ -113,6 +113,22 @@ export async function POST(request: NextRequest) {
       profileUpdates.location = parsed.location;
     }
 
+    // Update contact info if available
+    if (parsed.contact) {
+      if (parsed.contact.website) {
+        profileUpdates.website = parsed.contact.website;
+      }
+      if (parsed.contact.linkedin_url) {
+        profileUpdates.linkedin_url = parsed.contact.linkedin_url;
+      }
+      if (parsed.contact.github_url) {
+        profileUpdates.github_url = parsed.contact.github_url;
+      }
+      if (parsed.contact.twitter_url) {
+        profileUpdates.twitter_url = parsed.contact.twitter_url;
+      }
+    }
+
     // Update profile if we have any data
     if (Object.keys(profileUpdates).length > 0) {
       profileUpdates.updated_at = new Date().toISOString();
@@ -137,6 +153,7 @@ export async function POST(request: NextRequest) {
         skills_count: parsed.skills?.length || 0,
         skills: parsed.skills?.slice(0, 10) || [],
         location: parsed.location,
+        contact: parsed.contact,
         work_history_count: parsed.work_history?.length || 0,
         resume_url: resumeUrl,
       },
