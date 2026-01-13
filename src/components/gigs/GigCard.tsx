@@ -37,7 +37,7 @@ export function GigCard({
   return (
     <Link
       href={`/gigs/${gig.id}`}
-      className="block p-6 border border-border rounded-lg hover:border-primary/50 transition-colors bg-card"
+      className="block p-6 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-200 bg-card"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -55,7 +55,7 @@ export function GigCard({
             />
           )}
           {gig.poster && (
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-10 w-10 ring-2 ring-border">
               <AvatarImage
                 src={gig.poster.avatar_url || undefined}
                 alt={gig.poster.full_name || gig.poster.username}
@@ -71,27 +71,27 @@ export function GigCard({
       </div>
 
       <div className="flex flex-wrap gap-2 mt-4">
-        <Badge variant="secondary">{gig.category}</Badge>
+        <Badge variant="secondary" className="font-medium">{gig.category}</Badge>
         {gig.skills_required.slice(0, 3).map((skill) => (
           <Badge key={skill} variant="outline">
             {skill}
           </Badge>
         ))}
         {gig.skills_required.length > 3 && (
-          <Badge variant="outline">+{gig.skills_required.length - 3}</Badge>
+          <Badge variant="outline" className="text-muted-foreground">+{gig.skills_required.length - 3}</Badge>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
-        <span className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border text-sm text-muted-foreground">
+        <span className="flex items-center gap-1.5">
           <DollarSign className="h-4 w-4" />
           {budgetDisplay}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <MapPin className="h-4 w-4" />
           {gig.location_type.charAt(0).toUpperCase() + gig.location_type.slice(1)}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <Clock className="h-4 w-4" />
           {formatRelativeTime(gig.created_at)}
         </span>

@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Eye,
   Users,
+  Briefcase,
 } from "lucide-react";
 
 export const metadata = {
@@ -77,20 +78,20 @@ export default async function MyGigsPage() {
               {gigs.map((gig) => (
                 <div
                   key={gig.id}
-                  className="p-6 bg-card rounded-lg border border-border"
+                  className="p-6 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <Link
                           href={`/gigs/${gig.id}`}
-                          className="text-lg font-semibold hover:text-primary"
+                          className="text-lg font-semibold hover:text-primary transition-colors"
                         >
                           {gig.title}
                         </Link>
                         <Badge
                           variant="secondary"
-                          className={statusColors[gig.status] || ""}
+                          className={`capitalize ${statusColors[gig.status] || ""}`}
                         >
                           {gig.status}
                         </Badge>
@@ -127,24 +128,25 @@ export default async function MyGigsPage() {
                   <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-lg font-semibold">{gig.budget_min ? `$${gig.budget_min}` : "-"}</p>
-                      <p className="text-xs text-muted-foreground">Min Budget</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Min Budget</p>
                     </div>
                     <div>
                       <p className="text-lg font-semibold">{gig.budget_max ? `$${gig.budget_max}` : "-"}</p>
-                      <p className="text-xs text-muted-foreground">Max Budget</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Max Budget</p>
                     </div>
                     <div>
                       <p className="text-lg font-semibold capitalize">{gig.budget_type}</p>
-                      <p className="text-xs text-muted-foreground">Rate Type</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Rate Type</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-card rounded-lg border border-border">
+            <div className="text-center py-16 bg-card rounded-lg border border-border shadow-sm">
+              <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-semibold mb-2">No gigs posted yet</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-6">
                 Post your first gig to start finding AI-powered professionals
               </p>
               <Link href="/gigs/new">

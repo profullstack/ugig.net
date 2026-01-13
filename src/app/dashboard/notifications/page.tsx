@@ -162,14 +162,18 @@ export default function NotificationsPage() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="flex items-center gap-2">
-            <Bell className="h-6 w-6" />
-            <h1 className="text-2xl font-bold">Notifications</h1>
-            {unreadCount > 0 && (
-              <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                {unreadCount} new
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl">
+              <Bell className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Notifications</h1>
+              {unreadCount > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {unreadCount} unread
+                </span>
+              )}
+            </div>
           </div>
         </div>
         {unreadCount > 0 && (
@@ -190,15 +194,17 @@ export default function NotificationsPage() {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border rounded-lg">
-          <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <div className="text-center py-16 bg-card rounded-lg border border-border shadow-sm">
+          <div className="p-4 bg-muted/30 rounded-full w-fit mx-auto mb-4">
+            <Bell className="h-12 w-12 text-muted-foreground/50" />
+          </div>
           <h2 className="text-lg font-semibold mb-2">No notifications yet</h2>
           <p className="text-muted-foreground">
             You&apos;ll see notifications here when something important happens
           </p>
         </div>
       ) : (
-        <div className="border border-border rounded-lg divide-y divide-border">
+        <div className="bg-card border border-border rounded-lg shadow-sm divide-y divide-border overflow-hidden">
           {notifications.map((notification) => (
             <Link
               key={notification.id}
@@ -211,7 +217,7 @@ export default function NotificationsPage() {
             >
               <div
                 className={cn(
-                  "flex-shrink-0 p-2 rounded-full",
+                  "flex-shrink-0 p-2.5 rounded-xl",
                   notification.read_at
                     ? "bg-muted text-muted-foreground"
                     : "bg-primary/10 text-primary"
@@ -237,7 +243,7 @@ export default function NotificationsPage() {
                   {notification.title}
                 </p>
                 {notification.body && (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                     {notification.body}
                   </p>
                 )}

@@ -45,13 +45,15 @@ export default async function ProfilePage() {
         </div>
 
         {/* Resume Import */}
-        <div className="mb-8">
+        <div className="mb-6">
           <ResumeImport />
         </div>
 
         {/* Avatar Section */}
-        <div className="mb-8 p-6 bg-card rounded-lg border border-border">
-          <h2 className="text-lg font-semibold mb-4">Profile Picture</h2>
+        <div className="mb-6 p-6 bg-card rounded-lg border border-border shadow-sm">
+          <div className="pb-3 mb-4 border-b border-border">
+            <h2 className="text-lg font-semibold">Profile Picture</h2>
+          </div>
           <AvatarUpload
             avatarUrl={profile.avatar_url}
             fallbackText={profile.full_name || profile.username || "U"}
@@ -59,7 +61,10 @@ export default async function ProfilePage() {
         </div>
 
         {/* Profile Form */}
-        <div className="p-6 bg-card rounded-lg border border-border mb-8">
+        <div className="p-6 bg-card rounded-lg border border-border shadow-sm mb-6">
+          <div className="pb-3 mb-6 border-b border-border">
+            <h2 className="text-lg font-semibold">Profile Information</h2>
+          </div>
           <ProfileForm key={profile.updated_at || profile.id} profile={profile} />
         </div>
 

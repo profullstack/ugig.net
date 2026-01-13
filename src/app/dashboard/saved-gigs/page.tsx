@@ -74,17 +74,26 @@ export default function SavedGigsPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div className="flex items-center gap-2">
-          <Bookmark className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Saved Gigs</h1>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 rounded-xl">
+            <Bookmark className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Saved Gigs</h1>
+            <p className="text-sm text-muted-foreground">
+              {gigs.length} saved {gigs.length === 1 ? "gig" : "gigs"}
+            </p>
+          </div>
         </div>
       </div>
 
       {gigs.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border rounded-lg">
-          <Bookmark className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <div className="text-center py-16 bg-card rounded-lg border border-border shadow-sm">
+          <div className="p-4 bg-muted/30 rounded-full w-fit mx-auto mb-4">
+            <Bookmark className="h-12 w-12 text-muted-foreground/50" />
+          </div>
           <h2 className="text-lg font-semibold mb-2">No saved gigs yet</h2>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-muted-foreground mb-6">
             Save gigs you&apos;re interested in to easily find them later
           </p>
           <Button asChild>
