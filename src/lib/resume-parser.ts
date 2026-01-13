@@ -74,16 +74,20 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
 
   // Common patterns in LinkedIn exports and standard resumes
   // Look for "Experience" or similar sections
-  const experienceSection = text.match(/(?:experience|work history|employment|professional experience)\s*([\s\S]*?)(?=education|skills|certifications|technical|projects|references|$)/i);
-  if (!experienceSection) return workHistory;
+  const experienceSection = text.match(/(?:work experience|experience|work history|employment|professional experience)\s*([\s\S]*?)(?=education|skills|certifications|technical skills|projects|references|selected projects|additional|$)/i);
+  if (!experienceSection) {
+    console.log("No experience section found in text");
+    return workHistory;
+  }
 
   const expText = experienceSection[1];
+  console.log("Experience section found, length:", expText.length);
 
   // Multiple date range patterns to handle different formats:
-  // "Jan 2020 - Present", "January 2020 – Dec 2023", "2020 - 2023", "2020 - present"
+  // "Jan 2020 - Present", "January 2020 – Dec 2023", "2020 - 2023", "(Mar 2021 – Jan 2022)"
   const dateRangePatterns = [
-    // Month Year - Month Year/Present (most common)
-    /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}\s*[-–—to]+\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}|present|current|now|ongoing)/gi,
+    // Month Year - Month Year/Present with optional parentheses (most common)
+    /\(?\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}\s*[-–—]+\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*['']?\s*\d{4}|present|current|now|ongoing|part[- ]?time)\s*\)?/gi,
     // Year - Year/Present
     /\b(19|20)\d{2}\s*[-–—to]+\s*(?:(19|20)\d{2}|present|current|now|ongoing)\b/gi,
     // MM/YYYY - MM/YYYY
@@ -99,6 +103,8 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
     }
   }
 
+  console.log("Date matches found:", dateMatches.length, dateMatches.map(d => d.match));
+
   // Sort by position in text
   dateMatches = dateMatches.sort((a, b) => a.index - b.index);
 
@@ -109,23 +115,29 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
     return m.index >= prev.index + prev.match.length;
   });
 
-  if (dateMatches.length === 0) return workHistory;
+  if (dateMatches.length === 0) {
+    console.log("No date matches after filtering");
+    return workHistory;
+  }
 
   // Process each date match
   for (let i = 0; i < dateMatches.length; i++) {
     const dateMatch = dateMatches[i];
     const nextMatch = dateMatches[i + 1];
 
-    // Parse the date range
-    const fullMatch = dateMatch.match;
-    const dateParts = fullMatch.split(/[-–—]|to/i).map(s => s.trim()).filter(s => s);
+    // Parse the date range - remove parentheses first
+    const fullMatch = dateMatch.match.replace(/[()]/g, "").trim();
+    const dateParts = fullMatch.split(/[-–—]/).map(s => s.trim()).filter(s => s);
 
     const startDate = parseDate(dateParts[0] || "");
     const endPart = (dateParts[1] || "").toLowerCase();
-    const isCurrent = /present|current|now|ongoing/.test(endPart);
+    const isCurrent = /present|current|now|ongoing|part[- ]?time/.test(endPart);
     const endDate = isCurrent ? null : parseDate(dateParts[1] || "");
 
-    if (!startDate) continue;
+    if (!startDate) {
+      console.log("Could not parse start date from:", dateParts[0]);
+      continue;
+    }
 
     // Extract text before this date (contains title and company)
     const textBefore = i === 0
@@ -144,7 +156,26 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
     let company = "";
     let location: string | null = null;
 
-    if (lines.length >= 2) {
+    // Look for "Company | Location" pattern (common in modern resumes)
+    const companyLocationLine = lines.find(l => l.includes("|"));
+    if (companyLocationLine) {
+      const parts = companyLocationLine.split("|").map(p => p.trim());
+      company = parts[0] || "";
+      location = parts[1] || null;
+
+      // Position is usually on the line after company or before the date
+      // Look for line containing position keywords or the line just before the date
+      const companyLineIndex = lines.indexOf(companyLocationLine);
+      for (let j = companyLineIndex + 1; j < lines.length; j++) {
+        const line = lines[j];
+        // Skip if it looks like a bullet point description
+        if (line.startsWith("•") || line.startsWith("-")) continue;
+        // This is likely the position line
+        // Remove the date part if it's embedded: "Founder, Independent Contractor (Mar 2018 – part-time)"
+        position = line.replace(/\s*\([^)]*\d{4}[^)]*\)\s*$/, "").trim();
+        break;
+      }
+    } else if (lines.length >= 2) {
       // Usually: Position on one line, Company on another
       // Check for "at" pattern: "Software Engineer at Google"
       const lastLine = lines[lines.length - 1];
@@ -154,20 +185,29 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
         const parts = lastLine.split(/ at /i);
         position = parts[0]?.trim() || "";
         company = parts[1]?.trim() || "";
-      } else if (lastLine.includes("·") || lastLine.includes("|")) {
+      } else if (lastLine.includes("·")) {
         // Company · Employment Type
-        company = lastLine.split(/[·|]/)[0]?.trim() || "";
+        company = lastLine.split(/[·]/)[0]?.trim() || "";
         position = secondLastLine;
       } else {
-        // Assume second-to-last is position, last is company
-        position = secondLastLine;
-        company = lastLine;
+        // Check if last line contains a date (means it's position + date)
+        if (lastLine.match(/\d{4}/)) {
+          position = lastLine.replace(/\s*\([^)]*\d{4}[^)]*\)\s*$/, "").trim();
+          company = secondLastLine;
+        } else {
+          // Assume second-to-last is position, last is company
+          position = secondLastLine;
+          company = lastLine;
+        }
       }
 
       // Check for location pattern in lines
       for (const line of lines) {
-        if (line.match(/[A-Z][a-z]+,\s*[A-Z]{2}/) || line.match(/remote/i)) {
-          location = line;
+        if (line.match(/[A-Z][a-z]+,\s*[A-Z]{2}/) || line.match(/\bremote\b/i)) {
+          // Don't overwrite if we already have location from pipe separator
+          if (!location) {
+            location = line.includes("|") ? line.split("|")[1]?.trim() || null : line;
+          }
           break;
         }
       }
@@ -179,20 +219,33 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
         position = parts[0]?.trim() || "";
         company = parts[1]?.trim() || "";
       } else {
-        position = line;
+        // Remove date from position if embedded
+        position = line.replace(/\s*\([^)]*\d{4}[^)]*\)\s*$/, "").trim();
       }
     }
 
-    // Clean up company name (remove employment type)
+    // Clean up company name (remove employment type, location suffix)
     company = company.replace(/\s*[·|]\s*(full[- ]?time|part[- ]?time|contract|freelance|intern(ship)?|remote).*$/i, "").trim();
+    // Remove ", Inc." style suffixes from location if it got mixed in
+    if (location && location.match(/,\s*Inc\.?$/i)) {
+      location = null;
+    }
 
-    // Get description from text after date
-    const descriptionText = textAfter
+    // Get description from text after date - look for bullet points
+    const descriptionLines = textAfter
       .split(/\n/)
       .map(l => l.trim())
-      .filter(l => l.length > 20 && !l.match(/^\d+\s*(years?|months?|yrs?|mos?)/i))
-      .slice(0, 5)
-      .join("\n");
+      .filter(l => {
+        // Include bullet point lines
+        if (l.startsWith("•") || l.startsWith("-")) return true;
+        // Include longer description lines
+        return l.length > 30 && !l.match(/^\d+\s*(years?|months?|yrs?|mos?)/i);
+      })
+      .slice(0, 5);
+
+    const descriptionText = descriptionLines.join("\n").replace(/^[•-]\s*/gm, "• ");
+
+    console.log("Parsed entry:", { company, position, startDate, endDate, isCurrent, location });
 
     if (position || company) {
       workHistory.push({
