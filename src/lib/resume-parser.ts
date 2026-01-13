@@ -77,16 +77,20 @@ function parseDate(dateStr: string): string | null {
 function extractWorkHistory(text: string): ParsedWorkHistory[] {
   const workHistory: ParsedWorkHistory[] = [];
 
-  // Common patterns in LinkedIn exports and standard resumes
-  // Look for "Experience" or similar sections
-  const experienceSection = text.match(/(?:work experience|experience|work history|employment|professional experience)\s*([\s\S]*?)(?=education|skills|certifications|technical skills|projects|references|selected projects|additional|$)/i);
-  if (!experienceSection) {
-    console.log("No experience section found in text");
-    return workHistory;
-  }
+  // Try to find a section header first, but if not found, search the whole document
+  let expText = text;
 
-  const expText = experienceSection[1];
-  console.log("Experience section found, length:", expText.length);
+  // Common patterns in LinkedIn exports and standard resumes
+  const experienceSection = text.match(/(?:work experience|experience|work history|employment|professional experience)\s*([\s\S]*?)(?=education|skills|certifications|technical skills|projects|references|selected projects|additional|$)/i);
+
+  if (experienceSection) {
+    expText = experienceSection[1];
+    console.log("Experience section found, length:", expText.length);
+  } else {
+    // No section header found - PDF extraction might have stripped headers
+    // Search the whole document for date patterns
+    console.log("No experience section header found, searching whole document");
+  }
 
   // Multiple date range patterns to handle different formats:
   // "Jan 2020 - Present", "January 2020 – Dec 2023", "2020 - 2023", "(Mar 2021 – Jan 2022)"
