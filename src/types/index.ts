@@ -102,6 +102,10 @@ export type ProfileFormData = {
   location?: string;
   timezone?: string;
   is_available: boolean;
+  website?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  twitter_url?: string;
 };
 
 export type WorkHistoryFormData = {

@@ -29,6 +29,10 @@ const mockMessage: MessageWithSender = {
     updated_at: "2024-01-01T00:00:00Z",
     resume_url: null,
     resume_filename: null,
+    website: null,
+    linkedin_url: null,
+    github_url: null,
+    twitter_url: null,
   },
 };
 
