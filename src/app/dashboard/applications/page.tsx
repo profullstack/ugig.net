@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
-import { ArrowLeft, ExternalLink, Clock, DollarSign, Calendar } from "lucide-react";
+import { ArrowLeft, ExternalLink, Clock, DollarSign, Calendar, FileText } from "lucide-react";
 
 export const metadata = {
   title: "My Applications | ugig.net",

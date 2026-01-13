@@ -125,9 +125,9 @@ export default async function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="p-6 bg-card rounded-lg border border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
+          <div className="p-6 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-xl">
                 <Briefcase className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -137,9 +137,9 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="p-6 bg-card rounded-lg border border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg">
+          <div className="p-6 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-green-500/30 transition-all duration-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-500/10 rounded-xl">
                 <FileText className="h-5 w-5 text-green-500" />
               </div>
               <div>
@@ -149,9 +149,9 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="p-6 bg-card rounded-lg border border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
+          <div className="p-6 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all duration-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-xl">
                 <Eye className="h-5 w-5 text-blue-500" />
               </div>
               <div>
@@ -161,9 +161,9 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="p-6 bg-card rounded-lg border border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 rounded-lg">
+          <div className="p-6 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-purple-500/30 transition-all duration-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-500/10 rounded-xl">
                 <TrendingUp className="h-5 w-5 text-purple-500" />
               </div>
               <div>
@@ -182,60 +182,72 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Quick Actions */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 bg-card rounded-lg border border-border">
-              <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+            <div className="p-6 bg-card rounded-lg border border-border shadow-sm">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Quick Actions</h2>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
                   href="/gigs/new"
-                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
                 >
-                  <Briefcase className="h-5 w-5 text-primary mb-2" />
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <Briefcase className="h-5 w-5 text-primary" />
+                  </div>
                   <h3 className="font-medium">Post a New Gig</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Find AI professionals for your project
                   </p>
                 </Link>
 
                 <Link
                   href="/gigs"
-                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
                 >
-                  <FileText className="h-5 w-5 text-primary mb-2" />
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
                   <h3 className="font-medium">Browse Gigs</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Find work opportunities
                   </p>
                 </Link>
 
                 <Link
                   href="/dashboard/gigs"
-                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
                 >
-                  <Users className="h-5 w-5 text-primary mb-2" />
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
                   <h3 className="font-medium">Manage My Gigs</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     View and edit your posted gigs
                   </p>
                 </Link>
 
                 <Link
                   href="/dashboard/applications"
-                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
                 >
-                  <TrendingUp className="h-5 w-5 text-primary mb-2" />
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                  </div>
                   <h3 className="font-medium">My Applications</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Track your job applications
                   </p>
                 </Link>
 
                 <Link
                   href="/dashboard/messages"
-                  className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
                 >
-                  <MessageSquare className="h-5 w-5 text-primary mb-2" />
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
                   <h3 className="font-medium">Messages</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Chat with gig posters and applicants
                   </p>
                 </Link>
@@ -243,12 +255,12 @@ export default async function DashboardPage() {
             </div>
 
             {/* Recent Applications to Your Gigs */}
-            <div className="p-6 bg-card rounded-lg border border-border">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-6 bg-card rounded-lg border border-border shadow-sm">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
                 <h2 className="text-lg font-semibold">Recent Applications</h2>
                 <Link
                   href="/dashboard/gigs"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                  className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
                 >
                   View all <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -259,7 +271,7 @@ export default async function DashboardPage() {
                   {recentApplications.map((app) => (
                     <div
                       key={app.id}
-                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div>
                         <p className="font-medium">
@@ -278,7 +290,7 @@ export default async function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <span
-                          className={`text-xs px-2 py-1 rounded-full ${
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${
                             app.status === "pending"
                               ? "bg-yellow-500/10 text-yellow-600"
                               : app.status === "accepted"
@@ -290,7 +302,7 @@ export default async function DashboardPage() {
                         >
                           {app.status}
                         </span>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1.5">
                           {new Date(app.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -298,9 +310,12 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-6">
-                  No applications received yet
-                </p>
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">
+                    No applications received yet
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -308,15 +323,17 @@ export default async function DashboardPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Subscription Status */}
-            <div className="p-6 bg-card rounded-lg border border-border">
-              <h2 className="text-lg font-semibold mb-4">Subscription</h2>
+            <div className="p-6 bg-card rounded-lg border border-border shadow-sm">
+              <div className="pb-3 mb-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Subscription</h2>
+              </div>
               {isPro ? (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs font-medium rounded">
+                    <span className="px-2.5 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md">
                       PRO
                     </span>
-                    <span className="text-green-600 text-sm">Active</span>
+                    <span className="text-green-600 text-sm font-medium">Active</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Renews{" "}
@@ -327,7 +344,7 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <div>
-                  <p className="text-muted-foreground mb-3">
+                  <p className="text-muted-foreground mb-4">
                     Upgrade to Pro for unlimited gig posts and premium features.
                   </p>
                   <Link href="/settings/billing">
@@ -341,48 +358,50 @@ export default async function DashboardPage() {
             {profile && <ProfileCompletion profile={profile} />}
 
             {/* Navigation */}
-            <div className="p-6 bg-card rounded-lg border border-border">
-              <h2 className="text-lg font-semibold mb-4">Navigation</h2>
-              <nav className="space-y-2">
+            <div className="p-6 bg-card rounded-lg border border-border shadow-sm">
+              <div className="pb-3 mb-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Navigation</h2>
+              </div>
+              <nav className="space-y-1">
                 <Link
                   href="/dashboard"
-                  className="block p-2 rounded-lg bg-primary/10 text-primary font-medium"
+                  className="block p-2.5 pl-3 rounded-lg bg-primary/10 text-primary font-medium border-l-2 border-primary transition-all duration-150"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/dashboard/gigs"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   My Gigs
                 </Link>
                 <Link
                   href="/dashboard/applications"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   My Applications
                 </Link>
                 <Link
                   href="/dashboard/messages"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Messages
                 </Link>
                 <Link
                   href="/dashboard/notifications"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Notifications
                 </Link>
                 <Link
                   href="/profile"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Edit Profile
                 </Link>
                 <Link
                   href="/settings/billing"
-                  className="block p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Billing
                 </Link>
