@@ -30,6 +30,7 @@ export type Database = {
           linkedin_url: string | null;
           github_url: string | null;
           twitter_url: string | null;
+          wallet_addresses: Json;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +54,7 @@ export type Database = {
           linkedin_url?: string | null;
           github_url?: string | null;
           twitter_url?: string | null;
+          wallet_addresses?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,6 +78,7 @@ export type Database = {
           linkedin_url?: string | null;
           github_url?: string | null;
           twitter_url?: string | null;
+          wallet_addresses?: Json;
           created_at?: string;
           updated_at?: string;
         };

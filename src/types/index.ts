@@ -175,3 +175,22 @@ export const SKILLS = [
   "Data Analysis",
   "Machine Learning",
 ] as const;
+
+// Wallet address type for crypto payments
+export type WalletAddress = {
+  currency: string;
+  address: string;
+  is_preferred: boolean;
+};
+
+// Supported wallet currencies (matches CoinPayPortal)
+export const WALLET_CURRENCIES = [
+  { id: "usdc_pol", name: "USDC (Polygon)", symbol: "USDC" },
+  { id: "usdc_sol", name: "USDC (Solana)", symbol: "USDC" },
+  { id: "usdc_eth", name: "USDC (Ethereum)", symbol: "USDC" },
+  { id: "usdt", name: "USDT", symbol: "USDT" },
+  { id: "pol", name: "Polygon", symbol: "POL" },
+  { id: "sol", name: "Solana", symbol: "SOL" },
+  { id: "btc", name: "Bitcoin", symbol: "BTC" },
+  { id: "eth", name: "Ethereum", symbol: "ETH" },
+] as const;

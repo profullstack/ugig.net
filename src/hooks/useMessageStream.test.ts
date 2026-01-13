@@ -118,6 +118,7 @@ describe("useMessageStream", () => {
         linkedin_url: null,
         github_url: null,
         twitter_url: null,
+        wallet_addresses: [],
       },
     };
 

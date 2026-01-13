@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { AI_TOOLS, SKILLS, type Profile } from "@/types";
-import { X, Plus } from "lucide-react";
+import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, type Profile, type WalletAddress } from "@/types";
+import { X, Plus, Star, Wallet } from "lucide-react";
 
 interface ProfileFormProps {
   profile: Profile;
@@ -25,6 +25,23 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
   const [newSkill, setNewSkill] = useState("");
   const [newTool, setNewTool] = useState("");
+  const [newWalletCurrency, setNewWalletCurrency] = useState("");
+  const [newWalletAddress, setNewWalletAddress] = useState("");
+
+  // Parse wallet addresses from profile
+  const parseWalletAddresses = (walletAddresses: unknown): WalletAddress[] => {
+    if (!walletAddresses) return [];
+    if (Array.isArray(walletAddresses)) {
+      return walletAddresses.filter(
+        (w): w is WalletAddress =>
+          typeof w === "object" &&
+          w !== null &&
+          "currency" in w &&
+          "address" in w
+      );
+    }
+    return [];
+  };
 
   const {
     register,
@@ -46,12 +63,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       location: profile.location || "",
       timezone: profile.timezone || "",
       is_available: profile.is_available ?? true,
+      wallet_addresses: parseWalletAddresses(profile.wallet_addresses),
     },
   });
 
   const selectedSkills = watch("skills");
   const selectedTools = watch("ai_tools");
   const portfolioUrls = watch("portfolio_urls");
+  const walletAddresses = watch("wallet_addresses");
 
   const toggleSkill = (skill: string) => {
     const current = selectedSkills || [];
@@ -116,6 +135,53 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     setValue(
       "portfolio_urls",
       current.filter((u) => u !== url)
+    );
+  };
+
+  const addWalletAddress = () => {
+    if (!newWalletCurrency || !newWalletAddress.trim()) {
+      setError("Please select a currency and enter a wallet address");
+      return;
+    }
+    const current = walletAddresses || [];
+    // Check if already have this currency
+    if (current.some((w) => w.currency === newWalletCurrency)) {
+      setError("You already have a wallet for this currency");
+      return;
+    }
+    if (current.length >= 10) {
+      setError("Maximum 10 wallet addresses allowed");
+      return;
+    }
+    const newWallet: WalletAddress = {
+      currency: newWalletCurrency,
+      address: newWalletAddress.trim(),
+      is_preferred: current.length === 0, // First one is preferred by default
+    };
+    setValue("wallet_addresses", [...current, newWallet]);
+    setNewWalletCurrency("");
+    setNewWalletAddress("");
+    setError(null);
+  };
+
+  const removeWalletAddress = (currency: string) => {
+    const current = walletAddresses || [];
+    const filtered = current.filter((w) => w.currency !== currency);
+    // If we removed the preferred one, make the first one preferred
+    if (filtered.length > 0 && !filtered.some((w) => w.is_preferred)) {
+      filtered[0].is_preferred = true;
+    }
+    setValue("wallet_addresses", filtered);
+  };
+
+  const setPreferredWallet = (currency: string) => {
+    const current = walletAddresses || [];
+    setValue(
+      "wallet_addresses",
+      current.map((w) => ({
+        ...w,
+        is_preferred: w.currency === currency,
+      }))
     );
   };
 
@@ -386,6 +452,125 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             <p className="text-sm text-destructive">{errors.portfolio_urls.message}</p>
           )}
         </div>
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Wallet Addresses Section */}
+      <div className="space-y-5">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Wallet className="h-4 w-4" />
+          Crypto Payment Addresses
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Add wallet addresses to receive crypto payments. Mark one as preferred for default payments.
+        </p>
+
+        {/* Add new wallet */}
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <select
+              value={newWalletCurrency}
+              onChange={(e) => setNewWalletCurrency(e.target.value)}
+              disabled={isLoading || (walletAddresses?.length || 0) >= 10}
+              className="flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Select currency...</option>
+              {WALLET_CURRENCIES.filter(
+                (c) => !walletAddresses?.some((w) => w.currency === c.id)
+              ).map((currency) => (
+                <option key={currency.id} value={currency.id}>
+                  {currency.name}
+                </option>
+              ))}
+            </select>
+            <Input
+              placeholder="Wallet address..."
+              value={newWalletAddress}
+              onChange={(e) => setNewWalletAddress(e.target.value)}
+              disabled={isLoading || (walletAddresses?.length || 0) >= 10}
+              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addWalletAddress();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addWalletAddress}
+              disabled={isLoading || (walletAddresses?.length || 0) >= 10}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Existing wallets */}
+        {walletAddresses && walletAddresses.length > 0 && (
+          <div className="space-y-2">
+            {walletAddresses.map((wallet) => {
+              const currencyInfo = WALLET_CURRENCIES.find((c) => c.id === wallet.currency);
+              return (
+                <div
+                  key={wallet.currency}
+                  className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    wallet.is_preferred
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-muted/30"
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">
+                        {currencyInfo?.name || wallet.currency}
+                      </span>
+                      {wallet.is_preferred && (
+                        <Badge variant="default" className="text-xs">
+                          <Star className="h-3 w-3 mr-1 fill-current" />
+                          Preferred
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono truncate mt-1">
+                      {wallet.address}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {!wallet.is_preferred && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPreferredWallet(wallet.currency)}
+                        disabled={isLoading}
+                        className="text-xs"
+                      >
+                        <Star className="h-3 w-3 mr-1" />
+                        Set Preferred
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeWalletAddress(wallet.currency)}
+                      disabled={isLoading}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {errors.wallet_addresses && (
+          <p className="text-sm text-destructive">{errors.wallet_addresses.message}</p>
+        )}
       </div>
 
       <div className="border-t border-border" />

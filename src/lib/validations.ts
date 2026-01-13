@@ -46,6 +46,12 @@ export const resetPasswordSchema = z.object({
 // PROFILE SCHEMAS
 // =============================================
 
+export const walletAddressSchema = z.object({
+  currency: z.string().min(1, "Currency is required"),
+  address: z.string().min(10, "Invalid wallet address"),
+  is_preferred: z.boolean().default(false),
+});
+
 export const profileSchema = z.object({
   username: z
     .string()
@@ -64,6 +70,7 @@ export const profileSchema = z.object({
   location: z.string().max(100).optional().nullable(),
   timezone: z.string().max(50).optional().nullable(),
   is_available: z.boolean().default(true),
+  wallet_addresses: z.array(walletAddressSchema).max(10).default([]),
 });
 
 // =============================================
@@ -176,6 +183,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
+export type WalletAddressInput = z.infer<typeof walletAddressSchema>;
 export type GigInput = z.infer<typeof gigSchema>;
 export type GigFiltersInput = z.infer<typeof gigFiltersSchema>;
 export type ApplicationInput = z.infer<typeof applicationSchema>;

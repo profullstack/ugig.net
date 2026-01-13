@@ -14,7 +14,9 @@ import {
   ExternalLink,
   CheckCircle,
   Download,
+  Wallet,
 } from "lucide-react";
+import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -64,11 +66,29 @@ export default async function PublicProfilePage({ params }: Props) {
       is_available,
       resume_url,
       resume_filename,
+      wallet_addresses,
       created_at
     `
     )
     .eq("username", username)
     .single();
+
+  // Parse wallet addresses
+  const parseWalletAddresses = (data: unknown): WalletAddress[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) {
+      return data.filter(
+        (w): w is WalletAddress =>
+          typeof w === "object" &&
+          w !== null &&
+          "currency" in w &&
+          "address" in w
+      );
+    }
+    return [];
+  };
+
+  const walletAddresses = parseWalletAddresses(profile?.wallet_addresses);
 
   if (error || !profile) {
     notFound();
@@ -342,6 +362,50 @@ export default async function PublicProfilePage({ params }: Props) {
                     {profile.resume_filename}
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Wallet Addresses */}
+            {walletAddresses.length > 0 && (
+              <div className="p-6 bg-card rounded-lg border border-border">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  Payment Wallets
+                </h2>
+                <div className="space-y-3">
+                  {walletAddresses
+                    .sort((a, b) => (b.is_preferred ? 1 : 0) - (a.is_preferred ? 1 : 0))
+                    .map((wallet) => {
+                      const currencyInfo = WALLET_CURRENCIES.find(
+                        (c) => c.id === wallet.currency
+                      );
+                      return (
+                        <div
+                          key={wallet.currency}
+                          className={`p-3 rounded-lg border ${
+                            wallet.is_preferred
+                              ? "border-primary bg-primary/5"
+                              : "border-border bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">
+                              {currencyInfo?.name || wallet.currency}
+                            </span>
+                            {wallet.is_preferred && (
+                              <Badge variant="default" className="text-xs">
+                                <Star className="h-3 w-3 mr-1 fill-current" />
+                                Preferred
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground font-mono break-all">
+                            {wallet.address}
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
 
