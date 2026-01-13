@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import { extractText } from "unpdf";
 import mammoth from "mammoth";
 
 export interface ParsedWorkHistory {
@@ -281,10 +281,8 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
   let text = "";
 
   if (mimeType === "application/pdf") {
-    const parser = new PDFParse({ data: buffer });
-    const textResult = await parser.getText();
-    text = textResult.text;
-    await parser.destroy();
+    const { text: pdfText } = await extractText(buffer);
+    text = Array.isArray(pdfText) ? pdfText.join("\n") : pdfText;
   } else if (
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mimeType === "application/msword"

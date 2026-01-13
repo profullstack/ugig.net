@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
+import { Header } from "@/components/layout/Header";
 
 interface GigPageProps {
   params: Promise<{ id: string }>;
@@ -107,28 +108,7 @@ export default async function GigPage({ params }: GigPageProps) {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            ugig.net
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/gigs">
-              <Button variant="outline">Browse Gigs</Button>
-            </Link>
-            {user ? (
-              <Link href="/dashboard">
-                <Button>Dashboard</Button>
-              </Link>
-            ) : (
-              <Link href="/login">
-                <Button>Log In</Button>
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main className="container mx-auto px-4 py-8">
         <Link

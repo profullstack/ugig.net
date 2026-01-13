@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GigCard } from "@/components/gigs/GigCard";
 import { GigFilters } from "@/components/gigs/GigFilters";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Header } from "@/components/layout/Header";
 
 export const metadata = {
   title: "Browse Gigs | ugig.net",
@@ -154,28 +154,7 @@ function GigsListSkeleton() {
 export default async function GigsPage({ searchParams }: GigsPageProps) {
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            ugig.net
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/gigs/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Post a Gig
-              </Button>
-            </Link>
-            <Link
-              href="/login"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Log In
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">

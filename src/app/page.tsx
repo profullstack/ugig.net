@@ -1,37 +1,11 @@
 import Link from "next/link";
 import { Search, Users, Video, Zap } from "lucide-react";
+import { Header } from "@/components/layout/Header";
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            ugig.net
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/gigs"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Browse Gigs
-            </Link>
-            <Link
-              href="/login"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Sign Up
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <main className="flex-1">
