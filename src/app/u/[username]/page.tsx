@@ -50,26 +50,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select(
-      `
-      id,
-      username,
-      full_name,
-      avatar_url,
-      bio,
-      skills,
-      ai_tools,
-      hourly_rate,
-      portfolio_urls,
-      location,
-      timezone,
-      is_available,
-      resume_url,
-      resume_filename,
-      wallet_addresses,
-      created_at
-    `
-    )
+    .select("*")
     .eq("username", username)
     .single();
 
