@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { WorkHistoryList } from "@/components/profile/WorkHistoryList";
 import { ResumeImport } from "@/components/profile/ResumeImport";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarUpload } from "@/components/profile/AvatarUpload";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
@@ -69,41 +69,15 @@ export default async function ProfilePage() {
         {/* Avatar Section */}
         <div className="mb-8 p-6 bg-card rounded-lg border border-border">
           <h2 className="text-lg font-semibold mb-4">Profile Picture</h2>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              {profile.avatar_url ? (
-                <AvatarImage src={profile.avatar_url} alt={profile.full_name || profile.username} />
-              ) : (
-                <AvatarFallback className="text-2xl">
-                  {(profile.full_name || profile.username || "U").charAt(0).toUpperCase()}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div>
-              <form action="/api/profile/avatar" method="POST" encType="multipart/form-data">
-                <input
-                  type="file"
-                  name="avatar"
-                  accept="image/*"
-                  className="block w-full text-sm text-muted-foreground
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-medium
-                    file:bg-primary file:text-primary-foreground
-                    hover:file:bg-primary/90
-                    file:cursor-pointer cursor-pointer"
-                />
-              </form>
-              <p className="text-xs text-muted-foreground mt-2">
-                JPG, PNG or GIF. Max 2MB.
-              </p>
-            </div>
-          </div>
+          <AvatarUpload
+            avatarUrl={profile.avatar_url}
+            fallbackText={profile.full_name || profile.username || "U"}
+          />
         </div>
 
         {/* Profile Form */}
         <div className="p-6 bg-card rounded-lg border border-border mb-8">
-          <ProfileForm profile={profile} />
+          <ProfileForm key={profile.updated_at || profile.id} profile={profile} />
         </div>
 
         {/* Work History */}

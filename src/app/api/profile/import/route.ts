@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Update profile if we have any data
     if (Object.keys(profileUpdates).length > 0) {
+      profileUpdates.updated_at = new Date().toISOString();
       const { error: profileError } = await supabase
         .from("profiles")
         .update(profileUpdates)
