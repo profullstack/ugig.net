@@ -391,6 +391,10 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
   console.log(text.slice(0, 2000));
   console.log("========================");
 
+  // Find the experience section for preview
+  const expMatch = text.match(/work experience/i);
+  const expStartIndex = expMatch ? text.indexOf(expMatch[0]) : 0;
+
   return {
     full_name: extractName(text),
     bio: extractBio(text),
@@ -399,7 +403,7 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
     location: extractLocation(text),
     _debug: {
       text_length: text.length,
-      text_preview: text.slice(0, 500),
+      text_preview: text.slice(expStartIndex, expStartIndex + 1500),
       has_experience_section: hasExperienceSection,
     },
   };
