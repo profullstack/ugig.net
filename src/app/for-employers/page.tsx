@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import {
   ArrowRight,
   Check,
   Clock,
   DollarSign,
   MessageSquare,
-  Search,
   Shield,
-  Sparkles,
   Users,
   Video,
   Zap,
@@ -220,20 +219,7 @@ export default function ForEmployersPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8 px-4">
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            &copy; 2026 <a href="https://profullstack.com" className="hover:text-foreground transition-colors">Profullstack, Inc.</a> All rights reserved.
-          </p>
-          <nav className="flex gap-6 text-sm text-muted-foreground">
-            <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
-            <Link href="/for-candidates" className="hover:text-foreground transition-colors">For Candidates</Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-          </nav>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
