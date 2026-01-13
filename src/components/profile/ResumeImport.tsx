@@ -12,6 +12,7 @@ interface ImportResult {
     full_name: string | null;
     bio: boolean;
     skills_count: number;
+    skills: string[];
     location: string | null;
     work_history_count: number;
   };
@@ -169,9 +170,17 @@ export function ResumeImport() {
               </div>
             )}
             {result.imported.skills_count > 0 && (
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span>{result.imported.skills_count} skills imported</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span>{result.imported.skills_count} skills imported</span>
+                </div>
+                {result.imported.skills && result.imported.skills.length > 0 && (
+                  <p className="text-xs text-muted-foreground ml-6 mt-1">
+                    {result.imported.skills.slice(0, 5).join(", ")}
+                    {result.imported.skills.length > 5 && "..."}
+                  </p>
+                )}
               </div>
             )}
             {result.imported.location && (

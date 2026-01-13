@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GigForm } from "@/components/gigs/GigForm";
+import { Header } from "@/components/layout/Header";
 
 export const metadata = {
   title: "Post a Gig | ugig.net",
@@ -53,22 +54,7 @@ export default async function NewGigPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            ugig.net
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Dashboard
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header showPostGig={false} />
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">

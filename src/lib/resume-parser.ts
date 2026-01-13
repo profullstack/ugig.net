@@ -69,9 +69,9 @@ function parseDate(dateStr: string): string | null {
 function extractWorkHistory(text: string): ParsedWorkHistory[] {
   const workHistory: ParsedWorkHistory[] = [];
 
-  // Common patterns in LinkedIn exports
-  // Look for "Experience" section
-  const experienceSection = text.match(/experience\s*([\s\S]*?)(?=education|skills|certifications|$)/i);
+  // Common patterns in LinkedIn exports and standard resumes
+  // Look for "Experience" or similar sections
+  const experienceSection = text.match(/(?:experience|work history|employment|professional experience)\s*([\s\S]*?)(?=education|skills|certifications|technical|projects|$)/i);
   if (!experienceSection) return workHistory;
 
   const expText = experienceSection[1];
@@ -187,8 +187,8 @@ function extractWorkHistory(text: string): ParsedWorkHistory[] {
 function extractSkills(text: string): string[] {
   const skills: string[] = [];
 
-  // Look for Skills section
-  const skillsSection = text.match(/skills\s*([\s\S]*?)(?=experience|education|certifications|languages|interests|$)/i);
+  // Look for Skills section - try different patterns since skills can appear anywhere
+  const skillsSection = text.match(/(?:skills|technical skills|core competencies|expertise)\s*:?\s*([\s\S]*?)(?=\n\s*\n|experience|education|certifications|languages|interests|work history|employment|projects|$)/i);
   if (!skillsSection) return skills;
 
   const skillsText = skillsSection[1];

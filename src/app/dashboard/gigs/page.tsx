@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GigActions } from "@/components/gigs/GigActions";
+import { Header } from "@/components/layout/Header";
 import {
   Plus,
   ArrowLeft,
@@ -44,28 +45,7 @@ export default async function MyGigsPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            ugig.net
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Dashboard
-            </Link>
-            <Link href="/gigs/new">
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Post a Gig
-              </Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">

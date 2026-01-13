@@ -50,6 +50,21 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const parsed = await parseResumeFile(buffer, file.type);
 
+    // Log what was parsed for debugging
+    console.log("Resume parsed:", {
+      full_name: parsed.full_name,
+      bio: parsed.bio ? `${parsed.bio.slice(0, 100)}...` : null,
+      skills_count: parsed.skills?.length || 0,
+      skills_sample: parsed.skills?.slice(0, 5),
+      work_history_count: parsed.work_history?.length || 0,
+      work_history_sample: parsed.work_history?.slice(0, 2).map(w => ({
+        company: w.company,
+        position: w.position,
+        start_date: w.start_date,
+      })),
+      location: parsed.location,
+    });
+
     // Update profile with parsed data (only non-null values)
     const profileUpdates: Record<string, unknown> = {};
 
@@ -123,6 +138,7 @@ export async function POST(request: NextRequest) {
         full_name: parsed.full_name,
         bio: parsed.bio ? true : false,
         skills_count: parsed.skills?.length || 0,
+        skills: parsed.skills?.slice(0, 10) || [],
         location: parsed.location,
         work_history_count: insertedWorkHistory.length,
       },

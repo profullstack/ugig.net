@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserDropdown } from "./UserDropdown";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface HeaderProps {
   showPostGig?: boolean;
@@ -38,7 +39,7 @@ export async function Header({ showPostGig = true }: HeaderProps) {
             Browse Gigs
           </Link>
 
-          {user ? (
+          {user && profile ? (
             <>
               {showPostGig && (
                 <Link href="/gigs/new">
@@ -48,22 +49,12 @@ export async function Header({ showPostGig = true }: HeaderProps) {
                   </Button>
                 </Link>
               )}
-              <Link href="/dashboard">
-                <Button variant="outline" size="sm">
-                  Dashboard
-                </Button>
-              </Link>
-              <Link href="/profile">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={profile?.avatar_url || undefined}
-                    alt={profile?.full_name || profile?.username || "User"}
-                  />
-                  <AvatarFallback>
-                    {(profile?.full_name?.[0] || profile?.username?.[0] || "U").toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <NotificationBell />
+              <UserDropdown
+                username={profile.username}
+                fullName={profile.full_name}
+                avatarUrl={profile.avatar_url}
+              />
             </>
           ) : (
             <>
