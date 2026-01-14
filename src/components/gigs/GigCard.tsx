@@ -15,6 +15,7 @@ interface GigCardProps {
   showSaveButton?: boolean;
   isSaved?: boolean;
   onSaveChange?: (saved: boolean) => void;
+  highlightTags?: string[];
 }
 
 export function GigCard({
@@ -22,7 +23,11 @@ export function GigCard({
   showSaveButton = false,
   isSaved = false,
   onSaveChange,
+  highlightTags = [],
 }: GigCardProps) {
+  const highlightTagsLower = highlightTags.map((t) => t.toLowerCase());
+  const isHighlighted = (tag: string) =>
+    highlightTagsLower.includes(tag.toLowerCase());
   const budgetDisplay =
     gig.budget_type === "fixed"
       ? gig.budget_min && gig.budget_max
@@ -72,13 +77,16 @@ export function GigCard({
 
       <div className="flex flex-wrap gap-2 mt-4">
         <Badge variant="secondary" className="font-medium">{gig.category}</Badge>
-        {gig.skills_required.slice(0, 3).map((skill) => (
-          <Badge key={skill} variant="outline">
+        {gig.skills_required.slice(0, 4).map((skill) => (
+          <Badge
+            key={skill}
+            variant={isHighlighted(skill) ? "default" : "outline"}
+          >
             {skill}
           </Badge>
         ))}
-        {gig.skills_required.length > 3 && (
-          <Badge variant="outline" className="text-muted-foreground">+{gig.skills_required.length - 3}</Badge>
+        {gig.skills_required.length > 4 && (
+          <Badge variant="outline" className="text-muted-foreground">+{gig.skills_required.length - 4}</Badge>
         )}
       </div>
 

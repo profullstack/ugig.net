@@ -36,7 +36,13 @@ export async function Header({ showPostGig = true }: HeaderProps) {
             href="/gigs"
             className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
           >
-            Browse Gigs
+            Gigs
+          </Link>
+          <Link
+            href="/candidates"
+            className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+          >
+            Candidates
           </Link>
 
           {user && profile ? (

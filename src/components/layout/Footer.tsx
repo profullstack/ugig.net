@@ -14,13 +14,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-foreground transition-colors">
-                  Post a Gig
+                <Link href="/candidates" className="hover:text-foreground transition-colors">
+                  Browse Candidates
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-foreground transition-colors">
-                  Find Talent
+                <Link href="/gigs/new" className="hover:text-foreground transition-colors">
+                  Post a Gig
                 </Link>
               </li>
             </ul>
