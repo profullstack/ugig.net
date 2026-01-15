@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, DollarSign, CheckCircle } from "lucide-react";
 import type { Profile } from "@/types";
@@ -21,20 +21,13 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
       className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 hover:shadow-md transition-all"
     >
       <div className="flex gap-4">
-        <Avatar className="h-16 w-16 flex-shrink-0">
-          {candidate.avatar_url ? (
-            <AvatarImage
-              src={candidate.avatar_url}
-              alt={candidate.full_name || candidate.username}
-            />
-          ) : (
-            <AvatarFallback className="text-xl">
-              {(candidate.full_name || candidate.username || "U")
-                .charAt(0)
-                .toUpperCase()}
-            </AvatarFallback>
-          )}
-        </Avatar>
+        <Image
+          src={candidate.avatar_url || "/default-avatar.svg"}
+          alt={candidate.full_name || candidate.username || "User"}
+          width={64}
+          height={64}
+          className="h-16 w-16 rounded-full object-cover flex-shrink-0"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">

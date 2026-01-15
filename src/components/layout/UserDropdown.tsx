@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   User,
   Settings,
@@ -55,7 +55,6 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
   };
 
   const displayName = fullName || username;
-  const initials = (fullName?.[0] || username?.[0] || "U").toUpperCase();
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -65,10 +64,13 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={avatarUrl || undefined} alt={displayName} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
+        <Image
+          src={avatarUrl || "/default-avatar.svg"}
+          alt={displayName}
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-full object-cover"
+        />
         <span className="text-sm font-medium hidden sm:block">{username}</span>
       </button>
 

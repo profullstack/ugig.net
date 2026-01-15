@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -120,18 +120,13 @@ export default async function PublicProfilePage({ params }: Props) {
             {/* Profile Header */}
             <div className="p-6 bg-card rounded-lg border border-border">
               <div className="flex flex-col sm:flex-row gap-6">
-                <Avatar className="h-24 w-24 flex-shrink-0">
-                  {profile.avatar_url ? (
-                    <AvatarImage
-                      src={profile.avatar_url}
-                      alt={profile.full_name || profile.username}
-                    />
-                  ) : (
-                    <AvatarFallback className="text-3xl">
-                      {(profile.full_name || profile.username || "U").charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
+                <Image
+                  src={profile.avatar_url || "/default-avatar.svg"}
+                  alt={profile.full_name || profile.username || "User"}
+                  width={96}
+                  height={96}
+                  className="h-24 w-24 rounded-full object-cover flex-shrink-0"
+                />
 
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-4">

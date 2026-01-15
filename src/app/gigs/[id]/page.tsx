@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   MapPin,
@@ -12,7 +13,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
 import { Header } from "@/components/layout/Header";
 
@@ -262,17 +262,13 @@ export default async function GigPage({ params }: GigPageProps) {
                   href={`/u/${poster.username}`}
                   className="flex items-center gap-3 hover:opacity-80"
                 >
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage
-                      src={poster.avatar_url || undefined}
-                      alt={poster.full_name || poster.username}
-                    />
-                    <AvatarFallback>
-                      {(poster.full_name || poster.username || "?")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Image
+                    src={poster.avatar_url || "/default-avatar.svg"}
+                    alt={poster.full_name || poster.username || "User"}
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
                   <div>
                     <p className="font-medium">
                       {poster.full_name || poster.username}

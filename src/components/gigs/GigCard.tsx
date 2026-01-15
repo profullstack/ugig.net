@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Clock, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SaveGigButton } from "./SaveGigButton";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import type { Gig, Profile } from "@/types";
@@ -63,17 +63,13 @@ export function GigCard({
             />
           )}
           {poster && (
-            <Avatar className="h-10 w-10 ring-2 ring-border">
-              <AvatarImage
-                src={poster.avatar_url || undefined}
-                alt={poster.full_name || poster.username}
-              />
-              <AvatarFallback>
-                {(poster.full_name || poster.username || "?")
-                  .charAt(0)
-                  .toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <Image
+              src={poster.avatar_url || "/default-avatar.svg"}
+              alt={poster.full_name || poster.username || "User"}
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-full ring-2 ring-border object-cover"
+            />
           )}
         </div>
       </div>
