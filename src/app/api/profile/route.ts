@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       profile_completed: isComplete,
       updated_at: new Date().toISOString(),
     };
-    console.log("Updating profile with:", JSON.stringify(updateData, null, 2));
+    console.log("Updating profile with wallet_addresses:", JSON.stringify(validationResult.data.wallet_addresses, null, 2));
 
     const { data: profile, error } = await supabase
       .from("profiles")
@@ -100,10 +100,11 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error("Profile update error:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    console.log("Profile updated successfully, portfolio_urls:", profile?.portfolio_urls);
+    console.log("Profile saved, wallet_addresses:", JSON.stringify(profile?.wallet_addresses, null, 2));
     return NextResponse.json({ profile });
   } catch {
     return NextResponse.json(

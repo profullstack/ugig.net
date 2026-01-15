@@ -10,7 +10,6 @@ import {
   CreditCard,
   LogOut,
   LayoutDashboard,
-  ChevronDown,
 } from "lucide-react";
 
 interface UserDropdownProps {
@@ -70,7 +69,7 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
           <AvatarImage src={avatarUrl || undefined} alt={displayName} />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <span className="text-sm font-medium hidden sm:block">{username}</span>
       </button>
 
       {isOpen && (

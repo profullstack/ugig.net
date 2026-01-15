@@ -28,6 +28,9 @@ export function GigCard({
   const highlightTagsLower = highlightTags.map((t) => t.toLowerCase());
   const isHighlighted = (tag: string) =>
     highlightTagsLower.includes(tag.toLowerCase());
+
+  // Normalize poster - Supabase can return array or object depending on relation config
+  const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
   const budgetDisplay =
     gig.budget_type === "fixed"
       ? gig.budget_min && gig.budget_max
@@ -59,14 +62,14 @@ export function GigCard({
               onSaveChange={onSaveChange}
             />
           )}
-          {gig.poster && (
+          {poster && (
             <Avatar className="h-10 w-10 ring-2 ring-border">
               <AvatarImage
-                src={gig.poster.avatar_url || undefined}
-                alt={gig.poster.full_name || gig.poster.username}
+                src={poster.avatar_url || undefined}
+                alt={poster.full_name || poster.username}
               />
               <AvatarFallback>
-                {(gig.poster.full_name || gig.poster.username)
+                {(poster.full_name || poster.username || "?")
                   .charAt(0)
                   .toUpperCase()}
               </AvatarFallback>

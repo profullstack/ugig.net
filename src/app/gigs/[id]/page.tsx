@@ -69,6 +69,9 @@ export default async function GigPage({ params }: GigPageProps) {
     notFound();
   }
 
+  // Normalize poster - Supabase can return array or object depending on relation config
+  const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
+
   // Increment view count (fire and forget)
   supabase
     .from("gigs")
@@ -252,40 +255,40 @@ export default async function GigPage({ params }: GigPageProps) {
             </div>
 
             {/* Poster Info */}
-            {gig.poster && (
+            {poster && (
               <div className="border border-border rounded-lg p-6 bg-card">
                 <h3 className="font-semibold mb-4">Posted by</h3>
                 <Link
-                  href={`/u/${gig.poster.username}`}
+                  href={`/u/${poster.username}`}
                   className="flex items-center gap-3 hover:opacity-80"
                 >
                   <Avatar className="h-12 w-12">
                     <AvatarImage
-                      src={gig.poster.avatar_url || undefined}
-                      alt={gig.poster.full_name || gig.poster.username}
+                      src={poster.avatar_url || undefined}
+                      alt={poster.full_name || poster.username}
                     />
                     <AvatarFallback>
-                      {(gig.poster.full_name || gig.poster.username)
+                      {(poster.full_name || poster.username || "?")
                         .charAt(0)
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-medium">
-                      {gig.poster.full_name || gig.poster.username}
+                      {poster.full_name || poster.username}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      @{gig.poster.username}
+                      @{poster.username}
                     </p>
                   </div>
                 </Link>
-                {gig.poster.bio && (
+                {poster.bio && (
                   <p className="text-sm text-muted-foreground mt-4 line-clamp-3">
-                    {gig.poster.bio}
+                    {poster.bio}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mt-4">
-                  Member since {formatDate(gig.poster.created_at)}
+                  Member since {formatDate(poster.created_at)}
                 </p>
               </div>
             )}
