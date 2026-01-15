@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applicationStatusSchema } from "@/lib/validations";
+import { sendEmail, applicationStatusEmail } from "@/lib/email";
 
 // PUT /api/applications/[id]/status - Update application status
 export async function PUT(
@@ -32,7 +33,7 @@ export async function PUT(
 
     const { status } = validationResult.data;
 
-    // Get application with gig info
+    // Get application with gig info and profiles for email
     const { data: application } = await supabase
       .from("applications")
       .select(
@@ -41,8 +42,10 @@ export async function PUT(
         gig:gigs (
           id,
           title,
-          poster_id
-        )
+          poster_id,
+          poster:profiles!poster_id(full_name, username)
+        ),
+        applicant:profiles!applicant_id(email, full_name, username)
       `
       )
       .eq("id", id)
@@ -100,6 +103,26 @@ export async function PUT(
           status,
         },
       });
+
+      // Send email notification to applicant
+      const applicant = Array.isArray(application.applicant) ? application.applicant[0] : application.applicant;
+      const gig = Array.isArray(application.gig) ? application.gig[0] : application.gig;
+      const poster = gig?.poster ? (Array.isArray(gig.poster) ? gig.poster[0] : gig.poster) : null;
+
+      if (applicant?.email && gig) {
+        const emailContent = applicationStatusEmail({
+          applicantName: applicant.full_name || applicant.username || "there",
+          gigTitle: gig.title,
+          gigId: gig.id,
+          status,
+          posterName: poster?.full_name || poster?.username || "The client",
+        });
+
+        await sendEmail({
+          to: applicant.email,
+          ...emailContent,
+        });
+      }
     }
 
     return NextResponse.json({ application: updatedApplication });

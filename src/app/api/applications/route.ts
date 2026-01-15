@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applicationSchema } from "@/lib/validations";
+import { sendEmail, newApplicationEmail } from "@/lib/email";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -28,16 +29,19 @@ export async function POST(request: NextRequest) {
 
     const { gig_id, ...applicationData } = validationResult.data;
 
-    // Check if gig exists and is active
+    // Check if gig exists and is active, fetch poster info for email
     const { data: gig } = await supabase
       .from("gigs")
-      .select("poster_id, status")
+      .select("poster_id, status, title, poster:profiles!poster_id(email, full_name, username)")
       .eq("id", gig_id)
       .single();
 
     if (!gig) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
     }
+
+    // Normalize poster data
+    const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
 
     if (gig.status !== "active") {
       return NextResponse.json(
@@ -92,6 +96,33 @@ export async function POST(request: NextRequest) {
       body: "Someone applied to your gig",
       data: { gig_id, application_id: application.id },
     });
+
+    // Send email notification to gig poster
+    if (poster?.email) {
+      // Get applicant profile
+      const { data: applicantProfile } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", user.id)
+        .single();
+
+      const applicantName = applicantProfile?.full_name || applicantProfile?.username || "A candidate";
+      const posterName = poster.full_name || poster.username || "there";
+
+      const emailContent = newApplicationEmail({
+        posterName,
+        applicantName,
+        gigTitle: gig.title,
+        gigId: gig_id,
+        applicationId: application.id,
+        coverLetterPreview: applicationData.cover_letter,
+      });
+
+      await sendEmail({
+        to: poster.email,
+        ...emailContent,
+      });
+    }
 
     return NextResponse.json({ application }, { status: 201 });
   } catch {
