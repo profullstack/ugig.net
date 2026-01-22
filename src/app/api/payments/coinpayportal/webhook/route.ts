@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
     const payload: CoinPayWebhookPayload = JSON.parse(rawBody);
     const supabase = await createClient();
 
-    console.log(`CoinPayPortal webhook: ${payload.event}`, {
-      payment_id: payload.payment_id,
-      amount_usd: payload.amount_usd,
-      status: payload.status,
+    console.log(`CoinPayPortal webhook: ${payload.type}`, {
+      payment_id: payload.data.payment_id,
+      amount_usd: payload.data.amount_usd,
+      status: payload.data.status,
     });
 
-    switch (payload.event) {
+    switch (payload.type) {
       case "payment.confirmed": {
         // Payment confirmed - update payment record and activate subscription/service
         await handlePaymentConfirmed(supabase, payload);
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled webhook event: ${payload.event}`);
+        console.log(`Unhandled webhook event: ${payload.type}`);
     }
 
     return NextResponse.json({ received: true });
@@ -75,15 +75,17 @@ async function handlePaymentConfirmed(
   supabase: Awaited<ReturnType<typeof createClient>>,
   payload: CoinPayWebhookPayload
 ) {
+  const { data: paymentData } = payload;
+
   // Update payment status
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
     .update({
       status: "confirmed",
-      amount_crypto: payload.amount_crypto,
+      amount_crypto: parseFloat(paymentData.amount_crypto),
       updated_at: new Date().toISOString(),
     })
-    .eq("coinpay_payment_id", payload.payment_id)
+    .eq("coinpay_payment_id", paymentData.payment_id)
     .select()
     .single();
 
@@ -93,7 +95,7 @@ async function handlePaymentConfirmed(
   }
 
   if (!payment) {
-    console.error("Payment not found:", payload.payment_id);
+    console.error("Payment not found:", paymentData.payment_id);
     return;
   }
 
@@ -108,7 +110,7 @@ async function handlePaymentConfirmed(
       .from("subscriptions")
       .upsert({
         user_id: payment.user_id,
-        coinpay_payment_id: payload.payment_id,
+        coinpay_payment_id: paymentData.payment_id,
         status: "active",
         plan: "pro",
         current_period_start: now.toISOString(),
@@ -127,8 +129,8 @@ async function handlePaymentConfirmed(
       body: `Your Pro subscription is now active. Enjoy unlimited gig posts!`,
       data: {
         payment_id: payment.id,
-        amount_usd: payload.amount_usd,
-        currency: payload.currency,
+        amount_usd: paymentData.amount_usd,
+        currency: paymentData.currency,
       },
     });
   }
@@ -140,24 +142,28 @@ async function handlePaymentForwarded(
   supabase: Awaited<ReturnType<typeof createClient>>,
   payload: CoinPayWebhookPayload
 ) {
+  const { data: paymentData } = payload;
+
   // Update payment with forwarding info
   await supabase
     .from("payments")
     .update({
       status: "forwarded",
       metadata: {
-        tx_hash: payload.tx_hash,
-        forwarded_tx_hash: payload.forwarded_tx_hash,
+        tx_hash: paymentData.tx_hash,
+        merchant_tx_hash: paymentData.merchant_tx_hash,
       },
       updated_at: new Date().toISOString(),
     })
-    .eq("coinpay_payment_id", payload.payment_id);
+    .eq("coinpay_payment_id", paymentData.payment_id);
 }
 
 async function handlePaymentExpired(
   supabase: Awaited<ReturnType<typeof createClient>>,
   payload: CoinPayWebhookPayload
 ) {
+  const { data: paymentData } = payload;
+
   // Mark payment as expired
   const { data: payment } = await supabase
     .from("payments")
@@ -165,7 +171,7 @@ async function handlePaymentExpired(
       status: "expired",
       updated_at: new Date().toISOString(),
     })
-    .eq("coinpay_payment_id", payload.payment_id)
+    .eq("coinpay_payment_id", paymentData.payment_id)
     .select()
     .single();
 

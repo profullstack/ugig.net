@@ -3,18 +3,21 @@ import crypto from "crypto";
 const COINPAYPORTAL_API_URL = "https://coinpayportal.com/api";
 
 export interface CoinPayWebhookPayload {
-  event: "payment.confirmed" | "payment.forwarded" | "payment.expired";
-  type: string;
-  payment_id: string;
+  id: string;
+  type: "payment.confirmed" | "payment.forwarded" | "payment.expired";
+  data: {
+    payment_id: string;
+    status: string;
+    amount_crypto: string;
+    amount_usd: string;
+    currency: string;
+    payment_address?: string;
+    tx_hash?: string;
+    merchant_tx_hash?: string;
+    metadata?: Record<string, unknown>;
+  };
+  created_at: string;
   business_id: string;
-  amount_crypto: number;
-  amount_usd: number;
-  currency: string;
-  status: string;
-  timestamp: string;
-  tx_hash?: string;
-  forwarded_tx_hash?: string;
-  metadata?: Record<string, unknown>;
 }
 
 export interface CreatePaymentOptions {
@@ -57,11 +60,11 @@ export function verifyWebhookSignature(
     const timestamp = timestampPart.replace("t=", "");
     const signature = signaturePart.replace("v1=", "");
 
-    // Reject webhooks older than 300 seconds
+    // Reject webhooks older than 300 seconds (check both past and future)
     const webhookTime = parseInt(timestamp, 10);
     const currentTime = Math.floor(Date.now() / 1000);
-    if (currentTime - webhookTime > 300) {
-      console.error("Webhook timestamp too old");
+    if (Math.abs(currentTime - webhookTime) > 300) {
+      console.error("Webhook timestamp out of range");
       return false;
     }
 
@@ -72,10 +75,10 @@ export function verifyWebhookSignature(
       .update(signedPayload)
       .digest("hex");
 
-    // Timing-safe comparison
+    // Timing-safe comparison (use hex encoding for proper byte comparison)
     return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
+      Buffer.from(signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
     );
   } catch (error) {
     console.error("Signature verification error:", error);

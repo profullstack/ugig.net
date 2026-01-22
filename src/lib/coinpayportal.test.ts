@@ -4,7 +4,13 @@ import { verifyWebhookSignature, SUPPORTED_CURRENCIES } from "./coinpayportal";
 
 describe("verifyWebhookSignature", () => {
   const secret = "test-secret-key";
-  const payload = JSON.stringify({ event: "payment.confirmed", payment_id: "123" });
+  const payload = JSON.stringify({
+    id: "evt_pay_123_1705315800",
+    type: "payment.confirmed",
+    data: { payment_id: "123", status: "confirmed", amount_crypto: "0.05", amount_usd: "150.00", currency: "ETH" },
+    created_at: "2024-01-15T10:30:00Z",
+    business_id: "biz_xyz789",
+  });
 
   it("verifies valid signature", () => {
     const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -39,6 +45,18 @@ describe("verifyWebhookSignature", () => {
       .digest("hex");
 
     const signatureHeader = `t=${oldTimestamp},v1=${signature}`;
+    expect(verifyWebhookSignature(payload, signatureHeader, secret)).toBe(false);
+  });
+
+  it("rejects future timestamps (more than 300 seconds ahead)", () => {
+    const futureTimestamp = (Math.floor(Date.now() / 1000) + 400).toString();
+    const signedPayload = `${futureTimestamp}.${payload}`;
+    const signature = crypto
+      .createHmac("sha256", secret)
+      .update(signedPayload)
+      .digest("hex");
+
+    const signatureHeader = `t=${futureTimestamp},v1=${signature}`;
     expect(verifyWebhookSignature(payload, signatureHeader, secret)).toBe(false);
   });
 
