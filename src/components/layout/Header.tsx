@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -28,8 +29,14 @@ export async function Header({ showPostGig = true }: HeaderProps) {
   return (
     <header className="border-b border-border">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold text-primary">
-          ugig.net
+        <Link href="/">
+          <Image
+            src="/logo.svg"
+            alt="ugig.net"
+            width={86}
+            height={32}
+            priority
+          />
         </Link>
         <nav className="flex items-center gap-4">
           <Link
