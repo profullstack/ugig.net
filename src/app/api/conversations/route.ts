@@ -125,68 +125,101 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify gig exists
-    const { data: gig } = await supabase
-      .from("gigs")
-      .select("id, poster_id")
-      .eq("id", gig_id)
-      .single();
+    const participantIds = [user.id, recipient_id].sort();
 
-    if (!gig) {
-      return NextResponse.json({ error: "Gig not found" }, { status: 404 });
-    }
+    if (gig_id) {
+      // === GIG-SCOPED CONVERSATION ===
 
-    // Verify user is either the poster or has an application for this gig
-    const isPoster = gig.poster_id === user.id;
-    let isApplicant = false;
-
-    if (!isPoster) {
-      const { data: application } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("gig_id", gig_id)
-        .eq("applicant_id", user.id)
+      // Verify gig exists
+      const { data: gig } = await supabase
+        .from("gigs")
+        .select("id, poster_id")
+        .eq("id", gig_id)
         .single();
 
-      isApplicant = !!application;
+      if (!gig) {
+        return NextResponse.json({ error: "Gig not found" }, { status: 404 });
+      }
+
+      // Verify user is either the poster or has an application for this gig
+      const isPoster = gig.poster_id === user.id;
+      let isApplicant = false;
+
+      if (!isPoster) {
+        const { data: application } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("gig_id", gig_id)
+          .eq("applicant_id", user.id)
+          .single();
+
+        isApplicant = !!application;
+      }
+
+      if (!isPoster && !isApplicant) {
+        return NextResponse.json(
+          { error: "Must be gig poster or applicant to start conversation" },
+          { status: 403 }
+        );
+      }
+
+      // Check for existing conversation between these users for this gig
+      const { data: existingConv } = await supabase
+        .from("conversations")
+        .select("*")
+        .eq("gig_id", gig_id)
+        .contains("participant_ids", participantIds)
+        .single();
+
+      if (existingConv) {
+        return NextResponse.json({ data: existingConv });
+      }
+
+      // Create gig-scoped conversation
+      const { data: conversation, error } = await supabase
+        .from("conversations")
+        .insert({
+          participant_ids: participantIds,
+          gig_id,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
+      return NextResponse.json({ data: conversation }, { status: 201 });
+    } else {
+      // === DIRECT MESSAGE (no gig context) ===
+
+      // Check for existing direct conversation (gig_id IS NULL)
+      const { data: existingConvs } = await supabase
+        .from("conversations")
+        .select("*")
+        .is("gig_id", null)
+        .contains("participant_ids", participantIds);
+
+      if (existingConvs && existingConvs.length > 0) {
+        return NextResponse.json({ data: existingConvs[0] });
+      }
+
+      // Create direct conversation
+      const { data: conversation, error } = await supabase
+        .from("conversations")
+        .insert({
+          participant_ids: participantIds,
+          gig_id: null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
+      return NextResponse.json({ data: conversation }, { status: 201 });
     }
-
-    if (!isPoster && !isApplicant) {
-      return NextResponse.json(
-        { error: "Must be gig poster or applicant to start conversation" },
-        { status: 403 }
-      );
-    }
-
-    // Check for existing conversation between these users for this gig
-    const participantIds = [user.id, recipient_id].sort();
-    const { data: existingConv } = await supabase
-      .from("conversations")
-      .select("*")
-      .eq("gig_id", gig_id)
-      .contains("participant_ids", participantIds)
-      .single();
-
-    if (existingConv) {
-      // Return existing conversation
-      return NextResponse.json({ data: existingConv });
-    }
-
-    // Create new conversation
-    const { data: conversation, error } = await supabase
-      .from("conversations")
-      .insert({
-        participant_ids: participantIds,
-        gig_id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ data: conversation }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

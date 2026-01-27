@@ -488,11 +488,11 @@ describe("conversationCreateSchema", () => {
     }
   });
 
-  it("rejects missing gig_id", () => {
+  it("accepts missing gig_id (direct message)", () => {
     const result = conversationCreateSchema.safeParse({
       recipient_id: "987fcdeb-51a2-3bc4-a567-890123456789",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects missing recipient_id", () => {

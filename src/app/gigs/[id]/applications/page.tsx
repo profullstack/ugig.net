@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/utils";
 import { ApplicationActions } from "@/components/applications/ApplicationActions";
+import { StartConversationButton } from "@/components/messages/StartConversationButton";
 
 interface ApplicationsPageProps {
   params: Promise<{ id: string }>;
@@ -274,11 +275,19 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                       )}
 
                       {/* Actions */}
-                      <div className="pt-4 border-t border-border">
+                      <div className="pt-4 border-t border-border flex items-start justify-between gap-4">
                         <ApplicationActions
                           applicationId={app.id}
                           currentStatus={app.status}
                         />
+                        {applicant?.id && (
+                          <StartConversationButton
+                            gigId={gig.id}
+                            recipientId={applicant.id}
+                            variant="outline"
+                            size="sm"
+                          />
+                        )}
                       </div>
                     </div>
                   );

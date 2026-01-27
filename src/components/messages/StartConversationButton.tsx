@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, Loader2 } from "lucide-react";
 
 interface StartConversationButtonProps {
-  gigId: string;
+  gigId?: string;
   recipientId: string;
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
@@ -31,7 +31,7 @@ export function StartConversationButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          gig_id: gigId,
+          gig_id: gigId || null,
           recipient_id: recipientId,
         }),
       });

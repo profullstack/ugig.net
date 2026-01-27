@@ -170,7 +170,7 @@ export const messageSchema = z.object({
 });
 
 export const conversationCreateSchema = z.object({
-  gig_id: z.string().uuid("Invalid gig ID"),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
   recipient_id: z.string().uuid("Invalid recipient ID"),
 });
 

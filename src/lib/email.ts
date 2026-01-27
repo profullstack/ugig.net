@@ -217,3 +217,82 @@ ugig.net - AI-Powered Gig Marketplace
     text,
   };
 }
+
+export function newMessageEmail(params: {
+  recipientName: string;
+  senderName: string;
+  messagePreview: string;
+  conversationId: string;
+  gigTitle: string | null;
+}) {
+  const { recipientName, senderName, messagePreview, conversationId, gigTitle } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  const contextLine = gigTitle
+    ? `<p style="color: #6b7280; font-size: 14px;">Regarding: <strong>${gigTitle}</strong></p>`
+    : "";
+
+  const contextLineText = gigTitle ? `Regarding: ${gigTitle}\n` : "";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Message</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Message from ${senderName}</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${senderName}</strong> sent you a message:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      ${contextLine}
+      <p style="color: #374151; margin-bottom: 0;">
+        "${messagePreview.slice(0, 200)}${messagePreview.length > 200 ? "..." : ""}"
+      </p>
+    </div>
+
+    <a href="${baseUrl}/dashboard/messages/${conversationId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      Reply to Message
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      You received this email because you have been away for a while. Active users receive in-app notifications instead.
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Message from ${senderName}
+
+Hi ${recipientName},
+
+${senderName} sent you a message:
+${contextLineText}
+"${messagePreview.slice(0, 200)}${messagePreview.length > 200 ? "..." : ""}"
+
+Reply: ${baseUrl}/dashboard/messages/${conversationId}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `New message from ${senderName}`,
+    html,
+    text,
+  };
+}

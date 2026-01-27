@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
+import { StartConversationButton } from "@/components/messages/StartConversationButton";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -47,6 +48,10 @@ export async function generateMetadata({ params }: Props) {
 export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params;
   const supabase = await createClient();
+
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -136,12 +141,21 @@ export default async function PublicProfilePage({ params }: Props) {
                       </h1>
                       <p className="text-muted-foreground">@{profile.username}</p>
                     </div>
-                    {profile.is_available && (
-                      <Badge variant="default" className="bg-green-600">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Available
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {profile.is_available && (
+                        <Badge variant="default" className="bg-green-600">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Available
+                        </Badge>
+                      )}
+                      {currentUser && currentUser.id !== profile.id && (
+                        <StartConversationButton
+                          recipientId={profile.id}
+                          variant="outline"
+                          size="sm"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">

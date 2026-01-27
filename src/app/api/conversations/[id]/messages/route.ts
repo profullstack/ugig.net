@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { messageSchema } from "@/lib/validations";
+import { sendEmail, newMessageEmail } from "@/lib/email";
 
 // GET /api/conversations/[id]/messages - Get messages in a conversation
 export async function GET(
@@ -203,6 +205,56 @@ export async function POST(
           sender_id: user.id,
         },
       });
+
+      // Send email if recipient has been inactive for more than 1 hour
+      const { data: recipientProfile } = await supabase
+        .from("profiles")
+        .select("full_name, username, last_active_at")
+        .eq("id", recipientId)
+        .single();
+
+      if (recipientProfile) {
+        const lastActive = recipientProfile.last_active_at
+          ? new Date(recipientProfile.last_active_at)
+          : null;
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+        if (!lastActive || lastActive < oneHourAgo) {
+          // Get recipient email from auth.users via admin client
+          const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { data: { user: recipientUser } } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+          const recipientEmail = recipientUser?.email;
+
+          if (recipientEmail) {
+            // Get conversation gig context if any
+            const { data: convWithGig } = await supabase
+              .from("conversations")
+              .select("gig:gigs(title)")
+              .eq("id", conversationId)
+              .single();
+
+            const gigTitle = (convWithGig?.gig as { title: string } | null)?.title || null;
+
+            const emailContent = newMessageEmail({
+              recipientName: recipientProfile.full_name || recipientProfile.username || "there",
+              senderName,
+              messagePreview: content,
+              conversationId,
+              gigTitle,
+            });
+
+            sendEmail({
+              to: recipientEmail,
+              ...emailContent,
+            }).catch((err) =>
+              console.error("Failed to send message notification email:", err)
+            );
+          }
+        }
+      }
     }
 
     return NextResponse.json({ data: message }, { status: 201 });

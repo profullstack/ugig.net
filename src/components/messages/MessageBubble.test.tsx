@@ -34,6 +34,7 @@ const mockMessage: MessageWithSender = {
     github_url: null,
     twitter_url: null,
     wallet_addresses: [],
+    last_active_at: "2024-01-01T00:00:00Z",
   },
 };
 

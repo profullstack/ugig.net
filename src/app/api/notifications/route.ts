@@ -15,6 +15,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Update last_active_at (fire and forget, piggybacks on 30s notification poll)
+    void supabase
+      .from("profiles")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", user.id)
+      .then(() => {}, () => {});
+
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
     const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);

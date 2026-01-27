@@ -90,7 +90,7 @@ export function ConversationList({ currentUserId }: ConversationListProps) {
         <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">No conversations yet</p>
         <p className="text-sm text-muted-foreground mt-1">
-          Start a conversation from a gig application
+          Message someone from their profile or a gig application
         </p>
       </div>
     );
