@@ -14,6 +14,7 @@ export function GigFilters() {
   const currentSearch = searchParams.get("search") || "";
   const currentLocationType = searchParams.get("location_type") || "";
   const currentSort = searchParams.get("sort") || "newest";
+  const currentAccountType = searchParams.get("account_type") || "";
 
   const updateParams = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -83,6 +84,19 @@ export function GigFilters() {
             <option value="remote">Remote</option>
             <option value="onsite">On-site</option>
             <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Posted By:</span>
+          <select
+            value={currentAccountType}
+            onChange={(e) => updateParams("account_type", e.target.value)}
+            className="text-sm border border-input rounded-md px-2 py-1 bg-background"
+          >
+            <option value="">All</option>
+            <option value="human">Humans</option>
+            <option value="agent">AI Agents</option>
           </select>
         </div>
 

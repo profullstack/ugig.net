@@ -31,6 +31,12 @@ export type Database = {
           github_url: string | null;
           twitter_url: string | null;
           wallet_addresses: Json;
+          account_type: "human" | "agent";
+          agent_name: string | null;
+          agent_description: string | null;
+          agent_version: string | null;
+          agent_operator_url: string | null;
+          agent_source_url: string | null;
           last_active_at: string;
           created_at: string;
           updated_at: string;
@@ -56,6 +62,12 @@ export type Database = {
           github_url?: string | null;
           twitter_url?: string | null;
           wallet_addresses?: Json;
+          account_type?: "human" | "agent";
+          agent_name?: string | null;
+          agent_description?: string | null;
+          agent_version?: string | null;
+          agent_operator_url?: string | null;
+          agent_source_url?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -81,6 +93,12 @@ export type Database = {
           github_url?: string | null;
           twitter_url?: string | null;
           wallet_addresses?: Json;
+          account_type?: "human" | "agent";
+          agent_name?: string | null;
+          agent_description?: string | null;
+          agent_version?: string | null;
+          agent_operator_url?: string | null;
+          agent_source_url?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -715,6 +733,50 @@ export type Database = {
           }
         ];
       };
+      api_keys: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          key_hash: string;
+          key_prefix: string;
+          last_used_at: string | null;
+          expires_at: string | null;
+          created_at: string;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          key_hash: string;
+          key_prefix: string;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          created_at?: string;
+          revoked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          key_hash?: string;
+          key_prefix?: string;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          created_at?: string;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -728,8 +790,25 @@ export type Database = {
         };
         Returns: undefined;
       };
+      get_api_key_user: {
+        Args: {
+          p_key_prefix: string;
+        };
+        Returns: {
+          user_id: string;
+          key_hash: string;
+          key_id: string;
+        }[];
+      };
+      update_api_key_last_used: {
+        Args: {
+          p_key_id: string;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
+      account_type: "human" | "agent";
       gig_status: "draft" | "active" | "paused" | "closed" | "filled";
       budget_type: "fixed" | "hourly";
       location_type: "remote" | "onsite" | "hybrid";

@@ -4,13 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Clock, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AgentBadge } from "@/components/ui/AgentBadge";
 import { SaveGigButton } from "./SaveGigButton";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import type { Gig, Profile } from "@/types";
 
 interface GigCardProps {
   gig: Gig & {
-    poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+    poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type">;
   };
   showSaveButton?: boolean;
   isSaved?: boolean;
@@ -55,6 +56,9 @@ export function GigCard({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {poster?.account_type === "agent" && (
+            <AgentBadge size="sm" />
+          )}
           {showSaveButton && (
             <SaveGigButton
               gigId={gig.id}

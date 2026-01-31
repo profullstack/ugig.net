@@ -4,24 +4,43 @@ import { z } from "zod";
 // AUTH SCHEMAS
 // =============================================
 
-export const signupSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain uppercase, lowercase, and number"
-    ),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username must be at most 30 characters")
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Username can only contain letters, numbers, underscores, and hyphens"
-    ),
-});
+export const signupSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        "Password must contain uppercase, lowercase, and number"
+      ),
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .max(30, "Username must be at most 30 characters")
+      .regex(
+        /^[a-zA-Z0-9_-]+$/,
+        "Username can only contain letters, numbers, underscores, and hyphens"
+      ),
+    account_type: z.enum(["human", "agent"]).default("human"),
+    agent_name: z.string().min(1).max(100).optional(),
+    agent_description: z.string().max(2000).optional(),
+    agent_version: z.string().max(50).optional(),
+    agent_operator_url: z.string().url().optional(),
+    agent_source_url: z.string().url().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.account_type === "agent" && !data.agent_name) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "agent_name is required for agent accounts",
+      path: ["agent_name"],
+    }
+  );
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -71,6 +90,12 @@ export const profileSchema = z.object({
   timezone: z.string().max(50).optional().nullable(),
   is_available: z.boolean().default(true),
   wallet_addresses: z.array(walletAddressSchema).max(10).default([]),
+  // Agent-specific fields (only relevant for account_type === 'agent')
+  agent_name: z.string().min(1).max(100).optional().nullable(),
+  agent_description: z.string().max(2000).optional().nullable(),
+  agent_version: z.string().max(50).optional().nullable(),
+  agent_operator_url: z.string().url().optional().nullable(),
+  agent_source_url: z.string().url().optional().nullable(),
 });
 
 // =============================================
@@ -106,6 +131,7 @@ export const gigFiltersSchema = z.object({
   budget_min: z.number().optional(),
   budget_max: z.number().optional(),
   location_type: z.enum(["remote", "onsite", "hybrid"]).optional(),
+  account_type: z.enum(["human", "agent"]).optional(),
   sort: z.enum(["newest", "oldest", "budget_high", "budget_low"]).default("newest"),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(50).default(20),
@@ -175,6 +201,22 @@ export const conversationCreateSchema = z.object({
 });
 
 // =============================================
+// API KEY SCHEMAS
+// =============================================
+
+export const createApiKeySchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name must be at most 100 characters"),
+  expires_at: z.string().datetime().optional(),
+});
+
+export const revokeApiKeySchema = z.object({
+  id: z.string().uuid("Invalid API key ID"),
+});
+
+// =============================================
 // TYPE EXPORTS
 // =============================================
 
@@ -191,3 +233,4 @@ export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
 export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
+export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;

@@ -15,8 +15,13 @@ import {
   CheckCircle,
   Download,
   Wallet,
+  Bot,
+  Globe,
+  Code,
+  Tag,
 } from "lucide-react";
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
+import { AgentBadge } from "@/components/ui/AgentBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
 
 interface Props {
@@ -142,6 +147,12 @@ export default async function PublicProfilePage({ params }: Props) {
                       <p className="text-muted-foreground">@{profile.username}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {profile.account_type === "agent" && (
+                        <AgentBadge
+                          agentName={profile.agent_name}
+                          operatorUrl={profile.agent_operator_url}
+                        />
+                      )}
                       {profile.is_available && (
                         <Badge variant="default" className="bg-green-600">
                           <CheckCircle className="h-3 w-3 mr-1" />
@@ -200,6 +211,57 @@ export default async function PublicProfilePage({ params }: Props) {
                 </div>
               </div>
             </div>
+
+            {/* Agent Info */}
+            {profile.account_type === "agent" && (
+              <div className="p-6 bg-card rounded-lg border border-purple-200 dark:border-purple-800/50 bg-purple-50/50 dark:bg-purple-900/10">
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  Agent Information
+                </h2>
+                <div className="space-y-2 text-sm">
+                  {profile.agent_name && (
+                    <p>
+                      <span className="text-muted-foreground">Name:</span>{" "}
+                      <span className="font-medium">{profile.agent_name}</span>
+                    </p>
+                  )}
+                  {profile.agent_description && (
+                    <p className="text-muted-foreground">{profile.agent_description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-purple-200 dark:border-purple-800/50">
+                    {profile.agent_version && (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Tag className="h-3.5 w-3.5" />
+                        v{profile.agent_version}
+                      </span>
+                    )}
+                    {profile.agent_operator_url && (
+                      <a
+                        href={profile.agent_operator_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Globe className="h-3.5 w-3.5" />
+                        Operator
+                      </a>
+                    )}
+                    {profile.agent_source_url && (
+                      <a
+                        href={profile.agent_source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Code className="h-3.5 w-3.5" />
+                        Source / Docs
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bio */}
             {profile.bio && (

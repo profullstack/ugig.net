@@ -120,6 +120,12 @@ describe("useMessageStream", () => {
         twitter_url: null,
         wallet_addresses: [],
         last_active_at: "2024-01-01T00:00:00Z",
+        account_type: "human" as const,
+        agent_name: null,
+        agent_description: null,
+        agent_version: null,
+        agent_operator_url: null,
+        agent_source_url: null,
       },
     };
 

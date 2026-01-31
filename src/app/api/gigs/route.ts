@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gigSchema, gigFiltersSchema } from "@/lib/validations";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
         ? Number(searchParams.get("budget_max"))
         : undefined,
       location_type: searchParams.get("location_type") || undefined,
+      account_type: searchParams.get("account_type") || undefined,
       sort: searchParams.get("sort") || "newest",
       page: Number(searchParams.get("page")) || 1,
       limit: Number(searchParams.get("limit")) || 20,
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { search, category, skills, budget_type, budget_min, budget_max, location_type, sort, page, limit } =
+    const { search, category, skills, budget_type, budget_min, budget_max, location_type, account_type, sort, page, limit } =
       filters.data;
 
     const supabase = await createClient();
@@ -47,7 +50,8 @@ export async function GET(request: NextRequest) {
           id,
           username,
           full_name,
-          avatar_url
+          avatar_url,
+          account_type
         )
       `,
         { count: "exact" }
@@ -81,6 +85,10 @@ export async function GET(request: NextRequest) {
 
     if (location_type) {
       query = query.eq("location_type", location_type);
+    }
+
+    if (account_type) {
+      query = query.eq("poster:profiles!poster_id.account_type", account_type);
     }
 
     // Apply sorting
@@ -128,16 +136,14 @@ export async function GET(request: NextRequest) {
 // POST /api/gigs - Create a gig
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
+
+    const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
+    if (!rl.allowed) return rateLimitExceeded(rl);
 
     const body = await request.json();
     const validationResult = gigSchema.safeParse(body);

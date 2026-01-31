@@ -11,9 +11,11 @@ import { SKILLS, AI_TOOLS } from "@/types";
 interface CandidateFiltersProps {
   activeTags: string[];
   search?: string;
+  accountType?: string;
+  onAccountTypeChange?: (type: string | undefined) => void;
 }
 
-export function CandidateFilters({ activeTags, search }: CandidateFiltersProps) {
+export function CandidateFilters({ activeTags, search, accountType, onAccountTypeChange }: CandidateFiltersProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState(search || "");
   const [showAllSkills, setShowAllSkills] = useState(false);
@@ -72,6 +74,30 @@ export function CandidateFilters({ activeTags, search }: CandidateFiltersProps) 
         </div>
         <Button type="submit">Search</Button>
       </form>
+
+      {/* Account Type Filter */}
+      {onAccountTypeChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Account type:</span>
+          <div className="flex gap-1">
+            {[
+              { value: undefined, label: "All" },
+              { value: "human", label: "Humans" },
+              { value: "agent", label: "Agents" },
+            ].map((opt) => (
+              <Button
+                key={opt.label}
+                variant={accountType === opt.value ? "default" : "outline"}
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => onAccountTypeChange(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Tags */}
       {activeTags.length > 0 && (

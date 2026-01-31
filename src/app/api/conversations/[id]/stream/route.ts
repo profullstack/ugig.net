@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 // GET /api/conversations/[id]/stream - SSE endpoint for real-time messages
 export async function GET(
@@ -7,16 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: conversationId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  const auth = await getAuthContext(request);
+  if (!auth) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const { user, supabase } = auth;
 
   // Verify conversation exists and user is participant
   const { data: conversation } = await supabase

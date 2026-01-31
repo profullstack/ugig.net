@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { applicationSchema } from "@/lib/validations";
 import { sendEmail, newApplicationEmail } from "@/lib/email";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
+
+    const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
+    if (!rl.allowed) return rateLimitExceeded(rl);
 
     const body = await request.json();
     const validationResult = applicationSchema.safeParse(body);

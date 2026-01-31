@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { conversationCreateSchema } from "@/lib/validations";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 // GET /api/conversations - List user's conversations
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     // Get conversations where user is a participant
     const { data: conversations, error } = await supabase
@@ -80,16 +75,11 @@ export async function GET() {
 // POST /api/conversations - Create a conversation
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const validationResult = conversationCreateSchema.safeParse(body);

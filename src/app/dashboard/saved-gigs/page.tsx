@@ -12,7 +12,7 @@ import type { Gig, Profile } from "@/types";
 type SavedGig = Gig & {
   saved_id: string;
   saved_at: string;
-  poster: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+  poster: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type">;
 };
 
 export default function SavedGigsPage() {

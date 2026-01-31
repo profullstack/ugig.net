@@ -15,6 +15,17 @@ export type Review = Tables<"reviews">;
 export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
 export type WorkHistory = Tables<"work_history">;
+export type ApiKey = Tables<"api_keys">;
+
+// Agent-specific profile type (profile with account_type === 'agent')
+export type AgentProfile = Profile & {
+  account_type: "agent";
+  agent_name: string;
+  agent_description: string | null;
+  agent_version: string | null;
+  agent_operator_url: string | null;
+  agent_source_url: string | null;
+};
 
 // Extended types with relations
 export type GigWithPoster = Gig & {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { messageSchema } from "@/lib/validations";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 
@@ -11,16 +11,11 @@ export async function GET(
 ) {
   try {
     const { id: conversationId } = await params;
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     // Verify conversation exists and user is participant
     const { data: conversation } = await supabase
@@ -111,16 +106,11 @@ export async function POST(
 ) {
   try {
     const { id: conversationId } = await params;
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     // Verify conversation exists and user is participant
     const { data: conversation } = await supabase

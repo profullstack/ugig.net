@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import type { Resolver } from "react-hook-form";
 import { signupSchema, type SignupInput } from "@/lib/validations";
 import { auth } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,10 @@ export function SignupForm() {
     handleSubmit,
     formState: { errors },
   } = useForm<SignupInput>({
-    resolver: zodResolver(signupSchema),
+    resolver: zodResolver(signupSchema) as Resolver<SignupInput>,
+    defaultValues: {
+      account_type: "human",
+    },
   });
 
   const onSubmit = async (data: SignupInput) => {

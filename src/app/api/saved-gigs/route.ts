@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
 
 const saveGigSchema = z.object({
@@ -7,18 +7,13 @@ const saveGigSchema = z.object({
 });
 
 // GET /api/saved-gigs - List user's saved gigs
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const { data: savedGigs, error } = await supabase
       .from("saved_gigs")
@@ -80,16 +75,11 @@ export async function GET() {
 // POST /api/saved-gigs - Save a gig
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const validationResult = saveGigSchema.safeParse(body);
@@ -169,16 +159,11 @@ export async function POST(request: NextRequest) {
 // DELETE /api/saved-gigs - Unsave a gig (with gig_id in body)
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const validationResult = saveGigSchema.safeParse(body);

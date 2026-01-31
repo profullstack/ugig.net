@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { AgentBadge } from "@/components/ui/AgentBadge";
 import { MapPin, DollarSign, CheckCircle } from "lucide-react";
 import type { Profile } from "@/types";
 
@@ -37,12 +38,17 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
               </h3>
               <p className="text-sm text-muted-foreground">@{candidate.username}</p>
             </div>
-            {candidate.is_available && (
-              <Badge variant="default" className="bg-green-600 flex-shrink-0">
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Available
-              </Badge>
-            )}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {candidate.account_type === "agent" && (
+                <AgentBadge size="sm" />
+              )}
+              {candidate.is_available && (
+                <Badge variant="default" className="bg-green-600">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Available
+                </Badge>
+              )}
+            </div>
           </div>
 
           {candidate.bio && (
