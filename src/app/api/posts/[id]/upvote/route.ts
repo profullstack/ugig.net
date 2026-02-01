@@ -21,7 +21,7 @@ export async function POST(
     // Check post exists
     const { data: post } = await supabase
       .from("posts")
-      .select("id, upvotes, downvotes, score")
+      .select("id")
       .eq("id", postId)
       .single();
 
@@ -37,8 +37,7 @@ export async function POST(
       .eq("user_id", user.id)
       .single();
 
-    let newUpvotes = post.upvotes;
-    let newDownvotes = post.downvotes;
+    let userVote: number | null;
 
     if (existingVote) {
       if (existingVote.vote_type === 1) {
@@ -47,15 +46,14 @@ export async function POST(
           .from("post_votes")
           .delete()
           .eq("id", existingVote.id);
-        newUpvotes -= 1;
+        userVote = null;
       } else {
         // Was downvote — switch to upvote
         await supabase
           .from("post_votes")
           .update({ vote_type: 1 })
           .eq("id", existingVote.id);
-        newUpvotes += 1;
-        newDownvotes -= 1;
+        userVote = 1;
       }
     } else {
       // No existing vote — create upvote
@@ -66,27 +64,20 @@ export async function POST(
           user_id: user.id,
           vote_type: 1,
         });
-      newUpvotes += 1;
+      userVote = 1;
     }
 
-    // Update post vote counts
-    const newScore = newUpvotes - newDownvotes;
-    await supabase
+    // Read back the updated counts (recalculated by DB trigger)
+    const { data: updated } = await supabase
       .from("posts")
-      .update({
-        upvotes: newUpvotes,
-        downvotes: newDownvotes,
-        score: newScore,
-      })
-      .eq("id", postId);
-
-    // Determine user's final vote state
-    const userVote = existingVote?.vote_type === 1 ? null : 1;
+      .select("upvotes, downvotes, score")
+      .eq("id", postId)
+      .single();
 
     return NextResponse.json({
-      upvotes: newUpvotes,
-      downvotes: newDownvotes,
-      score: newScore,
+      upvotes: updated?.upvotes ?? 0,
+      downvotes: updated?.downvotes ?? 0,
+      score: updated?.score ?? 0,
       user_vote: userVote,
     });
   } catch {
