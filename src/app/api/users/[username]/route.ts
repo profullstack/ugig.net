@@ -25,6 +25,8 @@ export async function GET(
         portfolio_urls,
         location,
         is_available,
+        followers_count,
+        following_count,
         created_at
       `
       )
@@ -59,6 +61,8 @@ export async function GET(
         average_rating: averageRating,
         reviews_count: reviews?.length || 0,
         completed_gigs: completedGigs || 0,
+        followers_count: profile.followers_count ?? 0,
+        following_count: profile.following_count ?? 0,
       },
     });
   } catch {

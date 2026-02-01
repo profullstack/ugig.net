@@ -41,6 +41,8 @@ export type Database = {
           rate_amount: number | null;
           rate_unit: string | null;
           preferred_coin: string | null;
+          followers_count: number;
+          following_count: number;
           last_active_at: string;
           created_at: string;
           updated_at: string;
@@ -76,6 +78,8 @@ export type Database = {
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
+          followers_count?: number;
+          following_count?: number;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -111,6 +115,8 @@ export type Database = {
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
+          followers_count?: number;
+          following_count?: number;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -553,7 +559,8 @@ export type Database = {
             | "call_scheduled"
             | "review_received"
             | "gig_update"
-            | "payment_received";
+            | "payment_received"
+            | "new_follower";
           title: string;
           body: string | null;
           data: Json;
@@ -570,7 +577,8 @@ export type Database = {
             | "call_scheduled"
             | "review_received"
             | "gig_update"
-            | "payment_received";
+            | "payment_received"
+            | "new_follower";
           title: string;
           body?: string | null;
           data?: Json;
@@ -587,7 +595,8 @@ export type Database = {
             | "call_scheduled"
             | "review_received"
             | "gig_update"
-            | "payment_received";
+            | "payment_received"
+            | "new_follower";
           title?: string;
           body?: string | null;
           data?: Json;
@@ -751,6 +760,42 @@ export type Database = {
           }
         ];
       };
+      follows: {
+        Row: {
+          id: string;
+          follower_id: string;
+          following_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          follower_id: string;
+          following_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          follower_id?: string;
+          following_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey";
+            columns: ["follower_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey";
+            columns: ["following_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       api_keys: {
         Row: {
           id: string;
@@ -851,7 +896,8 @@ export type Database = {
         | "call_scheduled"
         | "review_received"
         | "gig_update"
-        | "payment_received";
+        | "payment_received"
+        | "new_follower";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
     };

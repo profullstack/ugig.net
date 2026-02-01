@@ -23,6 +23,8 @@ import {
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
+import { FollowButton } from "@/components/follow/FollowButton";
+import { FollowCounts } from "@/components/follow/FollowCounts";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -160,11 +162,14 @@ export default async function PublicProfilePage({ params }: Props) {
                         </Badge>
                       )}
                       {currentUser && currentUser.id !== profile.id && (
-                        <StartConversationButton
-                          recipientId={profile.id}
-                          variant="outline"
-                          size="sm"
-                        />
+                        <>
+                          <FollowButton username={profile.username} />
+                          <StartConversationButton
+                            recipientId={profile.id}
+                            variant="outline"
+                            size="sm"
+                          />
+                        </>
                       )}
                     </div>
                   </div>
@@ -207,6 +212,15 @@ export default async function PublicProfilePage({ params }: Props) {
                         <span>{completedGigs} gigs completed</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Follow Counts */}
+                  <div className="mt-3">
+                    <FollowCounts
+                      username={profile.username}
+                      followersCount={profile.followers_count ?? 0}
+                      followingCount={profile.following_count ?? 0}
+                    />
                   </div>
                 </div>
               </div>

@@ -130,6 +130,8 @@ describe("useMessageStream", () => {
         rate_amount: null,
         rate_unit: null,
         preferred_coin: null,
+        followers_count: 0,
+        following_count: 0,
       },
     };
 

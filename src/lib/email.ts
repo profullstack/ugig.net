@@ -218,6 +218,71 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
+export function newFollowerEmail(params: {
+  recipientName: string;
+  followerName: string;
+  followerUsername: string;
+}) {
+  const { recipientName, followerName, followerUsername } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Follower</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Follower</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${followerName}</strong> (@${followerUsername}) started following you on ugig.net!</p>
+
+    <a href="${baseUrl}/u/${followerUsername}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Their Profile
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      Check out their profile to see if you'd like to follow them back.
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Follower
+
+Hi ${recipientName},
+
+${followerName} (@${followerUsername}) started following you on ugig.net!
+
+View their profile: ${baseUrl}/u/${followerUsername}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${followerName} started following you on ugig.net`,
+    html,
+    text,
+  };
+}
+
 export function newMessageEmail(params: {
   recipientName: string;
   senderName: string;
