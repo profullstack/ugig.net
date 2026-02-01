@@ -343,6 +343,25 @@ export const reviews = {
     }),
 };
 
+// Activity API
+export const activity = {
+  getForUser: (username: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/users/${username}/activity${query ? `?${query}` : ""}`);
+  },
+
+  getMy: (params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/activity${query ? `?${query}` : ""}`);
+  },
+};
+
 // Notifications API
 export const notifications = {
   list: (params?: { unread?: boolean; limit?: number; offset?: number }) => {
