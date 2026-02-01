@@ -17,6 +17,7 @@ import { registerApiKeysCommands } from "./commands/api-keys.js";
 import { registerSubscriptionCommands } from "./commands/subscriptions.js";
 import { registerActivityCommands } from "./commands/activity.js";
 import { registerCommentsCommands } from "./commands/comments.js";
+import { registerFollowCommands } from "./commands/follows.js";
 import { handleError } from "./helpers.js";
 
 const program = new Command();
@@ -47,6 +48,7 @@ registerApiKeysCommands(program);
 registerSubscriptionCommands(program);
 registerActivityCommands(program);
 registerCommentsCommands(program);
+registerFollowCommands(program);
 
 program.parseAsync(process.argv).catch((err) => {
   handleError(err, { json: program.opts().json });
