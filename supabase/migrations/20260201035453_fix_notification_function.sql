@@ -22,7 +22,7 @@ DECLARE
     notification_id UUID;
 BEGIN
     INSERT INTO notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, p_type, p_title, p_message, p_data)
+    VALUES (p_user_id, p_type::notification_type, p_title, p_message, p_data)
     RETURNING id INTO notification_id;
 
     RETURN notification_id;
