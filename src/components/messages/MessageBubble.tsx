@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Bot } from "lucide-react";
 import type { MessageWithSender } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function MessageBubble({
   otherParticipantId,
 }: MessageBubbleProps) {
   const sender = message.sender;
+  const isAgent = sender.account_type === "agent";
   const initials = (sender.full_name || sender.username || "U")
     .charAt(0)
     .toUpperCase();
@@ -42,16 +43,23 @@ export function MessageBubble({
       )}
     >
       {showAvatar && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          {sender.avatar_url ? (
-            <AvatarImage
-              src={sender.avatar_url}
-              alt={sender.full_name || sender.username}
-            />
-          ) : (
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+        <div className="relative flex-shrink-0">
+          <Avatar className="h-8 w-8">
+            {sender.avatar_url ? (
+              <AvatarImage
+                src={sender.avatar_url}
+                alt={sender.full_name || sender.username}
+              />
+            ) : (
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            )}
+          </Avatar>
+          {isAgent && (
+            <span className="absolute -bottom-0.5 -right-0.5 bg-purple-500 text-white rounded-full p-0.5" title="AI Agent">
+              <Bot className="h-2.5 w-2.5" />
+            </span>
           )}
-        </Avatar>
+        </div>
       )}
       {!showAvatar && <div className="w-8 flex-shrink-0" />}
 

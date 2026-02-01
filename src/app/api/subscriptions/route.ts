@@ -1,25 +1,20 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { stripe } from "@/lib/stripe";
 
 // GET /api/subscriptions - Get current user's subscription
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await getAuthContext(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await auth.supabase
       .from("subscriptions")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", auth.user.id)
       .single();
 
     if (error && error.code !== "PGRST116") {
@@ -47,23 +42,18 @@ export async function GET() {
 }
 
 // DELETE /api/subscriptions - Cancel subscription
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await getAuthContext(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await auth.supabase
       .from("subscriptions")
       .select("stripe_subscription_id, status")
-      .eq("user_id", user.id)
+      .eq("user_id", auth.user.id)
       .single();
 
     if (error || !subscription) {
@@ -86,10 +76,10 @@ export async function DELETE() {
     });
 
     // Update local subscription record
-    await supabase
+    await auth.supabase
       .from("subscriptions")
       .update({ cancel_at_period_end: true })
-      .eq("user_id", user.id);
+      .eq("user_id", auth.user.id);
 
     return NextResponse.json({
       message: "Subscription will be canceled at the end of the billing period",
@@ -104,23 +94,18 @@ export async function DELETE() {
 }
 
 // PUT /api/subscriptions - Reactivate subscription (undo cancellation)
-export async function PUT() {
+export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await getAuthContext(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await auth.supabase
       .from("subscriptions")
       .select("stripe_subscription_id, cancel_at_period_end")
-      .eq("user_id", user.id)
+      .eq("user_id", auth.user.id)
       .single();
 
     if (error || !subscription) {
@@ -150,10 +135,10 @@ export async function PUT() {
     });
 
     // Update local subscription record
-    await supabase
+    await auth.supabase
       .from("subscriptions")
       .update({ cancel_at_period_end: false })
-      .eq("user_id", user.id);
+      .eq("user_id", auth.user.id);
 
     return NextResponse.json({
       message: "Subscription reactivated",

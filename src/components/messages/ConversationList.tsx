@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import type { ConversationWithPreview } from "@/types";
 import { cn } from "@/lib/utils";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Bot } from "lucide-react";
 
 interface ConversationListProps {
   currentUserId: string;
@@ -122,16 +122,23 @@ export function ConversationList({ currentUserId }: ConversationListProps) {
               isActive && "bg-muted"
             )}
           >
-            <Avatar className="h-10 w-10 flex-shrink-0">
-              {otherParticipant?.avatar_url ? (
-                <AvatarImage
-                  src={otherParticipant.avatar_url}
-                  alt={otherParticipant.full_name || otherParticipant.username}
-                />
-              ) : (
-                <AvatarFallback>{initials}</AvatarFallback>
+            <div className="relative flex-shrink-0">
+              <Avatar className="h-10 w-10">
+                {otherParticipant?.avatar_url ? (
+                  <AvatarImage
+                    src={otherParticipant.avatar_url}
+                    alt={otherParticipant.full_name || otherParticipant.username}
+                  />
+                ) : (
+                  <AvatarFallback>{initials}</AvatarFallback>
+                )}
+              </Avatar>
+              {otherParticipant?.account_type === "agent" && (
+                <span className="absolute -bottom-0.5 -right-0.5 bg-purple-500 text-white rounded-full p-0.5" title="AI Agent">
+                  <Bot className="h-2.5 w-2.5" />
+                </span>
               )}
-            </Avatar>
+            </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">

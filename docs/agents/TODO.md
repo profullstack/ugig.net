@@ -49,7 +49,7 @@ This document outlines all implementation tasks for adding AI agent support to u
   - [x] `hashApiKey()` - bcrypt hash for storage
   - [x] `verifyApiKey()` - compare key against hash
   - [x] `getKeyPrefix()` - extract first 16 chars
-- [ ] Add bcrypt dependency (`npm install bcryptjs && npm install -D @types/bcryptjs`)
+- [x] Add bcrypt dependency (`pnpm add bcryptjs`)
 
 ### 2.3 API Key Endpoints
 - [x] Create `src/app/api/api-keys/route.ts`
@@ -81,7 +81,7 @@ This document outlines all implementation tasks for adding AI agent support to u
   - [x] `/api/saved-gigs/*`
   - [x] `/api/video-calls/*`
   - [x] `/api/work-history/*`
-  - [ ] `/api/subscriptions/*`
+  - [x] `/api/subscriptions/*`
 
 ---
 
@@ -109,15 +109,15 @@ This document outlines all implementation tasks for adding AI agent support to u
 - [x] Update gig detail page to show if poster is agent
 
 ### 3.5 Update Application Cards
-- [ ] Update application list to show agent badge on applicants
-- [ ] Update `src/app/gigs/[id]/applications/page.tsx`
+- [x] Update application list to show agent badge on applicants
+- [x] Update `src/app/gigs/[id]/applications/page.tsx`
 
 ### 3.6 Update Candidate Cards
 - [x] Update `src/components/candidates/CandidateCard.tsx` - show agent badge
 
 ### 3.7 Update Message Thread
-- [ ] Update `src/components/messages/MessageBubble.tsx` - show agent indicator
-- [ ] Update conversation list to show agent badge
+- [x] Update `src/components/messages/MessageBubble.tsx` - show agent indicator
+- [x] Update conversation list to show agent badge
 
 ---
 
@@ -126,7 +126,7 @@ This document outlines all implementation tasks for adding AI agent support to u
 ### 4.1 Candidate Filters
 - [x] Update `src/components/candidates/CandidateFilters.tsx`
   - [x] Add "Account Type" filter (All / Humans / Agents)
-- [ ] Update `src/app/candidates/[[...tags]]/page.tsx` to filter by account type
+- [x] Update `src/app/candidates/[[...tags]]/page.tsx` to filter by account type
 - [x] Update API to support `account_type` filter parameter
 
 ### 4.2 Gig Filters
@@ -151,8 +151,8 @@ This document outlines all implementation tasks for adding AI agent support to u
 - [x] Create `src/components/settings/ApiKeyManager.tsx` (combined component)
 
 ### 5.3 Navigation
-- [ ] Add "API Keys" link to settings navigation
-- [ ] Update settings layout if needed
+- [x] Add "API Keys" link to dashboard navigation
+- [x] Update settings layout if needed
 
 ---
 
@@ -203,10 +203,10 @@ This document outlines all implementation tasks for adding AI agent support to u
 ## Phase 8: Testing
 
 ### 8.1 Unit Tests
-- [ ] Test API key generation and hashing
-- [ ] Test API key validation
-- [ ] Test agent registration validation
-- [ ] Test rate limiter
+- [x] Test API key generation and hashing (`src/lib/api-keys.test.ts`)
+- [x] Test API key validation (`src/lib/api-keys.test.ts`)
+- [x] Test agent registration validation (`src/lib/validations.test.ts`)
+- [x] Test rate limiter (`src/lib/rate-limit.test.ts`)
 
 ### 8.2 Integration Tests
 - [ ] Test agent signup flow end-to-end
@@ -227,8 +227,8 @@ This document outlines all implementation tasks for adding AI agent support to u
 ## Phase 9: Deployment
 
 ### 9.1 Environment Setup
-- [ ] No new environment variables required (uses existing Supabase)
-- [ ] Install bcryptjs: `npm install bcryptjs && npm install -D @types/bcryptjs`
+- [x] No new environment variables required (uses existing Supabase)
+- [x] Install bcryptjs: `pnpm add bcryptjs` (ships own types, no @types needed)
 - [ ] Verify bcrypt is available in production
 
 ### 9.2 Staged Rollout
@@ -257,12 +257,12 @@ Recommended order for implementation:
 7. **Update Existing Routes** (Phase 2.5) - Make all endpoints work with API keys ✅
 8. **Agent Badge Component** (Phase 3.2) - Visual distinction ✅
 9. **Profile Updates** (Phase 3.1, 3.3) - Show agent info ✅
-10. **Card Updates** (Phase 3.4-3.7) - Show badges everywhere ✅ (partially - messages pending)
+10. **Card Updates** (Phase 3.4-3.7) - Show badges everywhere ✅
 11. **Filtering** (Phase 4) - Allow filtering by type ✅
 12. **API Key Management UI** (Phase 5) - User-facing key management ✅
 13. **Rate Limiting** (Phase 6) - Protect against abuse ✅
 14. **Documentation** (Phase 7) - Help developers integrate (partially done)
-15. **Testing** (Phase 8) - Ensure quality
+15. **Testing** (Phase 8) - Unit tests ✅, integration tests pending
 16. **Deployment** (Phase 9) - Ship it!
 
 ---

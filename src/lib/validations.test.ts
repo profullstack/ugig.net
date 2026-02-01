@@ -11,6 +11,8 @@ import {
   applicationStatusSchema,
   messageSchema,
   conversationCreateSchema,
+  createApiKeySchema,
+  revokeApiKeySchema,
 } from "./validations";
 
 describe("signupSchema", () => {
@@ -498,6 +500,194 @@ describe("conversationCreateSchema", () => {
   it("rejects missing recipient_id", () => {
     const result = conversationCreateSchema.safeParse({
       gig_id: "123e4567-e89b-12d3-a456-426614174000",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("signupSchema - agent accounts", () => {
+  it("validates agent signup with agent_name", () => {
+    const result = signupSchema.safeParse({
+      email: "bot@example.com",
+      password: "Agent1234",
+      username: "my-agent",
+      account_type: "agent",
+      agent_name: "My AI Agent",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects agent signup without agent_name", () => {
+    const result = signupSchema.safeParse({
+      email: "bot@example.com",
+      password: "Agent1234",
+      username: "my-agent",
+      account_type: "agent",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        "agent_name is required for agent accounts"
+      );
+    }
+  });
+
+  it("accepts human signup without agent_name", () => {
+    const result = signupSchema.safeParse({
+      email: "user@example.com",
+      password: "Human1234",
+      username: "humanuser",
+      account_type: "human",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("defaults account_type to human", () => {
+    const result = signupSchema.safeParse({
+      email: "user@example.com",
+      password: "Human1234",
+      username: "humanuser",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid account_type", () => {
+    const result = signupSchema.safeParse({
+      email: "user@example.com",
+      password: "Human1234",
+      username: "humanuser",
+      account_type: "robot",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("validates agent with all optional fields", () => {
+    const result = signupSchema.safeParse({
+      email: "bot@example.com",
+      password: "Agent1234",
+      username: "full-agent",
+      account_type: "agent",
+      agent_name: "Full Agent",
+      agent_description: "A fully configured agent",
+      agent_version: "1.0.0",
+      agent_operator_url: "https://operator.example.com",
+      agent_source_url: "https://github.com/example/agent",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid agent_operator_url", () => {
+    const result = signupSchema.safeParse({
+      email: "bot@example.com",
+      password: "Agent1234",
+      username: "my-agent",
+      account_type: "agent",
+      agent_name: "My Agent",
+      agent_operator_url: "not-a-url",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("profileSchema - agent fields", () => {
+  it("validates profile with agent fields", () => {
+    const result = profileSchema.safeParse({
+      username: "agentuser",
+      agent_name: "My Agent",
+      agent_description: "Does cool things",
+      agent_version: "2.0",
+      agent_operator_url: "https://operator.example.com",
+      agent_source_url: "https://github.com/example/agent",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null agent fields", () => {
+    const result = profileSchema.safeParse({
+      username: "humanuser",
+      agent_name: null,
+      agent_description: null,
+      agent_version: null,
+      agent_operator_url: null,
+      agent_source_url: null,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("gigFiltersSchema - account_type", () => {
+  it("accepts account_type filter", () => {
+    const result = gigFiltersSchema.safeParse({
+      account_type: "agent",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts human account_type filter", () => {
+    const result = gigFiltersSchema.safeParse({
+      account_type: "human",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid account_type", () => {
+    const result = gigFiltersSchema.safeParse({
+      account_type: "robot",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("createApiKeySchema", () => {
+  it("validates a valid API key name", () => {
+    const result = createApiKeySchema.safeParse({
+      name: "My Production Key",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("validates with optional expires_at", () => {
+    const result = createApiKeySchema.safeParse({
+      name: "Temporary Key",
+      expires_at: "2026-12-31T23:59:59Z",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty name", () => {
+    const result = createApiKeySchema.safeParse({
+      name: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects name over 100 characters", () => {
+    const result = createApiKeySchema.safeParse({
+      name: "a".repeat(101),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid expires_at format", () => {
+    const result = createApiKeySchema.safeParse({
+      name: "Key",
+      expires_at: "not-a-date",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("revokeApiKeySchema", () => {
+  it("validates a valid UUID", () => {
+    const result = revokeApiKeySchema.safeParse({
+      id: "123e4567-e89b-12d3-a456-426614174000",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid UUID", () => {
+    const result = revokeApiKeySchema.safeParse({
+      id: "not-a-uuid",
     });
     expect(result.success).toBe(false);
   });

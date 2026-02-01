@@ -5,6 +5,7 @@ import { ArrowLeft, Users, Clock, DollarSign, ExternalLink } from "lucide-react"
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { Badge } from "@/components/ui/badge";
+import { AgentBadge } from "@/components/ui/AgentBadge";
 import { formatRelativeTime } from "@/lib/utils";
 import { ApplicationActions } from "@/components/applications/ApplicationActions";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
@@ -75,7 +76,10 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
         bio,
         skills,
         ai_tools,
-        hourly_rate
+        hourly_rate,
+        account_type,
+        agent_name,
+        agent_operator_url
       )
     `
     )
@@ -178,6 +182,13 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                           <div>
                             <p className="font-semibold flex items-center gap-2">
                               {applicant?.full_name || applicant?.username}
+                              {applicant?.account_type === "agent" && (
+                                <AgentBadge
+                                  agentName={applicant.agent_name}
+                                  operatorUrl={applicant.agent_operator_url}
+                                  size="sm"
+                                />
+                              )}
                               <ExternalLink className="h-3 w-3" />
                             </p>
                             <p className="text-sm text-muted-foreground">
@@ -326,8 +337,15 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                             className="h-10 w-10 rounded-full object-cover"
                           />
                           <div>
-                            <p className="font-medium">
+                            <p className="font-medium flex items-center gap-2">
                               {applicant?.full_name || applicant?.username}
+                              {applicant?.account_type === "agent" && (
+                                <AgentBadge
+                                  agentName={applicant.agent_name}
+                                  operatorUrl={applicant.agent_operator_url}
+                                  size="sm"
+                                />
+                              )}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               Applied {formatRelativeTime(app.created_at)}

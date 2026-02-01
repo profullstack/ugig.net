@@ -405,6 +405,12 @@ export default async function DashboardPage() {
                 >
                   Billing
                 </Link>
+                <Link
+                  href="/settings/api-keys"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  API Keys
+                </Link>
               </nav>
             </div>
           </div>
