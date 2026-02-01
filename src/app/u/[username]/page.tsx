@@ -23,9 +23,11 @@ import {
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
+import { ProfileTabs } from "@/components/activity/ProfileTabs";
 
 interface Props {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -50,8 +52,9 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function PublicProfilePage({ params }: Props) {
+export default async function PublicProfilePage({ params, searchParams }: Props) {
   const { username } = await params;
+  const { tab } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -263,114 +266,120 @@ export default async function PublicProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* Bio */}
-            {profile.bio && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-3">About</h2>
-                <p className="text-muted-foreground whitespace-pre-wrap">{profile.bio}</p>
-              </div>
-            )}
+            {/* Profile / Activity Tabs */}
+            <ProfileTabs username={username} defaultTab={tab || "profile"}>
+              {/* Profile Content */}
+              <div className="space-y-6" data-tab="profile">
+                {/* Bio */}
+                {profile.bio && (
+                  <div className="p-6 bg-card rounded-lg border border-border">
+                    <h2 className="text-lg font-semibold mb-3">About</h2>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{profile.bio}</p>
+                  </div>
+                )}
 
-            {/* Skills */}
-            {profile.skills && profile.skills.length > 0 && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-3">Skills</h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.map((skill: string) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+                {/* Skills */}
+                {profile.skills && profile.skills.length > 0 && (
+                  <div className="p-6 bg-card rounded-lg border border-border">
+                    <h2 className="text-lg font-semibold mb-3">Skills</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.skills.map((skill: string) => (
+                        <Badge key={skill} variant="secondary">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* AI Tools */}
-            {profile.ai_tools && profile.ai_tools.length > 0 && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-3">AI Tools</h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.ai_tools.map((tool: string) => (
-                    <Badge key={tool} variant="outline">
-                      {tool}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+                {/* AI Tools */}
+                {profile.ai_tools && profile.ai_tools.length > 0 && (
+                  <div className="p-6 bg-card rounded-lg border border-border">
+                    <h2 className="text-lg font-semibold mb-3">AI Tools</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.ai_tools.map((tool: string) => (
+                        <Badge key={tool} variant="outline">
+                          {tool}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Work History */}
-            {workHistory && workHistory.length > 0 && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-4">Work History</h2>
-                <div className="space-y-4">
-                  {workHistory.map((item) => (
-                    <div key={item.id} className="border-l-2 border-primary/30 pl-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-medium">{item.position}</h3>
-                        {item.is_current && (
-                          <span className="px-2 py-0.5 text-xs bg-green-500/10 text-green-600 rounded">
-                            Current
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground">{item.company}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {new Date(item.start_date).toLocaleDateString("en-US", {
-                          month: "short",
-                          year: "numeric",
-                        })}{" "}
-                        -{" "}
-                        {item.is_current
-                          ? "Present"
-                          : item.end_date
-                          ? new Date(item.end_date).toLocaleDateString("en-US", {
+                {/* Work History */}
+                {workHistory && workHistory.length > 0 && (
+                  <div className="p-6 bg-card rounded-lg border border-border">
+                    <h2 className="text-lg font-semibold mb-4">Work History</h2>
+                    <div className="space-y-4">
+                      {workHistory.map((item) => (
+                        <div key={item.id} className="border-l-2 border-primary/30 pl-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-medium">{item.position}</h3>
+                            {item.is_current && (
+                              <span className="px-2 py-0.5 text-xs bg-green-500/10 text-green-600 rounded">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground">{item.company}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {new Date(item.start_date).toLocaleDateString("en-US", {
                               month: "short",
                               year: "numeric",
-                            })
-                          : ""}
-                        {item.location && ` · ${item.location}`}
-                      </p>
-                      {item.description && (
-                        <p className="text-sm mt-2 text-muted-foreground">
-                          {item.description}
-                        </p>
-                      )}
+                            })}{" "}
+                            -{" "}
+                            {item.is_current
+                              ? "Present"
+                              : item.end_date
+                              ? new Date(item.end_date).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : ""}
+                            {item.location && ` · ${item.location}`}
+                          </p>
+                          {item.description && (
+                            <p className="text-sm mt-2 text-muted-foreground">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {/* Active Gigs */}
-            {activeGigs && activeGigs.length > 0 && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-4">Active Gigs</h2>
-                <div className="space-y-3">
-                  {activeGigs.map((gig) => (
-                    <Link
-                      key={gig.id}
-                      href={`/gigs/${gig.id}`}
-                      className="block p-4 border border-border rounded-lg hover:border-primary transition-colors"
-                    >
-                      <h3 className="font-medium">{gig.title}</h3>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-                        <span>{gig.category}</span>
-                        <span>
-                          {gig.budget_type === "revenue_share"
-                            ? `${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? `-${gig.budget_max}` : ""}% rev share`
-                            : `${gig.budget_type === "hourly" ? "Hourly" :
-                                gig.budget_type === "per_task" ? `Per ${gig.budget_unit || "task"}` :
-                                gig.budget_type === "per_unit" ? `Per ${gig.budget_unit || "unit"}` :
-                                "Fixed"}: $${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? ` - $${gig.budget_max}` : ""}${gig.payment_coin ? ` ${gig.payment_coin}` : ""}`
-                          }
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                {/* Active Gigs */}
+                {activeGigs && activeGigs.length > 0 && (
+                  <div className="p-6 bg-card rounded-lg border border-border">
+                    <h2 className="text-lg font-semibold mb-4">Active Gigs</h2>
+                    <div className="space-y-3">
+                      {activeGigs.map((gig) => (
+                        <Link
+                          key={gig.id}
+                          href={`/gigs/${gig.id}`}
+                          className="block p-4 border border-border rounded-lg hover:border-primary transition-colors"
+                        >
+                          <h3 className="font-medium">{gig.title}</h3>
+                          <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                            <span>{gig.category}</span>
+                            <span>
+                              {gig.budget_type === "revenue_share"
+                                ? `${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? `-${gig.budget_max}` : ""}% rev share`
+                                : `${gig.budget_type === "hourly" ? "Hourly" :
+                                    gig.budget_type === "per_task" ? `Per ${gig.budget_unit || "task"}` :
+                                    gig.budget_type === "per_unit" ? `Per ${gig.budget_unit || "unit"}` :
+                                    "Fixed"}: $${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? ` - $${gig.budget_max}` : ""}${gig.payment_coin ? ` ${gig.payment_coin}` : ""}`
+                              }
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </ProfileTabs>
           </div>
 
           {/* Sidebar */}
