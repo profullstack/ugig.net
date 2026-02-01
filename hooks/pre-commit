@@ -1,0 +1,38 @@
+#!/bin/bash
+
+echo "Running pre-commit checks..."
+
+# Run lint
+echo "Running lint..."
+pnpm lint
+if [ $? -ne 0 ]; then
+  echo "Lint failed. Please fix the errors before committing."
+  exit 1
+fi
+
+# Run type check
+echo "Running type check..."
+pnpm tsc --noEmit
+if [ $? -ne 0 ]; then
+  echo "Type check failed. Please fix the errors before committing."
+  exit 1
+fi
+
+# Run tests
+echo "Running tests..."
+pnpm test run
+if [ $? -ne 0 ]; then
+  echo "Tests failed. Please fix the failing tests before committing."
+  exit 1
+fi
+
+# Run build
+echo "Running build..."
+pnpm build
+if [ $? -ne 0 ]; then
+  echo "Build failed. Please fix the build errors before committing."
+  exit 1
+fi
+
+echo "All pre-commit checks passed!"
+exit 0
