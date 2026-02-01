@@ -33,8 +33,8 @@ export async function Header({ showPostGig = true }: HeaderProps) {
           <Image
             src="/logo.svg"
             alt="ugig.net"
-            width={86}
-            height={32}
+            width={108}
+            height={40}
             priority
           />
         </Link>
