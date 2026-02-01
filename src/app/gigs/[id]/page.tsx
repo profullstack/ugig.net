@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
 import { Header } from "@/components/layout/Header";
+import { GigComments } from "@/components/gigs/GigComments";
 
 interface GigPageProps {
   params: Promise<{ id: string }>;
@@ -207,6 +208,13 @@ export default async function GigPage({ params }: GigPageProps) {
                 </div>
               </div>
             )}
+
+            {/* Q&A Comments */}
+            <GigComments
+              gigId={id}
+              currentUserId={user?.id}
+              gigOwnerId={gig.poster_id}
+            />
           </div>
 
           {/* Sidebar */}

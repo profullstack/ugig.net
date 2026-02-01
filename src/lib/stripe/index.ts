@@ -1,6 +1,20 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+function createStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    // Return a proxy that throws on use — avoids crashing at module load during build
+    return new Proxy({} as Stripe, {
+      get(_, prop) {
+        if (prop === "then") return undefined; // not a thenable
+        throw new Error("STRIPE_SECRET_KEY is not configured");
+      },
+    });
+  }
+  return new Stripe(key);
+}
+
+export const stripe = createStripeClient();
 
 export const PLANS = {
   free: {

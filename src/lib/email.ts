@@ -1,8 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = process.env.FROM_EMAIL || "notifications@ugig.net";
+
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 interface SendEmailParams {
   to: string;
@@ -12,7 +15,8 @@ interface SendEmailParams {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResendClient();
+  if (!resend) {
     console.log("RESEND_API_KEY not configured, skipping email:", { to, subject });
     return { success: true, skipped: true };
   }
@@ -213,6 +217,148 @@ ugig.net - AI-Powered Gig Marketplace
 
   return {
     subject: `${statusInfo.title} - ${gigTitle}`,
+    html,
+    text,
+  };
+}
+
+export function newGigCommentEmail(params: {
+  posterName: string;
+  commenterName: string;
+  gigTitle: string;
+  gigId: string;
+  commentPreview: string;
+}) {
+  const { posterName, commenterName, gigTitle, gigId, commentPreview } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Question on Your Gig</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Question on Your Gig</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${posterName},</p>
+
+    <p><strong>${commenterName}</strong> asked a question on your gig:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #667eea;">${gigTitle}</h3>
+      <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
+        "${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"
+      </p>
+    </div>
+
+    <a href="${baseUrl}/gigs/${gigId}#comments" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View &amp; Reply
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      Responding to questions helps candidates learn more about your gig.
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Question on Your Gig
+
+Hi ${posterName},
+
+${commenterName} asked a question on your gig: ${gigTitle}
+
+"${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"
+
+View & reply: ${baseUrl}/gigs/${gigId}#comments
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `New question on "${gigTitle}"`,
+    html,
+    text,
+  };
+}
+
+export function newGigCommentReplyEmail(params: {
+  recipientName: string;
+  replierName: string;
+  gigTitle: string;
+  gigId: string;
+  replyPreview: string;
+}) {
+  const { recipientName, replierName, gigTitle, gigId, replyPreview } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Reply to Your Comment</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Reply to Your Comment</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${replierName}</strong> replied to your comment on:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #667eea;">${gigTitle}</h3>
+      <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
+        "${replyPreview.slice(0, 200)}${replyPreview.length > 200 ? "..." : ""}"
+      </p>
+    </div>
+
+    <a href="${baseUrl}/gigs/${gigId}#comments" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Conversation
+    </a>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Reply to Your Comment
+
+Hi ${recipientName},
+
+${replierName} replied to your comment on: ${gigTitle}
+
+"${replyPreview.slice(0, 200)}${replyPreview.length > 200 ? "..." : ""}"
+
+View conversation: ${baseUrl}/gigs/${gigId}#comments
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${replierName} replied to your comment on "${gigTitle}"`,
     html,
     text,
   };
