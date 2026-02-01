@@ -141,7 +141,10 @@ describe("StartVideoCallButton", () => {
       expect(videoCalls.create).toHaveBeenCalled();
     });
 
-    expect(mockPush).not.toHaveBeenCalled();
+    // Wait for the async handler to fully complete
+    await waitFor(() => {
+      expect(mockPush).not.toHaveBeenCalled();
+    });
   });
 
   it("re-enables button after API error", async () => {

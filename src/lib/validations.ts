@@ -270,7 +270,9 @@ export const feedFiltersSchema = z.object({
   tag: z.string().max(50).optional(),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(50).default(20),
-=======
+});
+
+// =============================================
 // ENDORSEMENT SCHEMAS
 // =============================================
 
