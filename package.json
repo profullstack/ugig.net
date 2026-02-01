@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "precommit": "pnpm lint && pnpm type-check && pnpm test:run && pnpm build",
-    "postinstall": "git config core.hooksPath hooks"
+    "postinstall": "git config core.hooksPath hooks || true"
   },
   "repository": {
     "type": "git",
