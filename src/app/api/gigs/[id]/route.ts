@@ -82,7 +82,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const validationResult = gigSchema.safeParse(body);
+    const validationResult = gigSchema.partial().safeParse(body);
 
     if (!validationResult.success) {
       return NextResponse.json(
