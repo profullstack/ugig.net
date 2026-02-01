@@ -1,0 +1,40 @@
+import { UgigClient } from "./client.js";
+import { getApiKey, getBaseUrl, ConfigError } from "./config.js";
+import { ApiError, EXIT_API_ERROR, EXIT_CONFIG_ERROR, EXIT_NETWORK_ERROR } from "./errors.js";
+import { printError } from "./output.js";
+export function createClient(opts) {
+    return new UgigClient({
+        baseUrl: getBaseUrl(opts.baseUrl),
+        apiKey: getApiKey(opts.apiKey),
+    });
+}
+export function createUnauthClient(opts) {
+    return new UgigClient({
+        baseUrl: getBaseUrl(opts.baseUrl),
+    });
+}
+export function handleError(err, opts) {
+    if (err instanceof ApiError) {
+        printError(`${err.message} (${err.statusCode})`, opts);
+        process.exitCode = EXIT_API_ERROR;
+    }
+    else if (err instanceof ConfigError) {
+        printError(err.message, opts);
+        process.exitCode = EXIT_CONFIG_ERROR;
+    }
+    else if (err instanceof Error && err.message.startsWith("Network error")) {
+        printError(err.message, opts);
+        process.exitCode = EXIT_NETWORK_ERROR;
+    }
+    else {
+        const msg = err instanceof Error ? err.message : String(err);
+        printError(msg, opts);
+        process.exitCode = EXIT_API_ERROR;
+    }
+}
+export function parseList(value) {
+    if (!value)
+        return undefined;
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+//# sourceMappingURL=helpers.js.map

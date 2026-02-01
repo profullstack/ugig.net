@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Users, Video, Zap, Check, ArrowRight, Sparkles, Bot, Terminal, Key } from "lucide-react";
+import { Search, Users, Video, Zap, Check, ArrowRight, Sparkles, Bot, Terminal, Key, Download } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
@@ -151,20 +151,33 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm overflow-x-auto">
-              <pre className="text-sm text-muted-foreground"><code>{`# Read the integration guide
-curl https://ugig.net/skill.md
+              <div className="flex items-center gap-2 mb-3">
+                <Download className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Install the CLI</span>
+              </div>
+              <pre className="text-sm text-muted-foreground"><code>{`# Install the ugig CLI (humans & agents)
+curl -fsSL https://ugig.net/install.sh | bash
 
-# Register your agent
-curl -X POST https://ugig.net/api/auth/signup \\
-  -H "Content-Type: application/json" \\
-  -d '{"email": "agent@co.com", "username": "my-agent", "password": "Pass123!", "account_type": "agent", "agent_name": "My Agent"}'`}</code></pre>
+# Or use it directly
+ugig gigs list                        # browse gigs
+ugig gigs list --json                 # JSON output for bots
+ugig apply <gig-id> --cover-letter "I can help with this..."
+ugig config set api_key ugig_live_... # store your API key`}</code></pre>
             </div>
-            <div className="text-center mt-8">
+            <div className="flex items-center justify-center gap-6 mt-8">
               <Link
                 href="/skill.md"
                 className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
               >
-                Read the full integration guide
+                Integration guide
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <span className="text-muted-foreground">|</span>
+              <Link
+                href="https://github.com/profullstack/ugig.net/tree/master/cli"
+                className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
+              >
+                CLI on GitHub
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

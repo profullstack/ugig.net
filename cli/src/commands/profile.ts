@@ -1,0 +1,101 @@
+import type { Command } from "commander";
+import ora from "ora";
+import { createClient, handleError, parseList, type GlobalOpts } from "../helpers.js";
+import { printDetail, printSuccess, formatArray, formatDate, type OutputOptions } from "../output.js";
+
+export function registerProfileCommands(program: Command): void {
+  const profile = program
+    .command("profile")
+    .description("Manage your profile");
+
+  profile
+    .command("get")
+    .description("View your profile")
+    .action(async () => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Fetching profile...").start();
+      try {
+        const client = createClient(opts);
+        const result = await client.get<{ profile: Record<string, unknown> }>("/api/profile");
+        spinner?.stop();
+        printDetail(
+          [
+            { label: "Username", key: "username" },
+            { label: "Full Name", key: "full_name" },
+            { label: "Account Type", key: "account_type" },
+            { label: "Bio", key: "bio" },
+            { label: "Skills", key: "skills", transform: formatArray },
+            { label: "AI Tools", key: "ai_tools", transform: formatArray },
+            { label: "Hourly Rate", key: "hourly_rate", transform: (v) => v ? `$${v}/hr` : "-" },
+            { label: "Location", key: "location" },
+            { label: "Timezone", key: "timezone" },
+            { label: "Available", key: "is_available", transform: (v) => v ? "Yes" : "No" },
+            { label: "Portfolio", key: "portfolio_urls", transform: formatArray },
+            { label: "Agent Name", key: "agent_name" },
+            { label: "Agent Version", key: "agent_version" },
+            { label: "Operator URL", key: "agent_operator_url" },
+            { label: "Created", key: "created_at", transform: (v) => formatDate(v) },
+          ],
+          result.profile,
+          opts as OutputOptions
+        );
+      } catch (err) {
+        spinner?.fail("Failed to fetch profile");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
+  profile
+    .command("update")
+    .description("Update your profile")
+    .option("--username <username>", "Username")
+    .option("--full-name <name>", "Full name")
+    .option("--bio <bio>", "Bio")
+    .option("--skills <skills>", "Skills (comma-separated)")
+    .option("--ai-tools <tools>", "AI tools (comma-separated)")
+    .option("--hourly-rate <rate>", "Hourly rate", parseFloat)
+    .option("--portfolio-urls <urls>", "Portfolio URLs (comma-separated)")
+    .option("--location <location>", "Location")
+    .option("--timezone <tz>", "Timezone")
+    .option("--available <bool>", "Is available (true/false)")
+    .option("--agent-name <name>", "Agent name")
+    .option("--agent-description <desc>", "Agent description")
+    .option("--agent-version <ver>", "Agent version")
+    .option("--agent-operator-url <url>", "Agent operator URL")
+    .option("--agent-source-url <url>", "Agent source URL")
+    .action(async (options) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Updating profile...").start();
+      try {
+        const client = createClient(opts);
+
+        // Fetch current profile first (PUT semantics)
+        const current = await client.get<{ profile: Record<string, unknown> }>("/api/profile");
+        const body: Record<string, unknown> = { ...current.profile };
+
+        // Merge provided fields
+        if (options.username !== undefined) body.username = options.username;
+        if (options.fullName !== undefined) body.full_name = options.fullName;
+        if (options.bio !== undefined) body.bio = options.bio;
+        if (options.skills !== undefined) body.skills = parseList(options.skills);
+        if (options.aiTools !== undefined) body.ai_tools = parseList(options.aiTools);
+        if (options.hourlyRate !== undefined) body.hourly_rate = options.hourlyRate;
+        if (options.portfolioUrls !== undefined) body.portfolio_urls = parseList(options.portfolioUrls);
+        if (options.location !== undefined) body.location = options.location;
+        if (options.timezone !== undefined) body.timezone = options.timezone;
+        if (options.available !== undefined) body.is_available = options.available === "true";
+        if (options.agentName !== undefined) body.agent_name = options.agentName;
+        if (options.agentDescription !== undefined) body.agent_description = options.agentDescription;
+        if (options.agentVersion !== undefined) body.agent_version = options.agentVersion;
+        if (options.agentOperatorUrl !== undefined) body.agent_operator_url = options.agentOperatorUrl;
+        if (options.agentSourceUrl !== undefined) body.agent_source_url = options.agentSourceUrl;
+
+        await client.put("/api/profile", body);
+        spinner?.succeed("Profile updated");
+        printSuccess("Profile updated successfully.", opts as OutputOptions);
+      } catch (err) {
+        spinner?.fail("Failed to update profile");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+}
