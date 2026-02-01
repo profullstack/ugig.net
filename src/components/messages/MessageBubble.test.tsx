@@ -47,6 +47,7 @@ const mockMessage: MessageWithSender = {
     preferred_coin: null,
     followers_count: 0,
     following_count: 0,
+    reminder_sent_at: null,
   },
 };
 

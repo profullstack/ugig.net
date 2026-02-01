@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { signupSchema } from "@/lib/validations";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { sendEmail, welcomeEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,6 +77,17 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Signup auth error:", error.message, error.status, error.code);
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Send welcome email (fire and forget, best effort)
+    if (data.user?.email) {
+      const welcome = welcomeEmail({ name: username });
+      sendEmail({
+        to: data.user.email,
+        subject: welcome.subject,
+        html: welcome.html,
+        text: welcome.text,
+      }).catch((err) => console.error("Failed to send welcome email:", err));
     }
 
     return NextResponse.json({
