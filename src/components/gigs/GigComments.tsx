@@ -1,0 +1,405 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import { MessageSquare, Reply, Edit2, Trash2, Send, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { formatRelativeTime } from "@/lib/utils";
+import type { GigCommentThread, GigCommentWithAuthor } from "@/types";
+
+interface GigCommentsProps {
+  gigId: string;
+  currentUserId?: string;
+  gigOwnerId: string;
+}
+
+export function GigComments({ gigId, currentUserId, gigOwnerId }: GigCommentsProps) {
+  const [threads, setThreads] = useState<GigCommentThread[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchComments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/comments`);
+      if (!res.ok) throw new Error("Failed to fetch comments");
+      const data = await res.json();
+      setThreads(data.comments || []);
+    } catch {
+      setError("Failed to load comments");
+    } finally {
+      setLoading(false);
+    }
+  }, [gigId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to post comment");
+      }
+
+      setNewComment("");
+      await fetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to post comment");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitReply = async (parentId: string) => {
+    if (!replyContent.trim() || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: replyContent.trim(),
+          parent_id: parentId,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to post reply");
+      }
+
+      setReplyingTo(null);
+      setReplyContent("");
+      await fetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to post reply");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editContent.trim() || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/comments/${commentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editContent.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update comment");
+      }
+
+      setEditingId(null);
+      setEditContent("");
+      await fetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update comment");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/comments/${commentId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete comment");
+      }
+
+      await fetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete comment");
+    }
+  };
+
+  const canModify = (authorId: string) =>
+    currentUserId === authorId || currentUserId === gigOwnerId;
+
+  const canDelete = (authorId: string) =>
+    currentUserId === authorId || currentUserId === gigOwnerId;
+
+  const renderComment = (
+    comment: GigCommentWithAuthor,
+    isReply = false
+  ) => {
+    const isEditing = editingId === comment.id;
+    const author = comment.author;
+
+    return (
+      <div
+        key={comment.id}
+        className={`flex gap-3 ${isReply ? "ml-10 pt-3" : ""}`}
+      >
+        <Image
+          src={author?.avatar_url || "/default-avatar.svg"}
+          alt={author?.full_name || author?.username || "User"}
+          width={isReply ? 32 : 40}
+          height={isReply ? 32 : 40}
+          className={`${isReply ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover flex-shrink-0`}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm">
+              {author?.full_name || author?.username || "Unknown"}
+            </span>
+            {comment.author_id === gigOwnerId && (
+              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                Poster
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {formatRelativeTime(comment.created_at)}
+            </span>
+            {comment.updated_at !== comment.created_at && (
+              <span className="text-xs text-muted-foreground">(edited)</span>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div className="mt-2 space-y-2">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[80px] text-sm"
+                maxLength={2000}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdateComment(comment.id)}
+                  disabled={submitting || !editContent.trim()}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingId(null);
+                    setEditContent("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm mt-1 whitespace-pre-wrap break-words">
+              {comment.content}
+            </p>
+          )}
+
+          {/* Action buttons */}
+          {!isEditing && currentUserId && (
+            <div className="flex items-center gap-3 mt-2">
+              {!isReply && (
+                <button
+                  onClick={() => {
+                    setReplyingTo(
+                      replyingTo === comment.id ? null : comment.id
+                    );
+                    setReplyContent("");
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <Reply className="h-3 w-3" />
+                  Reply
+                </button>
+              )}
+              {comment.author_id === currentUserId && (
+                <button
+                  onClick={() => {
+                    setEditingId(comment.id);
+                    setEditContent(comment.content);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <Edit2 className="h-3 w-3" />
+                  Edit
+                </button>
+              )}
+              {canDelete(comment.author_id) && (
+                <button
+                  onClick={() => handleDeleteComment(comment.id)}
+                  className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div id="comments" className="scroll-mt-20">
+      <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+        <MessageSquare className="h-5 w-5" />
+        Questions & Answers
+        {threads.length > 0 && (
+          <span className="text-sm font-normal text-muted-foreground">
+            ({threads.length})
+          </span>
+        )}
+      </h2>
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4 flex items-center justify-between">
+          {error}
+          <button onClick={() => setError(null)}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* New comment form */}
+      {currentUserId ? (
+        <form onSubmit={handleSubmitComment} className="mb-8">
+          <Textarea
+            placeholder="Ask a question about this gig..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[100px] mb-3"
+            maxLength={2000}
+          />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">
+              {newComment.length}/2000
+            </span>
+            <Button
+              type="submit"
+              disabled={submitting || !newComment.trim()}
+              size="sm"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              {submitting ? "Posting..." : "Post Question"}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="text-center py-6 mb-6 border border-dashed border-border rounded-lg">
+          <p className="text-muted-foreground text-sm">
+            <a href={`/login?redirect=/gigs/${gigId}`} className="text-primary hover:underline">
+              Log in
+            </a>{" "}
+            to ask a question or reply
+          </p>
+        </div>
+      )}
+
+      {/* Comments list */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex gap-3 animate-pulse">
+              <div className="h-10 w-10 rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-4 w-full bg-muted rounded" />
+                <div className="h-4 w-3/4 bg-muted rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : threads.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-40" />
+          <p>No questions yet. Be the first to ask!</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {threads.map((thread) => (
+            <div
+              key={thread.id}
+              className="border border-border rounded-lg p-4"
+            >
+              {renderComment(thread)}
+
+              {/* Replies */}
+              {thread.replies && thread.replies.length > 0 && (
+                <div className="border-l-2 border-border mt-3 space-y-3">
+                  {thread.replies.map((reply) => renderComment(reply, true))}
+                </div>
+              )}
+
+              {/* Reply form */}
+              {replyingTo === thread.id && currentUserId && (
+                <div className="ml-10 mt-3 pt-3 border-t border-border">
+                  <Textarea
+                    placeholder="Write a reply..."
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    className="min-h-[80px] text-sm mb-2"
+                    maxLength={2000}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSubmitReply(thread.id)}
+                      disabled={submitting || !replyContent.trim()}
+                    >
+                      <Send className="h-3 w-3 mr-1" />
+                      {submitting ? "Posting..." : "Reply"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setReplyingTo(null);
+                        setReplyContent("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
