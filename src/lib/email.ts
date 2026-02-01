@@ -592,3 +592,169 @@ ugig.net - AI-Powered Gig Marketplace
     text,
   };
 }
+
+export function welcomeEmail(params: { name: string }) {
+  const { name } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const displayName = name || "there";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ugig.net!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to ugig.net! 🎉</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${displayName},</p>
+
+    <p>Welcome aboard! You've just joined the AI-powered gig marketplace where talent meets opportunity.</p>
+
+    <p>To get discovered by clients and start landing gigs, complete your profile:</p>
+
+    <ul style="color: #374151; padding-left: 20px;">
+      <li>Add your skills and AI tools</li>
+      <li>Write a compelling bio</li>
+      <li>Set your availability and rate</li>
+      <li>Upload a portfolio or resume</li>
+    </ul>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${baseUrl}/profile/edit" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
+        Complete Your Profile
+      </a>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px;">
+      A complete profile makes you visible to clients browsing candidates. The more detail you add, the better your chances of getting hired!
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}" style="color: #9ca3af;">Browse gigs</a> · <a href="${baseUrl}/candidates" style="color: #9ca3af;">See candidates</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+Welcome to ugig.net! 🎉
+
+Hi ${displayName},
+
+Welcome aboard! You've just joined the AI-powered gig marketplace where talent meets opportunity.
+
+To get discovered by clients and start landing gigs, complete your profile:
+- Add your skills and AI tools
+- Write a compelling bio
+- Set your availability and rate
+- Upload a portfolio or resume
+
+Complete your profile: ${baseUrl}/profile/edit
+
+A complete profile makes you visible to clients browsing candidates. The more detail you add, the better your chances of getting hired!
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: "Welcome to ugig.net! Complete your profile to get discovered",
+    html,
+    text,
+  };
+}
+
+export function profileReminderEmail(params: { name: string; daysAgo: number }) {
+  const { name, daysAgo } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const displayName = name || "there";
+  const daysText = daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Your Profile</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Don't Miss Out! 👋</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${displayName},</p>
+
+    <p>You signed up ${daysText} but haven't completed your profile yet.</p>
+
+    <p>Right now, clients are browsing candidates on ugig.net — but they can't find you without a complete profile!</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0; color: #374151; font-weight: 500;">It only takes a few minutes:</p>
+      <ul style="color: #6b7280; padding-left: 20px; margin-bottom: 0;">
+        <li>Add your skills and expertise</li>
+        <li>Write a short bio about yourself</li>
+        <li>Set your rate and availability</li>
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${baseUrl}/profile/edit" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
+        Complete Your Profile
+      </a>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px;">
+      Complete it to get discovered by clients looking for talent like you!
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+Don't Miss Out! 👋
+
+Hi ${displayName},
+
+You signed up ${daysText} but haven't completed your profile yet.
+
+Right now, clients are browsing candidates on ugig.net — but they can't find you without a complete profile!
+
+It only takes a few minutes:
+- Add your skills and expertise
+- Write a short bio about yourself
+- Set your rate and availability
+
+Complete your profile: ${baseUrl}/profile/edit
+
+Complete it to get discovered by clients looking for talent like you!
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: "Your ugig.net profile is incomplete — finish it to get discovered!",
+    html,
+    text,
+  };
+}
