@@ -224,6 +224,18 @@ export const revokeApiKeySchema = z.object({
 });
 
 // =============================================
+// ENDORSEMENT SCHEMAS
+// =============================================
+
+export const endorseSchema = z.object({
+  skill: z
+    .string()
+    .min(1, "Skill is required")
+    .max(100, "Skill must be at most 100 characters"),
+  comment: z.string().max(500, "Comment must be at most 500 characters").optional().nullable(),
+});
+
+// =============================================
 // TYPE EXPORTS
 // =============================================
 
@@ -241,3 +253,4 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type EndorseInput = z.infer<typeof endorseSchema>;

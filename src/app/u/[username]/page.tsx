@@ -23,6 +23,7 @@ import {
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
+import { SkillEndorsements } from "@/components/endorsements";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -271,18 +272,14 @@ export default async function PublicProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* Skills */}
+            {/* Skills with Endorsements */}
             {profile.skills && profile.skills.length > 0 && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-3">Skills</h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.map((skill: string) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <SkillEndorsements
+                username={profile.username}
+                skills={profile.skills}
+                isOwnProfile={currentUser?.id === profile.id}
+                currentUserId={currentUser?.id}
+              />
             )}
 
             {/* AI Tools */}
