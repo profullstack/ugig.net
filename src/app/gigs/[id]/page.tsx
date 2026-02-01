@@ -113,14 +113,16 @@ export default async function GigPage({ params }: GigPageProps) {
       }
     })();
 
+    const coin = gig.payment_coin ? ` ${gig.payment_coin}` : "";
+
     if (gig.budget_type === "revenue_share") {
       if (min && max) return `${min}-${max}${suffix}`;
       if (min) return `${min}${suffix}`;
       return "Rev Share TBD";
     }
 
-    if (min && max) return `${formatCurrency(min)} - ${formatCurrency(max)}${suffix}`;
-    if (min) return `${formatCurrency(min)}+${suffix}`;
+    if (min && max) return `${formatCurrency(min)} - ${formatCurrency(max)}${coin}${suffix}`;
+    if (min) return `${formatCurrency(min)}+${coin}${suffix}`;
     return gig.budget_type === "fixed" ? "Budget TBD" : "Rate TBD";
   };
 
@@ -217,7 +219,7 @@ export default async function GigPage({ params }: GigPageProps) {
                   <span className="text-2xl font-bold">{budgetDisplay}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <span className="capitalize">{gig.budget_type.replace("_", " ")}</span> rate{gig.budget_unit ? ` (per ${gig.budget_unit})` : ""}
+                  <span className="capitalize">{gig.budget_type.replace("_", " ")}</span> rate{gig.budget_unit ? ` (per ${gig.budget_unit})` : ""}{gig.payment_coin ? ` · Paid in ${gig.payment_coin}` : ""}
                 </div>
 
                 {gig.duration && (

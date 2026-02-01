@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, type Profile, type WalletAddress } from "@/types";
+import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, PAYMENT_COINS, type Profile, type WalletAddress } from "@/types";
 import { X, Plus, Star, Wallet } from "lucide-react";
 
 interface ProfileFormProps {
@@ -66,6 +66,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       rate_type: profile.rate_type || undefined,
       rate_amount: profile.rate_amount || undefined,
       rate_unit: profile.rate_unit || "",
+      preferred_coin: profile.preferred_coin || "",
       wallet_addresses: parseWalletAddresses(profile.wallet_addresses),
     },
   });
@@ -460,6 +461,27 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               />
             </div>
           </div>
+        </div>
+
+        {/* Preferred Payment Coin */}
+        <div className="space-y-2">
+          <Label htmlFor="preferred_coin">Preferred Payment Coin</Label>
+          <select
+            id="preferred_coin"
+            {...register("preferred_coin")}
+            disabled={isLoading}
+            className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
+          >
+            <option value="">No preference</option>
+            {PAYMENT_COINS.map((coin) => (
+              <option key={coin} value={coin}>
+                {coin}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Which cryptocurrency do you prefer to be paid in?
+          </p>
         </div>
 
         {/* Portfolio URLs */}

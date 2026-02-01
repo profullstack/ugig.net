@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { GIG_CATEGORIES, AI_TOOLS, SKILLS } from "@/types";
+import { GIG_CATEGORIES, AI_TOOLS, SKILLS, PAYMENT_COINS } from "@/types";
 import { X } from "lucide-react";
 
 interface GigFormProps {
@@ -270,6 +270,28 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Payment Coin */}
+      <div className="space-y-2">
+        <Label htmlFor="payment_coin">Payment Coin</Label>
+        <div className="flex gap-2">
+          <select
+            {...register("payment_coin")}
+            disabled={isLoading}
+            className="w-full border border-input rounded-md px-3 py-2 bg-background"
+          >
+            <option value="">Select coin...</option>
+            {PAYMENT_COINS.map((coin) => (
+              <option key={coin} value={coin}>
+                {coin}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Which crypto will you pay in? Leave blank for fiat/negotiable.
+        </p>
       </div>
 
       {/* Duration & Location */}

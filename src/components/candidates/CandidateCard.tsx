@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
-import { MapPin, DollarSign, CheckCircle } from "lucide-react";
+import { MapPin, DollarSign, CheckCircle, Coins } from "lucide-react";
 import type { Profile } from "@/types";
 
 interface CandidateCardProps {
@@ -123,6 +123,12 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
                 ${candidate.hourly_rate}/hr
               </span>
             ) : null}
+            {candidate.preferred_coin && (
+              <span className="flex items-center gap-1">
+                <Coins className="h-3.5 w-3.5" />
+                Prefers {candidate.preferred_coin}
+              </span>
+            )}
           </div>
         </div>
       </div>

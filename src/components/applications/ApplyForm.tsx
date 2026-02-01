@@ -17,6 +17,7 @@ interface ApplyFormProps {
   budgetMin: number | null;
   budgetMax: number | null;
   budgetUnit?: string | null;
+  paymentCoin?: string | null;
   aiToolsPreferred: string[];
 }
 
@@ -27,6 +28,7 @@ export function ApplyForm({
   budgetMin,
   budgetMax,
   budgetUnit,
+  paymentCoin,
   aiToolsPreferred,
 }: ApplyFormProps) {
   const router = useRouter();
@@ -155,6 +157,11 @@ export function ApplyForm({
             min={0}
             step={0.01}
           />
+          {paymentCoin && (
+            <p className="text-xs text-muted-foreground mt-1">
+              💰 This gig pays in <strong>{paymentCoin}</strong>
+            </p>
+          )}
         </div>
 
         {/* Timeline */}

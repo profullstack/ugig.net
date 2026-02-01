@@ -44,6 +44,7 @@ const mockMessage: MessageWithSender = {
     rate_type: null,
     rate_amount: null,
     rate_unit: null,
+    preferred_coin: null,
   },
 };
 
