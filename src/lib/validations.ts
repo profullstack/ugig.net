@@ -244,8 +244,7 @@ export const revokeApiKeySchema = z.object({
 
 // =============================================
 // FEED & POST SCHEMAS
-// =============================================
-
+// ======================================
 export const postSchema = z.object({
   content: z
     .string()
@@ -271,6 +270,16 @@ export const feedFiltersSchema = z.object({
   tag: z.string().max(50).optional(),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(50).default(20),
+=======
+// ENDORSEMENT SCHEMAS
+// =============================================
+
+export const endorseSchema = z.object({
+  skill: z
+    .string()
+    .min(1, "Skill is required")
+    .max(100, "Skill must be at most 100 characters"),
+  comment: z.string().max(500, "Comment must be at most 500 characters").optional().nullable(),
 });
 
 // =============================================
@@ -296,3 +305,4 @@ export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;
 export type PostInput = z.infer<typeof postSchema>;
 export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
 export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;
+export type EndorseInput = z.infer<typeof endorseSchema>;

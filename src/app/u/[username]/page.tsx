@@ -26,6 +26,7 @@ import { StartConversationButton } from "@/components/messages/StartConversation
 import { ProfileTabs } from "@/components/activity/ProfileTabs";
 import { FollowButton } from "@/components/follow/FollowButton";
 import { FollowCounts } from "@/components/follow/FollowCounts";
+import { SkillEndorsements } from "@/components/endorsements";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -305,6 +306,15 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                     </div>
                   </div>
                 )}
+            {/* Skills with Endorsements */}
+            {profile.skills && profile.skills.length > 0 && (
+              <SkillEndorsements
+                username={profile.username}
+                skills={profile.skills}
+                isOwnProfile={currentUser?.id === profile.id}
+                currentUserId={currentUser?.id}
+              />
+            )}
 
                 {/* AI Tools */}
                 {profile.ai_tools && profile.ai_tools.length > 0 && (

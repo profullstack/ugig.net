@@ -7,10 +7,6 @@ function getResendClient(): Resend | null {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY);
-}
-
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -26,7 +22,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
   }
 
   try {
-    const { data, error } = await getResend().emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject,
@@ -433,6 +429,91 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
+export function endorsementReceivedEmail(params: {
+  endorsedName: string;
+  endorserName: string;
+  skill: string;
+  comment?: string;
+  endorsedUsername: string;
+}) {
+  const { endorsedName, endorserName, skill, comment, endorsedUsername } = params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  const commentBlock = comment
+    ? `<p style="color: #6b7280; font-size: 14px; font-style: italic; margin-top: 10px;">"${comment}"</p>`
+    : "";
+
+  const commentText = comment ? `\nComment: "${comment}"` : "";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Skill Endorsement</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Skill Endorsement</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${endorsedName},</p>
+
+    <p><strong>${endorserName}</strong> endorsed your <strong>${skill}</strong> skill!</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 24px;">👍</span>
+        <div>
+          <h3 style="margin: 0; color: #10b981;">${skill}</h3>
+          <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Endorsed by ${endorserName}</p>
+        </div>
+      </div>
+      ${commentBlock}
+    </div>
+
+    <a href="${baseUrl}/u/${endorsedUsername}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Your Profile
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      Endorsements help build trust and showcase your skills to potential clients.
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Skill Endorsement
+
+Hi ${endorsedName},
+
+${endorserName} endorsed your ${skill} skill!${commentText}
+
+View your profile: ${baseUrl}/u/${endorsedUsername}
+
+Endorsements help build trust and showcase your skills to potential clients.
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${endorserName} endorsed your "${skill}" skill`,
+    html,
+    text,
+  };
+}
 export function newMessageEmail(params: {
   recipientName: string;
   senderName: string;

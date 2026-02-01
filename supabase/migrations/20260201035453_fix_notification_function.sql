@@ -1,5 +1,14 @@
 -- Fix: rename notifications.message column to body (matches TypeScript types and app code)
-ALTER TABLE IF EXISTS notifications RENAME COLUMN message TO body;
+-- Only rename if the column still has the old name
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'notifications' AND column_name = 'message'
+  ) THEN
+    ALTER TABLE notifications RENAME COLUMN message TO body;
+  END IF;
+END $$;
 
 -- Recreate create_notification function using correct column name (body instead of message)
 CREATE OR REPLACE FUNCTION create_notification(
