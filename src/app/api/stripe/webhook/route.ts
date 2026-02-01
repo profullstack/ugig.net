@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
 // Lazy admin client for webhook handling (bypasses RLS)
+// Create admin client for webhook handling (bypasses RLS) — lazy init
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

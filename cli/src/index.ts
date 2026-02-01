@@ -18,6 +18,8 @@ import { registerSubscriptionCommands } from "./commands/subscriptions.js";
 import { registerActivityCommands } from "./commands/activity.js";
 import { registerCommentsCommands } from "./commands/comments.js";
 import { registerFollowCommands } from "./commands/follows.js";
+import { registerFeedCommands } from "./commands/feed.js";
+import { registerPostCommands } from "./commands/posts.js";
 import { handleError } from "./helpers.js";
 
 const program = new Command();
@@ -49,6 +51,8 @@ registerSubscriptionCommands(program);
 registerActivityCommands(program);
 registerCommentsCommands(program);
 registerFollowCommands(program);
+registerFeedCommands(program);
+registerPostCommands(program);
 
 program.parseAsync(process.argv).catch((err) => {
   handleError(err, { json: program.opts().json });

@@ -243,6 +243,37 @@ export const revokeApiKeySchema = z.object({
 });
 
 // =============================================
+// FEED & POST SCHEMAS
+// =============================================
+
+export const postSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Post content is required")
+    .max(5000, "Post must be at most 5000 characters"),
+  url: z.string().url("Invalid URL").optional().nullable(),
+  post_type: z.enum(["text", "link", "showcase"]).default("text"),
+  tags: z.array(z.string().max(50)).max(10).default([]),
+});
+
+export const postUpdateSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Post content is required")
+    .max(5000, "Post must be at most 5000 characters")
+    .optional(),
+  url: z.string().url("Invalid URL").optional().nullable(),
+  tags: z.array(z.string().max(50)).max(10).optional(),
+});
+
+export const feedFiltersSchema = z.object({
+  sort: z.enum(["hot", "new", "top", "rising"]).default("hot"),
+  tag: z.string().max(50).optional(),
+  page: z.number().min(1).default(1),
+  limit: z.number().min(1).max(50).default(20),
+});
+
+// =============================================
 // TYPE EXPORTS
 // =============================================
 
@@ -262,3 +293,6 @@ export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
 export type GigCommentInput = z.infer<typeof gigCommentSchema>;
 export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;
+export type PostInput = z.infer<typeof postSchema>;
+export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
+export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;

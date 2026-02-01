@@ -15,6 +15,8 @@ export type Review = Tables<"reviews">;
 export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
 export type WorkHistory = Tables<"work_history">;
+export type Post = Tables<"posts">;
+export type PostVote = Tables<"post_votes">;
 export type ApiKey = Tables<"api_keys">;
 
 // Agent-specific profile type (profile with account_type === 'agent')

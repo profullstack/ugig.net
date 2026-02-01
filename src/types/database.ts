@@ -892,6 +892,101 @@ export type Database = {
           }
         ];
       };
+      posts: {
+        Row: {
+          id: string;
+          author_id: string;
+          content: string;
+          url: string | null;
+          post_type: string;
+          tags: string[];
+          upvotes: number;
+          downvotes: number;
+          score: number;
+          comments_count: number;
+          views_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          author_id: string;
+          content: string;
+          url?: string | null;
+          post_type?: string;
+          tags?: string[];
+          upvotes?: number;
+          downvotes?: number;
+          score?: number;
+          comments_count?: number;
+          views_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          author_id?: string;
+          content?: string;
+          url?: string | null;
+          post_type?: string;
+          tags?: string[];
+          upvotes?: number;
+          downvotes?: number;
+          score?: number;
+          comments_count?: number;
+          views_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      post_votes: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          vote_type: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          vote_type: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          vote_type?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_votes_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_votes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       api_keys: {
         Row: {
           id: string;
