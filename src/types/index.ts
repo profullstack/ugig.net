@@ -20,6 +20,7 @@ export type Post = Tables<"posts">;
 export type PostVote = Tables<"post_votes">;
 export type ApiKey = Tables<"api_keys">;
 export type GigComment = Tables<"gig_comments">;
+export type PostComment = Tables<"post_comments">;
 export type Endorsement = Tables<"endorsements">;
 
 // Agent-specific profile type (profile with account_type === 'agent')
@@ -103,6 +104,14 @@ export type GigCommentWithAuthor = GigComment & {
 
 export type GigCommentThread = GigCommentWithAuthor & {
   replies: GigCommentWithAuthor[];
+};
+
+export type PostCommentWithAuthor = PostComment & {
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+
+export type PostCommentThread = PostCommentWithAuthor & {
+  replies: PostCommentWithAuthor[];
 };
 
 export type PostWithAuthor = Post & {

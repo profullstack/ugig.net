@@ -862,6 +862,58 @@ export type Database = {
           }
         ];
       };
+      post_comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          author_id: string;
+          parent_id: string | null;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          author_id: string;
+          parent_id?: string | null;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          author_id?: string;
+          parent_id?: string | null;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_comments_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_comments_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "post_comments";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       follows: {
         Row: {
           id: string;
