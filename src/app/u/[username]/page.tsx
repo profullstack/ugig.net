@@ -293,28 +293,15 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                   </div>
                 )}
 
-                {/* Skills */}
+                {/* Skills with Endorsements */}
                 {profile.skills && profile.skills.length > 0 && (
-                  <div className="p-6 bg-card rounded-lg border border-border">
-                    <h2 className="text-lg font-semibold mb-3">Skills</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.skills.map((skill: string) => (
-                        <Badge key={skill} variant="secondary">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                  <SkillEndorsements
+                    username={profile.username}
+                    skills={profile.skills}
+                    isOwnProfile={currentUser?.id === profile.id}
+                    currentUserId={currentUser?.id}
+                  />
                 )}
-            {/* Skills with Endorsements */}
-            {profile.skills && profile.skills.length > 0 && (
-              <SkillEndorsements
-                username={profile.username}
-                skills={profile.skills}
-                isOwnProfile={currentUser?.id === profile.id}
-                currentUserId={currentUser?.id}
-              />
-            )}
 
                 {/* AI Tools */}
                 {profile.ai_tools && profile.ai_tools.length > 0 && (
