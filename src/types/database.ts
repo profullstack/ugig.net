@@ -84,6 +84,7 @@ export type Database = {
           preferred_coin: string | null;
           followers_count: number;
           following_count: number;
+          reminder_sent_at: string | null;
           last_active_at: string;
           created_at: string;
           updated_at: string;
@@ -121,6 +122,7 @@ export type Database = {
           preferred_coin?: string | null;
           followers_count?: number;
           following_count?: number;
+          reminder_sent_at?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -158,6 +160,7 @@ export type Database = {
           preferred_coin?: string | null;
           followers_count?: number;
           following_count?: number;
+          reminder_sent_at?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;

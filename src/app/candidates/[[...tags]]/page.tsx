@@ -51,11 +51,11 @@ async function CandidatesList({
   // Parse tags from URL (comma-separated)
   const tagList = tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
-  // Build query
+  // Build query — show completed profiles OR those with at least a bio or skills
   let query = supabase
     .from("profiles")
     .select("*", { count: "exact" })
-    .eq("profile_completed", true);
+    .or("profile_completed.eq.true,bio.neq.,skills.neq.{}");
 
   // Filter by search query
   if (queryParams.q) {
