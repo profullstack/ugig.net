@@ -80,15 +80,18 @@ export type PaginatedResult<T> = {
 };
 
 // Form types
+export type BudgetType = "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+
 export type GigFormData = {
   title: string;
   description: string;
   category: string;
   skills_required: string[];
   ai_tools_preferred: string[];
-  budget_type: "fixed" | "hourly";
+  budget_type: BudgetType;
   budget_min?: number;
   budget_max?: number;
+  budget_unit?: string;
   duration?: string;
   location_type: "remote" | "onsite" | "hybrid";
   location?: string;
@@ -137,7 +140,7 @@ export type GigFilters = {
   ai_tools?: string[];
   budget_min?: number;
   budget_max?: number;
-  budget_type?: "fixed" | "hourly";
+  budget_type?: BudgetType;
   location_type?: "remote" | "onsite" | "hybrid";
   posted_within?: "day" | "week" | "month";
 };

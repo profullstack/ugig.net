@@ -74,7 +74,25 @@ export function formatBudget(_, row) {
     const type = row.budget_type;
     const min = row.budget_min;
     const max = row.budget_max;
-    const suffix = type === "hourly" ? "/hr" : "";
+    const unit = row.budget_unit;
+    const suffix = (() => {
+        switch (type) {
+            case "hourly": return "/hr";
+            case "per_task": return unit ? `/${unit}` : "/task";
+            case "per_unit": return unit ? `/${unit}` : "/unit";
+            case "revenue_share": return "% rev";
+            default: return "";
+        }
+    })();
+    if (type === "revenue_share") {
+        if (min && max)
+            return `${min}-${max}${suffix}`;
+        if (min)
+            return `${min}+${suffix}`;
+        if (max)
+            return `<${max}${suffix}`;
+        return chalk.dim("-");
+    }
     if (min && max)
         return `$${min}-${max}${suffix}`;
     if (min)

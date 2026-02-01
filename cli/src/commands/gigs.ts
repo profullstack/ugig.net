@@ -17,7 +17,7 @@ export function registerGigsCommands(program: Command): void {
     .option("--search <query>", "Search title and description")
     .option("--category <category>", "Filter by category")
     .option("--skills <skills>", "Filter by skills (comma-separated)")
-    .option("--budget-type <type>", "Filter: fixed or hourly")
+    .option("--budget-type <type>", "Filter: fixed, hourly, per_task, per_unit, revenue_share")
     .option("--budget-min <min>", "Minimum budget", parseFloat)
     .option("--budget-max <max>", "Maximum budget", parseFloat)
     .option("--location-type <type>", "Filter: remote, onsite, hybrid")
@@ -83,6 +83,7 @@ export function registerGigsCommands(program: Command): void {
             { label: "Budget Type", key: "budget_type" },
             { label: "Budget Min", key: "budget_min", transform: (v) => v ? `$${v}` : "-" },
             { label: "Budget Max", key: "budget_max", transform: (v) => v ? `$${v}` : "-" },
+            { label: "Budget Unit", key: "budget_unit", transform: (v) => v ? String(v) : "-" },
             { label: "Location", key: "location_type" },
             { label: "Duration", key: "duration" },
             { label: "Skills", key: "skills_required", transform: formatArray },
@@ -109,9 +110,10 @@ export function registerGigsCommands(program: Command): void {
     .requiredOption("--category <cat>", "Category")
     .requiredOption("--skills <skills>", "Required skills (comma-separated)")
     .option("--ai-tools <tools>", "Preferred AI tools (comma-separated)")
-    .requiredOption("--budget-type <type>", "Budget type: fixed or hourly")
+    .requiredOption("--budget-type <type>", "Budget type: fixed, hourly, per_task, per_unit, revenue_share")
     .option("--budget-min <min>", "Minimum budget", parseFloat)
     .option("--budget-max <max>", "Maximum budget", parseFloat)
+    .option("--budget-unit <unit>", "Unit label for per_task/per_unit (e.g., post, tweet, image)")
     .option("--duration <duration>", "Duration")
     .option("--location-type <type>", "Location: remote, onsite, hybrid", "remote")
     .option("--location <location>", "Location details")
@@ -121,7 +123,7 @@ export function registerGigsCommands(program: Command): void {
       const spinner = opts.json ? null : ora("Creating gig...").start();
       try {
         const client = createClient(opts);
-        const body = {
+        const body: Record<string, unknown> = {
           title: options.title,
           description: options.description,
           category: options.category,
@@ -130,6 +132,7 @@ export function registerGigsCommands(program: Command): void {
           budget_type: options.budgetType,
           budget_min: options.budgetMin,
           budget_max: options.budgetMax,
+          budget_unit: options.budgetUnit,
           duration: options.duration,
           location_type: options.locationType,
           location: options.location,
@@ -156,9 +159,10 @@ export function registerGigsCommands(program: Command): void {
     .option("--category <cat>", "Category")
     .option("--skills <skills>", "Required skills (comma-separated)")
     .option("--ai-tools <tools>", "AI tools (comma-separated)")
-    .option("--budget-type <type>", "Budget type")
+    .option("--budget-type <type>", "Budget type: fixed, hourly, per_task, per_unit, revenue_share")
     .option("--budget-min <min>", "Budget min", parseFloat)
     .option("--budget-max <max>", "Budget max", parseFloat)
+    .option("--budget-unit <unit>", "Unit label for per_task/per_unit (e.g., post, tweet, image)")
     .option("--duration <dur>", "Duration")
     .option("--location-type <type>", "Location type")
     .option("--location <loc>", "Location")
@@ -176,6 +180,7 @@ export function registerGigsCommands(program: Command): void {
         if (options.budgetType !== undefined) body.budget_type = options.budgetType;
         if (options.budgetMin !== undefined) body.budget_min = options.budgetMin;
         if (options.budgetMax !== undefined) body.budget_max = options.budgetMax;
+        if (options.budgetUnit !== undefined) body.budget_unit = options.budgetUnit;
         if (options.duration !== undefined) body.duration = options.duration;
         if (options.locationType !== undefined) body.location_type = options.locationType;
         if (options.location !== undefined) body.location = options.location;

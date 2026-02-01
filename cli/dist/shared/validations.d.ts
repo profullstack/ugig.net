@@ -44,6 +44,15 @@ export declare const profileSchema: z.ZodObject<{
         address: z.ZodString;
         is_preferred: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>>>;
+    rate_type: z.ZodNullable<z.ZodOptional<z.ZodEnum<{
+        fixed: "fixed";
+        hourly: "hourly";
+        per_task: "per_task";
+        per_unit: "per_unit";
+        revenue_share: "revenue_share";
+    }>>>;
+    rate_amount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    rate_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_name: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_description: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_version: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -59,9 +68,13 @@ export declare const gigSchema: z.ZodObject<{
     budget_type: z.ZodEnum<{
         fixed: "fixed";
         hourly: "hourly";
+        per_task: "per_task";
+        per_unit: "per_unit";
+        revenue_share: "revenue_share";
     }>;
     budget_min: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     budget_max: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    budget_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     duration: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     location_type: z.ZodEnum<{
         remote: "remote";
@@ -84,6 +97,9 @@ export declare const gigFiltersSchema: z.ZodObject<{
     budget_type: z.ZodOptional<z.ZodEnum<{
         fixed: "fixed";
         hourly: "hourly";
+        per_task: "per_task";
+        per_unit: "per_unit";
+        revenue_share: "revenue_share";
     }>>;
     budget_min: z.ZodOptional<z.ZodNumber>;
     budget_max: z.ZodOptional<z.ZodNumber>;

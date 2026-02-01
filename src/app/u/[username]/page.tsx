@@ -106,7 +106,7 @@ export default async function PublicProfilePage({ params }: Props) {
   // Get active gigs by this user
   const { data: activeGigs } = await supabase
     .from("gigs")
-    .select("id, title, category, budget_type, budget_min, budget_max, created_at")
+    .select("id, title, category, budget_type, budget_min, budget_max, budget_unit, created_at")
     .eq("poster_id", profile.id)
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -357,11 +357,13 @@ export default async function PublicProfilePage({ params }: Props) {
                       <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
                         <span>{gig.category}</span>
                         <span>
-                          {gig.budget_type === "hourly" ? "Hourly" : "Fixed"}: $
-                          {gig.budget_min}
-                          {gig.budget_max && gig.budget_max !== gig.budget_min
-                            ? ` - $${gig.budget_max}`
-                            : ""}
+                          {gig.budget_type === "revenue_share"
+                            ? `${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? `-${gig.budget_max}` : ""}% rev share`
+                            : `${gig.budget_type === "hourly" ? "Hourly" :
+                                gig.budget_type === "per_task" ? `Per ${gig.budget_unit || "task"}` :
+                                gig.budget_type === "per_unit" ? `Per ${gig.budget_unit || "unit"}` :
+                                "Fixed"}: $${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? ` - $${gig.budget_max}` : ""}`
+                          }
                         </span>
                       </div>
                     </Link>

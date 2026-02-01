@@ -45,7 +45,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   // Get gig details
   const { data: gig, error } = await supabase
     .from("gigs")
-    .select("id, title, poster_id, status, budget_type, budget_min, budget_max, ai_tools_preferred")
+    .select("id, title, poster_id, status, budget_type, budget_min, budget_max, budget_unit, ai_tools_preferred")
     .eq("id", id)
     .single();
 
@@ -95,6 +95,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             budgetType={gig.budget_type}
             budgetMin={gig.budget_min}
             budgetMax={gig.budget_max}
+            budgetUnit={gig.budget_unit}
             aiToolsPreferred={gig.ai_tools_preferred}
           />
         </div>
