@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       amount_usd: amount,
       currency: currency as SupportedCurrency,
       description,
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=success`,
+      redirect_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/settings/billing?payment=success`,
       metadata: {
         user_id: user.id,
         type,

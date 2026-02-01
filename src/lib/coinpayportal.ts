@@ -111,7 +111,7 @@ export async function createPayment(
       currency: options.currency,
       description: options.description,
       redirect_url: options.redirect_url,
-      webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/coinpayportal/webhook`,
+      webhook_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/api/payments/coinpayportal/webhook`,
       metadata: options.metadata,
     }),
   });
