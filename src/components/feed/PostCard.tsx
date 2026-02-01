@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ExternalLink, MessageSquare, Eye, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,27 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
+  const router = useRouter();
   // Normalize author — Supabase can return array or object
   const author = Array.isArray(post.author) ? post.author[0] : post.author;
 
+  const handleCardClick = () => {
+    router.push(`/post/${post.id}`);
+  };
+
   return (
-    <div className="flex gap-3 p-4 border border-border rounded-lg bg-card hover:border-primary/40 transition-all duration-200">
+    <div
+      className="flex gap-3 p-4 border border-border rounded-lg bg-card hover:border-primary/40 transition-all duration-200 cursor-pointer"
+      onClick={handleCardClick}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+    >
       <VoteButtons
         postId={post.id}
         initialScore={post.score}
@@ -92,10 +109,14 @@ export function PostCard({ post }: PostCardProps) {
 
         {/* Footer stats */}
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
+          <Link
+            href={`/post/${post.id}`}
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
             <MessageSquare className="h-3.5 w-3.5" />
             {post.comments_count} comments
-          </span>
+          </Link>
           <span className="flex items-center gap-1">
             <Eye className="h-3.5 w-3.5" />
             {post.views_count} views

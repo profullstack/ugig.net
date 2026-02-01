@@ -211,6 +211,25 @@ export const gigCommentUpdateSchema = z.object({
 });
 
 // =============================================
+// POST COMMENT SCHEMAS
+// =============================================
+
+export const postCommentSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Comment is required")
+    .max(2000, "Comment must be at most 2000 characters"),
+  parent_id: z.string().uuid("Invalid parent comment ID").optional().nullable(),
+});
+
+export const postCommentUpdateSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Comment is required")
+    .max(2000, "Comment must be at most 2000 characters"),
+});
+
+// =============================================
 // MESSAGING SCHEMAS
 // =============================================
 
@@ -304,6 +323,8 @@ export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
 export type GigCommentInput = z.infer<typeof gigCommentSchema>;
 export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;
+export type PostCommentInput = z.infer<typeof postCommentSchema>;
+export type PostCommentUpdateInput = z.infer<typeof postCommentUpdateSchema>;
 export type PostInput = z.infer<typeof postSchema>;
 export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
 export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;

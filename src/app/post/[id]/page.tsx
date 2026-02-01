@@ -1,0 +1,118 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { PostCard } from "@/components/feed/PostCard";
+import { PostComments } from "@/components/feed/PostComments";
+import type { Metadata } from "next";
+
+interface PostPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PostPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: post } = await supabase
+    .from("posts")
+    .select("content")
+    .eq("id", id)
+    .single();
+
+  if (!post) {
+    return { title: "Post Not Found | ugig.net" };
+  }
+
+  return {
+    title: `Post | ugig.net`,
+    description: post.content.slice(0, 160),
+  };
+}
+
+export default async function PostPage({ params }: PostPageProps) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: post, error } = await supabase
+    .from("posts")
+    .select(
+      `
+      *,
+      author:profiles!author_id (
+        id,
+        username,
+        full_name,
+        avatar_url,
+        account_type
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (error || !post) {
+    notFound();
+  }
+
+  // Increment view count (fire and forget)
+  void supabase
+    .from("posts")
+    .update({ views_count: (post.views_count || 0) + 1 })
+    .eq("id", id)
+    .then(
+      () => {},
+      () => {}
+    );
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Get user vote if logged in
+  let userVote: number | null = null;
+  if (user) {
+    const { data: vote } = await supabase
+      .from("post_votes")
+      .select("vote_type")
+      .eq("post_id", id)
+      .eq("user_id", user.id)
+      .single();
+    if (vote) {
+      userVote = vote.vote_type;
+    }
+  }
+
+  const postWithVote = { ...post, user_vote: userVote };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
+        <Link
+          href="/feed"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Feed
+        </Link>
+
+        <div className="space-y-8">
+          <PostCard post={postWithVote} />
+
+          <PostComments
+            postId={id}
+            currentUserId={user?.id}
+            postAuthorId={post.author_id}
+          />
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
