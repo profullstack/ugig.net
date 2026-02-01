@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { GIG_CATEGORIES, AI_TOOLS, SKILLS } from "@/types";
+import { GIG_CATEGORIES, AI_TOOLS, SKILLS, PAYMENT_COINS } from "@/types";
 import { X } from "lucide-react";
 
 interface GigFormProps {
@@ -205,42 +205,93 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
       </div>
 
       {/* Budget */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label>Budget Type *</Label>
+      <div className="space-y-4">
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label>Budget Type *</Label>
+            <select
+              {...register("budget_type")}
+              disabled={isLoading}
+              className="w-full border border-input rounded-md px-3 py-2 bg-background"
+            >
+              <option value="fixed">Fixed Price</option>
+              <option value="hourly">Hourly Rate</option>
+              <option value="per_task">Per Task</option>
+              <option value="per_unit">Per Unit</option>
+              <option value="revenue_share">Revenue Share</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="budget_min">
+              {budgetType === "hourly" ? "Min Rate ($/hr)" :
+               budgetType === "revenue_share" ? "Min Share (%)" :
+               (budgetType === "per_task" || budgetType === "per_unit") ? "Min Rate ($/unit)" :
+               "Min Budget ($)"}
+            </Label>
+            <Input
+              id="budget_min"
+              type="number"
+              placeholder="0"
+              step={budgetType === "per_task" || budgetType === "per_unit" ? "0.01" : "1"}
+              {...register("budget_min", { valueAsNumber: true })}
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="budget_max">
+              {budgetType === "hourly" ? "Max Rate ($/hr)" :
+               budgetType === "revenue_share" ? "Max Share (%)" :
+               (budgetType === "per_task" || budgetType === "per_unit") ? "Max Rate ($/unit)" :
+               "Max Budget ($)"}
+            </Label>
+            <Input
+              id="budget_max"
+              type="number"
+              placeholder="0"
+              step={budgetType === "per_task" || budgetType === "per_unit" ? "0.01" : "1"}
+              {...register("budget_max", { valueAsNumber: true })}
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+
+        {/* Budget Unit - shown for per_task and per_unit */}
+        {(budgetType === "per_task" || budgetType === "per_unit") && (
+          <div className="space-y-2">
+            <Label htmlFor="budget_unit">Unit Label *</Label>
+            <Input
+              id="budget_unit"
+              placeholder='e.g., "post", "tweet", "image", "1000 words"'
+              {...register("budget_unit")}
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              What counts as one unit of work? This appears as &quot;$/post&quot;, &quot;$/image&quot;, etc.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Payment Coin */}
+      <div className="space-y-2">
+        <Label htmlFor="payment_coin">Payment Coin</Label>
+        <div className="flex gap-2">
           <select
-            {...register("budget_type")}
+            {...register("payment_coin")}
             disabled={isLoading}
             className="w-full border border-input rounded-md px-3 py-2 bg-background"
           >
-            <option value="fixed">Fixed Price</option>
-            <option value="hourly">Hourly Rate</option>
+            <option value="">Select coin...</option>
+            {PAYMENT_COINS.map((coin) => (
+              <option key={coin} value={coin}>
+                {coin}
+              </option>
+            ))}
           </select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="budget_min">
-            {budgetType === "hourly" ? "Min Rate ($/hr)" : "Min Budget ($)"}
-          </Label>
-          <Input
-            id="budget_min"
-            type="number"
-            placeholder="0"
-            {...register("budget_min", { valueAsNumber: true })}
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="budget_max">
-            {budgetType === "hourly" ? "Max Rate ($/hr)" : "Max Budget ($)"}
-          </Label>
-          <Input
-            id="budget_max"
-            type="number"
-            placeholder="0"
-            {...register("budget_max", { valueAsNumber: true })}
-            disabled={isLoading}
-          />
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Which crypto will you pay in? Leave blank for fiat/negotiable.
+        </p>
       </div>
 
       {/* Duration & Location */}

@@ -11,7 +11,7 @@ export function registerGigsCommands(program) {
         .option("--search <query>", "Search title and description")
         .option("--category <category>", "Filter by category")
         .option("--skills <skills>", "Filter by skills (comma-separated)")
-        .option("--budget-type <type>", "Filter: fixed or hourly")
+        .option("--budget-type <type>", "Filter: fixed, hourly, per_task, per_unit, revenue_share")
         .option("--budget-min <min>", "Minimum budget", parseFloat)
         .option("--budget-max <max>", "Maximum budget", parseFloat)
         .option("--location-type <type>", "Filter: remote, onsite, hybrid")
@@ -71,6 +71,8 @@ export function registerGigsCommands(program) {
                 { label: "Budget Type", key: "budget_type" },
                 { label: "Budget Min", key: "budget_min", transform: (v) => v ? `$${v}` : "-" },
                 { label: "Budget Max", key: "budget_max", transform: (v) => v ? `$${v}` : "-" },
+                { label: "Budget Unit", key: "budget_unit", transform: (v) => v ? String(v) : "-" },
+                { label: "Payment Coin", key: "payment_coin", transform: (v) => v ? String(v) : "-" },
                 { label: "Location", key: "location_type" },
                 { label: "Duration", key: "duration" },
                 { label: "Skills", key: "skills_required", transform: formatArray },
@@ -94,9 +96,11 @@ export function registerGigsCommands(program) {
         .requiredOption("--category <cat>", "Category")
         .requiredOption("--skills <skills>", "Required skills (comma-separated)")
         .option("--ai-tools <tools>", "Preferred AI tools (comma-separated)")
-        .requiredOption("--budget-type <type>", "Budget type: fixed or hourly")
+        .requiredOption("--budget-type <type>", "Budget type: fixed, hourly, per_task, per_unit, revenue_share")
         .option("--budget-min <min>", "Minimum budget", parseFloat)
         .option("--budget-max <max>", "Maximum budget", parseFloat)
+        .option("--budget-unit <unit>", "Unit label for per_task/per_unit (e.g., post, tweet, image)")
+        .option("--payment-coin <coin>", "Payment cryptocurrency (e.g., SOL, ETH, USDC, BTC)")
         .option("--duration <duration>", "Duration")
         .option("--location-type <type>", "Location: remote, onsite, hybrid", "remote")
         .option("--location <location>", "Location details")
@@ -115,6 +119,8 @@ export function registerGigsCommands(program) {
                 budget_type: options.budgetType,
                 budget_min: options.budgetMin,
                 budget_max: options.budgetMax,
+                budget_unit: options.budgetUnit,
+                payment_coin: options.paymentCoin,
                 duration: options.duration,
                 location_type: options.locationType,
                 location: options.location,
@@ -142,9 +148,11 @@ export function registerGigsCommands(program) {
         .option("--category <cat>", "Category")
         .option("--skills <skills>", "Required skills (comma-separated)")
         .option("--ai-tools <tools>", "AI tools (comma-separated)")
-        .option("--budget-type <type>", "Budget type")
+        .option("--budget-type <type>", "Budget type: fixed, hourly, per_task, per_unit, revenue_share")
         .option("--budget-min <min>", "Budget min", parseFloat)
         .option("--budget-max <max>", "Budget max", parseFloat)
+        .option("--budget-unit <unit>", "Unit label for per_task/per_unit (e.g., post, tweet, image)")
+        .option("--payment-coin <coin>", "Payment cryptocurrency (e.g., SOL, ETH, USDC, BTC)")
         .option("--duration <dur>", "Duration")
         .option("--location-type <type>", "Location type")
         .option("--location <loc>", "Location")
@@ -170,6 +178,10 @@ export function registerGigsCommands(program) {
                 body.budget_min = options.budgetMin;
             if (options.budgetMax !== undefined)
                 body.budget_max = options.budgetMax;
+            if (options.budgetUnit !== undefined)
+                body.budget_unit = options.budgetUnit;
+            if (options.paymentCoin !== undefined)
+                body.payment_coin = options.paymentCoin;
             if (options.duration !== undefined)
                 body.duration = options.duration;
             if (options.locationType !== undefined)

@@ -13,9 +13,11 @@ import { AI_TOOLS } from "@/types";
 interface ApplyFormProps {
   gigId: string;
   gigTitle: string;
-  budgetType: "fixed" | "hourly";
+  budgetType: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
   budgetMin: number | null;
   budgetMax: number | null;
+  budgetUnit?: string | null;
+  paymentCoin?: string | null;
   aiToolsPreferred: string[];
 }
 
@@ -25,6 +27,8 @@ export function ApplyForm({
   budgetType,
   budgetMin,
   budgetMax,
+  budgetUnit,
+  paymentCoin,
   aiToolsPreferred,
 }: ApplyFormProps) {
   const router = useRouter();
@@ -132,7 +136,12 @@ export function ApplyForm({
         {/* Proposed Rate */}
         <div>
           <label className="block text-sm font-medium mb-2">
-            Proposed Rate ({budgetType === "hourly" ? "$/hr" : "$ fixed"})
+            Proposed Rate (
+            {budgetType === "hourly" ? "$/hr" :
+             budgetType === "per_task" ? `$/${budgetUnit || "task"}` :
+             budgetType === "per_unit" ? `$/${budgetUnit || "unit"}` :
+             budgetType === "revenue_share" ? "% revenue share" :
+             "$ fixed"})
           </label>
           <Input
             type="number"
@@ -140,12 +149,19 @@ export function ApplyForm({
             onChange={(e) => setProposedRate(e.target.value)}
             placeholder={
               budgetMin && budgetMax
-                ? `Gig budget: $${budgetMin} - $${budgetMax}`
+                ? budgetType === "revenue_share"
+                  ? `Gig range: ${budgetMin}% - ${budgetMax}%`
+                  : `Gig budget: $${budgetMin} - $${budgetMax}`
                 : "Enter your proposed rate"
             }
             min={0}
             step={0.01}
           />
+          {paymentCoin && (
+            <p className="text-xs text-muted-foreground mt-1">
+              💰 This gig pays in <strong>{paymentCoin}</strong>
+            </p>
+          )}
         </div>
 
         {/* Timeline */}

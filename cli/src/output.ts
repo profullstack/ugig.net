@@ -119,10 +119,30 @@ export function formatBudget(_: unknown, row: Record<string, unknown>): string {
   const type = row.budget_type as string;
   const min = row.budget_min as number | null;
   const max = row.budget_max as number | null;
-  const suffix = type === "hourly" ? "/hr" : "";
-  if (min && max) return `$${min}-${max}${suffix}`;
-  if (min) return `$${min}+${suffix}`;
-  if (max) return `<$${max}${suffix}`;
+  const unit = row.budget_unit as string | null;
+  const coin = row.payment_coin as string | null;
+  const coinStr = coin ? ` ${coin}` : "";
+
+  const suffix = (() => {
+    switch (type) {
+      case "hourly": return "/hr";
+      case "per_task": return unit ? `/${unit}` : "/task";
+      case "per_unit": return unit ? `/${unit}` : "/unit";
+      case "revenue_share": return "% rev";
+      default: return "";
+    }
+  })();
+
+  if (type === "revenue_share") {
+    if (min && max) return `${min}-${max}${suffix}`;
+    if (min) return `${min}+${suffix}`;
+    if (max) return `<${max}${suffix}`;
+    return chalk.dim("-");
+  }
+
+  if (min && max) return `$${min}-${max}${coinStr}${suffix}`;
+  if (min) return `$${min}+${coinStr}${suffix}`;
+  if (max) return `<$${max}${coinStr}${suffix}`;
   return chalk.dim("-");
 }
 

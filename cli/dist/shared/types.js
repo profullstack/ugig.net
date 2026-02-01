@@ -40,6 +40,15 @@ export const SKILLS = [
     "Data Analysis",
     "Machine Learning",
 ];
+// Common payment coins for gigs and profiles
+export const PAYMENT_COINS = [
+    "SOL",
+    "ETH",
+    "USDC",
+    "USDT",
+    "BTC",
+    "POL",
+];
 // Supported wallet currencies (matches CoinPayPortal)
 export const WALLET_CURRENCIES = [
     { id: "usdc_pol", name: "USDC (Polygon)", symbol: "USDC" },

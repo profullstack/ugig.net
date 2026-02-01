@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
-import { MapPin, DollarSign, CheckCircle } from "lucide-react";
+import { MapPin, DollarSign, CheckCircle, Coins } from "lucide-react";
 import type { Profile } from "@/types";
 
 interface CandidateCardProps {
@@ -105,10 +105,28 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
                 {candidate.location}
               </span>
             )}
-            {candidate.hourly_rate && (
+            {candidate.rate_type && candidate.rate_amount ? (
+              <span className="flex items-center gap-1">
+                <DollarSign className="h-3.5 w-3.5" />
+                {candidate.rate_type === "revenue_share"
+                  ? `${candidate.rate_amount}% rev share`
+                  : candidate.rate_unit
+                    ? `$${candidate.rate_amount}/${candidate.rate_unit}`
+                    : candidate.rate_type === "hourly"
+                      ? `$${candidate.rate_amount}/hr`
+                      : `$${candidate.rate_amount}/${candidate.rate_type === "per_task" ? "task" : "unit"}`
+                }
+              </span>
+            ) : candidate.hourly_rate ? (
               <span className="flex items-center gap-1">
                 <DollarSign className="h-3.5 w-3.5" />
                 ${candidate.hourly_rate}/hr
+              </span>
+            ) : null}
+            {candidate.preferred_coin && (
+              <span className="flex items-center gap-1">
+                <Coins className="h-3.5 w-3.5" />
+                Prefers {candidate.preferred_coin}
               </span>
             )}
           </div>

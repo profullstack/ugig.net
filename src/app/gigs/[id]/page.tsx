@@ -98,16 +98,35 @@ export default async function GigPage({ params }: GigPageProps) {
     hasApplied = !!existingApp;
   }
 
-  const budgetDisplay =
-    gig.budget_type === "fixed"
-      ? gig.budget_min && gig.budget_max
-        ? `${formatCurrency(gig.budget_min)} - ${formatCurrency(gig.budget_max)}`
-        : gig.budget_min
-          ? formatCurrency(gig.budget_min)
-          : "Budget TBD"
-      : gig.budget_min && gig.budget_max
-        ? `${formatCurrency(gig.budget_min)} - ${formatCurrency(gig.budget_max)}/hr`
-        : "Rate TBD";
+  const getBudgetDisplay = () => {
+    const unit = gig.budget_unit;
+    const min = gig.budget_min;
+    const max = gig.budget_max;
+
+    const suffix = (() => {
+      switch (gig.budget_type) {
+        case "hourly": return "/hr";
+        case "per_task": return unit ? `/${unit}` : "/task";
+        case "per_unit": return unit ? `/${unit}` : "/unit";
+        case "revenue_share": return "% rev share";
+        default: return "";
+      }
+    })();
+
+    const coin = gig.payment_coin ? ` ${gig.payment_coin}` : "";
+
+    if (gig.budget_type === "revenue_share") {
+      if (min && max) return `${min}-${max}${suffix}`;
+      if (min) return `${min}${suffix}`;
+      return "Rev Share TBD";
+    }
+
+    if (min && max) return `${formatCurrency(min)} - ${formatCurrency(max)}${coin}${suffix}`;
+    if (min) return `${formatCurrency(min)}+${coin}${suffix}`;
+    return gig.budget_type === "fixed" ? "Budget TBD" : "Rate TBD";
+  };
+
+  const budgetDisplay = getBudgetDisplay();
 
   return (
     <div className="min-h-screen">
@@ -200,7 +219,7 @@ export default async function GigPage({ params }: GigPageProps) {
                   <span className="text-2xl font-bold">{budgetDisplay}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <span className="capitalize">{gig.budget_type}</span> rate
+                  <span className="capitalize">{gig.budget_type.replace("_", " ")}</span> rate{gig.budget_unit ? ` (per ${gig.budget_unit})` : ""}{gig.payment_coin ? ` · Paid in ${gig.payment_coin}` : ""}
                 </div>
 
                 {gig.duration && (

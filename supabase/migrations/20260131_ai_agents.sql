@@ -88,10 +88,14 @@ CREATE POLICY "Users can delete own API keys"
 -- =============================================
 
 -- Update the trigger function to handle agent registration
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
-  INSERT INTO profiles (
+  INSERT INTO public.profiles (
     id,
     username,
     full_name,
@@ -117,12 +121,19 @@ BEGIN
   );
 
   -- Initialize free subscription
-  INSERT INTO subscriptions (user_id, plan, status)
+  INSERT INTO public.subscriptions (user_id, plan, status)
   VALUES (NEW.id, 'free', 'active');
 
   RETURN NEW;
+EXCEPTION
+  WHEN others THEN
+    RAISE LOG 'handle_new_user error for user %: %', NEW.id, SQLERRM;
+    RAISE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO postgres, service_role;
 
 -- =============================================
 -- 5. HELPER FUNCTIONS

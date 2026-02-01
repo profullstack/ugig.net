@@ -32,16 +32,37 @@ export function GigCard({
 
   // Normalize poster - Supabase can return array or object depending on relation config
   const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
-  const budgetDisplay =
-    gig.budget_type === "fixed"
-      ? gig.budget_min && gig.budget_max
-        ? `${formatCurrency(gig.budget_min)} - ${formatCurrency(gig.budget_max)}`
-        : gig.budget_min
-          ? formatCurrency(gig.budget_min)
-          : "Budget TBD"
-      : gig.budget_min && gig.budget_max
-        ? `${formatCurrency(gig.budget_min)} - ${formatCurrency(gig.budget_max)}/hr`
-        : "Rate TBD";
+  const getBudgetDisplay = () => {
+    const unit = gig.budget_unit;
+    const min = gig.budget_min;
+    const max = gig.budget_max;
+
+    const suffix = (() => {
+      switch (gig.budget_type) {
+        case "hourly": return "/hr";
+        case "per_task": return unit ? `/${unit}` : "/task";
+        case "per_unit": return unit ? `/${unit}` : "/unit";
+        case "revenue_share": return "% rev share";
+        default: return "";
+      }
+    })();
+
+    const coin = gig.payment_coin ? ` ${gig.payment_coin}` : "";
+
+    if (gig.budget_type === "revenue_share") {
+      if (min && max) return `${min}-${max}${suffix}`;
+      if (min) return `${min}${suffix}`;
+      if (max) return `up to ${max}${suffix}`;
+      return "Rev Share TBD";
+    }
+
+    if (min && max) return `${formatCurrency(min)} - ${formatCurrency(max)}${coin}${suffix}`;
+    if (min) return `${formatCurrency(min)}+${coin}${suffix}`;
+    if (max) return `up to ${formatCurrency(max)}${coin}${suffix}`;
+    return gig.budget_type === "fixed" ? "Budget TBD" : "Rate TBD";
+  };
+
+  const budgetDisplay = getBudgetDisplay();
 
   return (
     <Link

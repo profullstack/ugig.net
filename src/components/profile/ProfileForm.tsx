@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, type Profile, type WalletAddress } from "@/types";
+import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, PAYMENT_COINS, type Profile, type WalletAddress } from "@/types";
 import { X, Plus, Star, Wallet } from "lucide-react";
 
 interface ProfileFormProps {
@@ -63,10 +63,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       location: profile.location || "",
       timezone: profile.timezone || "",
       is_available: profile.is_available ?? true,
+      rate_type: profile.rate_type || undefined,
+      rate_amount: profile.rate_amount || undefined,
+      rate_unit: profile.rate_unit || "",
+      preferred_coin: profile.preferred_coin || "",
       wallet_addresses: parseWalletAddresses(profile.wallet_addresses),
     },
   });
 
+  const rateType = watch("rate_type");
   const selectedSkills = watch("skills");
   const selectedTools = watch("ai_tools");
   const portfolioUrls = watch("portfolio_urls");
@@ -408,6 +413,75 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           {errors.hourly_rate && (
             <p className="text-sm text-destructive">{errors.hourly_rate.message}</p>
           )}
+        </div>
+
+        {/* Flexible Rate (agent-friendly pricing) */}
+        <div className="space-y-3">
+          <Label>Flexible Rate</Label>
+          <p className="text-xs text-muted-foreground">
+            Set a per-task, per-unit, or revenue share rate — useful for AI agents and task-based work.
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="rate_type">Rate Type</Label>
+              <select
+                id="rate_type"
+                {...register("rate_type")}
+                disabled={isLoading}
+                className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
+              >
+                <option value="">None</option>
+                <option value="fixed">Fixed</option>
+                <option value="hourly">Hourly</option>
+                <option value="per_task">Per Task</option>
+                <option value="per_unit">Per Unit</option>
+                <option value="revenue_share">Revenue Share</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rate_amount">
+                {rateType === "revenue_share" ? "Share (%)" : "Amount ($)"}
+              </Label>
+              <Input
+                id="rate_amount"
+                type="number"
+                step="0.01"
+                placeholder={rateType === "revenue_share" ? "10" : "0.05"}
+                {...register("rate_amount", { valueAsNumber: true })}
+                disabled={isLoading || !rateType}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rate_unit">Unit</Label>
+              <Input
+                id="rate_unit"
+                placeholder='e.g., "post", "image", "1000 words"'
+                {...register("rate_unit")}
+                disabled={isLoading || !rateType || rateType === "fixed" || rateType === "hourly"}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Preferred Payment Coin */}
+        <div className="space-y-2">
+          <Label htmlFor="preferred_coin">Preferred Payment Coin</Label>
+          <select
+            id="preferred_coin"
+            {...register("preferred_coin")}
+            disabled={isLoading}
+            className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
+          >
+            <option value="">No preference</option>
+            {PAYMENT_COINS.map((coin) => (
+              <option key={coin} value={coin}>
+                {coin}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Which cryptocurrency do you prefer to be paid in?
+          </p>
         </div>
 
         {/* Portfolio URLs */}

@@ -35,6 +35,8 @@ export default async function MyApplicationsPage() {
         budget_type,
         budget_min,
         budget_max,
+        budget_unit,
+        payment_coin,
         status,
         poster:profiles!poster_id (
           username,
@@ -136,6 +138,8 @@ export default async function MyApplicationsPage() {
                     budget_type: string;
                     budget_min: number | null;
                     budget_max: number | null;
+                    budget_unit: string | null;
+                    payment_coin: string | null;
                     status: string;
                     poster: { username: string; full_name: string | null };
                   };
@@ -184,7 +188,11 @@ export default async function MyApplicationsPage() {
                                 : gig.budget_min
                                 ? `$${gig.budget_min}+`
                                 : `Up to $${gig.budget_max}`}
-                              {gig.budget_type === "hourly" ? "/hr" : " fixed"}
+                              {gig.budget_type === "hourly" ? "/hr" :
+                               gig.budget_type === "per_task" ? `/${gig.budget_unit || "task"}` :
+                               gig.budget_type === "per_unit" ? `/${gig.budget_unit || "unit"}` :
+                               gig.budget_type === "revenue_share" ? "% rev share" :
+                               " fixed"}
                             </span>
                           </div>
                         )}
@@ -217,6 +225,8 @@ export default async function MyApplicationsPage() {
                     budget_type: string;
                     budget_min: number | null;
                     budget_max: number | null;
+                    budget_unit: string | null;
+                    payment_coin: string | null;
                     status: string;
                     poster: { username: string; full_name: string | null };
                   };

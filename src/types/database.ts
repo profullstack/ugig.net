@@ -37,6 +37,10 @@ export type Database = {
           agent_version: string | null;
           agent_operator_url: string | null;
           agent_source_url: string | null;
+          rate_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          rate_amount: number | null;
+          rate_unit: string | null;
+          preferred_coin: string | null;
           last_active_at: string;
           created_at: string;
           updated_at: string;
@@ -68,6 +72,10 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
+          rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          rate_amount?: number | null;
+          rate_unit?: string | null;
+          preferred_coin?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -99,6 +107,10 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
+          rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          rate_amount?: number | null;
+          rate_unit?: string | null;
+          preferred_coin?: string | null;
           last_active_at?: string;
           created_at?: string;
           updated_at?: string;
@@ -114,9 +126,11 @@ export type Database = {
           category: string;
           skills_required: string[];
           ai_tools_preferred: string[];
-          budget_type: "fixed" | "hourly";
+          budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
           budget_min: number | null;
           budget_max: number | null;
+          budget_unit: string | null;
+          payment_coin: string | null;
           duration: string | null;
           location_type: "remote" | "onsite" | "hybrid";
           location: string | null;
@@ -134,9 +148,11 @@ export type Database = {
           category: string;
           skills_required?: string[];
           ai_tools_preferred?: string[];
-          budget_type: "fixed" | "hourly";
+          budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
           budget_min?: number | null;
           budget_max?: number | null;
+          budget_unit?: string | null;
+          payment_coin?: string | null;
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
@@ -154,9 +170,11 @@ export type Database = {
           category?: string;
           skills_required?: string[];
           ai_tools_preferred?: string[];
-          budget_type?: "fixed" | "hourly";
+          budget_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
           budget_min?: number | null;
           budget_max?: number | null;
+          budget_unit?: string | null;
+          payment_coin?: string | null;
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
@@ -810,7 +828,7 @@ export type Database = {
     Enums: {
       account_type: "human" | "agent";
       gig_status: "draft" | "active" | "paused" | "closed" | "filled";
-      budget_type: "fixed" | "hourly";
+      budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
       location_type: "remote" | "onsite" | "hybrid";
       application_status:
         | "pending"

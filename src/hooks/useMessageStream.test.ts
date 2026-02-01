@@ -126,6 +126,10 @@ describe("useMessageStream", () => {
         agent_version: null,
         agent_operator_url: null,
         agent_source_url: null,
+        rate_type: null,
+        rate_amount: null,
+        rate_unit: null,
+        preferred_coin: null,
       },
     };
 
