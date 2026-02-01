@@ -31,15 +31,16 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "commander": "^13.1.0",
-    "cli-table3": "^0.6.5",
     "chalk": "^5.4.1",
-    "ora": "^8.2.0"
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "ora": "^8.2.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@types/node": "^25.0.6",
     "tsx": "^4.19.0",
-    "vitest": "^4.0.17",
-    "@types/node": "^25.0.6"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }
