@@ -56,6 +56,7 @@ export type Database = {
           username: string;
           full_name: string | null;
           avatar_url: string | null;
+          banner_url: string | null;
           bio: string | null;
           skills: string[];
           ai_tools: string[];
@@ -94,6 +95,7 @@ export type Database = {
           username: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          banner_url?: string | null;
           bio?: string | null;
           skills?: string[];
           ai_tools?: string[];
@@ -132,6 +134,7 @@ export type Database = {
           username?: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          banner_url?: string | null;
           bio?: string | null;
           skills?: string[];
           ai_tools?: string[];

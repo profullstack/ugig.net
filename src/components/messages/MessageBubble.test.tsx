@@ -16,6 +16,7 @@ const mockMessage: MessageWithSender = {
     username: "testuser",
     full_name: "Test User",
     avatar_url: null,
+    banner_url: null,
     bio: null,
     skills: [],
     ai_tools: [],

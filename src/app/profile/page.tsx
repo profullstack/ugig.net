@@ -4,6 +4,7 @@ import { ProfileForm } from "@/components/profile/ProfileForm";
 import { WorkHistoryList } from "@/components/profile/WorkHistoryList";
 import { ResumeImport } from "@/components/profile/ResumeImport";
 import { AvatarUpload } from "@/components/profile/AvatarUpload";
+import { BannerUpload } from "@/components/profile/BannerUpload";
 import { Header } from "@/components/layout/Header";
 
 export const metadata = {
@@ -47,6 +48,14 @@ export default async function ProfilePage() {
         {/* Resume Import */}
         <div className="mb-6">
           <ResumeImport />
+        </div>
+
+        {/* Banner Section */}
+        <div className="mb-6 p-6 bg-card rounded-lg border border-border shadow-sm">
+          <div className="pb-3 mb-4 border-b border-border">
+            <h2 className="text-lg font-semibold">Profile Banner</h2>
+          </div>
+          <BannerUpload bannerUrl={profile.banner_url} />
         </div>
 
         {/* Avatar Section */}

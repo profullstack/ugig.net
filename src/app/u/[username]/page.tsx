@@ -133,6 +133,21 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Profile Section */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Banner Image */}
+            <div className="relative w-full h-[200px] sm:h-[250px] rounded-lg overflow-hidden border border-border">
+              {profile.banner_url ? (
+                <Image
+                  src={profile.banner_url}
+                  alt={`${profile.full_name || profile.username}'s banner`}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-muted" />
+              )}
+            </div>
+
             {/* Profile Header */}
             <div className="p-6 bg-card rounded-lg border border-border">
               <div className="flex flex-col sm:flex-row gap-6">
