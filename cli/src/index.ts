@@ -15,6 +15,8 @@ import { registerVideoCallsCommands } from "./commands/video-calls.js";
 import { registerWorkHistoryCommands } from "./commands/work-history.js";
 import { registerApiKeysCommands } from "./commands/api-keys.js";
 import { registerSubscriptionCommands } from "./commands/subscriptions.js";
+import { registerFeedCommands } from "./commands/feed.js";
+import { registerPostCommands } from "./commands/posts.js";
 import { handleError } from "./helpers.js";
 
 const program = new Command();
@@ -43,6 +45,8 @@ registerVideoCallsCommands(program);
 registerWorkHistoryCommands(program);
 registerApiKeysCommands(program);
 registerSubscriptionCommands(program);
+registerFeedCommands(program);
+registerPostCommands(program);
 
 program.parseAsync(process.argv).catch((err) => {
   handleError(err, { json: program.opts().json });

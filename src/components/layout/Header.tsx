@@ -40,6 +40,12 @@ export async function Header({ showPostGig = true }: HeaderProps) {
         </Link>
         <nav className="flex items-center gap-4">
           <Link
+            href="/feed"
+            className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+          >
+            Feed
+          </Link>
+          <Link
             href="/gigs"
             className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
           >

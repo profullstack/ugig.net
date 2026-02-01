@@ -3,11 +3,13 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
-// Create admin client for webhook handling (bypasses RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Create admin client for webhook handling (bypasses RLS) — lazy init
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -97,7 +99,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const subscriptionItem = subscription.items.data[0];
 
-  await supabaseAdmin.from("subscriptions").upsert(
+  await getSupabaseAdmin().from("subscriptions").upsert(
     {
       user_id: userId,
       stripe_customer_id: customerId,
@@ -121,7 +123,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const subscriptionItem = subscription.items.data[0];
 
   // Find user by customer ID
-  const { data: existingSubscription } = await supabaseAdmin
+  const { data: existingSubscription } = await getSupabaseAdmin()
     .from("subscriptions")
     .select("user_id")
     .eq("stripe_customer_id", customerId)
@@ -132,7 +134,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     return;
   }
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from("subscriptions")
     .update({
       stripe_subscription_id: subscription.id,
@@ -154,7 +156,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
 
   // Find and update user subscription
-  const { data: existingSubscription } = await supabaseAdmin
+  const { data: existingSubscription } = await getSupabaseAdmin()
     .from("subscriptions")
     .select("user_id")
     .eq("stripe_customer_id", customerId)
@@ -164,7 +166,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return;
   }
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from("subscriptions")
     .update({
       plan: "free",
@@ -182,7 +184,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
 
   // Find user by customer ID
-  const { data: subscription } = await supabaseAdmin
+  const { data: subscription } = await getSupabaseAdmin()
     .from("subscriptions")
     .select("user_id")
     .eq("stripe_customer_id", customerId)
@@ -193,7 +195,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   }
 
   // Create notification for successful payment
-  await supabaseAdmin.from("notifications").insert({
+  await getSupabaseAdmin().from("notifications").insert({
     user_id: subscription.user_id,
     type: "payment_received",
     title: "Payment successful",
@@ -209,7 +211,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
 
   // Find user by customer ID
-  const { data: subscription } = await supabaseAdmin
+  const { data: subscription } = await getSupabaseAdmin()
     .from("subscriptions")
     .select("user_id")
     .eq("stripe_customer_id", customerId)
@@ -220,7 +222,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   }
 
   // Update subscription status
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from("subscriptions")
     .update({
       status: "past_due",
@@ -229,7 +231,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     .eq("user_id", subscription.user_id);
 
   // Create notification for failed payment
-  await supabaseAdmin.from("notifications").insert({
+  await getSupabaseAdmin().from("notifications").insert({
     user_id: subscription.user_id,
     type: "payment_received",
     title: "Payment failed",
