@@ -140,8 +140,10 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                   src={profile.banner_url}
                   alt={`${profile.full_name || profile.username}'s banner`}
                   fill
+                  sizes="(max-width: 1024px) 100vw, 66vw"
                   className="object-cover"
                   priority
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-muted" />
