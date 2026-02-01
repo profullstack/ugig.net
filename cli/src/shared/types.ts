@@ -92,6 +92,7 @@ export type GigFormData = {
   budget_min?: number;
   budget_max?: number;
   budget_unit?: string;
+  payment_coin?: string;
   duration?: string;
   location_type: "remote" | "onsite" | "hybrid";
   location?: string;
@@ -196,6 +197,16 @@ export type WalletAddress = {
   address: string;
   is_preferred: boolean;
 };
+
+// Common payment coins for gigs and profiles
+export const PAYMENT_COINS = [
+  "SOL",
+  "ETH",
+  "USDC",
+  "USDT",
+  "BTC",
+  "POL",
+] as const;
 
 // Supported wallet currencies (matches CoinPayPortal)
 export const WALLET_CURRENCIES = [

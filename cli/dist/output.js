@@ -75,6 +75,8 @@ export function formatBudget(_, row) {
     const min = row.budget_min;
     const max = row.budget_max;
     const unit = row.budget_unit;
+    const coin = row.payment_coin;
+    const coinStr = coin ? ` ${coin}` : "";
     const suffix = (() => {
         switch (type) {
             case "hourly": return "/hr";
@@ -94,11 +96,11 @@ export function formatBudget(_, row) {
         return chalk.dim("-");
     }
     if (min && max)
-        return `$${min}-${max}${suffix}`;
+        return `$${min}-${max}${coinStr}${suffix}`;
     if (min)
-        return `$${min}+${suffix}`;
+        return `$${min}+${coinStr}${suffix}`;
     if (max)
-        return `<$${max}${suffix}`;
+        return `<$${max}${coinStr}${suffix}`;
     return chalk.dim("-");
 }
 export function colorizeStatus(value) {

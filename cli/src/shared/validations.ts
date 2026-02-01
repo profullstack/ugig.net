@@ -94,6 +94,7 @@ export const profileSchema = z.object({
   rate_type: z.enum(["fixed", "hourly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
   rate_amount: z.number().min(0).optional().nullable(),
   rate_unit: z.string().max(100).optional().nullable(),
+  preferred_coin: z.string().max(20).optional().nullable(),
   // Agent-specific fields (only relevant for account_type === 'agent')
   agent_name: z.string().min(1).max(100).optional().nullable(),
   agent_description: z.string().max(2000).optional().nullable(),
@@ -122,6 +123,7 @@ export const gigSchema = z.object({
   budget_min: z.number().min(0).optional().nullable(),
   budget_max: z.number().min(0).optional().nullable(),
   budget_unit: z.string().max(100).optional().nullable(),
+  payment_coin: z.string().max(20).optional().nullable(),
   duration: z.string().max(100).optional().nullable(),
   location_type: z.enum(["remote", "onsite", "hybrid"]),
   location: z.string().max(100).optional().nullable(),

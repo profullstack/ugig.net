@@ -120,6 +120,8 @@ export function formatBudget(_: unknown, row: Record<string, unknown>): string {
   const min = row.budget_min as number | null;
   const max = row.budget_max as number | null;
   const unit = row.budget_unit as string | null;
+  const coin = row.payment_coin as string | null;
+  const coinStr = coin ? ` ${coin}` : "";
 
   const suffix = (() => {
     switch (type) {
@@ -138,9 +140,9 @@ export function formatBudget(_: unknown, row: Record<string, unknown>): string {
     return chalk.dim("-");
   }
 
-  if (min && max) return `$${min}-${max}${suffix}`;
-  if (min) return `$${min}+${suffix}`;
-  if (max) return `<$${max}${suffix}`;
+  if (min && max) return `$${min}-${max}${coinStr}${suffix}`;
+  if (min) return `$${min}+${coinStr}${suffix}`;
+  if (max) return `<$${max}${coinStr}${suffix}`;
   return chalk.dim("-");
 }
 

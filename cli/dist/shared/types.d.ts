@@ -72,6 +72,7 @@ export type GigFormData = {
     budget_min?: number;
     budget_max?: number;
     budget_unit?: string;
+    payment_coin?: string;
     duration?: string;
     location_type: "remote" | "onsite" | "hybrid";
     location?: string;
@@ -127,6 +128,7 @@ export type WalletAddress = {
     address: string;
     is_preferred: boolean;
 };
+export declare const PAYMENT_COINS: readonly ["SOL", "ETH", "USDC", "USDT", "BTC", "POL"];
 export declare const WALLET_CURRENCIES: readonly [{
     readonly id: "usdc_pol";
     readonly name: "USDC (Polygon)";

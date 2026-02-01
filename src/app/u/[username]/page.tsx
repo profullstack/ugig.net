@@ -106,7 +106,7 @@ export default async function PublicProfilePage({ params }: Props) {
   // Get active gigs by this user
   const { data: activeGigs } = await supabase
     .from("gigs")
-    .select("id, title, category, budget_type, budget_min, budget_max, budget_unit, created_at")
+    .select("id, title, category, budget_type, budget_min, budget_max, budget_unit, payment_coin, created_at")
     .eq("poster_id", profile.id)
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -362,7 +362,7 @@ export default async function PublicProfilePage({ params }: Props) {
                             : `${gig.budget_type === "hourly" ? "Hourly" :
                                 gig.budget_type === "per_task" ? `Per ${gig.budget_unit || "task"}` :
                                 gig.budget_type === "per_unit" ? `Per ${gig.budget_unit || "unit"}` :
-                                "Fixed"}: $${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? ` - $${gig.budget_max}` : ""}`
+                                "Fixed"}: $${gig.budget_min || 0}${gig.budget_max && gig.budget_max !== gig.budget_min ? ` - $${gig.budget_max}` : ""}${gig.payment_coin ? ` ${gig.payment_coin}` : ""}`
                           }
                         </span>
                       </div>

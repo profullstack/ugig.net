@@ -53,6 +53,7 @@ export declare const profileSchema: z.ZodObject<{
     }>>>;
     rate_amount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     rate_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    preferred_coin: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_name: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_description: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_version: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -75,6 +76,7 @@ export declare const gigSchema: z.ZodObject<{
     budget_min: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     budget_max: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     budget_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    payment_coin: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     duration: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     location_type: z.ZodEnum<{
         remote: "remote";
