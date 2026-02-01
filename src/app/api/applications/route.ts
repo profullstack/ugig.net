@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applicationSchema } from "@/lib/validations";
 import { sendEmail, newApplicationEmail } from "@/lib/email";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 
 // POST /api/applications - Submit an application
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Check if gig exists and is active, fetch poster info for email
     const { data: gig } = await supabase
       .from("gigs")
-      .select("poster_id, status, title, poster:profiles!poster_id(email, full_name, username)")
+      .select("poster_id, status, title, poster:profiles!poster_id(full_name, username)")
       .eq("id", gig_id)
       .single();
 
@@ -97,7 +97,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email notification to gig poster
-    if (poster?.email) {
+    // Get poster email from auth.users (not in profiles table)
+    const adminClient = createServiceClient();
+    const { data: posterAuth } = await adminClient.auth.admin.getUserById(gig.poster_id);
+    const posterEmail = posterAuth?.user?.email;
+
+    if (posterEmail) {
       // Get applicant profile
       const { data: applicantProfile } = await supabase
         .from("profiles")
@@ -106,7 +111,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       const applicantName = applicantProfile?.full_name || applicantProfile?.username || "A candidate";
-      const posterName = poster.full_name || poster.username || "there";
+      const posterName = poster?.full_name || poster?.username || "there";
 
       const emailContent = newApplicationEmail({
         posterName,
@@ -118,7 +123,7 @@ export async function POST(request: NextRequest) {
       });
 
       await sendEmail({
-        to: poster.email,
+        to: posterEmail,
         ...emailContent,
       });
     }
