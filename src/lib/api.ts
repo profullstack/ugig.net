@@ -390,3 +390,33 @@ export const notifications = {
       method: "DELETE",
     }),
 };
+
+// Webhooks API
+export const webhooks = {
+  list: () => request("/api/webhooks"),
+
+  create: (data: { url: string; events: string[] }) =>
+    request("/api/webhooks", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { url?: string; events?: string[]; active?: boolean }) =>
+    request(`/api/webhooks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request(`/api/webhooks/${id}`, {
+      method: "DELETE",
+    }),
+
+  deliveries: (id: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const query = searchParams.toString();
+    return request(`/api/webhooks/${id}/deliveries${query ? `?${query}` : ""}`);
+  },
+};

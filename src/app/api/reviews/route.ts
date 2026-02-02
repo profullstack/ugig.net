@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
+import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -212,6 +213,15 @@ export async function POST(request: NextRequest) {
         gig_id,
         rating,
       },
+    });
+
+    // Dispatch webhook to reviewee
+    dispatchWebhookAsync(reviewee_id, "review.new", {
+      review_id: review.id,
+      gig_id,
+      reviewer_id: user.id,
+      rating,
+      comment: comment || null,
     });
 
     return NextResponse.json({ data: review }, { status: 201 });

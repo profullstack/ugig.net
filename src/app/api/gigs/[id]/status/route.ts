@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
+import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -105,6 +106,13 @@ export async function PATCH(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Dispatch webhook for gig status change
+    dispatchWebhookAsync(user.id, "gig.update", {
+      gig_id: id,
+      old_status: oldStatus,
+      new_status: newStatus,
+    });
 
     return NextResponse.json({ gig });
   } catch {
