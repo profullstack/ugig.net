@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from "lucide-react";
+import { Loader2, PhoneOff, Video, VideoOff, Mic, MicOff, ExternalLink } from "lucide-react";
 
 interface VideoCallRoomProps {
   roomId: string;
@@ -47,13 +47,27 @@ export function VideoCallRoom({
 }: VideoCallRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<JitsiMeetAPI | null>(null);
+  const hasStartedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showFallback, setShowFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+
+  // Stable callback refs to avoid re-initializing Jitsi on prop changes
+  const onStartRef = useRef(onStart);
+  const onEndRef = useRef(onEnd);
+  const onLeaveRef = useRef(onLeave);
 
   useEffect(() => {
+    onStartRef.current = onStart;
+    onEndRef.current = onEnd;
+    onLeaveRef.current = onLeave;
+  });
+
+  useEffect(() => {
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Load Jitsi Meet External API script
     const loadScript = () => {
       return new Promise<void>((resolve, reject) => {
@@ -114,17 +128,27 @@ export function VideoCallRoom({
 
         apiRef.current = api;
 
+        // Start fallback timer - show direct join link after 10 seconds
+        fallbackTimer = setTimeout(() => {
+          setShowFallback(true);
+        }, 10000);
+
         api.addEventListener("videoConferenceJoined", () => {
           setIsLoading(false);
-          if (!hasStarted) {
-            setHasStarted(true);
-            onStart?.();
+          setShowFallback(false);
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+          }
+          if (!hasStartedRef.current) {
+            hasStartedRef.current = true;
+            onStartRef.current?.();
           }
         });
 
         api.addEventListener("videoConferenceLeft", () => {
-          onEnd?.();
-          onLeave?.();
+          onEndRef.current?.();
+          onLeaveRef.current?.();
         });
 
         api.addEventListener("audioMuteStatusChanged", (data: unknown) => {
@@ -138,7 +162,7 @@ export function VideoCallRoom({
         });
 
         api.addEventListener("readyToClose", () => {
-          onLeave?.();
+          onLeaveRef.current?.();
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to initialize video call");
@@ -149,12 +173,15 @@ export function VideoCallRoom({
     initJitsi();
 
     return () => {
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
       if (apiRef.current) {
         apiRef.current.dispose();
         apiRef.current = null;
       }
     };
-  }, [roomId, displayName, onLeave, onStart, onEnd, hasStarted]);
+  }, [roomId, displayName]);
 
   const toggleAudio = () => {
     apiRef.current?.executeCommand("toggleAudio");
@@ -190,6 +217,17 @@ export function VideoCallRoom({
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">Connecting to video call...</p>
+            {showFallback && (
+              <a
+                href={`https://meet.jit.si/${roomId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-primary hover:underline text-sm mt-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Having trouble? Click to join directly
+              </a>
+            )}
           </div>
         </div>
       )}

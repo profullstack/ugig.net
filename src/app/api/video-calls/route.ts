@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
+import { sendEmail, videoCallInviteEmail } from "@/lib/email";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
@@ -161,6 +162,47 @@ export async function POST(request: NextRequest) {
         scheduled_at,
       },
     });
+
+    // Send email notification to participant
+    const adminClient = createServiceClient();
+    const { data: participantAuth } = await adminClient.auth.admin.getUserById(participant_id);
+    const participantEmail = participantAuth?.user?.email;
+
+    if (participantEmail) {
+      // Get initiator profile for display name
+      const { data: initiatorProfile } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", user.id)
+        .single();
+
+      const initiatorName = initiatorProfile?.full_name || initiatorProfile?.username || "Someone";
+      const participantName = participant.full_name || participant.username || "there";
+
+      // Get gig title if applicable
+      let gigTitle: string | null = null;
+      if (gig_id) {
+        const { data: gig } = await supabase
+          .from("gigs")
+          .select("title")
+          .eq("id", gig_id)
+          .single();
+        gigTitle = gig?.title || null;
+      }
+
+      const emailContent = videoCallInviteEmail({
+        participantName,
+        initiatorName,
+        callId: call.id,
+        gigTitle,
+        scheduledAt: scheduled_at,
+      });
+
+      await sendEmail({
+        to: participantEmail,
+        ...emailContent,
+      });
+    }
 
     return NextResponse.json({ data: call }, { status: 201 });
   } catch {
