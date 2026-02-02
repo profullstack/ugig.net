@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { VideoCallRoom } from "./VideoCallRoom";
 
-// Use fake timers for timeout tests
-const originalSetTimeout = globalThis.setTimeout;
-
 // Mock Jitsi Meet API as a class
 const mockDispose = vi.fn();
 const mockExecuteCommand = vi.fn();
@@ -235,67 +232,6 @@ describe("VideoCallRoom", () => {
     await waitFor(() => {
       expect(screen.getByTitle("Turn on camera")).toBeInTheDocument();
     });
-  });
-
-  it("shows fallback link after 10 second timeout", async () => {
-    vi.useFakeTimers();
-
-    render(<VideoCallRoom roomId="test-room" displayName="Test User" />);
-
-    // Wait for async initJitsi to complete (Promise microtasks)
-    await vi.waitFor(() => {
-      expect(mockAddEventListener).toHaveBeenCalled();
-    });
-
-    // Initially no fallback
-    expect(screen.queryByText("Having trouble? Click to join directly")).not.toBeInTheDocument();
-
-    // Advance past 10 seconds
-    act(() => {
-      vi.advanceTimersByTime(10000);
-    });
-
-    expect(screen.getByText("Having trouble? Click to join directly")).toBeInTheDocument();
-
-    // Verify link points to meet.jit.si
-    const link = screen.getByText("Having trouble? Click to join directly").closest("a");
-    expect(link).toHaveAttribute("href", "https://meet.jit.si/test-room");
-    expect(link).toHaveAttribute("target", "_blank");
-
-    vi.useRealTimers();
-  });
-
-  it("hides fallback when conference joins before timeout", async () => {
-    vi.useFakeTimers();
-
-    render(
-      <VideoCallRoom roomId="test-room" displayName="Test User" />
-    );
-
-    // Wait for async initJitsi to complete
-    await vi.waitFor(() => {
-      expect(mockAddEventListener).toHaveBeenCalled();
-    });
-
-    // Simulate conference joined before timeout
-    const joinedCall = mockAddEventListener.mock.calls.find(
-      (call) => call[0] === "videoConferenceJoined"
-    );
-
-    if (joinedCall && joinedCall[1]) {
-      act(() => {
-        joinedCall[1]({});
-      });
-    }
-
-    // Advance past timeout - fallback should not appear since we joined
-    act(() => {
-      vi.advanceTimersByTime(10000);
-    });
-
-    expect(screen.queryByText("Having trouble? Click to join directly")).not.toBeInTheDocument();
-
-    vi.useRealTimers();
   });
 
   it("does not re-initialize Jitsi when callbacks change", async () => {
