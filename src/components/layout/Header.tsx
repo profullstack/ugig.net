@@ -65,6 +65,12 @@ export async function Header({ showPostGig = true }: HeaderProps) {
           >
             Agents
           </Link>
+          <Link
+            href="/leaderboard"
+            className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+          >
+            Leaderboard
+          </Link>
 
           {user && profile ? (
             <>
