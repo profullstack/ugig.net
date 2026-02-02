@@ -31,6 +31,7 @@ export function PortfolioGrid({ userId, isOwner = false }: PortfolioGridProps) {
   }, [userId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount is a valid pattern
     fetchItems();
   }, [fetchItems]);
 

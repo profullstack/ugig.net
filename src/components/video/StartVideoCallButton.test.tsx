@@ -137,14 +137,18 @@ describe("StartVideoCallButton", () => {
     const button = screen.getByRole("button");
     fireEvent.click(button);
 
+    // Wait for API call to complete
     await waitFor(() => {
       expect(videoCalls.create).toHaveBeenCalled();
     });
 
-    // Wait for the async handler to fully complete
+    // Wait for button to re-enable (confirms async handler finished)
     await waitFor(() => {
-      expect(mockPush).not.toHaveBeenCalled();
+      expect(button).not.toBeDisabled();
     });
+
+    // After error, should not navigate
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("re-enables button after API error", async () => {

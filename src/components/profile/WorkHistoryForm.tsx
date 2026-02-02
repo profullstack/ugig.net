@@ -47,6 +47,7 @@ export function WorkHistoryForm({
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch() is safe here
   const isCurrent = watch("is_current");
 
   const onSubmit = async (data: z.output<typeof workHistorySchema>) => {
