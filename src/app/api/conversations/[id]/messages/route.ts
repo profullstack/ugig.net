@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { messageSchema } from "@/lib/validations";
 import { sendEmail, newMessageEmail } from "@/lib/email";
+import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 
 // GET /api/conversations/[id]/messages - Get messages in a conversation
 export async function GET(
@@ -245,6 +246,16 @@ export async function POST(
           }
         }
       }
+    }
+
+    // Dispatch webhook to each recipient
+    for (const recipientId of recipientIds) {
+      dispatchWebhookAsync(recipientId, "message.new", {
+        message_id: message.id,
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content_preview: content.slice(0, 200),
+      });
     }
 
     return NextResponse.json({ data: message }, { status: 201 });

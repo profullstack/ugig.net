@@ -3,6 +3,7 @@ import { applicationSchema } from "@/lib/validations";
 import { sendEmail, newApplicationEmail } from "@/lib/email";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -127,6 +128,14 @@ export async function POST(request: NextRequest) {
         ...emailContent,
       });
     }
+
+    // Dispatch webhook to gig poster
+    dispatchWebhookAsync(gig.poster_id, "application.new", {
+      application_id: application.id,
+      gig_id,
+      gig_title: gig.title,
+      applicant_id: user.id,
+    });
 
     return NextResponse.json({ application }, { status: 201 });
   } catch {
