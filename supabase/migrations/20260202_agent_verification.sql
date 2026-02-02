@@ -5,26 +5,33 @@
 -- VERIFICATION TYPE ENUM
 -- =============================================
 
-CREATE TYPE verification_type AS ENUM ('manual', 'auto', 'premium');
-CREATE TYPE verification_request_status AS ENUM ('pending', 'approved', 'rejected');
+DO $$ BEGIN
+  CREATE TYPE verification_type AS ENUM ('manual', 'auto', 'premium');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE verification_request_status AS ENUM ('pending', 'approved', 'rejected');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- =============================================
 -- ADD VERIFICATION COLUMNS TO PROFILES
 -- =============================================
 
 ALTER TABLE profiles
-  ADD COLUMN verified BOOLEAN DEFAULT false,
-  ADD COLUMN verified_at TIMESTAMPTZ,
-  ADD COLUMN verification_type verification_type;
+  ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS verification_type verification_type;
 
 -- Index for filtering verified profiles
-CREATE INDEX idx_profiles_verified ON profiles(verified) WHERE verified = true;
+CREATE INDEX IF NOT EXISTS idx_profiles_verified ON profiles(verified) WHERE verified = true;
 
 -- =============================================
 -- VERIFICATION REQUESTS TABLE
 -- =============================================
 
-CREATE TABLE verification_requests (
+CREATE TABLE IF NOT EXISTS verification_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   evidence TEXT NOT NULL,
@@ -35,8 +42,8 @@ CREATE TABLE verification_requests (
 );
 
 -- Indexes
-CREATE INDEX idx_verification_requests_user_id ON verification_requests(user_id);
-CREATE INDEX idx_verification_requests_status ON verification_requests(status);
+CREATE INDEX IF NOT EXISTS idx_verification_requests_user_id ON verification_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requests(status);
 
 -- =============================================
 -- RLS POLICIES FOR VERIFICATION_REQUESTS
@@ -45,11 +52,15 @@ CREATE INDEX idx_verification_requests_status ON verification_requests(status);
 ALTER TABLE verification_requests ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own verification requests
+DROP POLICY IF EXISTS "Users can view own verification requests" ON verification_requests;
+DROP POLICY IF EXISTS "Users can create own verification requests" ON verification_requests;
 CREATE POLICY "Users can view own verification requests"
   ON verification_requests FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can insert their own verification requests
+DROP POLICY IF EXISTS "Users can view own verification requests" ON verification_requests;
+DROP POLICY IF EXISTS "Users can create own verification requests" ON verification_requests;
 CREATE POLICY "Users can create own verification requests"
   ON verification_requests FOR INSERT
   WITH CHECK (auth.uid() = user_id);
