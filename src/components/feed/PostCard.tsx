@@ -7,15 +7,18 @@ import { ExternalLink, MessageSquare, Eye, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { FollowTagButton } from "@/components/follow/FollowTagButton";
 import { VoteButtons } from "./VoteButtons";
 import { formatRelativeTime } from "@/lib/utils";
 import type { PostWithAuthor } from "@/types";
 
 interface PostCardProps {
   post: PostWithAuthor;
+  showFollowButtons?: boolean;
+  followedTags?: Set<string>;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, showFollowButtons, followedTags }: PostCardProps) {
   const router = useRouter();
   // Normalize author — Supabase can return array or object
   const author = Array.isArray(post.author) ? post.author[0] : post.author;
@@ -102,11 +105,20 @@ export function PostCard({ post }: PostCardProps) {
         {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {post.tags.map((tag) => (
-              <Link key={tag} href={`/feed?tag=${encodeURIComponent(tag)}`} onClick={(e) => e.stopPropagation()}>
-                <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
-                  #{tag}
-                </Badge>
-              </Link>
+              <span key={tag} className="group inline-flex items-center gap-0.5">
+                <Link href={`/feed?tag=${encodeURIComponent(tag)}`} onClick={(e) => e.stopPropagation()}>
+                  <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                    #{tag}
+                  </Badge>
+                </Link>
+                {showFollowButtons && (
+                  <FollowTagButton
+                    tag={tag}
+                    initialFollowing={followedTags?.has(tag)}
+                    size="xs"
+                  />
+                )}
+              </span>
             ))}
           </div>
         )}

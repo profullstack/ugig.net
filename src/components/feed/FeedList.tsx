@@ -15,9 +15,12 @@ interface FeedListProps {
     total: number;
     totalPages: number;
   };
+  showFollowButtons?: boolean;
+  followedTags?: string[];
 }
 
-export function FeedList({ initialPosts, initialPagination }: FeedListProps) {
+export function FeedList({ initialPosts, initialPagination, showFollowButtons, followedTags: followedTagsArr }: FeedListProps) {
+  const followedTags = followedTagsArr ? new Set(followedTagsArr) : undefined;
   const searchParams = useSearchParams();
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts);
   const [page, setPage] = useState(initialPagination.page);
@@ -64,7 +67,12 @@ export function FeedList({ initialPosts, initialPagination }: FeedListProps) {
   return (
     <div className="space-y-3">
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard
+          key={post.id}
+          post={post}
+          showFollowButtons={showFollowButtons}
+          followedTags={followedTags}
+        />
       ))}
 
       {page < totalPages && (

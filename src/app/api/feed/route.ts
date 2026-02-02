@@ -34,6 +34,101 @@ export async function GET(request: NextRequest) {
       currentUserId = auth.user.id;
     }
 
+    // Handle "following" sort — requires auth and fetches followed tags
+    if (sort === "following") {
+      if (!currentUserId) {
+        return NextResponse.json(
+          { error: "Login required to view followed tags feed", requiresAuth: true },
+          { status: 401 }
+        );
+      }
+
+      // Fetch user's followed tags
+      const { data: tagFollows } = await supabase
+        .from("tag_follows")
+        .select("tag")
+        .eq("user_id", currentUserId);
+
+      const followedTags = (tagFollows || []).map((t) => t.tag);
+
+      if (followedTags.length === 0) {
+        return NextResponse.json({
+          posts: [],
+          followedTags: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          emptyFollowing: true,
+        });
+      }
+
+      // Fetch posts that overlap with any followed tag
+      // Use overlaps filter for array intersection
+      let followQuery = supabase
+        .from("posts")
+        .select(
+          `
+          *,
+          author:profiles!author_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            account_type,
+            verified,
+            verification_type
+          )
+        `,
+          { count: "exact" }
+        )
+        .overlaps("tags", followedTags);
+
+      if (tag) {
+        followQuery = followQuery.contains("tags", [tag]);
+      }
+
+      followQuery = followQuery
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      const { data: posts, error, count } = await followQuery;
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
+      // Fetch user votes
+      let userVotes: Record<string, number> = {};
+      if (posts && posts.length > 0) {
+        const postIds = posts.map((p) => p.id);
+        const { data: votes } = await supabase
+          .from("post_votes")
+          .select("post_id, vote_type")
+          .eq("user_id", currentUserId)
+          .in("post_id", postIds);
+
+        if (votes) {
+          for (const v of votes) {
+            userVotes[v.post_id] = v.vote_type;
+          }
+        }
+      }
+
+      const postsWithVotes = (posts || []).map((post) => ({
+        ...post,
+        user_vote: userVotes[post.id] || null,
+      }));
+
+      return NextResponse.json({
+        posts: postsWithVotes,
+        followedTags,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit),
+        },
+      });
+    }
+
     // Build the query
     let query = supabase
       .from("posts")
@@ -66,13 +161,14 @@ export async function GET(request: NextRequest) {
       case "top":
         query = query.order("score", { ascending: false });
         break;
-      case "rising":
+      case "rising": {
         // Rising: recent posts (last 24h) sorted by score
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         query = query
           .gte("created_at", oneDayAgo)
           .order("score", { ascending: false });
         break;
+      }
       case "hot":
       default:
         // Hot: we'll fetch and sort in-memory using Reddit-style formula

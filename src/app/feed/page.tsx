@@ -38,6 +38,125 @@ async function FeedContent({ searchParams }: FeedPageProps) {
   const limit = 20;
   const offset = (page - 1) * limit;
 
+  // Handle "following" sort — requires auth
+  if (sort === "following") {
+    if (!user) {
+      return (
+        <div className="space-y-6">
+          <Suspense fallback={null}>
+            <FeedSortTabs currentSort={sort} currentTag={tag} />
+          </Suspense>
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="text-lg font-medium">Log in to see your personalized feed</p>
+            <p className="text-sm mt-1">Follow tags you&apos;re interested in, then come back here.</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Fetch user's followed tags
+    const { data: tagFollows } = await supabase
+      .from("tag_follows")
+      .select("tag")
+      .eq("user_id", user.id);
+
+    const followedTags = (tagFollows || []).map((t: { tag: string }) => t.tag);
+
+    if (followedTags.length === 0) {
+      return (
+        <div className="space-y-6">
+          <CreatePostForm />
+          <Suspense fallback={null}>
+            <FeedSortTabs currentSort={sort} currentTag={tag} />
+          </Suspense>
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="text-lg font-medium">No followed tags yet</p>
+            <p className="text-sm mt-1">Follow some tags to see personalized content here. Look for the + icon next to tag badges.</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Fetch posts with overlapping tags
+    let followQuery = supabase
+      .from("posts")
+      .select(
+        `
+        *,
+        author:profiles!author_id (
+          id,
+          username,
+          full_name,
+          avatar_url,
+          account_type,
+          verified,
+          verification_type
+        )
+      `,
+        { count: "exact" }
+      )
+      .overlaps("tags", followedTags);
+
+    if (tag) {
+      followQuery = followQuery.contains("tags", [tag]);
+    }
+
+    followQuery = followQuery
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data: followPosts, count: followCount } = await followQuery;
+
+    // Fetch user votes
+    let userVotes: Record<string, number> = {};
+    if (followPosts && followPosts.length > 0) {
+      const postIds = followPosts.map((p) => p.id);
+      const { data: votes } = await supabase
+        .from("post_votes")
+        .select("post_id, vote_type")
+        .eq("user_id", user.id)
+        .in("post_id", postIds);
+
+      if (votes) {
+        for (const v of votes) {
+          userVotes[v.post_id] = v.vote_type;
+        }
+      }
+    }
+
+    const postsWithVotes = (followPosts || []).map((post) => ({
+      ...post,
+      user_vote: userVotes[post.id] || null,
+    }));
+
+    const totalPages = Math.ceil((followCount || 0) / limit);
+
+    return (
+      <div className="space-y-6">
+        <CreatePostForm />
+
+        <Suspense fallback={null}>
+          <FeedSortTabs currentSort={sort} currentTag={tag} />
+        </Suspense>
+
+        <Suspense fallback={<FeedSkeleton />}>
+          <FeedList
+            initialPosts={postsWithVotes}
+            showFollowButtons
+            followedTags={followedTags}
+            initialPagination={{
+              page,
+              limit,
+              total: followCount || 0,
+              totalPages,
+            }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // Standard feed query
   let query = supabase
     .from("posts")
     .select(
@@ -99,20 +218,33 @@ async function FeedContent({ searchParams }: FeedPageProps) {
     });
   }
 
-  // Fetch user votes
+  // Fetch user votes and followed tags
   let userVotes: Record<string, number> = {};
-  if (user && sortedPosts.length > 0) {
-    const postIds = sortedPosts.map((p) => p.id);
-    const { data: votes } = await supabase
-      .from("post_votes")
-      .select("post_id, vote_type")
-      .eq("user_id", user.id)
-      .in("post_id", postIds);
+  let followedTagsList: string[] | undefined;
+  if (user) {
+    if (sortedPosts.length > 0) {
+      const postIds = sortedPosts.map((p) => p.id);
+      const { data: votes } = await supabase
+        .from("post_votes")
+        .select("post_id, vote_type")
+        .eq("user_id", user.id)
+        .in("post_id", postIds);
 
-    if (votes) {
-      for (const v of votes) {
-        userVotes[v.post_id] = v.vote_type;
+      if (votes) {
+        for (const v of votes) {
+          userVotes[v.post_id] = v.vote_type;
+        }
       }
+    }
+
+    // Fetch followed tags for the follow buttons
+    const { data: tagFollows } = await supabase
+      .from("tag_follows")
+      .select("tag")
+      .eq("user_id", user.id);
+
+    if (tagFollows && tagFollows.length > 0) {
+      followedTagsList = tagFollows.map((t: { tag: string }) => t.tag);
     }
   }
 
@@ -134,6 +266,8 @@ async function FeedContent({ searchParams }: FeedPageProps) {
       <Suspense fallback={<FeedSkeleton />}>
         <FeedList
           initialPosts={postsWithVotes}
+          showFollowButtons={!!user}
+          followedTags={followedTagsList}
           initialPagination={{
             page,
             limit,

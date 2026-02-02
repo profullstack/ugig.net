@@ -2,13 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Flame, Clock, TrendingUp, Zap } from "lucide-react";
+import { Flame, Clock, TrendingUp, Zap, Heart } from "lucide-react";
 
 const SORT_OPTIONS = [
   { value: "hot", label: "Hot", icon: Flame },
   { value: "new", label: "New", icon: Clock },
   { value: "top", label: "Top", icon: TrendingUp },
   { value: "rising", label: "Rising", icon: Zap },
+  { value: "following", label: "Following", icon: Heart },
 ] as const;
 
 interface FeedSortTabsProps {

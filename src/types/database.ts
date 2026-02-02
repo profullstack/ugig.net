@@ -926,6 +926,35 @@ export type Database = {
           }
         ];
       };
+      tag_follows: {
+        Row: {
+          id: string;
+          user_id: string;
+          tag: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tag: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tag?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tag_follows_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       follows: {
         Row: {
           id: string;

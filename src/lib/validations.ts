@@ -314,7 +314,7 @@ export const postUpdateSchema = z.object({
 });
 
 export const feedFiltersSchema = z.object({
-  sort: z.enum(["hot", "new", "top", "rising"]).default("hot"),
+  sort: z.enum(["hot", "new", "top", "rising", "following"]).default("hot"),
   tag: z.string().max(50).optional(),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(50).default(20),
