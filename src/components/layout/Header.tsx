@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { UserDropdown } from "./UserDropdown";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { MobileMenu } from "./MobileMenu";
 
 interface HeaderProps {
   showPostGig?: boolean;
@@ -39,6 +40,7 @@ export async function Header({ showPostGig = true }: HeaderProps) {
           />
         </Link>
         <nav className="flex items-center gap-4">
+          <MobileMenu />
           <Link
             href="/feed"
             className="text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
