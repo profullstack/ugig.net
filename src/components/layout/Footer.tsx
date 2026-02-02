@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border py-12 px-4 bg-muted/30">
       <div className="container mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           <div>
             <h4 className="font-semibold mb-4">Platform</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -42,6 +42,21 @@ export function Footer() {
                 <Link href="/about" className="hover:text-foreground transition-colors">
                   About Us
                 </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Developers</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link href="/docs" className="hover:text-foreground transition-colors">
+                  API Docs
+                </Link>
+              </li>
+              <li>
+                <a href="/api/openapi.json" className="hover:text-foreground transition-colors">
+                  OpenAPI Spec
+                </a>
               </li>
             </ul>
           </div>
