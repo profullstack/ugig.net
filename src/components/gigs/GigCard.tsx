@@ -102,12 +102,18 @@ export function GigCard({
       <div className="flex flex-wrap gap-2 mt-4">
         <Badge variant="secondary" className="font-medium">{gig.category}</Badge>
         {gig.skills_required.slice(0, 4).map((skill) => (
-          <Badge
+          <Link
             key={skill}
-            variant={isHighlighted(skill) ? "default" : "outline"}
+            href={`/gigs/${encodeURIComponent(skill)}`}
+            onClick={(e) => e.stopPropagation()}
           >
-            {skill}
-          </Badge>
+            <Badge
+              variant={isHighlighted(skill) ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/10"
+            >
+              {skill}
+            </Badge>
+          </Link>
         ))}
         {gig.skills_required.length > 4 && (
           <Badge variant="outline" className="text-muted-foreground">+{gig.skills_required.length - 4}</Badge>
