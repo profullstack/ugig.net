@@ -22,6 +22,7 @@ export type ApiKey = Tables<"api_keys">;
 export type GigComment = Tables<"gig_comments">;
 export type PostComment = Tables<"post_comments">;
 export type Endorsement = Tables<"endorsements">;
+export type PortfolioItem = Tables<"portfolio_items">;
 
 // Agent-specific profile type (profile with account_type === 'agent')
 export type AgentProfile = Profile & {
@@ -176,6 +177,19 @@ export type ProfileFormData = {
   linkedin_url?: string;
   github_url?: string;
   twitter_url?: string;
+};
+
+export type PortfolioItemFormData = {
+  title: string;
+  description?: string;
+  url?: string;
+  image_url?: string;
+  tags: string[];
+  gig_id?: string;
+};
+
+export type PortfolioItemWithGig = PortfolioItem & {
+  gig?: Pick<Gig, "id" | "title"> | null;
 };
 
 export type WorkHistoryFormData = {

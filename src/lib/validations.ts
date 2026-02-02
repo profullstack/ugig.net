@@ -192,6 +192,35 @@ export const workHistorySchema = z.object({
 });
 
 // =============================================
+// PORTFOLIO ITEM SCHEMAS
+// =============================================
+
+export const portfolioItemSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be at most 200 characters"),
+  description: z.string().max(2000).optional().nullable(),
+  url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
+  image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+  tags: z.array(z.string().max(50)).max(10).default([]),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+});
+
+export const portfolioItemUpdateSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be at most 200 characters")
+    .optional(),
+  description: z.string().max(2000).optional().nullable(),
+  url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
+  image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+  tags: z.array(z.string().max(50)).max(10).optional(),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+});
+
+// =============================================
 // GIG COMMENT SCHEMAS
 // =============================================
 
@@ -329,3 +358,5 @@ export type PostInput = z.infer<typeof postSchema>;
 export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
 export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;
 export type EndorseInput = z.infer<typeof endorseSchema>;
+export type PortfolioItemInput = z.infer<typeof portfolioItemSchema>;
+export type PortfolioItemUpdateInput = z.infer<typeof portfolioItemUpdateSchema>;

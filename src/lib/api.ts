@@ -390,3 +390,43 @@ export const notifications = {
       method: "DELETE",
     }),
 };
+
+// Portfolio API
+export const portfolio = {
+  list: (userId: string) =>
+    request(`/api/portfolio?user_id=${userId}`),
+
+  create: (data: {
+    title: string;
+    description?: string | null;
+    url?: string | null;
+    image_url?: string | null;
+    tags?: string[];
+    gig_id?: string | null;
+  }) =>
+    request("/api/portfolio", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: string,
+    data: {
+      title?: string;
+      description?: string | null;
+      url?: string | null;
+      image_url?: string | null;
+      tags?: string[];
+      gig_id?: string | null;
+    }
+  ) =>
+    request(`/api/portfolio/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request(`/api/portfolio/${id}`, {
+      method: "DELETE",
+    }),
+};

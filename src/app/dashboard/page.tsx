@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ArrowRight,
   MessageSquare,
+  FolderOpen,
 } from "lucide-react";
 
 export const metadata = {
@@ -251,6 +252,19 @@ export default async function DashboardPage() {
                     Chat with gig posters and applicants
                   </p>
                 </Link>
+
+                <Link
+                  href="/dashboard/portfolio"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
+                >
+                  <div className="p-2.5 bg-primary/10 rounded-xl w-fit mb-3">
+                    <FolderOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-medium">My Portfolio</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Showcase your completed projects
+                  </p>
+                </Link>
               </div>
             </div>
 
@@ -392,6 +406,12 @@ export default async function DashboardPage() {
                   className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Notifications
+                </Link>
+                <Link
+                  href="/dashboard/portfolio"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  Portfolio
                 </Link>
                 <Link
                   href="/profile"

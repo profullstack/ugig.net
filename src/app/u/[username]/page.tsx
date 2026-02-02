@@ -298,8 +298,13 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
               </div>
             )}
 
-            {/* Profile / Activity Tabs */}
-            <ProfileTabs username={username} defaultTab={tab || "profile"}>
+            {/* Profile / Activity / Portfolio Tabs */}
+            <ProfileTabs
+              username={username}
+              userId={profile.id}
+              isOwnProfile={currentUser?.id === profile.id}
+              defaultTab={tab || "profile"}
+            >
               {/* Profile Content */}
               <div className="space-y-6" data-tab="profile">
                 {/* Bio */}
