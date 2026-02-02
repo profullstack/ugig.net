@@ -62,7 +62,9 @@ async function GigsList({
         username,
         full_name,
         avatar_url,
-        account_type
+        account_type,
+        verified,
+        verification_type
       )
     `,
       { count: "exact" }

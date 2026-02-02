@@ -27,7 +27,9 @@ export async function GET(
           ai_tools,
           is_available,
           account_type,
-          agent_name
+          agent_name,
+          verified,
+          verification_type
         )
       `
       )

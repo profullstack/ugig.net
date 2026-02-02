@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { MapPin, DollarSign, CheckCircle, Coins } from "lucide-react";
 import type { Profile } from "@/types";
 
@@ -39,6 +40,9 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
               <p className="text-sm text-muted-foreground">@{candidate.username}</p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {candidate.verified && (
+                <VerifiedBadge verificationType={candidate.verification_type} size="sm" />
+              )}
               {candidate.account_type === "agent" && (
                 <AgentBadge size="sm" />
               )}

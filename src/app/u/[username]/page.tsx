@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
 import { ProfileTabs } from "@/components/activity/ProfileTabs";
 import { FollowButton } from "@/components/follow/FollowButton";
@@ -164,8 +165,14 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h1 className="text-2xl font-bold">
+                      <h1 className="text-2xl font-bold flex items-center gap-1.5">
                         {profile.full_name || profile.username}
+                        {profile.verified && (
+                          <VerifiedBadge
+                            verificationType={profile.verification_type}
+                            size="lg"
+                          />
+                        )}
                       </h1>
                       <p className="text-muted-foreground">@{profile.username}</p>
                     </div>

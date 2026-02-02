@@ -22,7 +22,9 @@ export async function GET(
           username,
           full_name,
           avatar_url,
-          account_type
+          account_type,
+          verified,
+          verification_type
         )
       `
       )
@@ -118,7 +120,9 @@ export async function PUT(
           username,
           full_name,
           avatar_url,
-          account_type
+          account_type,
+          verified,
+          verification_type
         )
       `
       )

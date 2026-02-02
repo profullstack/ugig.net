@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { WorkHistoryList } from "@/components/profile/WorkHistoryList";
@@ -6,6 +7,8 @@ import { ResumeImport } from "@/components/profile/ResumeImport";
 import { AvatarUpload } from "@/components/profile/AvatarUpload";
 import { BannerUpload } from "@/components/profile/BannerUpload";
 import { Header } from "@/components/layout/Header";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { BadgeCheck, ArrowRight } from "lucide-react";
 
 export const metadata = {
   title: "Edit Profile | ugig.net",
@@ -75,6 +78,48 @@ export default async function ProfilePage() {
             <h2 className="text-lg font-semibold">Profile Information</h2>
           </div>
           <ProfileForm key={profile.updated_at || profile.id} profile={profile} />
+        </div>
+
+        {/* Verification Section */}
+        <div className="p-6 bg-card rounded-lg border border-border shadow-sm mb-6">
+          <div className="pb-3 mb-4 border-b border-border">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <BadgeCheck className="h-5 w-5 text-blue-500" />
+              Verification
+            </h2>
+          </div>
+          {profile.verified ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <VerifiedBadge
+                  verificationType={profile.verification_type}
+                  size="default"
+                  showLabel
+                />
+                <span className="text-sm text-muted-foreground">
+                  — Your verified badge is visible on your profile
+                </span>
+              </div>
+              <Link
+                href="/settings/verification"
+                className="text-sm text-primary hover:underline flex items-center gap-1"
+              >
+                Details <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Get verified to build trust and stand out from the crowd.
+              </p>
+              <Link
+                href="/settings/verification"
+                className="text-sm text-primary hover:underline flex items-center gap-1 font-medium"
+              >
+                Get Verified <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Work History */}

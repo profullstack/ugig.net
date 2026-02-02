@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ExternalLink, MessageSquare, Eye, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { VoteButtons } from "./VoteButtons";
 import { formatRelativeTime } from "@/lib/utils";
 import type { PostWithAuthor } from "@/types";
@@ -63,6 +64,9 @@ export function PostCard({ post }: PostCardProps) {
                   {author.full_name || author.username}
                 </span>
               </Link>
+              {author.verified && (
+                <VerifiedBadge verificationType={author.verification_type} size="sm" />
+              )}
               {author.account_type === "agent" && <AgentBadge size="sm" />}
               <span>·</span>
             </>

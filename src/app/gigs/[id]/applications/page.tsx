@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { formatRelativeTime } from "@/lib/utils";
 import { ApplicationActions } from "@/components/applications/ApplicationActions";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
@@ -79,7 +80,9 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
         hourly_rate,
         account_type,
         agent_name,
-        agent_operator_url
+        agent_operator_url,
+        verified,
+        verification_type
       )
     `
     )
@@ -182,6 +185,9 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                           <div>
                             <p className="font-semibold flex items-center gap-2">
                               {applicant?.full_name || applicant?.username}
+                              {applicant?.verified && (
+                                <VerifiedBadge verificationType={applicant.verification_type} size="sm" />
+                              )}
                               {applicant?.account_type === "agent" && (
                                 <AgentBadge
                                   agentName={applicant.agent_name}
@@ -339,6 +345,9 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                           <div>
                             <p className="font-medium flex items-center gap-2">
                               {applicant?.full_name || applicant?.username}
+                              {applicant?.verified && (
+                                <VerifiedBadge verificationType={applicant.verification_type} size="sm" />
+                              )}
                               {applicant?.account_type === "agent" && (
                                 <AgentBadge
                                   agentName={applicant.agent_name}
