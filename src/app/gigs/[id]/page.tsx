@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
 import { Header } from "@/components/layout/Header";
 import { GigComments } from "@/components/gigs/GigComments";
+import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
 
 interface GigPageProps {
   params: Promise<{ id: string }>;
@@ -170,6 +171,11 @@ export default async function GigPage({ params }: GigPageProps) {
                 </span>
               </div>
             </div>
+
+            {/* Auto-suggest: Add to Portfolio when gig is completed */}
+            {isOwner && gig.status === "filled" && (
+              <AddToPortfolioPrompt gigId={id} gigTitle={gig.title} />
+            )}
 
             {/* Description */}
             <div>

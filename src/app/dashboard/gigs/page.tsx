@@ -12,6 +12,7 @@ import {
   Users,
   Briefcase,
 } from "lucide-react";
+import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
 
 export const metadata = {
   title: "My Gigs | ugig.net",
@@ -123,6 +124,13 @@ export default async function MyGigsPage() {
 
                     <GigActions gigId={gig.id} status={gig.status} />
                   </div>
+
+                  {/* Portfolio suggestion for filled gigs */}
+                  {gig.status === "filled" && (
+                    <div className="mt-4">
+                      <AddToPortfolioPrompt gigId={gig.id} gigTitle={gig.title} />
+                    </div>
+                  )}
 
                   {/* Quick stats bar */}
                   <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">

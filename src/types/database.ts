@@ -1090,6 +1090,60 @@ export type Database = {
           }
         ];
       };
+      portfolio_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          description: string | null;
+          url: string | null;
+          image_url: string | null;
+          tags: string[];
+          gig_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          description?: string | null;
+          url?: string | null;
+          image_url?: string | null;
+          tags?: string[];
+          gig_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          description?: string | null;
+          url?: string | null;
+          image_url?: string | null;
+          tags?: string[];
+          gig_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "portfolio_items_gig_id_fkey";
+            columns: ["gig_id"];
+            isOneToOne: false;
+            referencedRelation: "gigs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       api_keys: {
         Row: {
           id: string;

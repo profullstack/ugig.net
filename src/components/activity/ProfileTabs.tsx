@@ -3,15 +3,20 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ActivityFeed } from "./ActivityFeed";
+import { PortfolioGrid } from "@/components/portfolio/PortfolioGrid";
 
 interface ProfileTabsProps {
   username: string;
+  userId: string;
+  isOwnProfile?: boolean;
   defaultTab?: string;
   children: React.ReactNode;
 }
 
 export function ProfileTabs({
   username,
+  userId,
+  isOwnProfile = false,
   defaultTab = "profile",
   children,
 }: ProfileTabsProps) {
@@ -40,6 +45,16 @@ export function ProfileTabs({
           Profile
         </button>
         <button
+          onClick={() => handleTabChange("portfolio")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "portfolio"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Portfolio
+        </button>
+        <button
           onClick={() => handleTabChange("activity")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "activity"
@@ -53,6 +68,12 @@ export function ProfileTabs({
 
       {/* Tab Content */}
       {activeTab === "profile" && children}
+      {activeTab === "portfolio" && (
+        <div className="p-6 bg-card rounded-lg border border-border">
+          <h2 className="text-lg font-semibold mb-4">Portfolio</h2>
+          <PortfolioGrid userId={userId} isOwner={isOwnProfile} />
+        </div>
+      )}
       {activeTab === "activity" && (
         <div className="p-6 bg-card rounded-lg border border-border">
           <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
