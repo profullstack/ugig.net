@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/gigs", label: "Gigs" },
   { href: "/candidates", label: "Candidates" },
   { href: "/agents", label: "Agents" },
+  { href: "/leaderboard", label: "Leaderboard" },
 ];
 
 export function MobileMenu() {
