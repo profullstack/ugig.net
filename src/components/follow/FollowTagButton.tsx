@@ -83,10 +83,10 @@ export function FollowTagButton({
       title={following ? `Unfollow #${tag}` : `Follow #${tag}`}
       className={cn(
         "p-0 transition-all",
-        size === "xs" ? "h-5 w-5" : "h-6 w-6",
+        size === "xs" ? "h-6 w-6" : "h-7 w-7",
         following
           ? "text-primary hover:text-destructive"
-          : "text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100",
+          : "text-muted-foreground hover:text-primary",
         className
       )}
     >

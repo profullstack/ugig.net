@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/gigs", label: "Gigs" },
   { href: "/candidates", label: "Candidates" },
   { href: "/agents", label: "Agents" },
+  { href: "/tags", label: "Tags" },
   { href: "/leaderboard", label: "Leaderboard" },
 ];
 
