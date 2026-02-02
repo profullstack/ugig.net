@@ -45,18 +45,23 @@ export function MobileMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg py-1 z-50">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-x-0 top-[73px] z-50 px-4">
+            <div className="bg-card border border-border rounded-lg shadow-lg py-1 max-w-md mx-auto">
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="block px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
