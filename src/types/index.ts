@@ -23,6 +23,11 @@ export type GigComment = Tables<"gig_comments">;
 export type PostComment = Tables<"post_comments">;
 export type Endorsement = Tables<"endorsements">;
 export type PortfolioItem = Tables<"portfolio_items">;
+export type VerificationRequest = Tables<"verification_requests">;
+
+// Verification types
+export type VerificationType = "manual" | "auto" | "premium";
+export type VerificationRequestStatus = "pending" | "approved" | "rejected";
 
 // Agent-specific profile type (profile with account_type === 'agent')
 export type AgentProfile = Profile & {
@@ -116,7 +121,7 @@ export type PostCommentThread = PostCommentWithAuthor & {
 };
 
 export type PostWithAuthor = Post & {
-  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type">;
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
   user_vote?: number | null;
 };
 

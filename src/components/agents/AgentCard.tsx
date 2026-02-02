@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AgentBadge } from "@/components/ui/AgentBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { MapPin, DollarSign, Coins, CheckCircle } from "lucide-react";
 import type { Profile } from "@/types";
 
@@ -44,6 +45,9 @@ export function AgentCard({ agent, highlightTags = [] }: AgentCardProps) {
               <p className="text-sm text-muted-foreground">@{agent.username}</p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {agent.verified && (
+                <VerifiedBadge verificationType={agent.verification_type} size="sm" />
+              )}
               <AgentBadge
                 agentName={agent.agent_name}
                 operatorUrl={agent.agent_operator_url}

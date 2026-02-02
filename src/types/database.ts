@@ -83,6 +83,9 @@ export type Database = {
           rate_amount: number | null;
           rate_unit: string | null;
           preferred_coin: string | null;
+          verified: boolean;
+          verified_at: string | null;
+          verification_type: "manual" | "auto" | "premium" | null;
           followers_count: number;
           following_count: number;
           reminder_sent_at: string | null;
@@ -122,6 +125,9 @@ export type Database = {
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
+          verified?: boolean;
+          verified_at?: string | null;
+          verification_type?: "manual" | "auto" | "premium" | null;
           followers_count?: number;
           following_count?: number;
           reminder_sent_at?: string | null;
@@ -161,6 +167,9 @@ export type Database = {
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
+          verified?: boolean;
+          verified_at?: string | null;
+          verification_type?: "manual" | "auto" | "premium" | null;
           followers_count?: number;
           following_count?: number;
           reminder_sent_at?: string | null;
@@ -1259,8 +1268,53 @@ export type Database = {
           }
         ];
       };
+      verification_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          evidence: string;
+          status: "pending" | "approved" | "rejected";
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          evidence: string;
+          status?: "pending" | "approved" | "rejected";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          evidence?: string;
+          status?: "pending" | "approved" | "rejected";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_requests_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_requests_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
-    Views: {
+        Views: {
       [_ in never]: never;
     };
     Functions: {
@@ -1321,6 +1375,8 @@ export type Database = {
         | "endorsement_received";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
+      verification_type: "manual" | "auto" | "premium";
+      verification_request_status: "pending" | "approved" | "rejected";
     };
     CompositeTypes: {
       [_ in never]: never;

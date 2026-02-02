@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
           username,
           full_name,
           avatar_url,
-          account_type
+          account_type,
+          verified,
+          verification_type
         )
       `,
         { count: "exact" }

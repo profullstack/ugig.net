@@ -48,7 +48,9 @@ async function FeedContent({ searchParams }: FeedPageProps) {
         username,
         full_name,
         avatar_url,
-        account_type
+        account_type,
+        verified,
+        verification_type
       )
     `,
       { count: "exact" }

@@ -134,6 +134,9 @@ describe("useMessageStream", () => {
         followers_count: 0,
         following_count: 0,
         reminder_sent_at: null,
+        verified: false,
+        verified_at: null,
+        verification_type: null,
       },
     };
 

@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
           username,
           full_name,
           avatar_url,
-          account_type
+          account_type,
+          verified,
+          verification_type
         )
       `
       )

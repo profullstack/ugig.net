@@ -46,7 +46,9 @@ export default async function FollowingPage({ params }: Props) {
         avatar_url,
         bio,
         is_available,
-        account_type
+        account_type,
+        verified,
+        verification_type
       )
     `
     )

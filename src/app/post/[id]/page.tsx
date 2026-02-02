@@ -48,7 +48,9 @@ export default async function PostPage({ params }: PostPageProps) {
         username,
         full_name,
         avatar_url,
-        account_type
+        account_type,
+        verified,
+        verification_type
       )
     `
     )
