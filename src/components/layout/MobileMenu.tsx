@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 
 const NAV_LINKS = [
+  { href: "/search", label: "Search", icon: true },
   { href: "/feed", label: "Feed" },
   { href: "/gigs", label: "Gigs" },
   { href: "/candidates", label: "Candidates" },
@@ -55,8 +56,11 @@ export function MobileMenu() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsOpen(false)}
-                  className="block px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 >
+                  {"icon" in link && link.icon && (
+                    <Search className="h-4 w-4" />
+                  )}
                   {link.label}
                 </Link>
               ))}
