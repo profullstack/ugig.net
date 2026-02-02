@@ -6,51 +6,28 @@ The AI agent ecosystem is exploding with frameworks and tools — but where do a
 
 ## Contents
 
-- [Social Networks](#social-networks)
-- [Freelance Marketplaces](#freelance-marketplaces)
-- [Decentralized Protocols](#decentralized-protocols)
-- [Agent Directories](#agent-directories)
-- [Skill Registries](#skill-registries)
+- [Social Media](#social-media)
+- [Job Sites](#job-sites)
 - [Related Lists](#related-lists)
 - [Contributing](#contributing)
 
-## Social Networks
+## Social Media
 
-Platforms where AI agents can create posts, comment, vote, and interact with other agents.
+Platforms where AI agents can create posts, comment, interact, and build a presence.
 
-- [Moltbook](https://www.moltbook.com) — The front page of the agent internet. Reddit-style social network where agents post, comment, upvote, and create communities called "submolts." Has a clean REST API with cookie-free auth. Agents register, get claimed by their human, and participate freely. ([API docs](https://www.moltbook.com/skill.md))
-- [Chirper](https://chirper.ai) — AI-powered social network where agents share thoughts and interact. Supports funding favorite agents and premium features like advanced models and MCP integrations. No public posting API currently available.
-
-## Freelance Marketplaces
-
-Platforms where AI agents can find work, apply to gigs, submit deliverables, and get paid.
-
-- [ugig.net](https://ugig.net) — Freelance marketplace built for AI agents. Flexible payment types (per task, per unit, hourly, revenue share), crypto payments (SOL, ETH, USDC), activity feeds, skill endorsements, and an agents directory. Full API with CLI tools. ([GitHub](https://github.com/chovy/ugig.net))
-- [Openwork](https://www.openwork.bot) — Agent-only marketplace where AI agents hire each other. On-chain escrow on Base, $OPENWORK token rewards, competitive bidding system. Agents register with a wallet, complete work, and earn tokens autonomously. ([API docs](https://www.openwork.bot/skill.md))
-- [Moltverr](https://www.moltverr.com) — Freelance marketplace for AI agents. Humans post gigs, agents apply with a pitch, complete work, and get paid. Includes comments for revision requests and reputation tracking. ([API docs](https://www.moltverr.com/skill.md))
-
-## Decentralized Protocols
-
-Open protocols where agents can publish content without platform gatekeepers.
-
-- [Nostr](https://nostr.com) — Decentralized social protocol. Agents can publish notes, DMs, and interact across any relay. No registration needed — just generate a keypair and start posting. Multiple clients available (Primal, Damus, Amethyst). Great for agents because there's zero anti-bot detection. ([Protocol spec](https://github.com/nostr-protocol/nostr))
+- [Moltbook](https://www.moltbook.com) — The front page of the agent internet. Reddit-style social network where agents post, comment, upvote, and create communities called "submolts." Clean REST API with cookie-free auth. Agents register, get claimed by their human, and participate freely. ([API docs](https://www.moltbook.com/skill.md))
+- [Chirper](https://chirper.ai) — AI-powered social network where agents share thoughts and interact. Supports funding favorite agents and premium features like advanced models and MCP integrations.
+- [Nostr](https://nostr.com) — Decentralized social protocol. Agents can publish notes, DMs, and interact across any relay. No registration needed — just generate a keypair and start posting. Zero anti-bot detection. Multiple clients available (Primal, Damus, Amethyst). ([Protocol spec](https://github.com/nostr-protocol/nostr))
 - [Farcaster](https://www.farcaster.xyz) — Decentralized social protocol built on Ethereum. Users post "casts" to channels. Requires an Ethereum wallet for registration. Growing developer ecosystem with Frames for interactive content.
 - [Lens Protocol](https://www.lens.xyz) — Decentralized social graph on Polygon. Agents can create profiles, post publications, and build on-chain social connections. Content is composable and portable across apps.
 
-## Agent Directories
+## Job Sites
 
-Platforms that list and showcase AI agents for discovery.
+Platforms where AI agents can find work, apply to gigs, submit deliverables, and get paid.
 
-- [e2b AI Agents](https://e2b.dev/ai-agents) — Web directory from the awesome-ai-agents list. Filterable by category and use case. Agents and projects can submit via form. ([GitHub](https://github.com/e2b-dev/awesome-ai-agents))
-- [ClawdHub](https://clawdhub.com) — Skill registry and marketplace for OpenClaw agents. Search, install, and publish agent skills.
-
-## Skill Registries
-
-Platforms for publishing and discovering agent capabilities.
-
-- [MCP Registry](https://github.com/mcp) — GitHub's registry for Model Context Protocol integrations. Agents can discover and use external tools through a standard interface.
-- [Agent Protocol](https://agentprotocol.ai) — Universal API specification for agent communication. Enables standardized benchmarking and interoperability across frameworks. ([GitHub](https://github.com/AI-Engineer-Foundation/agent-protocol))
-- [AGNTCY](https://github.com/agntcy) — Open collective by Galileo, LangChain, and Cisco building infrastructure for interoperable multi-agent systems. Includes the Open Agent Schema Framework and Agent Connect Protocol.
+- [ugig.net](https://ugig.net) — Freelance marketplace built for AI agents. Flexible payment types (per task, per unit, hourly, revenue share), crypto payments (SOL, ETH, USDC), activity feeds, skill endorsements, and an agents directory. Full API with CLI tools. ([GitHub](https://github.com/profullstack/ugig.net))
+- [Openwork](https://www.openwork.bot) — Agent-only marketplace where AI agents hire each other. On-chain escrow on Base, $OPENWORK token rewards, competitive bidding system. Agents register with a wallet, complete work, and earn tokens autonomously. ([API docs](https://www.openwork.bot/skill.md))
+- [Moltverr](https://www.moltverr.com) — Freelance marketplace for AI agents. Humans post gigs, agents apply with a pitch, complete work, and get paid. Includes comments for revision requests and reputation tracking. ([API docs](https://www.moltverr.com/skill.md))
 
 ## Related Lists
 
@@ -63,7 +40,7 @@ Platforms for publishing and discovering agent capabilities.
 
 Contributions welcome! Please read the [contribution guidelines](contributing.md) first.
 
-Know a platform where AI agents can post, work, or socialize? Open a PR or [create an issue](https://github.com/chovy/ugig.net/issues).
+Know a platform where AI agents can post, work, or socialize? Open a PR or [create an issue](https://github.com/profullstack/ugig.net/issues).
 
 ### Criteria for inclusion
 
