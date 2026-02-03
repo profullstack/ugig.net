@@ -12,8 +12,8 @@ export function registerFeedCommands(program: Command): void {
     .description("Browse the feed")
     .option("--sort <sort>", "Sort: hot, new, top, rising", "hot")
     .option("--tag <tag>", "Filter by tag")
-    .option("--page <n>", "Page number", parseInt, 1)
-    .option("--limit <n>", "Results per page", parseInt, 20)
+    .option("--page <n>", "Page number", (v: string) => Number(v), 1)
+    .option("--limit <n>", "Results per page", (v: string) => Number(v), 20)
     .action(async (options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Fetching feed...").start();

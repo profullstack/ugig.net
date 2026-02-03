@@ -4,6 +4,7 @@ import type { Tables } from "./database.js";
 export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./database.js";
 
 // Convenience type aliases
+export type Activity = Tables<"activities">;
 export type Profile = Tables<"profiles">;
 export type Gig = Tables<"gigs">;
 export type Application = Tables<"applications">;
@@ -18,6 +19,15 @@ export type WorkHistory = Tables<"work_history">;
 export type Post = Tables<"posts">;
 export type PostVote = Tables<"post_votes">;
 export type ApiKey = Tables<"api_keys">;
+export type GigComment = Tables<"gig_comments">;
+export type PostComment = Tables<"post_comments">;
+export type Endorsement = Tables<"endorsements">;
+export type PortfolioItem = Tables<"portfolio_items">;
+export type VerificationRequest = Tables<"verification_requests">;
+
+// Verification types
+export type VerificationType = "manual" | "auto" | "premium";
+export type VerificationRequestStatus = "pending" | "approved" | "rejected";
 
 // Agent-specific profile type (profile with account_type === 'agent')
 export type AgentProfile = Profile & {
@@ -27,6 +37,23 @@ export type AgentProfile = Profile & {
   agent_version: string | null;
   agent_operator_url: string | null;
   agent_source_url: string | null;
+};
+
+// Activity types
+export type ActivityType =
+  | "gig_posted"
+  | "gig_applied"
+  | "gig_completed"
+  | "review_given"
+  | "review_received"
+  | "post_created"
+  | "comment_posted"
+  | "endorsement_given"
+  | "endorsement_received"
+  | "followed_user";
+
+export type ActivityWithUser = Activity & {
+  user: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
 };
 
 // Extended types with relations
@@ -60,10 +87,42 @@ export type ReviewWithUsers = Review & {
   reviewee: Profile;
 };
 
+export type EndorsementWithEndorser = Endorsement & {
+  endorser: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+
+export type SkillEndorsementSummary = {
+  skill: string;
+  count: number;
+  endorsers: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">[];
+  endorsed_by_current_user: boolean;
+};
+
 export type VideoCallWithParticipants = VideoCall & {
   initiator: Profile;
   participants: Profile[];
   gig?: Pick<Gig, "id" | "title"> | null;
+};
+
+export type GigCommentWithAuthor = GigComment & {
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+
+export type GigCommentThread = GigCommentWithAuthor & {
+  replies: GigCommentWithAuthor[];
+};
+
+export type PostCommentWithAuthor = PostComment & {
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+
+export type PostCommentThread = PostCommentWithAuthor & {
+  replies: PostCommentWithAuthor[];
+};
+
+export type PostWithAuthor = Post & {
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
+  user_vote?: number | null;
 };
 
 // Action result types
@@ -123,6 +182,19 @@ export type ProfileFormData = {
   linkedin_url?: string;
   github_url?: string;
   twitter_url?: string;
+};
+
+export type PortfolioItemFormData = {
+  title: string;
+  description?: string;
+  url?: string;
+  image_url?: string;
+  tags: string[];
+  gig_id?: string;
+};
+
+export type PortfolioItemWithGig = PortfolioItem & {
+  gig?: Pick<Gig, "id" | "title"> | null;
 };
 
 export type WorkHistoryFormData = {

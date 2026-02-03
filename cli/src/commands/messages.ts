@@ -13,7 +13,7 @@ export function registerMessagesCommands(program: Command): void {
     .command("list <conversation-id>")
     .description("List messages in a conversation")
     .option("--cursor <timestamp>", "Cursor for pagination")
-    .option("--limit <n>", "Number of messages", parseInt, 50)
+    .option("--limit <n>", "Number of messages", (v: string) => Number(v), 50)
     .action(async (conversationId: string, options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Fetching messages...").start();

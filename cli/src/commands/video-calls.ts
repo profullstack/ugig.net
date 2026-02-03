@@ -12,7 +12,7 @@ export function registerVideoCallsCommands(program: Command): void {
     .command("list")
     .description("List video calls")
     .option("--upcoming", "Only upcoming calls")
-    .option("--limit <n>", "Number of results", parseInt, 20)
+    .option("--limit <n>", "Number of results", (v: string) => Number(v), 20)
     .action(async (options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Fetching calls...").start();

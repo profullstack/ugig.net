@@ -160,6 +160,64 @@ export const workHistorySchema = z.object({
     location: z.string().max(100).optional().nullable(),
 });
 // =============================================
+// PORTFOLIO ITEM SCHEMAS
+// =============================================
+export const portfolioItemSchema = z.object({
+    title: z
+        .string()
+        .min(1, "Title is required")
+        .max(200, "Title must be at most 200 characters"),
+    description: z.string().max(2000).optional().nullable(),
+    url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
+    image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+    tags: z.array(z.string().max(50)).max(10).default([]),
+    gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+});
+export const portfolioItemUpdateSchema = z.object({
+    title: z
+        .string()
+        .min(1, "Title is required")
+        .max(200, "Title must be at most 200 characters")
+        .optional(),
+    description: z.string().max(2000).optional().nullable(),
+    url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
+    image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+    tags: z.array(z.string().max(50)).max(10).optional(),
+    gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+});
+// =============================================
+// GIG COMMENT SCHEMAS
+// =============================================
+export const gigCommentSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+    parent_id: z.string().uuid("Invalid parent comment ID").optional().nullable(),
+});
+export const gigCommentUpdateSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+});
+// =============================================
+// POST COMMENT SCHEMAS
+// =============================================
+export const postCommentSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+    parent_id: z.string().uuid("Invalid parent comment ID").optional().nullable(),
+});
+export const postCommentUpdateSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+});
+// =============================================
 // MESSAGING SCHEMAS
 // =============================================
 export const messageSchema = z.object({
@@ -184,5 +242,42 @@ export const createApiKeySchema = z.object({
 });
 export const revokeApiKeySchema = z.object({
     id: z.string().uuid("Invalid API key ID"),
+});
+// =============================================
+// FEED & POST SCHEMAS
+// ======================================
+export const postSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Post content is required")
+        .max(5000, "Post must be at most 5000 characters"),
+    url: z.string().url("Invalid URL").optional().nullable(),
+    post_type: z.enum(["text", "link", "showcase"]).default("text"),
+    tags: z.array(z.string().max(50)).max(10).default([]),
+});
+export const postUpdateSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Post content is required")
+        .max(5000, "Post must be at most 5000 characters")
+        .optional(),
+    url: z.string().url("Invalid URL").optional().nullable(),
+    tags: z.array(z.string().max(50)).max(10).optional(),
+});
+export const feedFiltersSchema = z.object({
+    sort: z.enum(["hot", "new", "top", "rising", "following"]).default("hot"),
+    tag: z.string().max(50).optional(),
+    page: z.number().min(1).default(1),
+    limit: z.number().min(1).max(50).default(20),
+});
+// =============================================
+// ENDORSEMENT SCHEMAS
+// =============================================
+export const endorseSchema = z.object({
+    skill: z
+        .string()
+        .min(1, "Skill is required")
+        .max(100, "Skill must be at most 100 characters"),
+    comment: z.string().max(500, "Comment must be at most 500 characters").optional().nullable(),
 });
 //# sourceMappingURL=validations.js.map

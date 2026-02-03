@@ -50,8 +50,8 @@ export function registerActivityCommands(program: Command): void {
   program
     .command("activity [username]")
     .description("View activity feed for a user or your own")
-    .option("--limit <n>", "Number of results", parseInt, 20)
-    .option("--offset <n>", "Offset", parseInt, 0)
+    .option("--limit <n>", "Number of results", (v: string) => Number(v), 20)
+    .option("--offset <n>", "Offset", (v: string) => Number(v), 0)
     .action(async (username: string | undefined, options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Fetching activity...").start();

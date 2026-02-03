@@ -150,6 +150,36 @@ export declare const workHistorySchema: z.ZodObject<{
     is_current: z.ZodDefault<z.ZodBoolean>;
     location: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
+export declare const portfolioItemSchema: z.ZodObject<{
+    title: z.ZodString;
+    description: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    url: z.ZodUnion<[z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodLiteral<"">]>;
+    image_url: z.ZodUnion<[z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodLiteral<"">]>;
+    tags: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    gig_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const portfolioItemUpdateSchema: z.ZodObject<{
+    title: z.ZodOptional<z.ZodString>;
+    description: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    url: z.ZodUnion<[z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodLiteral<"">]>;
+    image_url: z.ZodUnion<[z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodLiteral<"">]>;
+    tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    gig_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const gigCommentSchema: z.ZodObject<{
+    content: z.ZodString;
+    parent_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const gigCommentUpdateSchema: z.ZodObject<{
+    content: z.ZodString;
+}, z.core.$strip>;
+export declare const postCommentSchema: z.ZodObject<{
+    content: z.ZodString;
+    parent_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const postCommentUpdateSchema: z.ZodObject<{
+    content: z.ZodString;
+}, z.core.$strip>;
 export declare const messageSchema: z.ZodObject<{
     content: z.ZodString;
 }, z.core.$strip>;
@@ -163,6 +193,37 @@ export declare const createApiKeySchema: z.ZodObject<{
 }, z.core.$strip>;
 export declare const revokeApiKeySchema: z.ZodObject<{
     id: z.ZodString;
+}, z.core.$strip>;
+export declare const postSchema: z.ZodObject<{
+    content: z.ZodString;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    post_type: z.ZodDefault<z.ZodEnum<{
+        link: "link";
+        text: "text";
+        showcase: "showcase";
+    }>>;
+    tags: z.ZodDefault<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export declare const postUpdateSchema: z.ZodObject<{
+    content: z.ZodOptional<z.ZodString>;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export declare const feedFiltersSchema: z.ZodObject<{
+    sort: z.ZodDefault<z.ZodEnum<{
+        top: "top";
+        hot: "hot";
+        new: "new";
+        rising: "rising";
+        following: "following";
+    }>>;
+    tag: z.ZodOptional<z.ZodString>;
+    page: z.ZodDefault<z.ZodNumber>;
+    limit: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const endorseSchema: z.ZodObject<{
+    skill: z.ZodString;
+    comment: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -178,3 +239,13 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type GigCommentInput = z.infer<typeof gigCommentSchema>;
+export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;
+export type PostCommentInput = z.infer<typeof postCommentSchema>;
+export type PostCommentUpdateInput = z.infer<typeof postCommentUpdateSchema>;
+export type PostInput = z.infer<typeof postSchema>;
+export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
+export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;
+export type EndorseInput = z.infer<typeof endorseSchema>;
+export type PortfolioItemInput = z.infer<typeof portfolioItemSchema>;
+export type PortfolioItemUpdateInput = z.infer<typeof portfolioItemUpdateSchema>;

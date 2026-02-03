@@ -12,8 +12,8 @@ export function registerNotificationsCommands(program: Command): void {
     .command("list")
     .description("List notifications")
     .option("--unread", "Only show unread")
-    .option("--limit <n>", "Number of results", parseInt, 20)
-    .option("--offset <n>", "Offset", parseInt, 0)
+    .option("--limit <n>", "Number of results", (v: string) => Number(v), 20)
+    .option("--offset <n>", "Offset", (v: string) => Number(v), 0)
     .action(async (options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Fetching notifications...").start();

@@ -4,12 +4,54 @@ export type Json = string | number | boolean | null | {
 export type Database = {
     public: {
         Tables: {
+            activities: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    activity_type: string;
+                    reference_id: string | null;
+                    reference_type: string | null;
+                    metadata: Json;
+                    is_public: boolean;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    activity_type: string;
+                    reference_id?: string | null;
+                    reference_type?: string | null;
+                    metadata?: Json;
+                    is_public?: boolean;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    activity_type?: string;
+                    reference_id?: string | null;
+                    reference_type?: string | null;
+                    metadata?: Json;
+                    is_public?: boolean;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "activities_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             profiles: {
                 Row: {
                     id: string;
                     username: string;
                     full_name: string | null;
                     avatar_url: string | null;
+                    banner_url: string | null;
                     bio: string | null;
                     skills: string[];
                     ai_tools: string[];
@@ -36,6 +78,12 @@ export type Database = {
                     rate_amount: number | null;
                     rate_unit: string | null;
                     preferred_coin: string | null;
+                    verified: boolean;
+                    verified_at: string | null;
+                    verification_type: "manual" | "auto" | "premium" | null;
+                    followers_count: number;
+                    following_count: number;
+                    reminder_sent_at: string | null;
                     last_active_at: string;
                     created_at: string;
                     updated_at: string;
@@ -45,6 +93,7 @@ export type Database = {
                     username: string;
                     full_name?: string | null;
                     avatar_url?: string | null;
+                    banner_url?: string | null;
                     bio?: string | null;
                     skills?: string[];
                     ai_tools?: string[];
@@ -71,6 +120,12 @@ export type Database = {
                     rate_amount?: number | null;
                     rate_unit?: string | null;
                     preferred_coin?: string | null;
+                    verified?: boolean;
+                    verified_at?: string | null;
+                    verification_type?: "manual" | "auto" | "premium" | null;
+                    followers_count?: number;
+                    following_count?: number;
+                    reminder_sent_at?: string | null;
                     last_active_at?: string;
                     created_at?: string;
                     updated_at?: string;
@@ -80,6 +135,7 @@ export type Database = {
                     username?: string;
                     full_name?: string | null;
                     avatar_url?: string | null;
+                    banner_url?: string | null;
                     bio?: string | null;
                     skills?: string[];
                     ai_tools?: string[];
@@ -106,6 +162,12 @@ export type Database = {
                     rate_amount?: number | null;
                     rate_unit?: string | null;
                     preferred_coin?: string | null;
+                    verified?: boolean;
+                    verified_at?: string | null;
+                    verification_type?: "manual" | "auto" | "premium" | null;
+                    followers_count?: number;
+                    following_count?: number;
+                    reminder_sent_at?: string | null;
                     last_active_at?: string;
                     created_at?: string;
                     updated_at?: string;
@@ -523,7 +585,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received";
                     title: string;
                     body: string | null;
                     data: Json;
@@ -533,7 +595,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received";
                     title: string;
                     body?: string | null;
                     data?: Json;
@@ -543,7 +605,7 @@ export type Database = {
                 Update: {
                     id?: string;
                     user_id?: string;
-                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received";
                     title?: string;
                     body?: string | null;
                     data?: Json;
@@ -707,6 +769,366 @@ export type Database = {
                     }
                 ];
             };
+            gig_comments: {
+                Row: {
+                    id: string;
+                    gig_id: string;
+                    author_id: string;
+                    parent_id: string | null;
+                    content: string;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    gig_id: string;
+                    author_id: string;
+                    parent_id?: string | null;
+                    content: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    gig_id?: string;
+                    author_id?: string;
+                    parent_id?: string | null;
+                    content?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "gig_comments_gig_id_fkey";
+                        columns: ["gig_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gigs";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "gig_comments_author_id_fkey";
+                        columns: ["author_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "gig_comments_parent_id_fkey";
+                        columns: ["parent_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gig_comments";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            post_comments: {
+                Row: {
+                    id: string;
+                    post_id: string;
+                    author_id: string;
+                    parent_id: string | null;
+                    content: string;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    post_id: string;
+                    author_id: string;
+                    parent_id?: string | null;
+                    content: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    post_id?: string;
+                    author_id?: string;
+                    parent_id?: string | null;
+                    content?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "post_comments_post_id_fkey";
+                        columns: ["post_id"];
+                        isOneToOne: false;
+                        referencedRelation: "posts";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "post_comments_author_id_fkey";
+                        columns: ["author_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "post_comments_parent_id_fkey";
+                        columns: ["parent_id"];
+                        isOneToOne: false;
+                        referencedRelation: "post_comments";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            tag_follows: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    tag: string;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    tag: string;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    tag?: string;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "tag_follows_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            follows: {
+                Row: {
+                    id: string;
+                    follower_id: string;
+                    following_id: string;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    follower_id: string;
+                    following_id: string;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    follower_id?: string;
+                    following_id?: string;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "follows_follower_id_fkey";
+                        columns: ["follower_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "follows_following_id_fkey";
+                        columns: ["following_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            posts: {
+                Row: {
+                    id: string;
+                    author_id: string;
+                    content: string;
+                    url: string | null;
+                    post_type: string;
+                    tags: string[];
+                    upvotes: number;
+                    downvotes: number;
+                    score: number;
+                    comments_count: number;
+                    views_count: number;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    author_id: string;
+                    content: string;
+                    url?: string | null;
+                    post_type?: string;
+                    tags?: string[];
+                    upvotes?: number;
+                    downvotes?: number;
+                    score?: number;
+                    comments_count?: number;
+                    views_count?: number;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    author_id?: string;
+                    content?: string;
+                    url?: string | null;
+                    post_type?: string;
+                    tags?: string[];
+                    upvotes?: number;
+                    downvotes?: number;
+                    score?: number;
+                    comments_count?: number;
+                    views_count?: number;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "posts_author_id_fkey";
+                        columns: ["author_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            post_votes: {
+                Row: {
+                    id: string;
+                    post_id: string;
+                    user_id: string;
+                    vote_type: number;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    post_id: string;
+                    user_id: string;
+                    vote_type: number;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    post_id?: string;
+                    user_id?: string;
+                    vote_type?: number;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "post_votes_post_id_fkey";
+                        columns: ["post_id"];
+                        isOneToOne: false;
+                        referencedRelation: "posts";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "post_votes_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            endorsements: {
+                Row: {
+                    id: string;
+                    endorser_id: string;
+                    endorsed_id: string;
+                    skill: string;
+                    comment: string | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    endorser_id: string;
+                    endorsed_id: string;
+                    skill: string;
+                    comment?: string | null;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    endorser_id?: string;
+                    endorsed_id?: string;
+                    skill?: string;
+                    comment?: string | null;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "endorsements_endorser_id_fkey";
+                        columns: ["endorser_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "endorsements_endorsed_id_fkey";
+                        columns: ["endorsed_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            portfolio_items: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    title: string;
+                    description: string | null;
+                    url: string | null;
+                    image_url: string | null;
+                    tags: string[];
+                    gig_id: string | null;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    title: string;
+                    description?: string | null;
+                    url?: string | null;
+                    image_url?: string | null;
+                    tags?: string[];
+                    gig_id?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    title?: string;
+                    description?: string | null;
+                    url?: string | null;
+                    image_url?: string | null;
+                    tags?: string[];
+                    gig_id?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "portfolio_items_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "portfolio_items_gig_id_fkey";
+                        columns: ["gig_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gigs";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             api_keys: {
                 Row: {
                     id: string;
@@ -751,6 +1173,122 @@ export type Database = {
                     }
                 ];
             };
+            webhooks: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    url: string;
+                    secret: string;
+                    events: string[];
+                    active: boolean;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    url: string;
+                    secret: string;
+                    events: string[];
+                    active?: boolean;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    url?: string;
+                    secret?: string;
+                    events?: string[];
+                    active?: boolean;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [];
+            };
+            webhook_deliveries: {
+                Row: {
+                    id: string;
+                    webhook_id: string;
+                    event_type: string;
+                    payload: Json;
+                    status_code: number | null;
+                    response_body: string | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    webhook_id: string;
+                    event_type: string;
+                    payload?: Json;
+                    status_code?: number | null;
+                    response_body?: string | null;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    webhook_id?: string;
+                    event_type?: string;
+                    payload?: Json;
+                    status_code?: number | null;
+                    response_body?: string | null;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "webhook_deliveries_webhook_id_fkey";
+                        columns: ["webhook_id"];
+                        isOneToOne: false;
+                        referencedRelation: "webhooks";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            verification_requests: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    evidence: string;
+                    status: "pending" | "approved" | "rejected";
+                    reviewed_by: string | null;
+                    reviewed_at: string | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    evidence: string;
+                    status?: "pending" | "approved" | "rejected";
+                    reviewed_by?: string | null;
+                    reviewed_at?: string | null;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    evidence?: string;
+                    status?: "pending" | "approved" | "rejected";
+                    reviewed_by?: string | null;
+                    reviewed_at?: string | null;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "verification_requests_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "verification_requests_reviewed_by_fkey";
+                        columns: ["reviewed_by"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
         };
         Views: {
             [_ in never]: never;
@@ -789,9 +1327,11 @@ export type Database = {
             application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
             subscription_plan: "free" | "pro";
-            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";
+            verification_type: "manual" | "auto" | "premium";
+            verification_request_status: "pending" | "approved" | "rejected";
         };
         CompositeTypes: {
             [_ in never]: never;

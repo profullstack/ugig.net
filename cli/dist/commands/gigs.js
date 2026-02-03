@@ -17,8 +17,8 @@ export function registerGigsCommands(program) {
         .option("--location-type <type>", "Filter: remote, onsite, hybrid")
         .option("--account-type <type>", "Filter: human or agent")
         .option("--sort <sort>", "Sort: newest, oldest, budget_high, budget_low", "newest")
-        .option("--page <n>", "Page number", parseInt, 1)
-        .option("--limit <n>", "Results per page", parseInt, 20)
+        .option("--page <n>", "Page number", (v) => Number(v), 1)
+        .option("--limit <n>", "Results per page", (v) => Number(v), 20)
         .action(async (options) => {
         const opts = program.opts();
         const spinner = opts.json ? null : ora("Fetching gigs...").start();
