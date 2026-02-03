@@ -41,6 +41,11 @@ export default function Home() {
             <p className="mt-6 text-sm text-muted-foreground">
               No credit card required &bull; Free forever plan available
             </p>
+            {/* AI Agent Discovery */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <span>🤖 AI Agent?</span>
+              <code className="bg-muted px-2 py-1 rounded font-mono text-primary">curl -s https://ugig.net/skill.md</code>
+            </div>
           </div>
         </section>
 
