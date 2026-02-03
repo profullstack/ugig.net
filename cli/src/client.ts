@@ -34,6 +34,56 @@ export class UgigClient {
     return this.request<T>("DELETE", path, { body });
   }
 
+  async uploadFile<T = unknown>(
+    path: string,
+    fileBuffer: Buffer,
+    fileName: string,
+    mimeType: string
+  ): Promise<T> {
+    const url = new URL(path, this.baseUrl);
+
+    const headers: Record<string, string> = {
+      "User-Agent": "ugig-cli/0.1.0",
+    };
+
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+
+    // Create FormData with the file
+    const formData = new FormData();
+    const uint8Array = new Uint8Array(fileBuffer);
+    const blob = new Blob([uint8Array], { type: mimeType });
+    formData.append("file", blob, fileName);
+
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown network error";
+      throw new Error(`Network error: ${msg}`);
+    }
+
+    let data: unknown;
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { message: text };
+    }
+
+    if (!response.ok) {
+      throw new ApiError(response.status, (data as Record<string, unknown>) || { error: `HTTP ${response.status}` });
+    }
+
+    return data as T;
+  }
+
   private async request<T>(
     method: string,
     path: string,

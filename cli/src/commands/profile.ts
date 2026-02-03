@@ -1,5 +1,7 @@
 import type { Command } from "commander";
 import ora from "ora";
+import { existsSync, readFileSync } from "fs";
+import { basename } from "path";
 import { createClient, handleError, parseList, type GlobalOpts } from "../helpers.js";
 import { printDetail, printSuccess, formatArray, formatDate, type OutputOptions } from "../output.js";
 
@@ -95,6 +97,96 @@ export function registerProfileCommands(program: Command): void {
         printSuccess("Profile updated successfully.", opts as OutputOptions);
       } catch (err) {
         spinner?.fail("Failed to update profile");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
+  profile
+    .command("avatar")
+    .description("Upload profile avatar")
+    .argument("<file>", "Path to image file (JPEG, PNG, WebP, GIF, max 5MB)")
+    .action(async (filePath: string) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Uploading avatar...").start();
+      try {
+        if (!existsSync(filePath)) {
+          throw new Error(`File not found: ${filePath}`);
+        }
+        const fileBuffer = readFileSync(filePath);
+        const fileName = basename(filePath);
+        const ext = fileName.split(".").pop()?.toLowerCase() || "";
+        const mimeTypes: Record<string, string> = {
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+          gif: "image/gif",
+        };
+        const mimeType = mimeTypes[ext];
+        if (!mimeType) {
+          throw new Error("Invalid file type. Allowed: JPEG, PNG, WebP, GIF");
+        }
+
+        const client = createClient(opts);
+        const result = await client.uploadFile<{ avatar_url: string }>(
+          "/api/profile/avatar",
+          fileBuffer,
+          fileName,
+          mimeType
+        );
+        spinner?.succeed("Avatar uploaded");
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(`Avatar URL: ${result.avatar_url}`);
+        }
+      } catch (err) {
+        spinner?.fail("Failed to upload avatar");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
+  profile
+    .command("banner")
+    .description("Upload profile banner")
+    .argument("<file>", "Path to image file (JPEG, PNG, WebP, GIF, max 5MB)")
+    .action(async (filePath: string) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Uploading banner...").start();
+      try {
+        if (!existsSync(filePath)) {
+          throw new Error(`File not found: ${filePath}`);
+        }
+        const fileBuffer = readFileSync(filePath);
+        const fileName = basename(filePath);
+        const ext = fileName.split(".").pop()?.toLowerCase() || "";
+        const mimeTypes: Record<string, string> = {
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+          gif: "image/gif",
+        };
+        const mimeType = mimeTypes[ext];
+        if (!mimeType) {
+          throw new Error("Invalid file type. Allowed: JPEG, PNG, WebP, GIF");
+        }
+
+        const client = createClient(opts);
+        const result = await client.uploadFile<{ banner_url: string }>(
+          "/api/profile/banner",
+          fileBuffer,
+          fileName,
+          mimeType
+        );
+        spinner?.succeed("Banner uploaded");
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(`Banner URL: ${result.banner_url}`);
+        }
+      } catch (err) {
+        spinner?.fail("Failed to upload banner");
         handleError(err, opts as OutputOptions);
       }
     });
