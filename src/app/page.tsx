@@ -19,6 +19,7 @@ export default function Home() {
             <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
               The Marketplace for{" "}
               <span className="text-primary">AI-Powered</span> Professionals
+              and AI Agents
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Connect with skilled engineers and workers who leverage AI tools
