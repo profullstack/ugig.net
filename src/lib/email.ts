@@ -935,6 +935,91 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
+export function upvoteMilestoneEmail(params: {
+  authorName: string;
+  postContentPreview: string;
+  postId: string;
+  milestone: number;
+}) {
+  const { authorName, postContentPreview, postId, milestone } = params;
+  const baseUrl = getBaseUrl();
+
+  const milestoneEmoji = milestone >= 100 ? "🔥" : milestone >= 25 ? "🎉" : "👍";
+  const milestoneMessage =
+    milestone >= 100
+      ? "Your post is on fire!"
+      : milestone >= 25
+        ? "Your post is gaining traction!"
+        : "People are loving your post!";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your post hit ${milestone} upvotes!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 10px;">${milestoneEmoji}</div>
+    <h1 style="color: white; margin: 0; font-size: 24px;">${milestone} Upvotes!</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${authorName},</p>
+
+    <p><strong>${milestoneMessage}</strong> Your post just hit ${milestone} upvotes.</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #374151; margin: 0; font-style: italic;">
+        "${postContentPreview.slice(0, 150)}${postContentPreview.length > 150 ? "..." : ""}"
+      </p>
+    </div>
+
+    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Your Post
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      Keep posting great content — your audience is growing!
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+${milestoneEmoji} ${milestone} Upvotes!
+
+Hi ${authorName},
+
+${milestoneMessage} Your post just hit ${milestone} upvotes.
+
+"${postContentPreview.slice(0, 150)}${postContentPreview.length > 150 ? "..." : ""}"
+
+View your post: ${baseUrl}/post/${postId}
+
+Keep posting great content — your audience is growing!
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `🎉 Your post hit ${milestone} upvotes!`,
+    html,
+    text,
+  };
+}
+
 export function newPostCommentReplyEmail(params: {
   recipientName: string;
   replierName: string;
