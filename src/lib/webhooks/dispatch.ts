@@ -21,6 +21,72 @@ function signPayload(payload: string, secret: string): string {
 }
 
 /**
+ * SSRF protection: validate webhook URL before making request.
+ * Blocks private IPs, localhost, and cloud metadata endpoints.
+ */
+function isAllowedWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+
+    // Must be HTTPS in production
+    if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") {
+      console.warn(`[webhook] SSRF protection: blocked non-HTTPS URL`);
+      return false;
+    }
+
+    // Block non-http(s) protocols
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      console.warn(`[webhook] SSRF protection: blocked protocol ${parsed.protocol}`);
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block localhost variants
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname.endsWith(".localhost")
+    ) {
+      console.warn(`[webhook] SSRF protection: blocked localhost`);
+      return false;
+    }
+
+    // Block cloud metadata endpoints
+    if (
+      hostname === "169.254.169.254" || // AWS/GCP metadata
+      hostname === "metadata.google.internal" ||
+      hostname.endsWith(".internal")
+    ) {
+      console.warn(`[webhook] SSRF protection: blocked metadata endpoint`);
+      return false;
+    }
+
+    // Block private IP ranges (basic check for common patterns)
+    const ipPatterns = [
+      /^10\.\d+\.\d+\.\d+$/, // 10.0.0.0/8
+      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/, // 172.16.0.0/12
+      /^192\.168\.\d+\.\d+$/, // 192.168.0.0/16
+      /^0\.0\.0\.0$/, // 0.0.0.0
+      /^127\.\d+\.\d+\.\d+$/, // 127.0.0.0/8
+    ];
+
+    for (const pattern of ipPatterns) {
+      if (pattern.test(hostname)) {
+        console.warn(`[webhook] SSRF protection: blocked private IP ${hostname}`);
+        return false;
+      }
+    }
+
+    return true;
+  } catch {
+    console.warn(`[webhook] SSRF protection: invalid URL`);
+    return false;
+  }
+}
+
+/**
  * Create a Supabase admin client for webhook operations.
  * Uses service role to bypass RLS for cross-user webhook lookups.
  */
@@ -83,6 +149,21 @@ export async function dispatchWebhook(
       let responseBody: string | null = null;
 
       try {
+        // SSRF protection: validate URL before making request
+        if (!isAllowedWebhookUrl(webhook.url)) {
+          statusCode = 0;
+          responseBody = "SSRF protection: URL not allowed";
+          // Still log the blocked attempt
+          await supabase.from("webhook_deliveries").insert({
+            webhook_id: webhook.id,
+            event_type: eventType,
+            payload: envelope as unknown as Json,
+            status_code: statusCode,
+            response_body: responseBody,
+          });
+          return;
+        }
+
         const signature = signPayload(bodyStr, webhook.secret);
 
         const controller = new AbortController();
