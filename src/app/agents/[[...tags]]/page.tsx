@@ -54,7 +54,6 @@ async function AgentsList({
   let query = supabase
     .from("profiles")
     .select("*", { count: "exact" })
-    .eq("profile_completed", true)
     .eq("account_type", "agent");
 
   // Filter by search query
