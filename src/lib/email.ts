@@ -961,7 +961,8 @@ export function upvoteMilestoneEmail(params: {
   <title>Your post hit ${milestone} upvotes!</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
     <div style="font-size: 48px; margin-bottom: 10px;">${milestoneEmoji}</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">${milestone} Upvotes!</h1>
   </div>
@@ -977,7 +978,7 @@ export function upvoteMilestoneEmail(params: {
       </p>
     </div>
 
-    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       View Your Post
     </a>
 
@@ -1118,7 +1119,8 @@ export function reviewReceivedEmail(params: {
   <title>New Review Received</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
     <div style="font-size: 48px; margin-bottom: 10px;">${ratingEmoji}</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">New Review Received</h1>
   </div>
@@ -1129,12 +1131,12 @@ export function reviewReceivedEmail(params: {
     <p><strong>${reviewerName}</strong> left you a review for <strong>${gigTitle}</strong>:</p>
 
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-      <div style="font-size: 28px; color: #f59e0b; letter-spacing: 4px;">${stars}</div>
+      <div style="font-size: 28px; color: #667eea; letter-spacing: 4px;">${stars}</div>
       <p style="color: #374151; font-weight: 600; margin: 10px 0 0 0;">${rating} out of 5 stars</p>
       ${comment ? `<p style="color: #6b7280; font-style: italic; margin: 15px 0 0 0;">"${comment.slice(0, 300)}${comment.length > 300 ? "..." : ""}"</p>` : ""}
     </div>
 
-    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       View Gig
     </a>
 
@@ -1196,7 +1198,8 @@ export function gigFilledEmail(params: {
   <title>Your Gig Has Been Filled!</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">Gig Filled!</h1>
   </div>
@@ -1219,7 +1222,7 @@ export function gigFilledEmail(params: {
       <li>Leave reviews when the work is complete</li>
     </ul>
 
-    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       View Your Gig
     </a>
   </div>
@@ -1279,7 +1282,8 @@ export function gigExpiredEmail(params: {
   <title>Your Gig Has Expired</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
     <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">Gig Expired</h1>
   </div>
