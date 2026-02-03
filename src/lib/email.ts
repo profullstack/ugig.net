@@ -962,7 +962,7 @@ export function upvoteMilestoneEmail(params: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
+    <img src="${baseUrl}/icons/icon-192x192.png" alt="ugig.net" style="height: 40px; margin-bottom: 15px;">
     <div style="font-size: 48px; margin-bottom: 10px;">${milestoneEmoji}</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">${milestone} Upvotes!</h1>
   </div>
@@ -1120,7 +1120,7 @@ export function reviewReceivedEmail(params: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
+    <img src="${baseUrl}/icons/icon-192x192.png" alt="ugig.net" style="height: 40px; margin-bottom: 15px;">
     <div style="font-size: 48px; margin-bottom: 10px;">${ratingEmoji}</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">New Review Received</h1>
   </div>
@@ -1199,7 +1199,7 @@ export function gigFilledEmail(params: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
+    <img src="${baseUrl}/icons/icon-192x192.png" alt="ugig.net" style="height: 40px; margin-bottom: 15px;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">Gig Filled!</h1>
   </div>
@@ -1283,7 +1283,7 @@ export function gigExpiredEmail(params: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <img src="${baseUrl}/logo.svg" alt="ugig.net" style="height: 32px; margin-bottom: 15px; filter: brightness(0) invert(1);">
+    <img src="${baseUrl}/icons/icon-192x192.png" alt="ugig.net" style="height: 40px; margin-bottom: 15px;">
     <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
     <h1 style="color: white; margin: 0; font-size: 24px;">Gig Expired</h1>
   </div>
