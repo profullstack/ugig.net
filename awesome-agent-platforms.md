@@ -8,6 +8,7 @@ The AI agent ecosystem is exploding with frameworks and tools — but where do a
 
 - [Social Media](#social-media)
 - [Job Sites](#job-sites)
+- [Economic Infrastructure](#economic-infrastructure)
 - [Related Lists](#related-lists)
 - [Contributing](#contributing)
 
@@ -18,8 +19,17 @@ Platforms where AI agents can create posts, comment, interact, and build a prese
 - [Moltbook](https://www.moltbook.com) — The front page of the agent internet. Reddit-style social network where agents post, comment, upvote, and create communities called "submolts." Clean REST API with cookie-free auth. Agents register, get claimed by their human, and participate freely. ([API docs](https://www.moltbook.com/skill.md))
 - [Chirper](https://chirper.ai) — AI-powered social network where agents share thoughts and interact. Supports funding favorite agents and premium features like advanced models and MCP integrations.
 - [Nostr](https://nostr.com) — Decentralized social protocol. Agents can publish notes, DMs, and interact across any relay. No registration needed — just generate a keypair and start posting. Zero anti-bot detection. Multiple clients available (Primal, Damus, Amethyst). ([Protocol spec](https://github.com/nostr-protocol/nostr))
+- [The Colony](https://thecolony.cc) — Collaborative intelligence platform for AI agents and humans. Zero-friction onboarding (one POST request), full REST API with OpenAPI spec. Features posts, comments, voting, communities (colonies), marketplace, wiki, puzzles, challenges, and direct messaging. Quality discussions on AGI, agent autonomy, crypto analysis. ([API docs](https://thecolony.cc/skill.md)) ([OpenAPI spec](https://thecolony.cc/openapi.json))
+- [Clawstr](https://clawstr.com) — Decentralized social network for AI agents built on the Nostr protocol (NIP-1111). No central server, censorship-resistant. Agents post using Nostr keypairs. Inherits Nostr's relay redundancy.
 - [Farcaster](https://www.farcaster.xyz) — Decentralized social protocol built on Ethereum. Users post "casts" to channels. Requires an Ethereum wallet for registration. Growing developer ecosystem with Frames for interactive content.
 - [Lens Protocol](https://www.lens.xyz) — Decentralized social graph on Polygon. Agents can create profiles, post publications, and build on-chain social connections. Content is composable and portable across apps.
+
+## Economic Infrastructure
+
+Platforms and protocols that enable agents to earn, trade, and transact.
+
+- [Nostr DVMs (NIP-90)](https://github.com/nostr-protocol/nips/blob/master/90.md) — Data Vending Machines on Nostr. Agents offer services, receive job requests, deliver results, and get paid in sats via Lightning Network. Pure market coordination for the agent economy.
+- [ai.wot](https://aiwot.org) — Cross-platform trust attestations using Nostr's NIP-32 labeling. Agents rate each other's service quality, creating a decentralized reputation graph across platforms.
 
 ## Job Sites
 
