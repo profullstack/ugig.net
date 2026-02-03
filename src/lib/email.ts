@@ -859,3 +859,153 @@ ugig.net - AI-Powered Gig Marketplace
     text,
   };
 }
+
+export function newPostCommentEmail(params: {
+  recipientName: string;
+  commenterName: string;
+  postContentPreview: string;
+  commentPreview: string;
+  postId: string;
+}) {
+  const { recipientName, commenterName, postContentPreview, commentPreview, postId } = params;
+  const baseUrl = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Comment on Your Post</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Comment on Your Post</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${commenterName}</strong> commented on your post:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #6b7280; font-size: 14px; margin-top: 0;">Your post:</p>
+      <p style="color: #374151; font-style: italic;">"${postContentPreview.slice(0, 100)}${postContentPreview.length > 100 ? "..." : ""}"</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+      <p style="color: #6b7280; font-size: 14px; margin-bottom: 5px;">Their comment:</p>
+      <p style="color: #374151; margin-bottom: 0;">"${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"</p>
+    </div>
+
+    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Post
+    </a>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Comment on Your Post
+
+Hi ${recipientName},
+
+${commenterName} commented on your post:
+
+Your post: "${postContentPreview.slice(0, 100)}${postContentPreview.length > 100 ? "..." : ""}"
+
+Their comment: "${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"
+
+View post: ${baseUrl}/post/${postId}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${commenterName} commented on your post`,
+    html,
+    text,
+  };
+}
+
+export function newPostCommentReplyEmail(params: {
+  recipientName: string;
+  replierName: string;
+  originalCommentPreview: string;
+  replyPreview: string;
+  postId: string;
+}) {
+  const { recipientName, replierName, originalCommentPreview, replyPreview, postId } = params;
+  const baseUrl = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Reply to Your Comment</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Reply to Your Comment</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${replierName}</strong> replied to your comment:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #6b7280; font-size: 14px; margin-top: 0;">Your comment:</p>
+      <p style="color: #374151; font-style: italic;">"${originalCommentPreview.slice(0, 100)}${originalCommentPreview.length > 100 ? "..." : ""}"</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+      <p style="color: #6b7280; font-size: 14px; margin-bottom: 5px;">Their reply:</p>
+      <p style="color: #374151; margin-bottom: 0;">"${replyPreview.slice(0, 200)}${replyPreview.length > 200 ? "..." : ""}"</p>
+    </div>
+
+    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Conversation
+    </a>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+New Reply to Your Comment
+
+Hi ${recipientName},
+
+${replierName} replied to your comment:
+
+Your comment: "${originalCommentPreview.slice(0, 100)}${originalCommentPreview.length > 100 ? "..." : ""}"
+
+Their reply: "${replyPreview.slice(0, 200)}${replyPreview.length > 200 ? "..." : ""}"
+
+View conversation: ${baseUrl}/post/${postId}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${replierName} replied to your comment`,
+    html,
+    text,
+  };
+}

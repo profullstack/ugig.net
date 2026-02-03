@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { postCommentSchema } from "@/lib/validations";
+import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail } from "@/lib/email";
 
 // GET /api/posts/[id]/comments - List comments for a post
 export async function GET(
@@ -177,23 +178,31 @@ export async function POST(
         : comment.author,
     };
 
+    // Get commenter's profile for notifications
+    const { data: commenterProfile } = await supabase
+      .from("profiles")
+      .select("username, full_name")
+      .eq("id", user.id)
+      .single();
+
+    const commenterName =
+      commenterProfile?.full_name || commenterProfile?.username || "Someone";
+
+    // Get post content for email
+    const { data: fullPost } = await supabase
+      .from("posts")
+      .select("content")
+      .eq("id", id)
+      .single();
+
     // Create in-app notification for post author (if not self-commenting)
     if (post.author_id !== user.id && !parent_id) {
-      const { data: authorProfile } = await supabase
-        .from("profiles")
-        .select("username, full_name")
-        .eq("id", user.id)
-        .single();
-
-      const authorName =
-        authorProfile?.full_name || authorProfile?.username || "Someone";
-
       void supabase
         .from("notifications")
         .insert({
           user_id: post.author_id,
           type: "new_comment" as const,
-          title: `${authorName} commented on your post`,
+          title: `${commenterName} commented on your post`,
           body: content.slice(0, 200),
           data: { post_id: id, comment_id: comment.id },
         })
@@ -201,32 +210,53 @@ export async function POST(
           () => {},
           () => {}
         );
+
+      // Send email notification to post author
+      const adminClient = createServiceClient();
+      const { data: postAuthorAuth } = await adminClient.auth.admin.getUserById(
+        post.author_id
+      );
+      const postAuthorEmail = postAuthorAuth?.user?.email;
+
+      if (postAuthorEmail) {
+        const { data: postAuthorProfile } = await supabase
+          .from("profiles")
+          .select("full_name, username")
+          .eq("id", post.author_id)
+          .single();
+
+        const emailContent = newPostCommentEmail({
+          recipientName: postAuthorProfile?.full_name || postAuthorProfile?.username || "there",
+          commenterName,
+          postContentPreview: fullPost?.content || "",
+          commentPreview: content,
+          postId: id,
+        });
+
+        void sendEmail({
+          to: postAuthorEmail,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+        }).catch(() => {});
+      }
     }
 
     // Notify parent comment author on reply
     if (parent_id) {
       const { data: parentComment } = await supabase
         .from("post_comments")
-        .select("author_id")
+        .select("author_id, content")
         .eq("id", parent_id)
         .single();
 
       if (parentComment && parentComment.author_id !== user.id) {
-        const { data: authorProfile } = await supabase
-          .from("profiles")
-          .select("username, full_name")
-          .eq("id", user.id)
-          .single();
-
-        const authorName =
-          authorProfile?.full_name || authorProfile?.username || "Someone";
-
         void supabase
           .from("notifications")
           .insert({
             user_id: parentComment.author_id,
             type: "new_comment" as const,
-            title: `${authorName} replied to your comment`,
+            title: `${commenterName} replied to your comment`,
             body: content.slice(0, 200),
             data: { post_id: id, comment_id: comment.id, parent_id },
           })
@@ -234,6 +264,36 @@ export async function POST(
             () => {},
             () => {}
           );
+
+        // Send email notification to parent comment author
+        const adminClient = createServiceClient();
+        const { data: parentAuthorAuth } = await adminClient.auth.admin.getUserById(
+          parentComment.author_id
+        );
+        const parentAuthorEmail = parentAuthorAuth?.user?.email;
+
+        if (parentAuthorEmail) {
+          const { data: parentAuthorProfile } = await supabase
+            .from("profiles")
+            .select("full_name, username")
+            .eq("id", parentComment.author_id)
+            .single();
+
+          const emailContent = newPostCommentReplyEmail({
+            recipientName: parentAuthorProfile?.full_name || parentAuthorProfile?.username || "there",
+            replierName: commenterName,
+            originalCommentPreview: parentComment.content || "",
+            replyPreview: content,
+            postId: id,
+          });
+
+          void sendEmail({
+            to: parentAuthorEmail,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+          }).catch(() => {});
+        }
       }
     }
 
