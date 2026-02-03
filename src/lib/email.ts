@@ -1,6 +1,16 @@
 import { Resend } from "resend";
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "notifications@ugig.net";
+const PRODUCTION_URL = "https://ugig.net";
+
+/** Get the app base URL, never returning localhost for emails */
+function getBaseUrl(): string {
+  const appUrl = process.env.APP_URL;
+  if (appUrl && !appUrl.includes("localhost")) return appUrl;
+  const nextUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (nextUrl && !nextUrl.includes("localhost")) return nextUrl;
+  return PRODUCTION_URL;
+}
 
 function getResendClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
@@ -52,7 +62,7 @@ export function videoCallInviteEmail(params: {
   scheduledAt?: string | null;
 }) {
   const { participantName, initiatorName, callId, gigTitle, scheduledAt } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
   const joinUrl = `${baseUrl}/dashboard/calls/${callId}`;
 
   const gigLine = gigTitle
@@ -144,7 +154,7 @@ export function newApplicationEmail(params: {
   coverLetterPreview: string;
 }) {
   const { posterName, applicantName, gigTitle, gigId, coverLetterPreview } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const html = `
 <!DOCTYPE html>
@@ -222,7 +232,7 @@ export function applicationStatusEmail(params: {
   posterName: string;
 }) {
   const { applicantName, gigTitle, gigId, status, posterName } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const statusMessages: Record<string, { title: string; message: string; color: string }> = {
     reviewing: {
@@ -321,7 +331,7 @@ export function newGigCommentEmail(params: {
   commentPreview: string;
 }) {
   const { posterName, commenterName, gigTitle, gigId, commentPreview } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const html = `
 <!DOCTYPE html>
@@ -394,7 +404,7 @@ export function newGigCommentReplyEmail(params: {
   replyPreview: string;
 }) {
   const { recipientName, replierName, gigTitle, gigId, replyPreview } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const html = `
 <!DOCTYPE html>
@@ -461,7 +471,7 @@ export function newFollowerEmail(params: {
   followerUsername: string;
 }) {
   const { recipientName, followerName, followerUsername } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const html = `
 <!DOCTYPE html>
@@ -528,7 +538,7 @@ export function endorsementReceivedEmail(params: {
   endorsedUsername: string;
 }) {
   const { endorsedName, endorserName, skill, comment, endorsedUsername } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const commentBlock = comment
     ? `<p style="color: #6b7280; font-size: 14px; font-style: italic; margin-top: 10px;">"${comment}"</p>`
@@ -613,7 +623,7 @@ export function newMessageEmail(params: {
   gigTitle: string | null;
 }) {
   const { recipientName, senderName, messagePreview, conversationId, gigTitle } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
 
   const contextLine = gigTitle
     ? `<p style="color: #6b7280; font-size: 14px;">Regarding: <strong>${gigTitle}</strong></p>`
@@ -686,7 +696,7 @@ ugig.net - AI-Powered Gig Marketplace
 
 export function welcomeEmail(params: { name: string }) {
   const { name } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
   const displayName = name || "there";
 
   const html = `
@@ -767,7 +777,7 @@ ugig.net - AI-Powered Gig Marketplace
 
 export function profileReminderEmail(params: { name: string; daysAgo: number }) {
   const { name, daysAgo } = params;
-  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getBaseUrl();
   const displayName = name || "there";
   const daysText = daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`;
 
