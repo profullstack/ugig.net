@@ -76,21 +76,32 @@ export default async function PostPage({ params }: PostPageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Get user vote if logged in
+  // Get user vote and followed tags if logged in
   let userVote: number | null = null;
+  let followedTags: string[] = [];
   if (user) {
-    const { data: vote } = await supabase
-      .from("post_votes")
-      .select("vote_type")
-      .eq("post_id", id)
-      .eq("user_id", user.id)
-      .single();
-    if (vote) {
-      userVote = vote.vote_type;
+    const [voteResult, tagsResult] = await Promise.all([
+      supabase
+        .from("post_votes")
+        .select("vote_type")
+        .eq("post_id", id)
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("tag_follows")
+        .select("tag")
+        .eq("user_id", user.id),
+    ]);
+    if (voteResult.data) {
+      userVote = voteResult.data.vote_type;
+    }
+    if (tagsResult.data) {
+      followedTags = tagsResult.data.map((t: { tag: string }) => t.tag);
     }
   }
 
   const postWithVote = { ...post, user_vote: userVote };
+  const followedTagsSet = new Set(followedTags);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -105,7 +116,11 @@ export default async function PostPage({ params }: PostPageProps) {
         </Link>
 
         <div className="space-y-8">
-          <PostCard post={postWithVote} />
+          <PostCard
+            post={postWithVote}
+            showFollowButtons={!!user}
+            followedTags={followedTagsSet}
+          />
 
           <PostComments
             postId={id}
