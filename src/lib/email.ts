@@ -1094,3 +1094,257 @@ ugig.net - AI-Powered Gig Marketplace
     text,
   };
 }
+
+export function reviewReceivedEmail(params: {
+  recipientName: string;
+  reviewerName: string;
+  gigTitle: string;
+  gigId: string;
+  rating: number;
+  comment?: string;
+}) {
+  const { recipientName, reviewerName, gigTitle, gigId, rating, comment } = params;
+  const baseUrl = getBaseUrl();
+
+  const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+  const ratingEmoji = rating >= 4 ? "🌟" : rating >= 3 ? "⭐" : "📝";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Review Received</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 10px;">${ratingEmoji}</div>
+    <h1 style="color: white; margin: 0; font-size: 24px;">New Review Received</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${reviewerName}</strong> left you a review for <strong>${gigTitle}</strong>:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+      <div style="font-size: 28px; color: #f59e0b; letter-spacing: 4px;">${stars}</div>
+      <p style="color: #374151; font-weight: 600; margin: 10px 0 0 0;">${rating} out of 5 stars</p>
+      ${comment ? `<p style="color: #6b7280; font-style: italic; margin: 15px 0 0 0;">"${comment.slice(0, 300)}${comment.length > 300 ? "..." : ""}"</p>` : ""}
+    </div>
+
+    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Gig
+    </a>
+
+    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+      Reviews help build your reputation on ugig.net. Keep up the great work!
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+${ratingEmoji} New Review Received
+
+Hi ${recipientName},
+
+${reviewerName} left you a review for ${gigTitle}:
+
+${stars} (${rating}/5 stars)
+${comment ? `"${comment.slice(0, 300)}${comment.length > 300 ? "..." : ""}"` : ""}
+
+View gig: ${baseUrl}/gig/${gigId}
+
+Reviews help build your reputation on ugig.net. Keep up the great work!
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `⭐ ${reviewerName} left you a ${rating}-star review`,
+    html,
+    text,
+  };
+}
+
+export function gigFilledEmail(params: {
+  posterName: string;
+  gigTitle: string;
+  gigId: string;
+  hiredCount: number;
+}) {
+  const { posterName, gigTitle, gigId, hiredCount } = params;
+  const baseUrl = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Gig Has Been Filled!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+    <h1 style="color: white; margin: 0; font-size: 24px;">Gig Filled!</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${posterName},</p>
+
+    <p>Great news! Your gig <strong>"${gigTitle}"</strong> has been marked as filled.</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #374151; margin: 0;">
+        <strong>${hiredCount}</strong> talented ${hiredCount === 1 ? "professional has" : "professionals have"} been hired for this project.
+      </p>
+    </div>
+
+    <p>Next steps:</p>
+    <ul style="color: #374151;">
+      <li>Connect with your hired talent through messages</li>
+      <li>Set clear expectations and milestones</li>
+      <li>Leave reviews when the work is complete</li>
+    </ul>
+
+    <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Your Gig
+    </a>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+🎉 Gig Filled!
+
+Hi ${posterName},
+
+Great news! Your gig "${gigTitle}" has been marked as filled.
+
+${hiredCount} talented ${hiredCount === 1 ? "professional has" : "professionals have"} been hired for this project.
+
+Next steps:
+- Connect with your hired talent through messages
+- Set clear expectations and milestones
+- Leave reviews when the work is complete
+
+View your gig: ${baseUrl}/gig/${gigId}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `🎉 Your gig "${gigTitle}" has been filled!`,
+    html,
+    text,
+  };
+}
+
+export function gigExpiredEmail(params: {
+  posterName: string;
+  gigTitle: string;
+  gigId: string;
+  applicantCount: number;
+}) {
+  const { posterName, gigTitle, gigId, applicantCount } = params;
+  const baseUrl = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Gig Has Expired</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
+    <h1 style="color: white; margin: 0; font-size: 24px;">Gig Expired</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${posterName},</p>
+
+    <p>Your gig <strong>"${gigTitle}"</strong> has reached its expiration date and is no longer accepting applications.</p>
+
+    ${applicantCount > 0 ? `
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #374151; margin: 0;">
+        You received <strong>${applicantCount}</strong> ${applicantCount === 1 ? "application" : "applications"} for this gig.
+        ${applicantCount > 0 ? "Don't forget to review them!" : ""}
+      </p>
+    </div>
+    ` : `
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #374151; margin: 0;">
+        This gig didn't receive any applications. Consider reposting with updated details or a more competitive budget.
+      </p>
+    </div>
+    `}
+
+    <p>What would you like to do?</p>
+
+    <div style="margin-top: 20px;">
+      <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-right: 10px;">
+        View Gig
+      </a>
+      <a href="${baseUrl}/dashboard/gigs/new" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500;">
+        Post New Gig
+      </a>
+    </div>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+⏰ Gig Expired
+
+Hi ${posterName},
+
+Your gig "${gigTitle}" has reached its expiration date and is no longer accepting applications.
+
+${applicantCount > 0 ? `You received ${applicantCount} ${applicantCount === 1 ? "application" : "applications"} for this gig. Don't forget to review them!` : "This gig didn't receive any applications. Consider reposting with updated details or a more competitive budget."}
+
+View gig: ${baseUrl}/gig/${gigId}
+Post new gig: ${baseUrl}/dashboard/gigs/new
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `⏰ Your gig "${gigTitle}" has expired`,
+    html,
+    text,
+  };
+}

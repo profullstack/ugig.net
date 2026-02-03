@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { sendEmail, gigFilledEmail } from "@/lib/email";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -23,7 +24,7 @@ export async function PATCH(
     // Check ownership and get current status
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id, status, created_at")
+      .select("poster_id, status, created_at, title, poster:profiles!poster_id(full_name, username)")
       .eq("id", id)
       .single();
 
@@ -113,6 +114,35 @@ export async function PATCH(
       old_status: oldStatus,
       new_status: newStatus,
     });
+
+    // Send email when gig is filled
+    if (newStatus === "filled" && oldStatus !== "filled") {
+      // Get count of accepted applications
+      const { count: hiredCount } = await supabase
+        .from("applications")
+        .select("*", { count: "exact", head: true })
+        .eq("gig_id", id)
+        .eq("status", "accepted");
+
+      // Get poster email
+      const adminClient = createServiceClient();
+      const { data: posterAuth } = await adminClient.auth.admin.getUserById(user.id);
+      const posterEmail = posterAuth?.user?.email;
+
+      const poster = existingGig.poster as { full_name: string | null; username: string | null } | null;
+
+      if (posterEmail) {
+        void sendEmail({
+          to: posterEmail,
+          ...gigFilledEmail({
+            posterName: poster?.full_name || poster?.username || "there",
+            gigTitle: existingGig.title || "Your gig",
+            gigId: id,
+            hiredCount: hiredCount || 0,
+          }),
+        });
+      }
+    }
 
     return NextResponse.json({ gig });
   } catch {

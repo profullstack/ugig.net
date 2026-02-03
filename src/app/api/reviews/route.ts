@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { sendEmail, reviewReceivedEmail } from "@/lib/email";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Verify gig exists and user is involved (poster or accepted applicant)
     const { data: gig } = await supabase
       .from("gigs")
-      .select("id, poster_id, status")
+      .select("id, title, poster_id, status")
       .eq("id", gig_id)
       .single();
 
@@ -223,6 +224,29 @@ export async function POST(request: NextRequest) {
       rating,
       comment: comment || null,
     });
+
+    // Send email notification to reviewee
+    const reviewee = Array.isArray(review.reviewee) ? review.reviewee[0] : review.reviewee;
+    const reviewer = Array.isArray(review.reviewer) ? review.reviewer[0] : review.reviewer;
+    
+    // Get reviewee email from auth
+    const adminClient = createServiceClient();
+    const { data: revieweeAuth } = await adminClient.auth.admin.getUserById(reviewee_id);
+    const revieweeEmail = revieweeAuth?.user?.email;
+
+    if (revieweeEmail && gig) {
+      void sendEmail({
+        to: revieweeEmail,
+        ...reviewReceivedEmail({
+          recipientName: reviewee?.full_name || reviewee?.username || "there",
+          reviewerName: reviewer?.full_name || reviewer?.username || "Someone",
+          gigTitle: gig.title || "a gig",
+          gigId: gig_id,
+          rating,
+          comment,
+        }),
+      });
+    }
 
     return NextResponse.json({ data: review }, { status: 201 });
   } catch {
