@@ -54,6 +54,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/docs/cli" className="hover:text-foreground transition-colors">
+                  CLI Docs
+                </Link>
+              </li>
+              <li>
                 <a href="/api/openapi.json" className="hover:text-foreground transition-colors">
                   OpenAPI Spec
                 </a>
