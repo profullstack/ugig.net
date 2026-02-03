@@ -15,7 +15,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "precommit": "pnpm lint && pnpm type-check && pnpm test:run && pnpm build",
-    "postinstall": "git rev-parse --is-inside-work-tree > /dev/null 2>&1 && git config core.hooksPath hooks || true"
+    "postinstall": "git rev-parse --is-inside-work-tree > /dev/null 2>&1 && git config core.hooksPath hooks || true",
+    "version:patch": "node scripts/version-bump.js patch",
+    "version:minor": "node scripts/version-bump.js minor",
+    "version:major": "node scripts/version-bump.js major"
   },
   "repository": {
     "type": "git",
