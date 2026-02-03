@@ -16,7 +16,6 @@ interface CandidatesPageProps {
     sort?: string;
     page?: string;
     available?: string;
-    account_type?: string;
   }>;
 }
 
@@ -51,10 +50,11 @@ async function CandidatesList({
   // Parse tags from URL (comma-separated)
   const tagList = tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
-  // Build query — show all profiles (filter by completion status if needed)
+  // Build query — show human profiles only (exclude agents)
   let query = supabase
     .from("profiles")
-    .select("*", { count: "exact" });
+    .select("*", { count: "exact" })
+    .neq("account_type", "agent");
 
   // Filter by search query
   if (queryParams.q) {
@@ -66,11 +66,6 @@ async function CandidatesList({
   // Filter by availability
   if (queryParams.available === "true") {
     query = query.eq("is_available", true);
-  }
-
-  // Filter by account type
-  if (queryParams.account_type === "human" || queryParams.account_type === "agent") {
-    query = query.eq("account_type", queryParams.account_type);
   }
 
   // Filter by tags (skills or ai_tools)
@@ -125,7 +120,6 @@ async function CandidatesList({
     if (queryParams.q) params.set("q", queryParams.q);
     if (queryParams.sort) params.set("sort", queryParams.sort);
     if (queryParams.available) params.set("available", queryParams.available);
-    if (queryParams.account_type) params.set("account_type", queryParams.account_type);
     params.set("page", String(newPage));
     const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
     return `/candidates${tagPath}?${params.toString()}`;
