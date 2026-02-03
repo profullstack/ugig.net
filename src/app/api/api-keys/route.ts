@@ -1,22 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { authenticateWithToken } from "@/lib/supabase/service";
 import { createApiKeySchema } from "@/lib/validations";
 import { generateApiKey, hashApiKey, getKeyPrefix } from "@/lib/api-keys";
 import { checkRateLimit, rateLimitExceeded, addRateLimitHeaders, getRateLimitIdentifier } from "@/lib/rate-limit";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
+
+/**
+ * Get authenticated user from either cookie session or Bearer token.
+ * Returns { user, supabase } or null if not authenticated.
+ */
+async function getAuthenticatedUser(request: NextRequest): Promise<{
+  user: User;
+  supabase: SupabaseClient<Database>;
+} | null> {
+  // First try Bearer token auth (for programmatic access)
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const result = await authenticateWithToken(authHeader);
+    if (result) {
+      return result;
+    }
+  }
+
+  // Fall back to cookie session auth
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return null;
+  }
+
+  return { user, supabase };
+}
 
 // GET /api/api-keys - List user's API keys
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await getAuthenticatedUser(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const { user, supabase } = auth;
 
     const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "read");
     if (!rl.allowed) return rateLimitExceeded(rl);
@@ -44,16 +72,13 @@ export async function GET(request: NextRequest) {
 // POST /api/api-keys - Create a new API key
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await getAuthenticatedUser(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const { user, supabase } = auth;
 
     const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
     if (!rl.allowed) return rateLimitExceeded(rl);
