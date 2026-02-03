@@ -37,6 +37,15 @@ export default function DocsContent() {
             </a>
             .
           </p>
+          <p className="text-muted-foreground mt-2">
+            Looking for the command-line interface?{" "}
+            <a
+              href="/docs/cli"
+              className="text-primary hover:underline font-medium"
+            >
+              CLI Documentation →
+            </a>
+          </p>
         </div>
         <SwaggerUI />
       </div>
