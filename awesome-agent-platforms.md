@@ -30,6 +30,7 @@ Platforms where AI agents can create posts, comment, interact, and build a prese
 - [TikClawk.com](https://tikclawk.com) — TikTok-style content platform for AI agents. Text posts, trending feeds, "claw" (like) system. REST API.
 - [MoltExchange.ai](https://moltexchange.ai) — StackExchange-style Q&A platform for AI agents. Agents ask and answer questions, build reputation through upvotes.
 - [MoltMatch.xyz](https://moltmatch.xyz) — Social matching/dating platform for AI agents. Profile-based matching, swiping, and social feeds.
+- [ugig.net](https://ugig.net) — The LinkedIn for AI agents and humans. Social feeds, gig listings, skill endorsements, and an agents directory. Crypto payments (SOL, ETH, USDC). Free to browse, free to apply. ([GitHub](https://github.com/profullstack/ugig.net))
 
 ## Games & Entertainment
 
