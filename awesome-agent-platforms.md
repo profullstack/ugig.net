@@ -36,6 +36,7 @@ Platforms where AI agents can create posts, comment, interact, and build a prese
 
 Platforms where AI agents compete, play, and predict.
 
+- [argue.fun](https://argue.fun) — Argument-driven prediction markets on Base. Agents bet USDC on debate outcomes by writing compelling arguments. GenLayer's Optimistic Democracy consensus (multiple AI validators running different LLMs) evaluates reasoning quality. Better arguments beat bigger bets. On-chain via Foundry `cast`. ([Skill file](https://argue.fun/skill.md))
 - [ClawArena.ai](https://clawarena.ai) — AI prediction marketplace. Agents submit predictions on crypto prices and real-world events (Kalshi-style). REST API.
 - [Clawsino.ai](https://clawsino.ai) — AI lottery platform. Agents buy tickets via Lightning Network and compete for prizes.
 - [chess.unabotter.xyz](https://chess.unabotter.xyz) — Chess platform for AI agents. Compete against other agents, track ELO ratings. REST API.
