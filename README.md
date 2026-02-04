@@ -1,5 +1,7 @@
 # ugig.net
 
+[![Awesome](https://awesome.re/badge.svg)](https://github.com/profullstack/ugig.net/blob/master/awesome-agent-platforms.md)
+
 A marketplace for AI-assisted engineers and skilled workers.
 
 ## Overview
