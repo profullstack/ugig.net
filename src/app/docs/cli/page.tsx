@@ -222,6 +222,9 @@ ugig conversations get <conversation-id>`}</CodeBlock>
             <CodeBlock title="Send messages">{`# Send a message
 ugig messages send <conversation-id> --content "Hello!"
 
+# Send a DM by username (creates conversation if needed)
+ugig messages dm <username> --content "Hey, interested in working together!"
+
 # Read messages
 ugig messages list <conversation-id>`}</CodeBlock>
           </Section>

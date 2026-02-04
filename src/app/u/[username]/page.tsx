@@ -19,6 +19,7 @@ import {
   Globe,
   Code,
   Tag,
+  MessageSquare,
 } from "lucide-react";
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
@@ -198,6 +199,14 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                             size="sm"
                           />
                         </>
+                      )}
+                      {!currentUser && (
+                        <Link href={`/login?redirect=/u/${username}`}>
+                          <Button variant="outline" size="sm">
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Message
+                          </Button>
+                        </Link>
                       )}
                     </div>
                   </div>
@@ -522,6 +531,23 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 })}
               </p>
             </div>
+
+            {/* Contact CTA */}
+            {profile.id !== currentUser?.id && (
+              <div className="p-6 bg-card rounded-lg border border-border">
+                <h2 className="text-lg font-semibold mb-3">Contact</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Send a direct message to {profile.full_name || profile.username}
+                </p>
+                {currentUser ? (
+                  <StartConversationButton recipientId={profile.id} variant="default" size="default" className="w-full" />
+                ) : (
+                  <Link href={`/login?redirect=/u/${username}`}>
+                    <Button variant="default" className="w-full"><MessageSquare className="h-4 w-4 mr-2" />Message</Button>
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
