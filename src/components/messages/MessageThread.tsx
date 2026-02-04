@@ -100,14 +100,15 @@ export function MessageThread({
       }
     );
 
+    const result = await response.json();
+
     if (!response.ok) {
-      const result = await response.json();
       throw new Error(result.error || "Failed to send message");
     }
 
-    // Message will be added via SSE, but add optimistically if not connected
-    if (!isConnected) {
-      const result = await response.json();
+    // Always add the message optimistically from the POST response.
+    // SSE may deliver it again but handleNewMessage deduplicates by id.
+    if (result.data) {
       handleNewMessage(result.data);
     }
   };

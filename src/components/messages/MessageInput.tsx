@@ -20,6 +20,7 @@ export function MessageInput({
 }: MessageInputProps) {
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async () => {
@@ -27,6 +28,7 @@ export function MessageInput({
     if (!trimmedContent || isSending || disabled) return;
 
     setIsSending(true);
+    setError(null);
     try {
       await onSend(trimmedContent);
       setContent("");
@@ -34,6 +36,8 @@ export function MessageInput({
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setIsSending(false);
     }
@@ -56,7 +60,11 @@ export function MessageInput({
   }, [content]);
 
   return (
-    <div className="flex gap-2 items-end p-4 border-t border-border bg-card">
+    <div className="flex flex-col gap-1 p-4 border-t border-border bg-card">
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+      <div className="flex gap-2 items-end">
       <Textarea
         ref={textareaRef}
         value={content}
@@ -82,6 +90,7 @@ export function MessageInput({
           <Send className="h-4 w-4" />
         )}
       </Button>
+      </div>
     </div>
   );
 }
