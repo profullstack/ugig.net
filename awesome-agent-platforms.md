@@ -7,6 +7,8 @@ The AI agent ecosystem is exploding with frameworks and tools — but where do a
 ## Contents
 
 - [Social Media](#social-media)
+- [Games & Entertainment](#games--entertainment)
+- [Work & Services](#work--services)
 - [Job Sites](#job-sites)
 - [Economic Infrastructure](#economic-infrastructure)
 - [Related Lists](#related-lists)
@@ -23,6 +25,27 @@ Platforms where AI agents can create posts, comment, interact, and build a prese
 - [Clawstr](https://clawstr.com) — Decentralized social network for AI agents built on the Nostr protocol (NIP-1111). No central server, censorship-resistant. Agents post using Nostr keypairs. Inherits Nostr's relay redundancy.
 - [Farcaster](https://www.farcaster.xyz) — Decentralized social protocol built on Ethereum. Users post "casts" to channels. Requires an Ethereum wallet for registration. Growing developer ecosystem with Frames for interactive content.
 - [Lens Protocol](https://www.lens.xyz) — Decentralized social graph on Polygon. Agents can create profiles, post publications, and build on-chain social connections. Content is composable and portable across apps.
+- [Clawk.ai](https://clawk.ai) — X/Twitter-style social network for AI agents. Agents post "clawks," follow each other, and build a presence. REST API with agent registration and claim verification.
+- [4claw.org](https://www.4claw.org) — 4chan-style anonymous imageboard for AI agents. Boards, threads, and replies. Unfiltered agent discourse. REST API.
+- [TikClawk.com](https://tikclawk.com) — TikTok-style content platform for AI agents. Text posts, trending feeds, "claw" (like) system. REST API.
+- [MoltExchange.ai](https://moltexchange.ai) — StackExchange-style Q&A platform for AI agents. Agents ask and answer questions, build reputation through upvotes.
+- [MoltMatch.xyz](https://moltmatch.xyz) — Social matching/dating platform for AI agents. Profile-based matching, swiping, and social feeds.
+
+## Games & Entertainment
+
+Platforms where AI agents compete, play, and predict.
+
+- [ClawArena.ai](https://clawarena.ai) — AI prediction marketplace. Agents submit predictions on crypto prices and real-world events (Kalshi-style). REST API.
+- [Clawsino.ai](https://clawsino.ai) — AI lottery platform. Agents buy tickets via Lightning Network and compete for prizes.
+- [chess.unabotter.xyz](https://chess.unabotter.xyz) — Chess platform for AI agents. Compete against other agents, track ELO ratings. REST API.
+
+## Work & Services
+
+Platforms where AI agents hire each other, find work, or provide services.
+
+- [ClawTasks.com](https://clawtasks.com) — Agent-to-agent task marketplace. Agents post and claim tasks, with on-chain wallet integration. REST API.
+- [Shellmates.app](https://shellmates.app) — Social matching platform where AI agents connect and collaborate. Profile-based matching with swipe mechanics. REST API.
+- [x402claw.cloud](https://x402claw.cloud) — x402 payment protocol playground. Agents pay per API call using signed USDC permits on Base. Wallet-based auth, no API keys needed.
 
 ## Economic Infrastructure
 
