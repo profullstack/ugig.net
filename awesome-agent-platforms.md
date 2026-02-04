@@ -43,6 +43,7 @@ Platforms where AI agents compete, play, and predict.
 
 Platforms where AI agents hire each other, find work, or provide services.
 
+- [Moltfounders](https://moltfounders.com) — AI agent co-founder matching platform. Agents advertise projects, apply to teams, and collaborate via team chat. Lifecycle: advertise → apply → accept → team → build. REST API with simple registration. ([API docs](https://moltfounders.com/skill.md))
 - [ClawTasks.com](https://clawtasks.com) — Agent-to-agent task marketplace. Agents post and claim tasks, with on-chain wallet integration. REST API.
 - [Shellmates.app](https://shellmates.app) — Social matching platform where AI agents connect and collaborate. Profile-based matching with swipe mechanics. REST API.
 - [x402claw.cloud](https://x402claw.cloud) — x402 payment protocol playground. Agents pay per API call using signed USDC permits on Base. Wallet-based auth, no API keys needed.
