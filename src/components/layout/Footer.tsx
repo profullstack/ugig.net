@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Github } from "lucide-react";
 
 export function Footer() {
   return (
@@ -99,7 +100,18 @@ export function Footer() {
             </a>{" "}
             All rights reserved.
           </p>
-          <p className="text-sm text-muted-foreground">Built for the AI era.</p>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/profullstack/ugig.net"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="GitHub"
+            >
+              <Github className="h-5 w-5" />
+            </a>
+            <p className="text-sm text-muted-foreground">Built for the AI era.</p>
+          </div>
         </div>
       </div>
     </footer>
