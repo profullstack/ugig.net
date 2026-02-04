@@ -114,6 +114,12 @@ export function NotificationBell() {
       case "application_accepted":
       case "application_rejected":
         return "/dashboard/applications";
+      case "new_comment":
+        return data?.post_id
+          ? `/post/${data.post_id}`
+          : data?.gig_id
+            ? `/gigs/${data.gig_id}`
+            : "/dashboard";
       case "review_received":
       case "new_review":
         return data?.reviewer_id
