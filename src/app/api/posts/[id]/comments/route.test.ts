@@ -15,6 +15,19 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: vi.fn(),
+  createServiceClient: vi.fn(() => ({
+    auth: {
+      admin: {
+        getUserById: vi.fn().mockResolvedValue({ data: null }),
+      },
+    },
+  })),
+}));
+
+vi.mock("@/lib/email", () => ({
+  sendEmail: vi.fn().mockResolvedValue(undefined),
+  newPostCommentEmail: vi.fn().mockReturnValue({ subject: "", html: "", text: "" }),
+  newPostCommentReplyEmail: vi.fn().mockReturnValue({ subject: "", html: "", text: "" }),
 }));
 
 import { GET, POST } from "./route";
@@ -195,13 +208,13 @@ describe("POST /api/posts/[id]/comments", () => {
   it("creates a top-level comment successfully", async () => {
     mockAuth("user-2");
 
-    // Check post exists
+    // Check post exists (call 1)
     const postChain = chainResult({
       data: { id: "post-1", author_id: "user-1" },
       error: null,
     });
 
-    // Insert comment
+    // Insert comment (call 2)
     const commentData = {
       id: "c1",
       post_id: "post-1",
@@ -211,11 +224,19 @@ describe("POST /api/posts/[id]/comments", () => {
     };
     const insertChain = chainResult({ data: commentData, error: null });
 
-    // Notification chain (profile lookup + insert)
+    // Commenter profile lookup (call 3)
     const profileChain = chainResult({
       data: { username: "commenter", full_name: "A Commenter" },
       error: null,
     });
+
+    // Full post content lookup (call 4)
+    const fullPostChain = chainResult({
+      data: { content: "This is the post content" },
+      error: null,
+    });
+
+    // Notification insert (call 5)
     const notifChain: Record<string, ReturnType<typeof vi.fn>> = {};
     for (const m of ["insert", "then"]) {
       notifChain[m] = vi.fn().mockReturnValue(notifChain);
@@ -225,13 +246,21 @@ describe("POST /api/posts/[id]/comments", () => {
       return notifChain;
     });
 
+    // Post author profile lookup (call 6+)
+    const postAuthorProfileChain = chainResult({
+      data: { username: "postauthor", full_name: "Post Author" },
+      error: null,
+    });
+
     let callCount = 0;
     mockFrom.mockImplementation(() => {
       callCount++;
-      if (callCount === 1) return postChain;
-      if (callCount === 2) return insertChain;
-      if (callCount === 3) return profileChain;
-      return notifChain;
+      if (callCount === 1) return postChain;       // check post exists
+      if (callCount === 2) return insertChain;     // insert comment
+      if (callCount === 3) return profileChain;    // commenter profile
+      if (callCount === 4) return fullPostChain;   // full post content
+      if (callCount === 5) return notifChain;      // notification insert
+      return postAuthorProfileChain;               // post author profile lookup
     });
 
     const res = await POST(
