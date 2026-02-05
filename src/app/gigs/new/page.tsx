@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GigForm } from "@/components/gigs/GigForm";
+import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { Header } from "@/components/layout/Header";
 
 export const metadata = {
@@ -94,6 +95,9 @@ export default async function NewGigPage() {
                   <p className="text-sm">{usageWarning}</p>
                 </div>
               )}
+              <div className="mb-6">
+                <EscrowBadge />
+              </div>
               <GigForm />
             </>
           )}

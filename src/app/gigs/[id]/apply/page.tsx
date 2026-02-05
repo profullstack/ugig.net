@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ApplyForm } from "@/components/applications/ApplyForm";
+import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 
 interface ApplyPageProps {
   params: Promise<{ id: string }>;
@@ -88,6 +89,10 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             <ArrowLeft className="h-4 w-4" />
             Back to gig
           </Link>
+
+          <div className="mb-6">
+            <EscrowBadge />
+          </div>
 
           <ApplyForm
             gigId={gig.id}

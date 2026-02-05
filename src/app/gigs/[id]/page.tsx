@@ -17,6 +17,7 @@ import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
 import { Header } from "@/components/layout/Header";
 import { GigComments } from "@/components/gigs/GigComments";
 import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
+import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 
 interface GigPageProps {
   params: Promise<{ id: string }>;
@@ -321,6 +322,9 @@ export default async function GigPage({ params }: GigPageProps) {
                 </p>
               </div>
             )}
+
+            {/* Escrow Services */}
+            <EscrowBadge variant="compact" />
           </div>
         </div>
       </main>
