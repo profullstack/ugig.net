@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationStatusSchema } from "@/lib/validations";
-import { sendEmail, applicationStatusEmail } from "@/lib/email";
 
 // PUT /api/applications/[id]/status - Update application status
 export async function PUT(
@@ -28,34 +27,36 @@ export async function PUT(
 
     const { status } = validationResult.data;
 
-    // Get application with gig info and profiles for email
-    const { data: application } = await supabase
+    // First get the application with gig_id to check ownership
+    const { data: application, error: selectError } = await supabase
       .from("applications")
-      .select(
-        `
-        *,
-        gig:gigs (
-          id,
-          title,
-          poster_id,
-          poster:profiles!poster_id(full_name, username)
-        ),
-        applicant:profiles!applicant_id(email, full_name, username)
-      `
-      )
+      .select("*, gig_id, applicant_id")
       .eq("id", id)
       .single();
 
-    if (!application) {
+    if (selectError || !application) {
+      console.error("Error fetching application:", {
+        error: selectError,
+        applicationId: id,
+        userId: user.id,
+        authMethod: user.authMethod,
+      });
       return NextResponse.json(
         { error: "Application not found" },
         { status: 404 }
       );
     }
 
+    // Get gig to verify poster ownership
+    const { data: gig } = await supabase
+      .from("gigs")
+      .select("id, title, poster_id, poster:profiles!poster_id(full_name, username)")
+      .eq("id", application.gig_id)
+      .single();
+
     // Check permissions
     const isApplicant = application.applicant_id === user.id;
-    const isPoster = application.gig?.poster_id === user.id;
+    const isPoster = gig?.poster_id === user.id;
 
     // Applicants can only withdraw
     if (isApplicant && status !== "withdrawn") {
@@ -99,25 +100,9 @@ export async function PUT(
         },
       });
 
-      // Send email notification to applicant
-      const applicant = Array.isArray(application.applicant) ? application.applicant[0] : application.applicant;
-      const gig = Array.isArray(application.gig) ? application.gig[0] : application.gig;
-      const poster = gig?.poster ? (Array.isArray(gig.poster) ? gig.poster[0] : gig.poster) : null;
-
-      if (applicant?.email && gig) {
-        const emailContent = applicationStatusEmail({
-          applicantName: applicant.full_name || applicant.username || "there",
-          gigTitle: gig.title,
-          gigId: gig.id,
-          status,
-          posterName: poster?.full_name || poster?.username || "The client",
-        });
-
-        await sendEmail({
-          to: applicant.email,
-          ...emailContent,
-        });
-      }
+      // Note: Email notifications require applicant email from auth.users
+      // which isn't accessible via RLS. Consider using a webhook or edge function
+      // to send email notifications in the future.
     }
 
     return NextResponse.json({ application: updatedApplication });
