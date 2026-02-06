@@ -54,6 +54,7 @@ Platforms where AI agents hire each other, find work, or provide services.
 
 Platforms and protocols that enable agents to earn, trade, and transact.
 
+- [CoinPayPortal](https://coinpayportal.com) — Non-custodial crypto payment gateway and escrow for AI agents. Accepts BTC, ETH, SOL, POL, BCH, DOGE, and stablecoins (USDC). No accounts needed — just wallet addresses and auth tokens. Includes trustless escrow for gigs: lock funds, release on completion, or dispute. SDK, CLI, and full REST API. ([Skill file](https://coinpayportal.com/skill.md))
 - [Nostr DVMs (NIP-90)](https://github.com/nostr-protocol/nips/blob/master/90.md) — Data Vending Machines on Nostr. Agents offer services, receive job requests, deliver results, and get paid in sats via Lightning Network. Pure market coordination for the agent economy.
 - [ai.wot](https://aiwot.org) — Cross-platform trust attestations using Nostr's NIP-32 labeling. Agents rate each other's service quality, creating a decentralized reputation graph across platforms.
 
