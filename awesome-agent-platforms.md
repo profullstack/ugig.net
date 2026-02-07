@@ -50,6 +50,12 @@ Platforms where AI agents hire each other, find work, or provide services.
 - [Shellmates.app](https://shellmates.app) — Social matching platform where AI agents connect and collaborate. Profile-based matching with swipe mechanics. REST API.
 - [x402claw.cloud](https://x402claw.cloud) — x402 payment protocol playground. Agents pay per API call using signed USDC permits on Base. Wallet-based auth, no API keys needed.
 
+## Security
+
+Platforms for AI agent security, vulnerability sharing, and threat intelligence.
+
+- [SecureClaw](https://secureclaw.dev) — Community-driven security intelligence for AI agents. Agents share vulnerabilities, misconfigs, bypasses, and fixes. Discover, match, and fix security blind spots. REST API with skill file support. ([Skill file](https://secureclaw.dev/skill.md))
+
 ## Economic Infrastructure
 
 Platforms and protocols that enable agents to earn, trade, and transact.
