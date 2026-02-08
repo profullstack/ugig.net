@@ -9,6 +9,7 @@ import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { formatRelativeTime } from "@/lib/utils";
 import { ApplicationActions } from "@/components/applications/ApplicationActions";
+import { ExpandableApplicationCard } from "@/components/applications/ExpandableApplicationCard";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
 
 interface ApplicationsPageProps {
@@ -326,49 +327,143 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                     : app.applicant;
 
                   return (
-                    <div
+                    <ExpandableApplicationCard
                       key={app.id}
-                      className="p-4 bg-card rounded-lg border border-border shadow-sm opacity-80"
+                      applicationId={app.id}
+                      header={
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Image
+                              src={applicant?.avatar_url || "/default-avatar.svg"}
+                              alt={applicant?.full_name || applicant?.username || "Applicant"}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                            <div className="text-left">
+                              <p className="font-medium flex items-center gap-2">
+                                {applicant?.full_name || applicant?.username}
+                                {applicant?.verified && (
+                                  <VerifiedBadge verificationType={applicant.verification_type} size="sm" />
+                                )}
+                                {applicant?.account_type === "agent" && (
+                                  <AgentBadge
+                                    agentName={applicant.agent_name}
+                                    operatorUrl={applicant.agent_operator_url}
+                                    size="sm"
+                                  />
+                                )}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Applied {formatRelativeTime(app.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className={`capitalize ${statusColors[app.status] || ""}`}
+                          >
+                            {app.status}
+                          </Badge>
+                        </div>
+                      }
                     >
-                      <div className="flex items-center justify-between">
+                      {/* Cover Letter */}
+                      <div className="mb-4">
+                        <p className="text-sm font-medium mb-2">Cover Letter</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {app.cover_letter}
+                        </p>
+                      </div>
+
+                      {/* Details Row */}
+                      <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
+                        {app.proposed_rate && (
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <DollarSign className="h-4 w-4" />
+                            ${app.proposed_rate} proposed
+                          </span>
+                        )}
+                        {app.proposed_timeline && (
+                          <span className="text-muted-foreground">
+                            Timeline: {app.proposed_timeline}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* AI Tools */}
+                      {app.ai_tools_to_use && app.ai_tools_to_use.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">AI Tools</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {app.ai_tools_to_use.map((tool: string) => (
+                              <Badge key={tool} variant="outline" className="text-xs">
+                                {tool}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Portfolio */}
+                      {app.portfolio_items && app.portfolio_items.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">Portfolio</p>
+                          <div className="flex flex-wrap gap-2">
+                            {app.portfolio_items.map((url: string, i: number) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline flex items-center gap-1"
+                              >
+                                {new URL(url).hostname}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Applicant Skills */}
+                      {applicant?.skills && applicant.skills.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">Applicant Skills</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {applicant.skills.slice(0, 8).map((skill: string) => (
+                              <Badge key={skill} variant="secondary" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {applicant.skills.length > 8 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{applicant.skills.length - 8} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Profile link + Message */}
+                      <div className="pt-4 border-t border-border flex items-center justify-between gap-4">
                         <Link
                           href={`/u/${applicant?.username}`}
-                          className="flex items-center gap-3 hover:opacity-80"
+                          className="text-sm text-primary hover:underline flex items-center gap-1"
                         >
-                          <Image
-                            src={applicant?.avatar_url || "/default-avatar.svg"}
-                            alt={applicant?.full_name || applicant?.username || "Applicant"}
-                            width={40}
-                            height={40}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                          <div>
-                            <p className="font-medium flex items-center gap-2">
-                              {applicant?.full_name || applicant?.username}
-                              {applicant?.verified && (
-                                <VerifiedBadge verificationType={applicant.verification_type} size="sm" />
-                              )}
-                              {applicant?.account_type === "agent" && (
-                                <AgentBadge
-                                  agentName={applicant.agent_name}
-                                  operatorUrl={applicant.agent_operator_url}
-                                  size="sm"
-                                />
-                              )}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Applied {formatRelativeTime(app.created_at)}
-                            </p>
-                          </div>
+                          View Profile
+                          <ExternalLink className="h-3 w-3" />
                         </Link>
-                        <Badge
-                          variant="secondary"
-                          className={`capitalize ${statusColors[app.status] || ""}`}
-                        >
-                          {app.status}
-                        </Badge>
+                        {applicant?.id && (
+                          <StartConversationButton
+                            gigId={gig.id}
+                            recipientId={applicant.id}
+                            variant="outline"
+                            size="sm"
+                          />
+                        )}
                       </div>
-                    </div>
+                    </ExpandableApplicationCard>
                   );
                 })}
               </div>

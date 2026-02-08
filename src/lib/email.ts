@@ -288,8 +288,11 @@ export function applicationStatusEmail(params: {
       </p>
     </div>
 
-    <a href="${baseUrl}/dashboard/applications" style="display: inline-block; background: ${statusInfo.color}; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
-      View Your Applications
+    <a href="${baseUrl}/gigs/${gigId}" style="display: inline-block; background: ${statusInfo.color}; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Gig Details
+    </a>
+    <a href="${baseUrl}/dashboard/applications" style="display: inline-block; background: transparent; color: ${statusInfo.color}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px; border: 1px solid ${statusInfo.color}; margin-left: 8px;">
+      Your Applications
     </a>
   </div>
 
@@ -310,6 +313,7 @@ ${statusInfo.message}
 Gig: ${gigTitle}
 Posted by: ${posterName}
 
+View gig details: ${baseUrl}/gigs/${gigId}
 View your applications: ${baseUrl}/dashboard/applications
 
 ---
