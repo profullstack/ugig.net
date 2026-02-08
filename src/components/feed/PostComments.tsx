@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MessageSquare, Reply, Edit2, Trash2, Send, X, ArrowBigUp, ArrowBigDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { parseContentWithMentions } from "@/lib/mentions";
@@ -404,10 +405,10 @@ export function PostComments({
         {/* Reply form */}
         {replyingTo === comment.id && currentUserId && (
           <div className={`${indentClass} ml-10 mt-3 pt-3 border-t border-border`}>
-            <Textarea
+            <MentionTextarea
               placeholder="Write a reply..."
               value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
+              onChange={(val) => setReplyContent(val)}
               className="min-h-[80px] text-sm mb-2"
               maxLength={2000}
               autoFocus
@@ -471,10 +472,10 @@ export function PostComments({
       {/* New comment form */}
       {currentUserId ? (
         <form onSubmit={handleSubmitComment} className="mb-8">
-          <Textarea
+          <MentionTextarea
             placeholder="Write a comment..."
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={(val) => setNewComment(val)}
             className="min-h-[100px] mb-3"
             maxLength={2000}
           />
