@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PostCard } from "@/components/feed/PostCard";
 import { PostComments } from "@/components/feed/PostComments";
+import { PostViewTracker } from "@/components/feed/PostViewTracker";
 import type { Metadata } from "next";
 
 interface PostPageProps {
@@ -61,16 +62,6 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  // Increment view count (fire and forget)
-  void supabase
-    .from("posts")
-    .update({ views_count: (post.views_count || 0) + 1 })
-    .eq("id", id)
-    .then(
-      () => {},
-      () => {}
-    );
-
   // Get current user
   const {
     data: { user },
@@ -115,6 +106,7 @@ export default async function PostPage({ params }: PostPageProps) {
           Back to Feed
         </Link>
 
+        <PostViewTracker postId={id} />
         <div className="space-y-8">
           <PostCard
             post={postWithVote}

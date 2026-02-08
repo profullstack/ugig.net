@@ -3,11 +3,34 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MessageSquare, Reply, Edit2, Trash2, Send, X } from "lucide-react";
+import { MessageSquare, Reply, Edit2, Trash2, Send, X, ArrowBigUp, ArrowBigDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/lib/utils";
-import type { PostCommentThread, PostCommentWithAuthor } from "@/types";
+import { cn } from "@/lib/utils";
+
+interface CommentAuthor {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+interface CommentData {
+  id: string;
+  post_id: string;
+  author_id: string;
+  parent_id: string | null;
+  content: string;
+  depth: number;
+  score: number;
+  upvotes: number;
+  downvotes: number;
+  created_at: string;
+  updated_at: string;
+  author: CommentAuthor;
+  replies: CommentData[];
+}
 
 interface PostCommentsProps {
   postId: string;
@@ -15,12 +38,14 @@ interface PostCommentsProps {
   postAuthorId: string;
 }
 
+const MAX_DEPTH = 4; // 0-indexed, matches API
+
 export function PostComments({
   postId,
   currentUserId,
   postAuthorId,
 }: PostCommentsProps) {
-  const [threads, setThreads] = useState<PostCommentThread[]>([]);
+  const [threads, setThreads] = useState<CommentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -165,135 +190,249 @@ export function PostComments({
     }
   };
 
+  const handleVote = async (commentId: string, direction: "up" | "down") => {
+    try {
+      const res = await fetch(
+        `/api/posts/${postId}/comments/${commentId}/vote`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ direction }),
+        }
+      );
+
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!res.ok) return;
+
+      // Refresh comments to get updated scores
+      await fetchComments();
+    } catch {
+      // Silently fail
+    }
+  };
+
   const canDelete = (authorId: string) =>
     currentUserId === authorId || currentUserId === postAuthorId;
 
-  const renderComment = (comment: PostCommentWithAuthor, isReply = false) => {
+  const countAllComments = (comments: CommentData[]): number => {
+    let count = 0;
+    for (const c of comments) {
+      count += 1;
+      if (c.replies) count += countAllComments(c.replies);
+    }
+    return count;
+  };
+
+  const renderComment = (comment: CommentData) => {
     const isEditing = editingId === comment.id;
     const author = comment.author;
+    const depth = comment.depth || 0;
+    const isReply = depth > 0;
+    const canReply = depth < MAX_DEPTH;
+
+    // Indentation based on depth, capped for readability
+    const indentClass = depth > 0
+      ? depth === 1 ? "ml-6 sm:ml-10"
+      : depth === 2 ? "ml-10 sm:ml-16"
+      : depth === 3 ? "ml-14 sm:ml-20"
+      : "ml-16 sm:ml-24"
+      : "";
 
     return (
-      <div
-        key={comment.id}
-        className={`flex gap-3 ${isReply ? "ml-10 pt-3" : ""}`}
-      >
-        <Link href={`/u/${author?.username}`}>
-          <Image
-            src={author?.avatar_url || "/default-avatar.svg"}
-            alt={author?.full_name || author?.username || "User"}
-            width={isReply ? 32 : 40}
-            height={isReply ? 32 : 40}
-            className={`${isReply ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover flex-shrink-0`}
-          />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              href={`/u/${author?.username}`}
-              className="font-medium text-sm hover:underline"
+      <div key={comment.id}>
+        <div
+          className={`flex gap-3 ${indentClass} ${isReply ? "pt-3" : ""}`}
+        >
+          {/* Comment vote buttons */}
+          <div className="flex flex-col items-center gap-0.5 pt-1">
+            <button
+              onClick={() => handleVote(comment.id, "up")}
+              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-orange-500"
+              aria-label="Upvote comment"
             >
-              {author?.full_name || author?.username || "Unknown"}
-            </Link>
-            {comment.author_id === postAuthorId && (
-              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                Author
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              {formatRelativeTime(comment.created_at)}
+              <ArrowBigUp className="h-4 w-4" />
+            </button>
+            <span className={cn(
+              "text-xs font-semibold tabular-nums",
+              (comment.score || 0) > 0 && "text-orange-500",
+              (comment.score || 0) < 0 && "text-blue-500"
+            )}>
+              {comment.score || 0}
             </span>
-            {comment.updated_at !== comment.created_at && (
-              <span className="text-xs text-muted-foreground">(edited)</span>
-            )}
+            <button
+              onClick={() => handleVote(comment.id, "down")}
+              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-blue-500"
+              aria-label="Downvote comment"
+            >
+              <ArrowBigDown className="h-4 w-4" />
+            </button>
           </div>
 
-          {isEditing ? (
-            <div className="mt-2 space-y-2">
-              <Textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="min-h-[80px] text-sm"
-                maxLength={2000}
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleUpdateComment(comment.id)}
-                  disabled={submitting || !editContent.trim()}
-                >
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingId(null);
-                    setEditContent("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
+          <Link href={`/u/${author?.username}`}>
+            <Image
+              src={author?.avatar_url || "/default-avatar.svg"}
+              alt={author?.full_name || author?.username || "User"}
+              width={isReply ? 32 : 40}
+              height={isReply ? 32 : 40}
+              className={`${isReply ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover flex-shrink-0`}
+            />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/u/${author?.username}`}
+                className="font-medium text-sm hover:underline"
+              >
+                {author?.full_name || author?.username || "Unknown"}
+              </Link>
+              {comment.author_id === postAuthorId && (
+                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                  Author
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {formatRelativeTime(comment.created_at)}
+              </span>
+              {comment.updated_at !== comment.created_at && (
+                <span className="text-xs text-muted-foreground">(edited)</span>
+              )}
             </div>
-          ) : (
-            <p className="text-sm mt-1 whitespace-pre-wrap break-words">
-              {comment.content}
-            </p>
-          )}
 
-          {/* Action buttons */}
-          {!isEditing && currentUserId && (
-            <div className="flex items-center gap-3 mt-2">
-              {!isReply && (
-                <button
-                  onClick={() => {
-                    setReplyingTo(
-                      replyingTo === comment.id ? null : comment.id
-                    );
-                    setReplyContent("");
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                >
-                  <Reply className="h-3 w-3" />
-                  Reply
-                </button>
-              )}
-              {comment.author_id === currentUserId && (
-                <button
-                  onClick={() => {
-                    setEditingId(comment.id);
-                    setEditContent(comment.content);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                >
-                  <Edit2 className="h-3 w-3" />
-                  Edit
-                </button>
-              )}
-              {canDelete(comment.author_id) && (
-                <button
-                  onClick={() => handleDeleteComment(comment.id)}
-                  className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete
-                </button>
-              )}
-            </div>
-          )}
+            {isEditing ? (
+              <div className="mt-2 space-y-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="min-h-[80px] text-sm"
+                  maxLength={2000}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleUpdateComment(comment.id)}
+                    disabled={submitting || !editContent.trim()}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingId(null);
+                      setEditContent("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm mt-1 whitespace-pre-wrap break-words">
+                {comment.content}
+              </p>
+            )}
+
+            {/* Action buttons */}
+            {!isEditing && currentUserId && (
+              <div className="flex items-center gap-3 mt-2">
+                {canReply && (
+                  <button
+                    onClick={() => {
+                      setReplyingTo(
+                        replyingTo === comment.id ? null : comment.id
+                      );
+                      setReplyContent("");
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <Reply className="h-3 w-3" />
+                    Reply
+                  </button>
+                )}
+                {comment.author_id === currentUserId && (
+                  <button
+                    onClick={() => {
+                      setEditingId(comment.id);
+                      setEditContent(comment.content);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+                {canDelete(comment.author_id) && (
+                  <button
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Reply form */}
+        {replyingTo === comment.id && currentUserId && (
+          <div className={`${indentClass} ml-10 mt-3 pt-3 border-t border-border`}>
+            <Textarea
+              placeholder="Write a reply..."
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              className="min-h-[80px] text-sm mb-2"
+              maxLength={2000}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleSubmitReply(comment.id)}
+                disabled={submitting || !replyContent.trim()}
+              >
+                <Send className="h-3 w-3 mr-1" />
+                {submitting ? "Posting..." : "Reply"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setReplyingTo(null);
+                  setReplyContent("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Nested replies */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div className="border-l-2 border-border mt-1">
+            {comment.replies.map((reply) => renderComment(reply))}
+          </div>
+        )}
       </div>
     );
   };
+
+  const totalComments = countAllComments(threads);
 
   return (
     <div id="comments" className="scroll-mt-20">
       <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
         <MessageSquare className="h-5 w-5" />
         Comments
-        {threads.length > 0 && (
+        {totalComments > 0 && (
           <span className="text-sm font-normal text-muted-foreground">
-            ({threads.length})
+            ({totalComments})
           </span>
         )}
       </h2>
@@ -372,47 +511,6 @@ export function PostComments({
               className="border border-border rounded-lg p-4"
             >
               {renderComment(thread)}
-
-              {/* Replies */}
-              {thread.replies && thread.replies.length > 0 && (
-                <div className="border-l-2 border-border mt-3 space-y-3">
-                  {thread.replies.map((reply) => renderComment(reply, true))}
-                </div>
-              )}
-
-              {/* Reply form */}
-              {replyingTo === thread.id && currentUserId && (
-                <div className="ml-10 mt-3 pt-3 border-t border-border">
-                  <Textarea
-                    placeholder="Write a reply..."
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    className="min-h-[80px] text-sm mb-2"
-                    maxLength={2000}
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleSubmitReply(thread.id)}
-                      disabled={submitting || !replyContent.trim()}
-                    >
-                      <Send className="h-3 w-3 mr-1" />
-                      {submitting ? "Posting..." : "Reply"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setReplyingTo(null);
-                        setReplyContent("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>

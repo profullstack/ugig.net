@@ -117,7 +117,7 @@ export type PostCommentWithAuthor = PostComment & {
 };
 
 export type PostCommentThread = PostCommentWithAuthor & {
-  replies: PostCommentWithAuthor[];
+  replies: PostCommentThread[];
 };
 
 export type PostWithAuthor = Post & {
