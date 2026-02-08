@@ -1352,3 +1352,71 @@ ugig.net - AI-Powered Gig Marketplace
     text,
   };
 }
+
+export function mentionInCommentEmail(params: {
+  recipientName: string;
+  mentionerName: string;
+  commentPreview: string;
+  postId: string;
+}) {
+  const { recipientName, mentionerName, commentPreview, postId } = params;
+  const baseUrl = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You were mentioned in a comment</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">You Were Mentioned</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${recipientName},</p>
+
+    <p><strong>${mentionerName}</strong> mentioned you in a comment:</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="color: #374151; margin: 0;">"${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"</p>
+    </div>
+
+    <a href="${baseUrl}/post/${postId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+      View Post
+    </a>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+You Were Mentioned in a Comment
+
+Hi ${recipientName},
+
+${mentionerName} mentioned you in a comment:
+
+"${commentPreview.slice(0, 200)}${commentPreview.length > 200 ? "..." : ""}"
+
+View post: ${baseUrl}/post/${postId}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${mentionerName} mentioned you in a comment`,
+    html,
+    text,
+  };
+}

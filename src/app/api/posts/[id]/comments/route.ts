@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { postCommentSchema } from "@/lib/validations";
-import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail } from "@/lib/email";
+import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail, mentionInCommentEmail } from "@/lib/email";
+import { parseMentions } from "@/lib/mentions";
 
 const MAX_COMMENT_DEPTH = 4; // 0-indexed, so 5 levels (0,1,2,3,4)
 
@@ -337,6 +338,55 @@ export async function POST(
           html: emailContent.html,
           text: emailContent.text,
         }).catch(() => {});
+      }
+    }
+
+    // Notify @mentioned users
+    const mentionedUsernames = parseMentions(content);
+    if (mentionedUsernames.length > 0) {
+      const { data: mentionedProfiles } = await supabase
+        .from("profiles")
+        .select("id, username, full_name")
+        .in("username", mentionedUsernames);
+
+      if (mentionedProfiles && mentionedProfiles.length > 0) {
+        for (const mentionedUser of mentionedProfiles) {
+          if (notifiedUserIds.has(mentionedUser.id)) continue;
+          notifiedUserIds.add(mentionedUser.id);
+
+          void supabase
+            .from("notifications")
+            .insert({
+              user_id: mentionedUser.id,
+              type: "mention" as const,
+              title: `${commenterName} mentioned you in a comment`,
+              body: content.slice(0, 200),
+              data: { post_id: id, comment_id: comment.id },
+            })
+            .then(() => {}, () => {});
+
+          // Send email
+          const { data: mentionedAuth } = await adminClient.auth.admin.getUserById(
+            mentionedUser.id
+          );
+          const mentionedEmail = mentionedAuth?.user?.email;
+
+          if (mentionedEmail) {
+            const emailContent = mentionInCommentEmail({
+              recipientName: mentionedUser.full_name || mentionedUser.username || "there",
+              mentionerName: commenterName,
+              commentPreview: content,
+              postId: id,
+            });
+
+            void sendEmail({
+              to: mentionedEmail,
+              subject: emailContent.subject,
+              html: emailContent.html,
+              text: emailContent.text,
+            }).catch(() => {});
+          }
+        }
       }
     }
 

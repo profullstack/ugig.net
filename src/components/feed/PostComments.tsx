@@ -8,6 +8,28 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { parseContentWithMentions } from "@/lib/mentions";
+
+function CommentContent({ content }: { content: string }) {
+  const segments = parseContentWithMentions(content);
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.type === "mention" ? (
+          <Link
+            key={i}
+            href={`/u/${seg.username}`}
+            className="text-blue-600 hover:underline font-medium"
+          >
+            @{seg.username}
+          </Link>
+        ) : (
+          <span key={i}>{seg.value}</span>
+        )
+      )}
+    </>
+  );
+}
 
 interface CommentAuthor {
   id: string;
@@ -332,7 +354,7 @@ export function PostComments({
               </div>
             ) : (
               <p className="text-sm mt-1 whitespace-pre-wrap break-words">
-                {comment.content}
+                <CommentContent content={comment.content} />
               </p>
             )}
 

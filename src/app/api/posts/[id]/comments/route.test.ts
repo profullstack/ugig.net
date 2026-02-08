@@ -29,11 +29,13 @@ vi.mock("@/lib/auth/get-user", () => ({
 const mockSendEmail = vi.fn().mockResolvedValue({ success: true });
 const mockNewPostCommentEmail = vi.fn().mockReturnValue({ subject: "s", html: "h", text: "t" });
 const mockNewPostCommentReplyEmail = vi.fn().mockReturnValue({ subject: "s", html: "h", text: "t" });
+const mockMentionInCommentEmail = vi.fn().mockReturnValue({ subject: "s", html: "h", text: "t" });
 
 vi.mock("@/lib/email", () => ({
   sendEmail: (...args: unknown[]) => mockSendEmail(...args),
   newPostCommentEmail: (...args: unknown[]) => mockNewPostCommentEmail(...args),
   newPostCommentReplyEmail: (...args: unknown[]) => mockNewPostCommentReplyEmail(...args),
+  mentionInCommentEmail: (...args: unknown[]) => mockMentionInCommentEmail(...args),
 }));
 
 import { GET, POST } from "./route";
@@ -52,6 +54,7 @@ const COMMENT_2 = "a0000000-0000-4000-a000-000000000200";
 const PARENT_D3 = "a0000000-0000-4000-a000-000000000300";
 const PARENT_D4 = "a0000000-0000-4000-a000-000000000400";
 const PARENT_OTHER = "a0000000-0000-4000-a000-000000000500";
+const MENTIONED_USER = "a0000000-0000-4000-a000-000000000060";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -73,13 +76,13 @@ function makeParams(id: string) {
 
 function ch(result: { data: unknown; error: unknown }) {
   const c: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ["select", "insert", "update", "delete", "eq", "single", "order", "then"]) {
+  for (const m of ["select", "insert", "update", "delete", "eq", "in", "single", "order", "then"]) {
     c[m] = vi.fn().mockReturnValue(c);
   }
   c.single.mockResolvedValue(result);
   c.order.mockResolvedValue(result);
   c.then.mockImplementation((resolve?: (v: unknown) => void) => {
-    resolve?.(undefined);
+    resolve?.(result);
     return c;
   });
   return c;
@@ -317,5 +320,121 @@ describe("POST /api/posts/[id]/comments — email notifications", () => {
     await new Promise((r) => setTimeout(r, 100));
 
     expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+//  @mention notifications
+// ════════════════════════════════════════════════════════════════════
+
+describe("POST /api/posts/[id]/comments — @mentions", () => {
+  it("sends notification and email for @mentioned user", async () => {
+    mockAuth(USER_2);
+    mockGetUserById.mockResolvedValue({ data: { user: { email: "mentioned@test.com" } } });
+
+    setupSeq(
+      // post lookup
+      ch({ data: { id: POST_ID, author_id: AUTHOR_1 }, error: null }),
+      // insert comment
+      ch({ data: { id: COMMENT_1, post_id: POST_ID, author_id: USER_2, content: "hey @mentioneduser", depth: 0, author: { id: USER_2, username: "u2" } }, error: null }),
+      // commenter profile
+      ch({ data: { username: "u2", full_name: "User 2" }, error: null }),
+      // full post
+      ch({ data: { content: "Post body" }, error: null }),
+      // post author notification insert (fire-and-forget)
+      ch({ data: null, error: null }),
+      // post author auth lookup happens via adminClient
+      // post author profile
+      ch({ data: { full_name: "Author", username: "author1" }, error: null }),
+      // mentioned profiles lookup
+      ch({ data: [{ id: MENTIONED_USER, username: "mentioneduser", full_name: "Mentioned User" }], error: null }),
+      // mention notification insert
+      ch({ data: null, error: null }),
+      // mentioned user profile (for email)
+      ch({ data: { full_name: "Mentioned User", username: "mentioneduser" }, error: null }),
+    );
+
+    const res = await POST(
+      makePostRequest(POST_ID, { content: "hey @mentioneduser" }),
+      makeParams(POST_ID)
+    );
+    expect(res.status).toBe(201);
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(mockMentionInCommentEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionerName: "User 2" })
+    );
+  });
+
+  it("does not notify self-mentioned user", async () => {
+    mockAuth(USER_2);
+    mockGetUserById.mockResolvedValue({ data: { user: { email: "u2@test.com" } } });
+
+    setupSeq(
+      ch({ data: { id: POST_ID, author_id: AUTHOR_1 }, error: null }),
+      ch({ data: { id: COMMENT_1, post_id: POST_ID, author_id: USER_2, content: "hey @u2", depth: 0, author: { id: USER_2, username: "u2" } }, error: null }),
+      ch({ data: { username: "u2", full_name: "User 2" }, error: null }),
+      ch({ data: { content: "Post body" }, error: null }),
+      ch({ data: null, error: null }),
+      ch({ data: { full_name: "Author", username: "author1" }, error: null }),
+      // mentioned profiles returns self
+      ch({ data: [{ id: USER_2, username: "u2", full_name: "User 2" }], error: null }),
+    );
+
+    await POST(
+      makePostRequest(POST_ID, { content: "hey @u2" }),
+      makeParams(POST_ID)
+    );
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(mockMentionInCommentEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not double-notify post author who is also @mentioned", async () => {
+    mockAuth(USER_2);
+    mockGetUserById.mockResolvedValue({ data: { user: { email: "author@test.com" } } });
+
+    setupSeq(
+      ch({ data: { id: POST_ID, author_id: AUTHOR_1 }, error: null }),
+      ch({ data: { id: COMMENT_1, post_id: POST_ID, author_id: USER_2, content: "hey @author1", depth: 0, author: { id: USER_2, username: "u2" } }, error: null }),
+      ch({ data: { username: "u2", full_name: "User 2" }, error: null }),
+      ch({ data: { content: "Post body" }, error: null }),
+      ch({ data: null, error: null }),
+      ch({ data: { full_name: "Author", username: "author1" }, error: null }),
+      // mentioned profiles returns the post author
+      ch({ data: [{ id: AUTHOR_1, username: "author1", full_name: "Author" }], error: null }),
+    );
+
+    await POST(
+      makePostRequest(POST_ID, { content: "hey @author1" }),
+      makeParams(POST_ID)
+    );
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Post author already notified as post author, so mention email should NOT fire
+    expect(mockMentionInCommentEmail).not.toHaveBeenCalled();
+  });
+
+  it("silently ignores non-existent mentioned username", async () => {
+    mockAuth(USER_2);
+    mockGetUserById.mockResolvedValue({ data: { user: { email: "author@test.com" } } });
+
+    setupSeq(
+      ch({ data: { id: POST_ID, author_id: AUTHOR_1 }, error: null }),
+      ch({ data: { id: COMMENT_1, post_id: POST_ID, author_id: USER_2, content: "hey @nonexistent", depth: 0, author: { id: USER_2, username: "u2" } }, error: null }),
+      ch({ data: { username: "u2", full_name: "User 2" }, error: null }),
+      ch({ data: { content: "Post body" }, error: null }),
+      ch({ data: null, error: null }),
+      ch({ data: { full_name: "Author", username: "author1" }, error: null }),
+      // mentioned profiles returns empty
+      ch({ data: [], error: null }),
+    );
+
+    const res = await POST(
+      makePostRequest(POST_ID, { content: "hey @nonexistent" }),
+      makeParams(POST_ID)
+    );
+    expect(res.status).toBe(201);
+    expect(mockMentionInCommentEmail).not.toHaveBeenCalled();
   });
 });
