@@ -218,11 +218,6 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaProps>(
                 )}
                 <div className="min-w-0">
                   <div className="font-medium truncate">@{user.username}</div>
-                  {user.full_name && (
-                    <div className="text-xs text-muted-foreground truncate">
-                      {user.full_name}
-                    </div>
-                  )}
                 </div>
               </button>
             ))}
