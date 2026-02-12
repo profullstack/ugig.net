@@ -27,7 +27,7 @@ function makeRequest(params: Record<string, string> = {}) {
 /** Build a chainable Supabase query mock that resolves to `result`. */
 function chainResult(result: { data: unknown; error: unknown }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ["select", "eq", "in", "gte", "single"]) {
+  for (const m of ["select", "eq", "not", "in", "gte", "single"]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   // Make the chain itself thenable so awaiting it resolves to result

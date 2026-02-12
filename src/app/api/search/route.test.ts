@@ -39,6 +39,7 @@ function chainResult(result: {
   const methods = [
     "select",
     "eq",
+    "not",
     "or",
     "ilike",
     "order",

@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
         .from("profiles")
         .select("*", { count: "exact" })
         .eq("profile_completed", true)
+        .not("email_confirmed_at", "is", null)
         .or(
           `username.ilike.${pattern},full_name.ilike.${pattern},bio.ilike.${pattern}`
         )

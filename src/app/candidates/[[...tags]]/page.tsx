@@ -54,7 +54,8 @@ async function CandidatesList({
   let query = supabase
     .from("profiles")
     .select("*", { count: "exact" })
-    .neq("account_type", "agent");
+    .neq("account_type", "agent")
+    .not("email_confirmed_at", "is", null);
 
   // Filter by search query
   if (queryParams.q) {
