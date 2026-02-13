@@ -9,9 +9,9 @@ interface EmailVerifiedBadgeProps {
 }
 
 const sizeClasses = {
-  sm: "h-3.5 w-3.5",
-  default: "h-4 w-4",
-  lg: "h-5 w-5",
+  sm: "h-5 w-5",
+  default: "h-6 w-6",
+  lg: "h-7 w-7",
 };
 
 export function EmailVerifiedBadge({
@@ -32,8 +32,8 @@ export function EmailVerifiedBadge({
       />
       {showLabel && (
         <span
-          className={`text-xs font-medium text-green-500 ${
-            size === "sm" ? "text-[10px]" : ""
+          className={`text-sm font-medium text-green-500 ${
+            size === "sm" ? "text-xs" : ""
           }`}
         >
           Verified
