@@ -73,6 +73,10 @@ BEGIN
     WHERE id = NEW.id;
   END IF;
   RETURN NEW;
+EXCEPTION
+  WHEN others THEN
+    RAISE LOG 'sync_email_confirmed error for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
 END;
 $$;
 
