@@ -31,6 +31,11 @@ const mockNewPostCommentEmail = vi.fn().mockReturnValue({ subject: "s", html: "h
 const mockNewPostCommentReplyEmail = vi.fn().mockReturnValue({ subject: "s", html: "h", text: "t" });
 const mockMentionInCommentEmail = vi.fn().mockReturnValue({ subject: "s", html: "h", text: "t" });
 
+vi.mock("@/lib/reputation-hooks", () => ({
+  getUserDid: vi.fn().mockResolvedValue(null),
+  onCommentCreated: vi.fn(),
+}));
+
 vi.mock("@/lib/email", () => ({
   sendEmail: (...args: unknown[]) => mockSendEmail(...args),
   newPostCommentEmail: (...args: unknown[]) => mockNewPostCommentEmail(...args),

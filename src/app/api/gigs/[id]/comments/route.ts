@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { gigCommentSchema } from "@/lib/validations";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
+import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 
 // GET /api/gigs/[id]/comments - List comments for a gig
 export async function GET(
@@ -278,6 +279,12 @@ export async function POST(
           });
         }
       }
+    }
+
+    // Fire reputation receipt
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid) {
+      onCommentCreated(userDid, comment.id);
     }
 
     return NextResponse.json({ comment: normalizedComment }, { status: 201 });

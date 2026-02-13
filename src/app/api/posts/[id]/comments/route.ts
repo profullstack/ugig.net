@@ -4,6 +4,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { postCommentSchema } from "@/lib/validations";
 import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail, mentionInCommentEmail } from "@/lib/email";
 import { parseMentions } from "@/lib/mentions";
+import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 
 const MAX_COMMENT_DEPTH = 4; // 0-indexed, so 5 levels (0,1,2,3,4)
 
@@ -227,6 +228,12 @@ export async function POST(
         ? comment.author[0]
         : comment.author,
     };
+
+    // Fire reputation receipt
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid) {
+      onCommentCreated(userDid, comment.id);
+    }
 
     // Get commenter's profile for notifications
     const { data: commenterProfile } = await supabase
