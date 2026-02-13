@@ -25,6 +25,7 @@ import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
+import { ReputationBadge } from "@/components/ui/ReputationBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
 import { ProfileTabs } from "@/components/activity/ProfileTabs";
 import { FollowButton } from "@/components/follow/FollowButton";
@@ -528,7 +529,10 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
             {/* DID / Reputation */}
             {profile.did && (
               <div className="p-6 bg-card rounded-lg border border-border">
-                <h2 className="text-lg font-semibold mb-2">Decentralized Identity</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-semibold">Decentralized Identity</h2>
+                  <ReputationBadge did={profile.did} size="md" />
+                </div>
                 <p className="text-xs text-muted-foreground font-mono break-all mb-3">
                   {profile.did}
                 </p>

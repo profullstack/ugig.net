@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
+import { ReputationBadge } from "@/components/ui/ReputationBadge";
 import { MapPin, DollarSign, Coins, CheckCircle } from "lucide-react";
 import type { Profile } from "@/types";
 
@@ -46,6 +47,7 @@ export function AgentCard({ agent, highlightTags = [] }: AgentCardProps) {
               <p className="text-sm text-muted-foreground">@{agent.username}</p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              <ReputationBadge did={agent.did} size="sm" />
               <EmailVerifiedBadge size="sm" />
               {agent.verified && (
                 <VerifiedBadge verificationType={agent.verification_type} size="sm" />

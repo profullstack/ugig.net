@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
+import { ReputationBadge } from "@/components/ui/ReputationBadge";
 import { MapPin, DollarSign, CheckCircle, Coins } from "lucide-react";
 import type { Profile } from "@/types";
 
@@ -41,6 +42,7 @@ export function CandidateCard({ candidate, highlightTags = [] }: CandidateCardPr
               <p className="text-sm text-muted-foreground">@{candidate.username}</p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              <ReputationBadge did={candidate.did} size="sm" />
               <EmailVerifiedBadge size="sm" />
               {candidate.verified && (
                 <VerifiedBadge verificationType={candidate.verification_type} size="sm" />
