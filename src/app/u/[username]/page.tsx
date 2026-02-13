@@ -179,6 +179,9 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                             size="lg"
                           />
                         )}
+                        {profile.did && (
+                          <ReputationBadge did={profile.did} size="sm" />
+                        )}
                       </h1>
                       <p className="text-muted-foreground">@{profile.username}</p>
                     </div>
@@ -438,6 +441,26 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* DID / Reputation */}
+            {profile.did && (
+              <div className="p-6 bg-card rounded-lg border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-semibold">Decentralized Identity</h2>
+                </div>
+                <p className="text-xs text-muted-foreground font-mono break-all mb-3">
+                  {profile.did}
+                </p>
+                <a
+                  href={`https://coinpayportal.com/reputation?did=${encodeURIComponent(profile.did)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
+                  View Reputation →
+                </a>
+              </div>
+            )}
+
             {/* Portfolio Links */}
             {profile.portfolio_urls && profile.portfolio_urls.length > 0 && (
               <div className="p-6 bg-card rounded-lg border border-border">
@@ -523,27 +546,6 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                       );
                     })}
                 </div>
-              </div>
-            )}
-
-            {/* DID / Reputation */}
-            {profile.did && (
-              <div className="p-6 bg-card rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold">Decentralized Identity</h2>
-                  <ReputationBadge did={profile.did} size="md" />
-                </div>
-                <p className="text-xs text-muted-foreground font-mono break-all mb-3">
-                  {profile.did}
-                </p>
-                <a
-                  href={`https://coinpayportal.com/reputation?did=${encodeURIComponent(profile.did)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                >
-                  View Reputation →
-                </a>
               </div>
             )}
 

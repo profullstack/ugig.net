@@ -63,7 +63,7 @@ export function MessageBubble({
       )}
       {!showAvatar && <div className="w-8 flex-shrink-0" />}
 
-      <div className={cn("flex flex-col", isOwn ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col min-w-0", isOwn ? "items-end" : "items-start")}>
         <div
           className={cn(
             "rounded-lg px-3 py-2 text-sm max-w-full overflow-hidden",

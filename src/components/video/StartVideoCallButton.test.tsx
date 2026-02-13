@@ -55,6 +55,11 @@ describe("StartVideoCallButton", () => {
         application_id: undefined,
       });
     });
+
+    // Wait for async handler to fully complete before teardown
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
+    });
   });
 
   it("passes gig_id and application_id to API", async () => {
@@ -81,6 +86,11 @@ describe("StartVideoCallButton", () => {
         application_id: "app-101",
       });
     });
+
+    // Wait for async handler to fully complete before teardown
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
+    });
   });
 
   it("navigates to call page on success", async () => {
@@ -96,6 +106,11 @@ describe("StartVideoCallButton", () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/dashboard/calls/call-123");
+    });
+
+    // Wait for finally block (setIsLoading) to complete before teardown
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
     });
   });
 
