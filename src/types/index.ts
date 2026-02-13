@@ -5,7 +5,9 @@ export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./data
 
 // Convenience type aliases
 export type Activity = Tables<"activities">;
-export type Profile = Tables<"profiles">;
+export type Profile = Tables<"profiles"> & {
+  email_confirmed_at?: string | null;
+};
 export type Gig = Tables<"gigs">;
 export type Application = Tables<"applications">;
 export type Conversation = Tables<"conversations">;

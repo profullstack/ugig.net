@@ -24,6 +24,7 @@ import {
 import { WALLET_CURRENCIES, type WalletAddress } from "@/types";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
 import { ProfileTabs } from "@/components/activity/ProfileTabs";
 import { FollowButton } from "@/components/follow/FollowButton";
@@ -168,6 +169,9 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                     <div>
                       <h1 className="text-2xl font-bold flex items-center gap-1.5">
                         {profile.full_name || profile.username}
+                        {!!(profile as Record<string, unknown>).email_confirmed_at && (
+                          <EmailVerifiedBadge size="default" />
+                        )}
                         {profile.verified && (
                           <VerifiedBadge
                             verificationType={profile.verification_type}

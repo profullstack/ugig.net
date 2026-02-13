@@ -8,6 +8,7 @@ import { AvatarUpload } from "@/components/profile/AvatarUpload";
 import { BannerUpload } from "@/components/profile/BannerUpload";
 import { Header } from "@/components/layout/Header";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
 import { BadgeCheck, ArrowRight } from "lucide-react";
 
 export const metadata = {
@@ -88,6 +89,14 @@ export default async function ProfilePage() {
               Verification
             </h2>
           </div>
+          {!!(profile as Record<string, unknown>).email_confirmed_at && (
+            <div className="flex items-center gap-2 mb-3">
+              <EmailVerifiedBadge size="default" showLabel />
+              <span className="text-sm text-muted-foreground">
+                — Email address confirmed
+              </span>
+            </div>
+          )}
           {profile.verified ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
