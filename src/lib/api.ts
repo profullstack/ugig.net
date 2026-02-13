@@ -60,6 +60,12 @@ export const auth = {
       method: "POST",
     }),
 
+  resendConfirmation: (data: { email: string }) =>
+    request("/api/auth/resend-confirmation", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   forgotPassword: (data: { email: string }) =>
     request("/api/auth/forgot-password", {
       method: "POST",

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loginSchema } from "@/lib/validations";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { z } from "zod";
+
+const resendSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return rateLimitExceeded(rl);
 
     const body = await request.json();
-    const validationResult = loginSchema.safeParse(body);
+    const validationResult = resendSchema.safeParse(body);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -19,35 +23,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = validationResult.data;
+    const { email } = validationResult.data;
     const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.resend({
+      type: "signup",
       email,
-      password,
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-
-    // Block login for users who haven't confirmed their email
-    if (data.user && !data.user.email_confirmed_at) {
-      // Sign them out since they shouldn't have a session
-      await supabase.auth.signOut();
-      return NextResponse.json(
-        {
-          error: "Please confirm your email before logging in. Check your inbox for a confirmation link.",
-          code: "EMAIL_NOT_CONFIRMED",
-        },
-        { status: 403 }
-      );
+      console.error("Resend confirmation error:", error.message);
+      // Don't leak whether the email exists
+      return NextResponse.json({
+        message: "If an account exists with that email, a confirmation link has been sent.",
+      });
     }
 
     return NextResponse.json({
-      message: "Login successful",
-      user: data.user,
-      session: data.session,
+      message: "If an account exists with that email, a confirmation link has been sent.",
     });
   } catch {
     return NextResponse.json(

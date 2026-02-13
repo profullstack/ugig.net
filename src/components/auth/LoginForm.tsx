@@ -14,11 +14,15 @@ import { Label } from "@/components/ui/label";
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [resendEmail, setResendEmail] = useState<string | null>(null);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -27,10 +31,16 @@ export function LoginForm() {
   const onSubmit = async (data: LoginInput) => {
     setIsLoading(true);
     setError(null);
+    setEmailNotConfirmed(false);
+    setResendSuccess(false);
 
     const result = await auth.login(data);
 
     if (result.error) {
+      if (result.error.includes("confirm your email")) {
+        setEmailNotConfirmed(true);
+        setResendEmail(data.email);
+      }
       setError(result.error);
       setIsLoading(false);
       return;
@@ -40,11 +50,48 @@ export function LoginForm() {
     router.refresh();
   };
 
+  const handleResendConfirmation = async () => {
+    const email = resendEmail || getValues("email");
+    if (!email) return;
+
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setResendSuccess(true);
+        setError(null);
+      }
+    } catch {
+      // silently fail
+    }
+    setIsLoading(false);
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {resendSuccess && (
+        <div className="p-3 text-sm text-primary bg-primary/10 rounded-md">
+          Confirmation email sent! Check your inbox and click the link to verify your account.
+        </div>
+      )}
+
       {error && (
         <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
           {error}
+          {emailNotConfirmed && (
+            <button
+              type="button"
+              onClick={handleResendConfirmation}
+              disabled={isLoading}
+              className="block mt-2 text-primary hover:underline font-medium"
+            >
+              Resend confirmation email
+            </button>
+          )}
         </div>
       )}
 
