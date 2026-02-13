@@ -68,6 +68,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       rate_unit: profile.rate_unit || "",
       preferred_coin: profile.preferred_coin || "",
       wallet_addresses: parseWalletAddresses(profile.wallet_addresses),
+      did: profile.did || "",
     },
   });
 
@@ -645,6 +646,30 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         {errors.wallet_addresses && (
           <p className="text-sm text-destructive">{errors.wallet_addresses.message}</p>
         )}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* DID / Reputation Section */}
+      <div className="space-y-5">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Decentralized Identity (DID)</h3>
+        <div className="space-y-2">
+          <Label htmlFor="did">DID Identifier</Label>
+          <Input
+            id="did"
+            placeholder="did:key:z6Mk..."
+            {...register("did")}
+          />
+          {errors.did && (
+            <p className="text-sm text-destructive">{errors.did.message}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Link your decentralized identity for portable reputation.{" "}
+            <a href="https://coinpayportal.com/reputation/did" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Claim a DID on CoinPayPortal →
+            </a>
+          </p>
+        </div>
       </div>
 
       <div className="border-t border-border" />

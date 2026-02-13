@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { profileSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { onProfileCompleted } from "@/lib/reputation-hooks";
 
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
@@ -99,6 +100,12 @@ export async function PUT(request: NextRequest) {
     }
 
     console.log("Profile saved, wallet_addresses:", JSON.stringify(profile?.wallet_addresses, null, 2));
+
+    // Fire reputation receipt if profile is complete and has DID
+    if (profile?.did && profile?.profile_completed) {
+      onProfileCompleted(profile.did);
+    }
+
     return NextResponse.json({ profile });
   } catch {
     return NextResponse.json(

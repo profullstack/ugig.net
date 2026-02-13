@@ -525,6 +525,24 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
               </div>
             )}
 
+            {/* DID / Reputation */}
+            {profile.did && (
+              <div className="p-6 bg-card rounded-lg border border-border">
+                <h2 className="text-lg font-semibold mb-2">Decentralized Identity</h2>
+                <p className="text-xs text-muted-foreground font-mono break-all mb-3">
+                  {profile.did}
+                </p>
+                <a
+                  href={`https://coinpayportal.com/reputation?did=${encodeURIComponent(profile.did)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
+                  View Reputation →
+                </a>
+              </div>
+            )}
+
             {/* Member Since */}
             <div className="p-6 bg-card rounded-lg border border-border">
               <h2 className="text-lg font-semibold mb-2">Member Since</h2>

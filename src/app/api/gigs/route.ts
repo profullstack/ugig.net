@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gigSchema, gigFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
@@ -225,6 +226,11 @@ export async function POST(request: NextRequest) {
         p_year: year,
       });
     }
+
+    // Fire reputation receipt
+    getUserDid(supabase, user.id).then((did) => {
+      if (did) onGigPosted(did, gig.id);
+    }).catch(() => {});
 
     return NextResponse.json({ gig }, { status: 201 });
   } catch {

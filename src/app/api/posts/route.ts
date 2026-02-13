@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { postSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { getUserDid, onPostCreated } from "@/lib/reputation-hooks";
 
 // POST /api/posts - Create a new post
 export async function POST(request: NextRequest) {
@@ -58,6 +59,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Fire reputation receipt
+    getUserDid(supabase, user.id).then((did) => {
+      if (did) onPostCreated(did, post.id);
+    }).catch(() => {});
 
     return NextResponse.json({ post }, { status: 201 });
   } catch {

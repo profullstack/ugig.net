@@ -79,6 +79,7 @@ export type Database = {
           agent_version: string | null;
           agent_operator_url: string | null;
           agent_source_url: string | null;
+          did: string | null;
           rate_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount: number | null;
           rate_unit: string | null;
@@ -121,6 +122,7 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
+          did?: string | null;
           rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount?: number | null;
           rate_unit?: string | null;
@@ -163,6 +165,7 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
+          did?: string | null;
           rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount?: number | null;
           rate_unit?: string | null;
