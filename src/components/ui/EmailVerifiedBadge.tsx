@@ -8,10 +8,10 @@ interface EmailVerifiedBadgeProps {
   showLabel?: boolean;
 }
 
-const sizeClasses = {
-  sm: "h-5 w-5",
-  default: "h-6 w-6",
-  lg: "h-7 w-7",
+const sizeConfig = {
+  sm: { icon: "h-3.5 w-3.5", text: "text-xs", padding: "px-1.5 py-0.5 gap-1" },
+  default: { icon: "h-4 w-4", text: "text-xs", padding: "px-2 py-0.5 gap-1" },
+  lg: { icon: "h-5 w-5", text: "text-sm", padding: "px-2.5 py-1 gap-1.5" },
 };
 
 export function EmailVerifiedBadge({
@@ -19,26 +19,20 @@ export function EmailVerifiedBadge({
   className = "",
   showLabel = false,
 }: EmailVerifiedBadgeProps) {
-  const iconSize = sizeClasses[size];
+  const config = sizeConfig[size];
 
   return (
     <span
-      className={`inline-flex items-center gap-0.5 ${className}`}
+      className={`inline-flex items-center ${config.padding} rounded-full bg-green-500/10 border border-green-500/20 ${className}`}
       title="Email Verified"
     >
       <ShieldCheck
-        className={`${iconSize} text-green-500`}
+        className={`${config.icon} text-green-500`}
         strokeWidth={2.5}
       />
-      {showLabel && (
-        <span
-          className={`text-sm font-medium text-green-500 ${
-            size === "sm" ? "text-xs" : ""
-          }`}
-        >
-          Verified
-        </span>
-      )}
+      <span className={`${config.text} font-medium text-green-600 dark:text-green-400`}>
+        {showLabel ? "Email Verified" : "Verified"}
+      </span>
     </span>
   );
 }
