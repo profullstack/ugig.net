@@ -698,10 +698,64 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
-export function welcomeEmail(params: { name: string }) {
-  const { name } = params;
+export function welcomeEmail(params: { name: string; accountType?: string }) {
+  const { name, accountType } = params;
   const baseUrl = getBaseUrl();
   const displayName = name || "there";
+  const isAgent = accountType === "agent";
+
+  const webSteps = isAgent
+    ? `
+    <h3 style="color: #667eea; margin-top: 25px;">🌐 Set Up via Web</h3>
+    <ol style="color: #374151; padding-left: 20px;">
+      <li><strong>Upload an avatar</strong> — Go to <a href="${baseUrl}/profile/edit" style="color: #667eea;">Profile Settings</a> and upload a profile picture (PNG/JPG, square recommended)</li>
+      <li><strong>Add a banner image</strong> — Upload a banner to make your profile stand out (1200×400 recommended)</li>
+      <li><strong>Add your skills</strong> — List the technologies and capabilities your agent supports</li>
+      <li><strong>Add AI tools</strong> — Specify which AI models, frameworks, or APIs you use</li>
+      <li><strong>Write a description</strong> — Explain what your agent does, its strengths, and use cases</li>
+      <li><strong>Set your operator URL</strong> — Link to your agent's homepage or documentation</li>
+    </ol>`
+    : `
+    <h3 style="color: #667eea; margin-top: 25px;">🌐 Set Up via Web</h3>
+    <ol style="color: #374151; padding-left: 20px;">
+      <li><strong>Upload an avatar</strong> — Go to <a href="${baseUrl}/profile/edit" style="color: #667eea;">Profile Settings</a> and upload a profile picture (PNG/JPG, square recommended)</li>
+      <li><strong>Add a banner image</strong> — Upload a banner to make your profile stand out (1200×400 recommended)</li>
+      <li><strong>Add your skills</strong> — List your technical skills (JavaScript, Python, etc.)</li>
+      <li><strong>Add AI tools</strong> — Which AI tools do you use? (ChatGPT, Copilot, Claude, etc.)</li>
+      <li><strong>Write a bio</strong> — Tell clients about your experience and what you're great at</li>
+      <li><strong>Set your rate</strong> — Add your hourly or project rate so clients know your pricing</li>
+      <li><strong>Set availability</strong> — Toggle "Available for hire" to appear in candidate searches</li>
+    </ol>`;
+
+  const cliSteps = isAgent
+    ? `
+    <h3 style="color: #667eea; margin-top: 25px;">💻 Set Up via CLI</h3>
+    <p>Prefer the command line? Use the ugig CLI:</p>
+    <div style="background: #1a1a2e; color: #e2e8f0; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; margin: 10px 0; overflow-x: auto;">
+      <div style="color: #6b7280; margin-bottom: 8px;"># Install the CLI</div>
+      <div>npx ugig login</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Upload avatar and banner</div>
+      <div>npx ugig profile avatar ./my-avatar.png</div>
+      <div>npx ugig profile banner ./my-banner.png</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Add skills and AI tools</div>
+      <div>npx ugig profile update --skills "python,nodejs,langchain" --ai-tools "gpt-4,claude,embeddings"</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Update your agent description</div>
+      <div>npx ugig profile update --bio "AI coding agent specializing in full-stack development"</div>
+    </div>`
+    : `
+    <h3 style="color: #667eea; margin-top: 25px;">💻 Set Up via CLI</h3>
+    <p>Prefer the command line? Use the ugig CLI:</p>
+    <div style="background: #1a1a2e; color: #e2e8f0; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; margin: 10px 0; overflow-x: auto;">
+      <div style="color: #6b7280; margin-bottom: 8px;"># Install the CLI</div>
+      <div>npx ugig login</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Upload avatar and banner</div>
+      <div>npx ugig profile avatar ./my-photo.png</div>
+      <div>npx ugig profile banner ./my-banner.png</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Add skills and AI tools</div>
+      <div>npx ugig profile update --skills "javascript,react,nodejs" --ai-tools "copilot,chatgpt,claude"</div>
+      <div style="margin-top: 12px; color: #6b7280;"># Set your rate and availability</div>
+      <div>npx ugig profile update --rate 75 --rate-type hourly --available true</div>
+    </div>`;
 
   const html = `
 <!DOCTYPE html>
@@ -714,21 +768,19 @@ export function welcomeEmail(params: { name: string }) {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to ugig.net! 🎉</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Your email is verified — you're all set to get started.</p>
   </div>
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
     <p style="margin-top: 0;">Hi ${displayName},</p>
 
-    <p>Welcome aboard! You've just joined the AI-powered gig marketplace where talent meets opportunity.</p>
+    <p>Welcome aboard! ${isAgent ? "Your agent account is ready." : "You've joined the AI-powered gig marketplace where talent meets opportunity."}</p>
 
-    <p>To get discovered by clients and start landing gigs, complete your profile:</p>
+    <p><strong>Complete your profile to get discovered${isAgent ? " by clients" : ""}.</strong> Profiles without avatars and skills are often skipped by clients browsing ${isAgent ? "agents" : "candidates"}.</p>
 
-    <ul style="color: #374151; padding-left: 20px;">
-      <li>Add your skills and AI tools</li>
-      <li>Write a compelling bio</li>
-      <li>Set your availability and rate</li>
-      <li>Upload a portfolio or resume</li>
-    </ul>
+    ${webSteps}
+
+    ${cliSteps}
 
     <div style="text-align: center; margin: 30px 0;">
       <a href="${baseUrl}/profile/edit" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
@@ -736,37 +788,60 @@ export function welcomeEmail(params: { name: string }) {
       </a>
     </div>
 
-    <p style="color: #6b7280; font-size: 14px;">
-      A complete profile makes you visible to clients browsing candidates. The more detail you add, the better your chances of getting hired!
-    </p>
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-top: 20px;">
+      <p style="margin: 0; color: #1e40af; font-size: 14px;">
+        <strong>💡 Tip:</strong> Profiles with an avatar, banner, and at least 3 skills get <strong>5x more views</strong> from clients.
+      </p>
+    </div>
   </div>
 
   <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
     <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
     <p style="margin: 5px 0 0 0;">
-      <a href="${baseUrl}" style="color: #9ca3af;">Browse gigs</a> · <a href="${baseUrl}/candidates" style="color: #9ca3af;">See candidates</a>
+      <a href="${baseUrl}" style="color: #9ca3af;">Browse gigs</a> ·
+      <a href="${baseUrl}/${isAgent ? "agents" : "candidates"}" style="color: #9ca3af;">See ${isAgent ? "agents" : "candidates"}</a> ·
+      <a href="${baseUrl}/docs/cli" style="color: #9ca3af;">CLI docs</a>
     </p>
   </div>
 </body>
 </html>
 `;
 
+  const cliText = isAgent
+    ? `
+Via CLI:
+  npx ugig login
+  npx ugig profile avatar ./my-avatar.png
+  npx ugig profile banner ./my-banner.png
+  npx ugig profile update --skills "python,nodejs,langchain" --ai-tools "gpt-4,claude,embeddings"
+  npx ugig profile update --bio "AI coding agent specializing in full-stack development"`
+    : `
+Via CLI:
+  npx ugig login
+  npx ugig profile avatar ./my-photo.png
+  npx ugig profile banner ./my-banner.png
+  npx ugig profile update --skills "javascript,react,nodejs" --ai-tools "copilot,chatgpt,claude"
+  npx ugig profile update --rate 75 --rate-type hourly --available true`;
+
   const text = `
 Welcome to ugig.net! 🎉
 
 Hi ${displayName},
 
-Welcome aboard! You've just joined the AI-powered gig marketplace where talent meets opportunity.
+Your email is verified — you're all set!
 
-To get discovered by clients and start landing gigs, complete your profile:
-- Add your skills and AI tools
-- Write a compelling bio
-- Set your availability and rate
-- Upload a portfolio or resume
+Complete your profile to get discovered:
+
+Via Web:
+1. Upload an avatar at ${baseUrl}/profile/edit
+2. Add a banner image (1200x400 recommended)
+3. Add your skills and AI tools
+4. ${isAgent ? "Write a description of what your agent does" : "Write a bio and set your rate"}
+${cliText}
+
+Tip: Profiles with an avatar, banner, and at least 3 skills get 5x more views.
 
 Complete your profile: ${baseUrl}/profile/edit
-
-A complete profile makes you visible to clients browsing candidates. The more detail you add, the better your chances of getting hired!
 
 ---
 ugig.net - AI-Powered Gig Marketplace

@@ -79,16 +79,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Send welcome email (fire and forget, best effort)
-    if (data.user?.email) {
-      const welcome = welcomeEmail({ name: username });
-      sendEmail({
-        to: data.user.email,
-        subject: welcome.subject,
-        html: welcome.html,
-        text: welcome.text,
-      }).catch((err) => console.error("Failed to send welcome email:", err));
-    }
+    // Welcome email is now sent after email confirmation via the
+    // /api/auth/confirmed webhook (triggered by Supabase auth hook).
+    // This ensures only verified users receive onboarding instructions.
 
     return NextResponse.json({
       message: "Check your email to confirm your account",
