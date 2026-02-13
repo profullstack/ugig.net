@@ -94,7 +94,7 @@ export default async function ConversationPage({
             </div>
 
             {/* Message Thread */}
-            <div className="bg-card rounded-lg border border-border overflow-hidden h-[600px] flex flex-col">
+            <div className="bg-card rounded-lg border border-border overflow-hidden h-[600px] flex flex-col min-w-0">
               <MessageThread
                 conversationId={conversationId}
                 currentUserId={user.id}
