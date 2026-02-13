@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { ReviewForm } from "./ReviewForm";
 
 // Mock the API
@@ -12,6 +12,10 @@ vi.mock("@/lib/api", () => ({
 import { reviews as reviewsApi } from "@/lib/api";
 
 describe("ReviewForm", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

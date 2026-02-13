@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { endorseSchema } from "@/lib/validations";
 import { sendEmail, endorsementReceivedEmail } from "@/lib/email";
+import { getUserDid, onEndorsementGiven } from "@/lib/reputation-hooks";
 
 // POST /api/users/:username/endorse — endorse a skill
 export async function POST(
@@ -99,6 +100,17 @@ export async function POST(
         );
       }
       return NextResponse.json({ error: insertError.message }, { status: 400 });
+    }
+
+    // Track reputation for endorsement
+    const { data: endorsedUserProfile } = await supabase
+      .from("profiles")
+      .select("did")
+      .eq("id", endorsedProfile.id)
+      .single();
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid && endorsedUserProfile?.did) {
+      onEndorsementGiven(userDid, endorsedUserProfile.did);
     }
 
     // Get endorser profile for notifications

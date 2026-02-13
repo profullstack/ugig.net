@@ -80,3 +80,48 @@ export function onEndorsementGiven(userDid: string, endorsedDid: string) {
     metadata: { endorsed_did: endorsedDid },
   }).catch(() => {});
 }
+
+export function onReviewCreated(userDid: string, reviewId: string, reviewedDid?: string) {
+  submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'review_created',
+    metadata: { review_id: reviewId, reviewed_did: reviewedDid },
+  }).catch(() => {});
+}
+
+export function onFollowed(userDid: string, followedDid: string) {
+  submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'followed_user',
+    metadata: { followed_did: followedDid },
+  }).catch(() => {});
+}
+
+export function onPortfolioAdded(userDid: string, portfolioId: string) {
+  submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'portfolio_added',
+    metadata: { portfolio_id: portfolioId },
+  }).catch(() => {});
+}
+
+export function onVerificationRequested(userDid: string, verificationType: string) {
+  submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'verification_requested',
+    metadata: { verification_type: verificationType },
+  }).catch(() => {});
+}
+
+export function onUpvoted(userDid: string, postId: string, targetType: 'post' | 'comment' = 'post') {
+  submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'upvoted',
+    metadata: { post_id: postId, target_type: targetType },
+  }).catch(() => {});
+}

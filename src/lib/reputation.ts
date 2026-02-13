@@ -44,6 +44,11 @@ export async function submitReputationReceipt(receipt: {
     post_created: 'social.post',
     comment_created: 'social.comment',
     endorsement_given: 'social.endorsement',
+    review_created: 'social.endorsement',
+    followed_user: 'social.endorsement',
+    portfolio_added: 'identity.profile_update',
+    verification_requested: 'identity.verification',
+    upvoted: 'social.comment',
   };
 
   return submitReputationAction({

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { profileSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
-import { onProfileCompleted } from "@/lib/reputation-hooks";
+import { onProfileCompleted, onResumeUploaded } from "@/lib/reputation-hooks";
 
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
@@ -72,6 +72,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get current profile to check for resume changes
+    const { data: currentProfile } = await supabase
+      .from("profiles")
+      .select("did, resume_url")
+      .eq("id", user.id)
+      .single();
+
     // Check if profile is complete
     const isComplete = Boolean(
       validationResult.data.full_name &&
@@ -105,6 +112,8 @@ export async function PUT(request: NextRequest) {
     if (profile?.did && profile?.profile_completed) {
       onProfileCompleted(profile.did);
     }
+
+    // Note: Resume upload reputation tracking is handled in the import route
 
     return NextResponse.json({ profile });
   } catch {

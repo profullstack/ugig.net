@@ -4,6 +4,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, reviewReceivedEmail } from "@/lib/email";
+import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -201,6 +202,17 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       return NextResponse.json({ error: createError.message }, { status: 400 });
+    }
+
+    // Track reputation for review creation
+    const userDid = await getUserDid(supabase, user.id);
+    const { data: revieweeProfile } = await supabase
+      .from("profiles")
+      .select("did")
+      .eq("id", reviewee_id)
+      .single();
+    if (userDid) {
+      onReviewCreated(userDid, review.id, revieweeProfile?.did || undefined);
     }
 
     // Create notification for reviewee

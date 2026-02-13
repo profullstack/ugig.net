@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseResumeFile } from "@/lib/resume-parser";
+import { getUserDid, onResumeUploaded } from "@/lib/reputation-hooks";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -139,6 +140,14 @@ export async function POST(request: NextRequest) {
 
       if (profileError) {
         console.error("Error updating profile:", profileError);
+      } else {
+        // Track reputation for resume upload
+        if (resumeUrl) {
+          const userDid = await getUserDid(supabase, user.id);
+          if (userDid) {
+            onResumeUploaded(userDid);
+          }
+        }
       }
     }
 

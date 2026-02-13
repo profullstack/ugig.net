@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { portfolioItemSchema } from "@/lib/validations";
+import { getUserDid, onPortfolioAdded } from "@/lib/reputation-hooks";
 
 // GET /api/portfolio?user_id=<id> — list user's portfolio (public)
 export async function GET(request: NextRequest) {
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Track reputation for portfolio addition
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid) {
+      onPortfolioAdded(userDid, item.id);
     }
 
     return NextResponse.json({ portfolio_item: item }, { status: 201 });

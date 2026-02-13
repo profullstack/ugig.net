@@ -33,6 +33,11 @@ vi.mock("@/lib/email", () => ({
   }),
 }));
 
+vi.mock("@/lib/reputation-hooks", () => ({
+  getUserDid: vi.fn().mockResolvedValue(null),
+  onEndorsementGiven: vi.fn(),
+}));
+
 import { getAuthContext } from "@/lib/auth/get-user";
 import type { AuthContext } from "@/lib/auth/get-user";
 const mockGetAuthContext = vi.mocked(getAuthContext);

@@ -5,6 +5,7 @@ import {
   rateLimitExceeded,
   getRateLimitIdentifier,
 } from "@/lib/rate-limit";
+import { getUserDid, onVerificationRequested } from "@/lib/reputation-hooks";
 
 // POST /api/verification/request — submit a verification request with evidence
 export async function POST(request: NextRequest) {
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Track reputation for verification request
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid) {
+      onVerificationRequested(userDid, "manual");
     }
 
     return NextResponse.json(

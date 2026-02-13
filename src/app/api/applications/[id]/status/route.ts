@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationStatusSchema } from "@/lib/validations";
+import { getUserDid, onHired } from "@/lib/reputation-hooks";
 
 // PUT /api/applications/[id]/status - Update application status
 export async function PUT(
@@ -84,6 +85,14 @@ export async function PUT(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Track reputation for hired applicant
+    if (status === "accepted") {
+      const userDid = await getUserDid(supabase, application.applicant_id);
+      if (userDid) {
+        onHired(userDid, application.gig_id);
+      }
     }
 
     // Notify applicant of status change (if changed by poster)

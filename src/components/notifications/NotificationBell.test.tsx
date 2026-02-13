@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { NotificationBell } from "./NotificationBell";
 
 // Mock next/link
@@ -46,6 +46,10 @@ const mockNotifications = [
 ];
 
 describe("NotificationBell", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(notificationsApi.list).mockResolvedValue({

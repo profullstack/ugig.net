@@ -4,6 +4,7 @@ import { sendEmail, newApplicationEmail } from "@/lib/email";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -86,6 +87,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Track reputation
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid) {
+      onApplicationSubmitted(userDid, gig_id);
     }
 
     // Create notification for gig poster

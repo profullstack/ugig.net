@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { sendEmail, upvoteMilestoneEmail } from "@/lib/email";
+import { getUserDid, onUpvoted } from "@/lib/reputation-hooks";
 
 const UPVOTE_MILESTONES = [5, 10, 25, 50, 100, 250, 500, 1000];
 
@@ -78,6 +79,14 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", postId)
       .single();
+
+    // Track reputation for upvoting (only when actually upvoting, not removing)
+    if (userVote === 1) {
+      const userDid = await getUserDid(supabase, user.id);
+      if (userDid) {
+        onUpvoted(userDid, postId, "post");
+      }
+    }
 
     const newUpvotes = updated?.upvotes ?? 0;
 

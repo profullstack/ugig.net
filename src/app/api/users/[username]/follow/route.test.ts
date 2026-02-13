@@ -37,6 +37,11 @@ vi.mock("@/lib/email", () => ({
   })),
 }));
 
+vi.mock("@/lib/reputation-hooks", () => ({
+  getUserDid: vi.fn().mockResolvedValue("did:test:123"),
+  onFollowed: vi.fn(),
+}));
+
 import { getAuthContext } from "@/lib/auth/get-user";
 import type { AuthContext } from "@/lib/auth/get-user";
 const mockGetAuthContext = vi.mocked(getAuthContext);
@@ -133,7 +138,7 @@ describe("POST /api/users/[username]/follow", () => {
 
     // 1. Profile lookup chain (target user): .from("profiles").select().eq().single()
     const profileChain = chainResult({
-      data: { id: targetId, username: "testuser", full_name: "Test User" },
+      data: { id: targetId, username: "testuser", full_name: "Test User", did: "did:test:target123" },
       error: null,
     });
 

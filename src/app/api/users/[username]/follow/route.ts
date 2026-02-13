@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, newFollowerEmail } from "@/lib/email";
+import { getUserDid, onFollowed } from "@/lib/reputation-hooks";
 
 // POST /api/users/[username]/follow — follow a user
 export async function POST(
@@ -18,7 +19,7 @@ export async function POST(
     // Look up target user by username
     const { data: targetProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, full_name")
+      .select("id, username, full_name, did")
       .eq("username", username)
       .single();
 
@@ -51,6 +52,12 @@ export async function POST(
         { error: followError.message },
         { status: 400 }
       );
+    }
+
+    // Track reputation for following
+    const userDid = await getUserDid(supabase, user.id);
+    if (userDid && targetProfile.did) {
+      onFollowed(userDid, targetProfile.did);
     }
 
     // Get follower's profile for notification
