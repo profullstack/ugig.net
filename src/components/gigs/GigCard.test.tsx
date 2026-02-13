@@ -5,7 +5,7 @@ import { GigCard } from "./GigCard";
 // Mock next modules
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+    <div data-href={href} role="link">{children}</div>
   ),
 }));
 
@@ -171,9 +171,9 @@ describe("GigCard", () => {
   });
 
   it("links to the gig detail page", () => {
-    render(<GigCard gig={{ ...baseGig, poster: mockPoster }} />);
-    const link = screen.getByRole("link", { name: /Build a React App/ });
-    expect(link).toHaveAttribute("href", "/gigs/gig-1");
+    const { container } = render(<GigCard gig={{ ...baseGig, poster: mockPoster }} />);
+    const link = container.querySelector('[data-href="/gigs/gig-1"]');
+    expect(link).toBeTruthy();
   });
 
   it("shows verified badge when poster is verified", () => {

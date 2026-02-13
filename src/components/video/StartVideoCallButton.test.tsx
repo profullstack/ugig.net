@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { StartVideoCallButton } from "./StartVideoCallButton";
 
 // Mock next/navigation
@@ -22,6 +22,10 @@ import { videoCalls } from "@/lib/api";
 describe("StartVideoCallButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders button with Video Call text", () => {

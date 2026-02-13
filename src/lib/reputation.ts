@@ -8,14 +8,14 @@ interface ActionReceipt {
 
 export async function submitReputationReceipt(receipt: ActionReceipt): Promise<boolean> {
   const COINPAY_API = process.env.COINPAYPORTAL_API_URL || 'https://coinpayportal.com';
-  const COINPAY_API_KEY = process.env.COINPAYPORTAL_API_KEY || '';
-  if (!COINPAY_API_KEY) return false;
+  const COINPAY_REPUTATION_KEY = process.env.COINPAYPORTAL_REPUTATION_API_KEY || '';
+  if (!COINPAY_REPUTATION_KEY) return false;
   try {
     const res = await fetch(`${COINPAY_API}/api/reputation/receipt`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${COINPAY_API_KEY}`,
+        'Authorization': `Bearer ${COINPAY_REPUTATION_KEY}`,
       },
       body: JSON.stringify(receipt),
     });
