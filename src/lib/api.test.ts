@@ -87,6 +87,21 @@ describe("API client", () => {
       });
     });
 
+    it("resendConfirmation makes POST request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ message: "Confirmation link sent." }),
+      });
+
+      await auth.resendConfirmation({ email: "test@example.com" });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "test@example.com" }),
+      });
+    });
+
     it("forgotPassword makes POST request", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

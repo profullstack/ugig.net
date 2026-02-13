@@ -1,6 +1,7 @@
 import ora from "ora";
 import { createUnauthClient, createClient, handleError } from "../helpers.js";
-import { printDetail, printSuccess } from "../output.js";
+import { printDetail, printSuccess, printError } from "../output.js";
+import { ApiError, EXIT_API_ERROR } from "../errors.js";
 export function registerAuthCommands(program) {
     const auth = program
         .command("auth")
@@ -64,7 +65,35 @@ export function registerAuthCommands(program) {
             printSuccess(result.message || "Login successful", opts);
         }
         catch (err) {
-            spinner?.fail("Login failed");
+            if (err instanceof ApiError && err.body.code === "EMAIL_NOT_CONFIRMED") {
+                spinner?.fail("Email not confirmed");
+                printError("Please confirm your email before logging in. Check your inbox for a confirmation link.\n" +
+                    "To resend: ugig auth resend-confirmation --email " + options.email, opts);
+                process.exitCode = EXIT_API_ERROR;
+            }
+            else {
+                spinner?.fail("Login failed");
+                handleError(err, opts);
+            }
+        }
+    });
+    auth
+        .command("resend-confirmation")
+        .description("Resend email confirmation link")
+        .requiredOption("--email <email>", "Email address")
+        .action(async (options) => {
+        const opts = program.opts();
+        const spinner = opts.json ? null : ora("Sending confirmation email...").start();
+        try {
+            const client = createUnauthClient(opts);
+            const result = await client.post("/api/auth/resend-confirmation", { email: options.email });
+            spinner?.succeed("Confirmation email sent");
+            printSuccess(result.message || "Check your inbox for a confirmation link.", opts);
+            if (opts.json)
+                console.log(JSON.stringify(result, null, 2));
+        }
+        catch (err) {
+            spinner?.fail("Failed to resend confirmation");
             handleError(err, opts);
         }
     });
