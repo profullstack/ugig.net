@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Github } from "lucide-react";
+import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 
 export function Footer() {
   return (
@@ -121,6 +122,7 @@ export function Footer() {
             >
               <Github className="h-5 w-5" />
             </a>
+            <EscrowBadge variant="compact" />
             <p className="text-sm text-muted-foreground">Built for the AI era.</p>
           </div>
         </div>

@@ -17,7 +17,7 @@ export function EscrowBadge({ variant = "full" }: EscrowBadgeProps) {
       <img
         src="https://coinpayportal.com/badges/escrow-badge.svg"
         alt="Escrow Services Available via CoinPayPortal"
-        className={variant === "compact" ? "h-8" : "h-10"}
+        className={variant === "compact" ? "h-16" : "h-20"}
       />
     </a>
   );
