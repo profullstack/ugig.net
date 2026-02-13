@@ -92,13 +92,18 @@ export function GigCard({
             />
           )}
           {poster && (
-            <Image
-              src={poster.avatar_url || "/default-avatar.svg"}
-              alt={poster.full_name || poster.username || "User"}
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-full ring-2 ring-border object-cover"
-            />
+            <div className="flex flex-col items-center gap-1">
+              <Image
+                src={poster.avatar_url || "/default-avatar.svg"}
+                alt={poster.full_name || poster.username || "User"}
+                width={40}
+                height={40}
+                className="h-10 w-10 rounded-full ring-2 ring-border object-cover"
+              />
+              <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+                @{poster.username}
+              </span>
+            </div>
           )}
         </div>
       </div>
