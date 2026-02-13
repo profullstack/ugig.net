@@ -165,6 +165,19 @@ describe("MessageBubble", () => {
     expect(container.querySelector('[title="Sent"]')).not.toBeInTheDocument();
   });
 
+  it("wraps long unbroken text without overflowing", () => {
+    const longMessage = {
+      ...mockMessage,
+      content: "a".repeat(500),
+    };
+    const { container } = render(
+      <MessageBubble message={longMessage} isOwn={false} />
+    );
+    const paragraph = container.querySelector("p");
+    expect(paragraph?.className).toContain("[overflow-wrap:anywhere]");
+    expect(paragraph?.className).toContain("break-words");
+  });
+
   it("does not show check marks for other people's messages", () => {
     const { container } = render(
       <MessageBubble

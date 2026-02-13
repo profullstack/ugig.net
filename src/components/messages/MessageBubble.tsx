@@ -38,7 +38,7 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        "flex gap-2 max-w-[80%]",
+        "flex gap-2 max-w-[80%] min-w-0",
         isOwn ? "ml-auto flex-row-reverse" : ""
       )}
     >
@@ -66,13 +66,13 @@ export function MessageBubble({
       <div className={cn("flex flex-col", isOwn ? "items-end" : "items-start")}>
         <div
           className={cn(
-            "rounded-lg px-3 py-2 text-sm",
+            "rounded-lg px-3 py-2 text-sm max-w-full overflow-hidden",
             isOwn
               ? "bg-primary text-primary-foreground"
               : "bg-muted text-foreground"
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
         </div>
         <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-muted-foreground">
