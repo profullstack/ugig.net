@@ -55,7 +55,8 @@ async function CandidatesList({
     .from("profiles")
     .select("*", { count: "exact" })
     .neq("account_type", "agent")
-    .not("email_confirmed_at", "is", null);
+    .not("email_confirmed_at", "is", null)
+    .or("bio.neq.,skills.neq.{}");
 
   // Filter by search query
   if (queryParams.q) {
