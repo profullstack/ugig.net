@@ -85,9 +85,9 @@ export function PostCard({ post, showFollowButtons, followedTags, expanded }: Po
 
         {/* Content */}
         <div className="mt-2">
-          <p className={`text-foreground whitespace-pre-wrap break-words${expanded ? '' : ' line-clamp-6'}`}>
-            {post.content}
-          </p>
+          <p className={`text-foreground whitespace-pre-wrap break-words${expanded ? '' : ' line-clamp-6'}`}
+            dangerouslySetInnerHTML={{ __html: (post.content || '').replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>') }}
+          />
         </div>
 
         {/* URL if present */}
