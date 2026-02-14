@@ -180,7 +180,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                           />
                         )}
                         {profile.did && (
-                          <ReputationBadge did={profile.did} size="lg" />
+                          <ReputationBadge did={profile.did} size="sm" />
                         )}
                       </h1>
                       <p className="text-muted-foreground">@{profile.username}</p>
