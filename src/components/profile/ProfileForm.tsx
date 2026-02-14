@@ -21,6 +21,7 @@ interface ProfileFormProps {
 export function ProfileForm({ profile }: ProfileFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
   const [newSkill, setNewSkill] = useState("");
@@ -131,13 +132,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     }
     try {
       new URL(url);
+      setPortfolioError(null);
       const current = portfolioUrls || [];
       if (current.length < 10 && !current.includes(url)) {
         setValue("portfolio_urls", [...current, url]);
         setNewPortfolioUrl("");
       }
     } catch {
-      setError("Please enter a valid URL");
+      setPortfolioError("Please enter a valid URL (e.g. github.com/username)");
     }
   };
 
@@ -515,6 +517,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+          {portfolioError && (
+            <p className="text-sm text-destructive">{portfolioError}</p>
+          )}
           {portfolioUrls && portfolioUrls.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {portfolioUrls.map((url) => (
