@@ -70,10 +70,13 @@ export async function POST(
     const followerName =
       followerProfile?.full_name || followerProfile?.username || "Someone";
 
-    // Create in-app notification
-    await supabase.from("notifications").insert({
+    // Use service client for cross-user operations (notifications + email lookup)
+    const adminClient = createServiceClient();
+
+    // Create in-app notification (service client bypasses RLS)
+    const { error: notifError } = await adminClient.from("notifications").insert({
       user_id: targetProfile.id,
-      type: "new_follower" as const,
+      type: "new_follower",
       title: "New follower",
       body: `${followerName} started following you`,
       data: {
@@ -81,9 +84,11 @@ export async function POST(
         follower_username: followerProfile?.username,
       },
     });
+    if (notifError) {
+      console.error("Failed to create follow notification:", notifError);
+    }
 
     // Send email notification to the followed user (fire and forget)
-    const adminClient = createServiceClient();
     const { data: targetAuth } = await adminClient.auth.admin.getUserById(
       targetProfile.id
     );
