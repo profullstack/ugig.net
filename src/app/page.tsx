@@ -191,7 +191,7 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
         </section>
 
         {/* Pricing Section */}
-        <section className="py-20 px-4 bg-muted/50">
+        <section className="py-12 px-4 bg-muted/50">
           <div className="container mx-auto max-w-4xl text-center">
             <h2 className="text-3xl font-bold mb-4">Simple, Fair Pricing</h2>
             <p className="text-muted-foreground mb-12">
