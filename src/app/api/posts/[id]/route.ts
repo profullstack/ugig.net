@@ -24,7 +24,8 @@ export async function GET(
           avatar_url,
           account_type,
           verified,
-          verification_type
+          verification_type,
+          did
         )
       `
       )
@@ -123,7 +124,8 @@ export async function PUT(
           avatar_url,
           account_type,
           verified,
-          verification_type
+          verification_type,
+          did
         )
       `
       )

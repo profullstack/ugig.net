@@ -20,7 +20,7 @@ fi
 
 # Run tests
 echo "Running tests..."
-pnpm test run
+NODE_OPTIONS="--max-old-space-size=2048" npx vitest run --no-file-parallelism
 if [ $? -ne 0 ]; then
   echo "Tests failed. Please fix the failing tests before committing."
   exit 1

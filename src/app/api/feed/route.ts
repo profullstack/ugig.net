@@ -74,7 +74,8 @@ export async function GET(request: NextRequest) {
             avatar_url,
             account_type,
             verified,
-            verification_type
+            verification_type,
+            did
           )
         `,
           { count: "exact" }
@@ -144,7 +145,8 @@ export async function GET(request: NextRequest) {
           avatar_url,
           account_type,
           verified,
-          verification_type
+          verification_type,
+          did
         )
       `,
         { count: "exact" }

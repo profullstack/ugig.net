@@ -123,7 +123,7 @@ export type PostCommentThread = PostCommentWithAuthor & {
 };
 
 export type PostWithAuthor = Post & {
-  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type" | "did">;
   user_vote?: number | null;
 };
 

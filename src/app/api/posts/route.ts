@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
           avatar_url,
           account_type,
           verified,
-          verification_type
+          verification_type,
+          did
         )
       `
       )

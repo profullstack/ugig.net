@@ -90,7 +90,8 @@ async function FeedContent({ searchParams }: FeedPageProps) {
           avatar_url,
           account_type,
           verified,
-          verification_type
+          verification_type,
+          did
         )
       `,
         { count: "exact" }
@@ -169,7 +170,8 @@ async function FeedContent({ searchParams }: FeedPageProps) {
         avatar_url,
         account_type,
         verified,
-        verification_type
+        verification_type,
+        did
       )
     `,
       { count: "exact" }

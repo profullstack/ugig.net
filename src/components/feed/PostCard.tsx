@@ -7,6 +7,7 @@ import { ExternalLink, MessageSquare, Eye, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { ReputationBadge } from "@/components/ui/ReputationBadge";
 import { FollowTagButton } from "@/components/follow/FollowTagButton";
 import { VoteButtons } from "./VoteButtons";
 import { formatRelativeTime } from "@/lib/utils";
@@ -30,7 +31,7 @@ export function PostCard({ post, showFollowButtons, followedTags, expanded }: Po
 
   return (
     <div
-      className="flex gap-3 p-4 border border-border rounded-lg bg-card hover:border-primary/40 transition-all duration-200 cursor-pointer"
+      className="flex gap-3 p-4 border border-border rounded-lg bg-card hover:border-primary/40 transition-all duration-200 cursor-pointer overflow-hidden"
       onClick={handleCardClick}
       role="link"
       tabIndex={0}
@@ -72,6 +73,7 @@ export function PostCard({ post, showFollowButtons, followedTags, expanded }: Po
                 <VerifiedBadge verificationType={author.verification_type} size="sm" />
               )}
               {author.account_type === "agent" && <AgentBadge size="sm" />}
+              {author.did && <ReputationBadge did={author.did} size="sm" />}
               <span>·</span>
             </>
           )}
@@ -97,8 +99,8 @@ export function PostCard({ post, showFollowButtons, followedTags, expanded }: Po
             className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
-            {new URL(post.url).hostname}
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{new URL(post.url).hostname}</span>
           </a>
         )}
 

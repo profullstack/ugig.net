@@ -51,7 +51,8 @@ export default async function PostPage({ params }: PostPageProps) {
         avatar_url,
         account_type,
         verified,
-        verification_type
+        verification_type,
+        did
       )
     `
     )
