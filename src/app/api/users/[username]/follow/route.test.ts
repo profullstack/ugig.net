@@ -15,7 +15,9 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 const mockAdminGetUserById = vi.fn();
+const mockServiceFrom = vi.fn();
 const mockServiceClient = {
+  from: mockServiceFrom,
   auth: {
     admin: {
       getUserById: mockAdminGetUserById,
@@ -40,6 +42,11 @@ vi.mock("@/lib/email", () => ({
 vi.mock("@/lib/reputation-hooks", () => ({
   getUserDid: vi.fn().mockResolvedValue("did:test:123"),
   onFollowed: vi.fn(),
+}));
+
+const mockLogActivity = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/activity", () => ({
+  logActivity: (...args: unknown[]) => mockLogActivity(...args),
 }));
 
 import { getAuthContext } from "@/lib/auth/get-user";
@@ -161,15 +168,51 @@ describe("POST /api/users/[username]/follow", () => {
       callCount++;
       if (callCount === 1) return profileChain; // target profile lookup
       if (callCount === 2) return insertChain; // insert follow
-      if (callCount === 3) return followerChain; // follower profile
-      return notifChain; // notification insert
+      return followerChain; // follower profile
     });
+
+    // Service client handles notifications
+    mockServiceFrom.mockReturnValue(notifChain);
 
     const res = await POST(makeRequest("POST"), routeParams);
     const json = await res.json();
 
     expect(res.status).toBe(201);
     expect(json.success).toBe(true);
+
+    // Verify activity logging
+    expect(mockLogActivity).toHaveBeenCalledWith(
+      supabaseClient,
+      expect.objectContaining({
+        userId: "user-123",
+        activityType: "followed_user",
+        referenceId: "target-456",
+        referenceType: "user",
+      })
+    );
+  });
+
+  it("does not log activity when follow fails", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+
+    const targetId = "target-456";
+    const profileChain = chainResult({
+      data: { id: targetId, username: "testuser", full_name: "Test User" },
+      error: null,
+    });
+    const insertChain: Record<string, unknown> = {};
+    insertChain.insert = vi.fn().mockResolvedValue({
+      error: { code: "23505", message: "duplicate key" },
+    });
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? profileChain : insertChain;
+    });
+
+    await POST(makeRequest("POST"), routeParams);
+    expect(mockLogActivity).not.toHaveBeenCalled();
   });
 
   it("returns 409 when already following", async () => {

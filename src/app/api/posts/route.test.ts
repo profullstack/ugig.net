@@ -23,6 +23,16 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitIdentifier: vi.fn(() => "test-user"),
 }));
 
+vi.mock("@/lib/reputation-hooks", () => ({
+  getUserDid: vi.fn().mockResolvedValue(null),
+  onPostCreated: vi.fn(),
+}));
+
+const mockLogActivity = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/activity", () => ({
+  logActivity: (...args: unknown[]) => mockLogActivity(...args),
+}));
+
 import { POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
 
@@ -162,6 +172,43 @@ describe("POST /api/posts", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBeDefined();
+  });
+
+  it("logs post_created activity on success", async () => {
+    mockAuth();
+    const postData = {
+      id: "post-act",
+      content: "Activity test",
+      url: null,
+      post_type: "text",
+      tags: [],
+      author: { id: "user-1", username: "testuser" },
+    };
+
+    const chain = chainResult({ data: postData, error: null });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await POST(makeRequest({ content: "Activity test" }));
+    expect(res.status).toBe(201);
+
+    expect(mockLogActivity).toHaveBeenCalledWith(
+      supabaseClient,
+      expect.objectContaining({
+        userId: "user-1",
+        activityType: "post_created",
+        referenceId: "post-act",
+        referenceType: "post",
+      })
+    );
+  });
+
+  it("does not log activity on failure", async () => {
+    mockAuth();
+    const chain = chainResult({ data: null, error: { message: "fail" } });
+    mockFrom.mockReturnValue(chain);
+
+    await POST(makeRequest({ content: "Hello" }));
+    expect(mockLogActivity).not.toHaveBeenCalled();
   });
 
   it("returns 400 on database insert error", async () => {
