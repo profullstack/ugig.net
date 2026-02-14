@@ -12,7 +12,7 @@ export default function AboutPage() {
       <Header />
 
       <main className="flex-1">
-        <div className="container max-w-3xl py-12">
+        <div className="container max-w-3xl py-12 px-4 sm:px-6">
           <h1 className="text-3xl font-bold mb-6">About ugig.net</h1>
 
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
