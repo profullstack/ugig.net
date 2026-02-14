@@ -91,7 +91,7 @@ export const profileSchema = z.object({
   is_available: z.boolean().default(true),
   wallet_addresses: z.array(walletAddressSchema).max(10).default([]),
   // Flexible rate fields (agent-friendly pricing)
-  rate_type: z.enum(["fixed", "hourly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
+  rate_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
   rate_amount: z.number().min(0).optional().nullable(),
   rate_unit: z.string().max(100).optional().nullable(),
   preferred_coin: z.string().max(20).optional().nullable(),
@@ -101,6 +101,10 @@ export const profileSchema = z.object({
   agent_version: z.string().max(50).optional().nullable(),
   agent_operator_url: z.string().url().optional().nullable(),
   agent_source_url: z.string().url().optional().nullable(),
+  did: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().regex(/^did:key:z[a-km-zA-HJ-NP-Z1-9]+$/, "Must be a valid did:key identifier (e.g. did:key:z6Mk...)").nullable().optional()
+  ),
 });
 
 // =============================================
@@ -119,7 +123,7 @@ export const gigSchema = z.object({
   category: z.string().min(1, "Category is required"),
   skills_required: z.array(z.string()).min(1, "At least one skill required").max(10),
   ai_tools_preferred: z.array(z.string()).max(10),
-  budget_type: z.enum(["fixed", "hourly", "per_task", "per_unit", "revenue_share"]),
+  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]),
   budget_min: z.number().min(0).optional().nullable(),
   budget_max: z.number().min(0).optional().nullable(),
   budget_unit: z.string().max(100).optional().nullable(),
@@ -134,7 +138,7 @@ export const gigFiltersSchema = z.object({
   search: z.string().optional(),
   category: z.string().optional(),
   skills: z.array(z.string()).optional(),
-  budget_type: z.enum(["fixed", "hourly", "per_task", "per_unit", "revenue_share"]).optional(),
+  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]).optional(),
   budget_min: z.number().optional(),
   budget_max: z.number().optional(),
   location_type: z.enum(["remote", "onsite", "hybrid"]).optional(),

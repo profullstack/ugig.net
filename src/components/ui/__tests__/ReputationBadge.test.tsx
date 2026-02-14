@@ -32,16 +32,21 @@ describe("ReputationBadge", () => {
     expect(link?.getAttribute("target")).toBe("_blank");
   });
 
-  it("respects size prop", () => {
+  it("respects size prop — sm=20px, md=28px, lg=36px", () => {
     const { container: sm } = render(
       <ReputationBadge did="did:key:z6Mk123" size="sm" />
     );
     const { container: md } = render(
       <ReputationBadge did="did:key:z6Mk123" size="md" />
     );
+    const { container: lg } = render(
+      <ReputationBadge did="did:key:z6Mk123" size="lg" />
+    );
     const smImg = sm.querySelector("img");
     const mdImg = md.querySelector("img");
-    expect(smImg?.style.height).toBe("16px");
-    expect(mdImg?.style.height).toBe("20px");
+    const lgImg = lg.querySelector("img");
+    expect(smImg?.style.height).toBe("20px");
+    expect(mdImg?.style.height).toBe("28px");
+    expect(lgImg?.style.height).toBe("36px");
   });
 });

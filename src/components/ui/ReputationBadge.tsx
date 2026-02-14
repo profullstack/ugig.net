@@ -5,7 +5,7 @@ import Link from "next/link";
 
 interface ReputationBadgeProps {
   did: string | null | undefined;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
@@ -23,7 +23,7 @@ export function ReputationBadge({ did, size = "sm", className = "" }: Reputation
 
   const badgeUrl = `${COINPAY_URL}/api/reputation/badge/${encodeURIComponent(did)}`;
   const profileUrl = `${COINPAY_URL}/reputation?did=${encodeURIComponent(did)}`;
-  const height = size === "sm" ? 20 : 28;
+  const height = size === "sm" ? 20 : size === "md" ? 28 : 36;
 
   if (error) return null;
 

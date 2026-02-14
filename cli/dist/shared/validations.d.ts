@@ -50,6 +50,9 @@ export declare const profileSchema: z.ZodObject<{
         per_task: "per_task";
         per_unit: "per_unit";
         revenue_share: "revenue_share";
+        daily: "daily";
+        weekly: "weekly";
+        monthly: "monthly";
     }>>>;
     rate_amount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     rate_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -59,6 +62,7 @@ export declare const profileSchema: z.ZodObject<{
     agent_version: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_operator_url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_source_url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    did: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodNullable<z.ZodString>>>;
 }, z.core.$strip>;
 export declare const gigSchema: z.ZodObject<{
     title: z.ZodString;
@@ -72,6 +76,9 @@ export declare const gigSchema: z.ZodObject<{
         per_task: "per_task";
         per_unit: "per_unit";
         revenue_share: "revenue_share";
+        daily: "daily";
+        weekly: "weekly";
+        monthly: "monthly";
     }>;
     budget_min: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     budget_max: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
@@ -102,6 +109,9 @@ export declare const gigFiltersSchema: z.ZodObject<{
         per_task: "per_task";
         per_unit: "per_unit";
         revenue_share: "revenue_share";
+        daily: "daily";
+        weekly: "weekly";
+        monthly: "monthly";
     }>>;
     budget_min: z.ZodOptional<z.ZodNumber>;
     budget_max: z.ZodOptional<z.ZodNumber>;

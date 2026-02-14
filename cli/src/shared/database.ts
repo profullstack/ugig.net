@@ -79,7 +79,8 @@ export type Database = {
           agent_version: string | null;
           agent_operator_url: string | null;
           agent_source_url: string | null;
-          rate_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          did: string | null;
+          rate_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount: number | null;
           rate_unit: string | null;
           preferred_coin: string | null;
@@ -121,7 +122,8 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
-          rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          did?: string | null;
+          rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
@@ -163,7 +165,8 @@ export type Database = {
           agent_version?: string | null;
           agent_operator_url?: string | null;
           agent_source_url?: string | null;
-          rate_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share" | null;
+          did?: string | null;
+          rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
           rate_amount?: number | null;
           rate_unit?: string | null;
           preferred_coin?: string | null;
@@ -188,7 +191,7 @@ export type Database = {
           category: string;
           skills_required: string[];
           ai_tools_preferred: string[];
-          budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+          budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
           budget_min: number | null;
           budget_max: number | null;
           budget_unit: string | null;
@@ -210,7 +213,7 @@ export type Database = {
           category: string;
           skills_required?: string[];
           ai_tools_preferred?: string[];
-          budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+          budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
           budget_min?: number | null;
           budget_max?: number | null;
           budget_unit?: string | null;
@@ -232,7 +235,7 @@ export type Database = {
           category?: string;
           skills_required?: string[];
           ai_tools_preferred?: string[];
-          budget_type?: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+          budget_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
           budget_min?: number | null;
           budget_max?: number | null;
           budget_unit?: string | null;
@@ -618,7 +621,8 @@ export type Database = {
             | "payment_received"
             | "new_comment"
             | "new_follower"
-            | "endorsement_received";
+            | "endorsement_received"
+            | "mention";
           title: string;
           body: string | null;
           data: Json;
@@ -638,7 +642,8 @@ export type Database = {
             | "payment_received"
             | "new_comment"
             | "new_follower"
-            | "endorsement_received";
+            | "endorsement_received"
+            | "mention";
           title: string;
           body?: string | null;
           data?: Json;
@@ -658,7 +663,8 @@ export type Database = {
             | "payment_received"
             | "new_comment"
             | "new_follower"
-            | "endorsement_received";
+            | "endorsement_received"
+            | "mention";
           title?: string;
           body?: string | null;
           data?: Json;
@@ -881,6 +887,10 @@ export type Database = {
           author_id: string;
           parent_id: string | null;
           content: string;
+          depth: number;
+          upvotes: number;
+          downvotes: number;
+          score: number;
           created_at: string;
           updated_at: string;
         };
@@ -890,6 +900,10 @@ export type Database = {
           author_id: string;
           parent_id?: string | null;
           content: string;
+          depth?: number;
+          upvotes?: number;
+          downvotes?: number;
+          score?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -899,6 +913,10 @@ export type Database = {
           author_id?: string;
           parent_id?: string | null;
           content?: string;
+          depth?: number;
+          upvotes?: number;
+          downvotes?: number;
+          score?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -922,6 +940,45 @@ export type Database = {
             columns: ["parent_id"];
             isOneToOne: false;
             referencedRelation: "post_comments";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      post_comment_votes: {
+        Row: {
+          id: string;
+          comment_id: string;
+          user_id: string;
+          vote_type: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          comment_id: string;
+          user_id: string;
+          vote_type: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          comment_id?: string;
+          user_id?: string;
+          vote_type?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_comment_votes_comment_id_fkey";
+            columns: ["comment_id"];
+            isOneToOne: false;
+            referencedRelation: "post_comments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_comment_votes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];
@@ -1371,11 +1428,17 @@ export type Database = {
         };
         Returns: undefined;
       };
+      increment_post_views: {
+        Args: {
+          post_id: string;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       account_type: "human" | "agent";
       gig_status: "draft" | "active" | "paused" | "closed" | "filled";
-      budget_type: "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+      budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
       location_type: "remote" | "onsite" | "hybrid";
       application_status:
         | "pending"
@@ -1401,7 +1464,8 @@ export type Database = {
         | "payment_received"
         | "new_comment"
         | "new_follower"
-        | "endorsement_received";
+        | "endorsement_received"
+            | "mention";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
       verification_type: "manual" | "auto" | "premium";

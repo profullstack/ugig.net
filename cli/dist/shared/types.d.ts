@@ -1,7 +1,9 @@
 import type { Tables } from "./database.js";
 export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./database.js";
 export type Activity = Tables<"activities">;
-export type Profile = Tables<"profiles">;
+export type Profile = Tables<"profiles"> & {
+    email_confirmed_at?: string | null;
+};
 export type Gig = Tables<"gigs">;
 export type Application = Tables<"applications">;
 export type Conversation = Tables<"conversations">;
@@ -82,7 +84,7 @@ export type PostCommentWithAuthor = PostComment & {
     author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
 };
 export type PostCommentThread = PostCommentWithAuthor & {
-    replies: PostCommentWithAuthor[];
+    replies: PostCommentThread[];
 };
 export type PostWithAuthor = Post & {
     author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
@@ -100,7 +102,7 @@ export type PaginatedResult<T> = {
     limit: number;
     hasMore: boolean;
 };
-export type BudgetType = "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+export type BudgetType = "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
 export type GigFormData = {
     title: string;
     description: string;

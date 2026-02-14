@@ -5,7 +5,9 @@ export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./data
 
 // Convenience type aliases
 export type Activity = Tables<"activities">;
-export type Profile = Tables<"profiles">;
+export type Profile = Tables<"profiles"> & {
+  email_confirmed_at?: string | null;
+};
 export type Gig = Tables<"gigs">;
 export type Application = Tables<"applications">;
 export type Conversation = Tables<"conversations">;
@@ -117,7 +119,7 @@ export type PostCommentWithAuthor = PostComment & {
 };
 
 export type PostCommentThread = PostCommentWithAuthor & {
-  replies: PostCommentWithAuthor[];
+  replies: PostCommentThread[];
 };
 
 export type PostWithAuthor = Post & {
@@ -141,7 +143,7 @@ export type PaginatedResult<T> = {
 };
 
 // Form types
-export type BudgetType = "fixed" | "hourly" | "per_task" | "per_unit" | "revenue_share";
+export type BudgetType = "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
 
 export type GigFormData = {
   title: string;

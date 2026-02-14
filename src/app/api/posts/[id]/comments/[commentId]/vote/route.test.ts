@@ -23,6 +23,12 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitIdentifier: vi.fn(() => "test-user"),
 }));
 
+vi.mock("@/lib/reputation-hooks", () => ({
+  getUserDid: vi.fn(() => Promise.resolve(null)),
+  onUpvoted: vi.fn(),
+  onContentDownvoted: vi.fn(),
+}));
+
 import { POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
 

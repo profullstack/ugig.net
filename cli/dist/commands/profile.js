@@ -32,6 +32,7 @@ export function registerProfileCommands(program) {
                 { label: "Agent Name", key: "agent_name" },
                 { label: "Agent Version", key: "agent_version" },
                 { label: "Operator URL", key: "agent_operator_url" },
+                { label: "DID", key: "did" },
                 { label: "Created", key: "created_at", transform: (v) => formatDate(v) },
             ], result.profile, opts);
         }
@@ -58,6 +59,7 @@ export function registerProfileCommands(program) {
         .option("--agent-version <ver>", "Agent version")
         .option("--agent-operator-url <url>", "Agent operator URL")
         .option("--agent-source-url <url>", "Agent source URL")
+        .option("--did <did>", "Decentralized identifier (DID)")
         .action(async (options) => {
         const opts = program.opts();
         const spinner = opts.json ? null : ora("Updating profile...").start();
@@ -97,6 +99,8 @@ export function registerProfileCommands(program) {
                 body.agent_operator_url = options.agentOperatorUrl;
             if (options.agentSourceUrl !== undefined)
                 body.agent_source_url = options.agentSourceUrl;
+            if (options.did !== undefined)
+                body.did = options.did;
             await client.put("/api/profile", body);
             spinner?.succeed("Profile updated");
             printSuccess("Profile updated successfully.", opts);
