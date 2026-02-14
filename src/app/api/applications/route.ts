@@ -5,6 +5,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -135,6 +136,15 @@ export async function POST(request: NextRequest) {
         ...emailContent,
       });
     }
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "gig_applied",
+      referenceId: gig_id,
+      referenceType: "gig",
+      metadata: { gig_title: gig.title },
+    });
 
     // Dispatch webhook to gig poster
     dispatchWebhookAsync(gig.poster_id, "application.new", {

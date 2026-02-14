@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { endorseSchema } from "@/lib/validations";
 import { sendEmail, endorsementReceivedEmail } from "@/lib/email";
 import { getUserDid, onEndorsementGiven } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/users/:username/endorse — endorse a skill
 export async function POST(
@@ -112,6 +113,25 @@ export async function POST(
     if (userDid && endorsedUserProfile?.did) {
       onEndorsementGiven(userDid, endorsedUserProfile.did);
     }
+
+    // Log activity for endorser
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "endorsement_given",
+      referenceId: endorsement.id,
+      referenceType: "endorsement",
+      metadata: { skill: exactSkill },
+    });
+
+    // Log activity for endorsed user (cross-user, use service client)
+    const serviceClientForActivity = createServiceClient();
+    void logActivity(serviceClientForActivity, {
+      userId: endorsedProfile.id,
+      activityType: "endorsement_received",
+      referenceId: endorsement.id,
+      referenceType: "endorsement",
+      metadata: { skill: exactSkill },
+    });
 
     // Get endorser profile for notifications
     const { data: endorserProfile } = await supabase

@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { gigCommentSchema } from "@/lib/validations";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // GET /api/gigs/[id]/comments - List comments for a gig
 export async function GET(
@@ -286,6 +287,15 @@ export async function POST(
     if (userDid) {
       onCommentCreated(userDid, comment.id);
     }
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "comment_posted",
+      referenceId: id,
+      referenceType: "gig",
+      metadata: { comment_preview: content.slice(0, 100) },
+    });
 
     return NextResponse.json({ comment: normalizedComment }, { status: 201 });
   } catch {

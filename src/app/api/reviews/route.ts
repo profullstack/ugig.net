@@ -5,6 +5,7 @@ import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, reviewReceivedEmail } from "@/lib/email";
 import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -214,6 +215,27 @@ export async function POST(request: NextRequest) {
     if (userDid) {
       onReviewCreated(userDid, review.id, revieweeProfile?.did || undefined);
     }
+
+    // Log activity for reviewer
+    const reviewerProfile = Array.isArray(review.reviewer) ? review.reviewer[0] : review.reviewer;
+    const revieweeProfileData = Array.isArray(review.reviewee) ? review.reviewee[0] : review.reviewee;
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "review_given",
+      referenceId: review.id,
+      referenceType: "review",
+      metadata: { rating, gig_title: gig.title, reviewee_name: revieweeProfileData?.full_name || revieweeProfileData?.username },
+    });
+
+    // Log activity for reviewee (use service client for cross-user)
+    const serviceClient = createServiceClient();
+    void logActivity(serviceClient, {
+      userId: reviewee_id,
+      activityType: "review_received",
+      referenceId: review.id,
+      referenceType: "review",
+      metadata: { rating, gig_title: gig.title, reviewer_name: reviewerProfile?.full_name || reviewerProfile?.username },
+    });
 
     // Create notification for reviewee
     await supabase.from("notifications").insert({

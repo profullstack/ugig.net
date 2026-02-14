@@ -3,6 +3,7 @@ import { postSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { getUserDid, onPostCreated } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/posts - Create a new post
 export async function POST(request: NextRequest) {
@@ -65,6 +66,15 @@ export async function POST(request: NextRequest) {
     getUserDid(supabase, user.id).then((did) => {
       if (did) onPostCreated(did, post.id);
     }).catch(() => {});
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "post_created",
+      referenceId: post.id,
+      referenceType: "post",
+      metadata: { content_preview: data.content.slice(0, 100) },
+    });
 
     return NextResponse.json({ post }, { status: 201 });
   } catch {

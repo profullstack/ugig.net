@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, newFollowerEmail } from "@/lib/email";
 import { getUserDid, onFollowed } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/users/[username]/follow — follow a user
 export async function POST(
@@ -108,6 +109,15 @@ export async function POST(
         text: emailContent.text,
       }).catch(() => {});
     }
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "followed_user",
+      referenceId: targetProfile.id,
+      referenceType: "user",
+      metadata: { followed_username: targetProfile.username },
+    });
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch {

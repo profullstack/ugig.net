@@ -4,6 +4,7 @@ import { gigSchema, gigFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
@@ -231,6 +232,15 @@ export async function POST(request: NextRequest) {
     getUserDid(supabase, user.id).then((did) => {
       if (did) onGigPosted(did, gig.id);
     }).catch(() => {});
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "gig_posted",
+      referenceId: gig.id,
+      referenceType: "gig",
+      metadata: { gig_title: gig.title },
+    });
 
     return NextResponse.json({ gig }, { status: 201 });
   } catch {

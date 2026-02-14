@@ -5,6 +5,7 @@ import { postCommentSchema } from "@/lib/validations";
 import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail, mentionInCommentEmail } from "@/lib/email";
 import { parseMentions } from "@/lib/mentions";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 const MAX_COMMENT_DEPTH = 4; // 0-indexed, so 5 levels (0,1,2,3,4)
 
@@ -396,6 +397,15 @@ export async function POST(
         }
       }
     }
+
+    // Log activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "comment_posted",
+      referenceId: id,
+      referenceType: "post",
+      metadata: { comment_preview: content.slice(0, 100) },
+    });
 
     return NextResponse.json({ comment: normalizedComment }, { status: 201 });
   } catch {
