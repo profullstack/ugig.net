@@ -49,6 +49,7 @@ export async function submitReputationReceipt(receipt: {
     portfolio_added: 'identity.profile_update',
     verification_requested: 'identity.verification',
     upvoted: 'social.comment',
+    content_downvoted: 'social.comment',
   };
 
   return submitReputationAction({

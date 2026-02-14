@@ -124,11 +124,16 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
   const addPortfolioUrl = () => {
     if (!newPortfolioUrl) return;
+    // Auto-prefix https:// if no protocol provided
+    let url = newPortfolioUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
     try {
-      new URL(newPortfolioUrl);
+      new URL(url);
       const current = portfolioUrls || [];
-      if (current.length < 10 && !current.includes(newPortfolioUrl)) {
-        setValue("portfolio_urls", [...current, newPortfolioUrl]);
+      if (current.length < 10 && !current.includes(url)) {
+        setValue("portfolio_urls", [...current, url]);
         setNewPortfolioUrl("");
       }
     } catch {

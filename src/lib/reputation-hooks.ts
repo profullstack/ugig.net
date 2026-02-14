@@ -125,3 +125,12 @@ export function onUpvoted(userDid: string, postId: string, targetType: 'post' | 
     metadata: { post_id: postId, target_type: targetType },
   }).catch(() => {});
 }
+
+export function onContentDownvoted(authorDid: string, contentId: string, targetType: 'post' | 'comment' = 'post') {
+  submitReputationReceipt({
+    agent_did: authorDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'content_downvoted',
+    metadata: { content_id: contentId, target_type: targetType },
+  }).catch(() => {});
+}

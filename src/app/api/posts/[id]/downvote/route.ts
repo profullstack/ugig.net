@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { getUserDid, onContentDownvoted } from "@/lib/reputation-hooks";
 
 // POST /api/posts/[id]/downvote - Downvote a post (toggle)
 export async function POST(
@@ -21,7 +22,7 @@ export async function POST(
     // Check post exists
     const { data: post } = await supabase
       .from("posts")
-      .select("id")
+      .select("id, author_id")
       .eq("id", postId)
       .single();
 
@@ -73,6 +74,14 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", postId)
       .single();
+
+    // Track negative reputation for post author when downvoted
+    if (userVote === -1 && post.author_id !== user.id) {
+      const authorDid = await getUserDid(supabase, post.author_id);
+      if (authorDid) {
+        onContentDownvoted(authorDid, postId, 'post');
+      }
+    }
 
     return NextResponse.json({
       upvotes: updated?.upvotes ?? 0,

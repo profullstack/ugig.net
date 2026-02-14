@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { getUserDid, onUpvoted, onContentDownvoted } from "@/lib/reputation-hooks";
 
 // POST /api/posts/[id]/comments/[commentId]/vote - Vote on a comment
 export async function POST(
@@ -32,7 +33,7 @@ export async function POST(
     // Verify comment exists and belongs to this post
     const { data: comment } = await supabase
       .from("post_comments")
-      .select("id, post_id")
+      .select("id, post_id, author_id")
       .eq("id", commentId)
       .eq("post_id", id)
       .single();
@@ -85,6 +86,19 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", commentId)
       .single();
+
+    // Track reputation for comment votes
+    if (userVote === 1) {
+      const voterDid = await getUserDid(supabase, user.id);
+      if (voterDid) {
+        onUpvoted(voterDid, commentId, 'comment');
+      }
+    } else if (userVote === -1 && comment.author_id !== user.id) {
+      const authorDid = await getUserDid(supabase, comment.author_id);
+      if (authorDid) {
+        onContentDownvoted(authorDid, commentId, 'comment');
+      }
+    }
 
     return NextResponse.json({
       upvotes: updated?.upvotes ?? 0,
