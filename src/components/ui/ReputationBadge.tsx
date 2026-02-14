@@ -23,7 +23,7 @@ export function ReputationBadge({ did, size = "sm", className = "" }: Reputation
 
   const badgeUrl = `${COINPAY_URL}/api/reputation/badge/${encodeURIComponent(did)}`;
   const profileUrl = `${COINPAY_URL}/reputation?did=${encodeURIComponent(did)}`;
-  const height = size === "sm" ? 16 : 20;
+  const height = size === "sm" ? 20 : 28;
 
   if (error) return null;
 
