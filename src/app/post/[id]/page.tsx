@@ -112,6 +112,7 @@ export default async function PostPage({ params }: PostPageProps) {
             post={postWithVote}
             showFollowButtons={!!user}
             followedTags={followedTagsSet}
+            expanded
           />
 
           <PostComments

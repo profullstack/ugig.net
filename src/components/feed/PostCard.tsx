@@ -16,9 +16,10 @@ interface PostCardProps {
   post: PostWithAuthor;
   showFollowButtons?: boolean;
   followedTags?: Set<string>;
+  expanded?: boolean;
 }
 
-export function PostCard({ post, showFollowButtons, followedTags }: PostCardProps) {
+export function PostCard({ post, showFollowButtons, followedTags, expanded }: PostCardProps) {
   const router = useRouter();
   // Normalize author — Supabase can return array or object
   const author = Array.isArray(post.author) ? post.author[0] : post.author;
@@ -82,7 +83,7 @@ export function PostCard({ post, showFollowButtons, followedTags }: PostCardProp
 
         {/* Content */}
         <div className="mt-2">
-          <p className="text-foreground whitespace-pre-wrap break-words line-clamp-6">
+          <p className={`text-foreground whitespace-pre-wrap break-words${expanded ? '' : ' line-clamp-6'}`}>
             {post.content}
           </p>
         </div>
