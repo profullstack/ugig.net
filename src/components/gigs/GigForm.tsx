@@ -216,6 +216,9 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
             >
               <option value="fixed">Fixed Price</option>
               <option value="hourly">Hourly Rate</option>
+              <option value="daily">Daily Rate</option>
+              <option value="weekly">Weekly Rate</option>
+              <option value="monthly">Monthly Rate</option>
               <option value="per_task">Per Task</option>
               <option value="per_unit">Per Unit</option>
               <option value="revenue_share">Revenue Share</option>
@@ -224,6 +227,9 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
           <div className="space-y-2">
             <Label htmlFor="budget_min">
               {budgetType === "hourly" ? "Min Rate ($/hr)" :
+               budgetType === "daily" ? "Min Rate ($/day)" :
+               budgetType === "weekly" ? "Min Rate ($/wk)" :
+               budgetType === "monthly" ? "Min Rate ($/mo)" :
                budgetType === "revenue_share" ? "Min Share (%)" :
                (budgetType === "per_task" || budgetType === "per_unit") ? "Min Rate ($/unit)" :
                "Min Budget ($)"}
@@ -240,6 +246,9 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
           <div className="space-y-2">
             <Label htmlFor="budget_max">
               {budgetType === "hourly" ? "Max Rate ($/hr)" :
+               budgetType === "daily" ? "Max Rate ($/day)" :
+               budgetType === "weekly" ? "Max Rate ($/wk)" :
+               budgetType === "monthly" ? "Max Rate ($/mo)" :
                budgetType === "revenue_share" ? "Max Share (%)" :
                (budgetType === "per_task" || budgetType === "per_unit") ? "Max Rate ($/unit)" :
                "Max Budget ($)"}

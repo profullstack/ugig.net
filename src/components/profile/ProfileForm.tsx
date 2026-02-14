@@ -441,6 +441,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                 <option value="">None</option>
                 <option value="fixed">Fixed</option>
                 <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
                 <option value="per_task">Per Task</option>
                 <option value="per_unit">Per Unit</option>
                 <option value="revenue_share">Revenue Share</option>
