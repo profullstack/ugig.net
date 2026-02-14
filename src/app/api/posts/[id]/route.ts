@@ -56,8 +56,9 @@ export async function GET(
       }
     }
 
+    const baseUrl = request.nextUrl.origin;
     return NextResponse.json({
-      post: { ...post, user_vote: userVote },
+      post: { ...post, user_vote: userVote, permalink: `${baseUrl}/post/${post.id}` },
     });
   } catch {
     return NextResponse.json(

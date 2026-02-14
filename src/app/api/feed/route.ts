@@ -112,9 +112,11 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const baseUrl = request.nextUrl.origin;
       const postsWithVotes = (posts || []).map((post) => ({
         ...post,
         user_vote: userVotes[post.id] || null,
+        permalink: `${baseUrl}/post/${post.id}`,
       }));
 
       return NextResponse.json({
@@ -216,10 +218,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Attach user_vote to each post
+    // Attach user_vote and permalink to each post
+    const baseUrl = request.nextUrl.origin;
     const postsWithVotes = sortedPosts.map((post) => ({
       ...post,
       user_vote: userVotes[post.id] || null,
+      permalink: `${baseUrl}/post/${post.id}`,
     }));
 
     return NextResponse.json({
