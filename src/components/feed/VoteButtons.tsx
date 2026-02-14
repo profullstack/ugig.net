@@ -54,7 +54,7 @@ export function VoteButtons({
         }}
         disabled={loading}
         className={cn(
-          "p-1 rounded hover:bg-muted transition-colors",
+          "p-1 rounded hover:bg-muted transition-colors cursor-pointer",
           userVote === 1 && "text-orange-500"
         )}
         aria-label="Upvote"
@@ -81,7 +81,7 @@ export function VoteButtons({
         }}
         disabled={loading}
         className={cn(
-          "p-1 rounded hover:bg-muted transition-colors",
+          "p-1 rounded hover:bg-muted transition-colors cursor-pointer",
           userVote === -1 && "text-blue-500"
         )}
         aria-label="Downvote"

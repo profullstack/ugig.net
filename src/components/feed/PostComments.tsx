@@ -274,7 +274,7 @@ export function PostComments({
           <div className="flex flex-col items-center gap-0.5 pt-1">
             <button
               onClick={() => handleVote(comment.id, "up")}
-              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-orange-500"
+              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-orange-500 cursor-pointer"
               aria-label="Upvote comment"
             >
               <ArrowBigUp className="h-4 w-4" />
@@ -288,7 +288,7 @@ export function PostComments({
             </span>
             <button
               onClick={() => handleVote(comment.id, "down")}
-              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-blue-500"
+              className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-blue-500 cursor-pointer"
               aria-label="Downvote comment"
             >
               <ArrowBigDown className="h-4 w-4" />
