@@ -143,7 +143,32 @@ async function generateAndClaimDid(supabase: any, userId: string): Promise<strin
     return null;
   }
 
-  // Submit an initial reputation action so the DID is known to CoinPayPortal
+  // Register the DID on CoinPayPortal and submit initial reputation action
+  const coinpayApi = process.env.COINPAYPORTAL_API_URL || "https://coinpayportal.com";
+  const coinpayKey = process.env.COINPAYPORTAL_REPUTATION_API_KEY;
+
+  if (coinpayKey) {
+    // Register the DID
+    try {
+      const publicKeyB64 = Buffer.from(pubKeyRaw).toString("base64url");
+      await fetch(`${coinpayApi}/api/reputation/did/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${coinpayKey}`,
+        },
+        body: JSON.stringify({
+          did,
+          public_key: publicKeyB64,
+          platform: "ugig.net",
+        }),
+      });
+    } catch (err) {
+      console.warn("[Auth Confirmed] CoinPayPortal DID register failed:", err);
+    }
+  }
+
+  // Submit initial reputation action
   const { submitReputationAction } = await import("@/lib/reputation");
   await submitReputationAction({
     agent_did: did,
