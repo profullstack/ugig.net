@@ -116,7 +116,7 @@ export function GigCard({
         {gig.skills_required.slice(0, 4).map((skill) => (
           <Link
             key={skill}
-            href={`/gigs/${encodeURIComponent(skill)}`}
+            href={`/gigs?skill=${encodeURIComponent(skill)}`}
             onClick={(e) => e.stopPropagation()}
           >
             <Badge
