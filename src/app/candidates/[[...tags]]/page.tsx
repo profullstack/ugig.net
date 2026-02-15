@@ -51,54 +51,18 @@ async function CandidatesList({
   const tagList = tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
   // Build query — show human profiles only (exclude agents)
-  let query = supabase
-    .from("profiles")
-    .select("*", { count: "exact" })
-    .neq("account_type", "agent")
-    .not("email_confirmed_at", "is", null)
-    .eq("profile_completed", true);
-
-  // Filter by search query
-  if (queryParams.q) {
-    query = query.or(
-      `full_name.ilike.%${queryParams.q}%,username.ilike.%${queryParams.q}%,bio.ilike.%${queryParams.q}%`
-    );
-  }
-
-  // Filter by availability
-  if (queryParams.available === "true") {
-    query = query.eq("is_available", true);
-  }
-
-  // Filter by tags (skills or ai_tools)
-  // We need to filter profiles that have ANY of the tags in their skills OR ai_tools
-  for (const tag of tagList) {
-    // Use case-insensitive array contains
-    query = query.or(`skills.cs.{"${tag}"},ai_tools.cs.{"${tag}"}`);
-  }
-
-  // Apply sorting
-  switch (queryParams.sort) {
-    case "rate_high":
-      query = query.order("hourly_rate", { ascending: false, nullsFirst: false });
-      break;
-    case "rate_low":
-      query = query.order("hourly_rate", { ascending: true, nullsFirst: false });
-      break;
-    case "oldest":
-      query = query.order("created_at", { ascending: true });
-      break;
-    default:
-      query = query.order("created_at", { ascending: false });
-  }
-
-  // Pagination
-  const page = parseInt(queryParams.page || "1");
-  const limit = 20;
-  const offset = (page - 1) * limit;
-  query = query.range(offset, offset + limit - 1);
+  const { buildCandidatesQuery } = await import("@/lib/queries/candidates");
+  const query = buildCandidatesQuery(supabase, {
+    q: queryParams.q,
+    sort: queryParams.sort,
+    page: queryParams.page,
+    available: queryParams.available,
+    tags: tagList,
+  });
 
   const { data: candidates, count } = await query;
+  const page = parseInt(queryParams.page || "1");
+  const limit = 20;
 
   if (!candidates || candidates.length === 0) {
     return (
