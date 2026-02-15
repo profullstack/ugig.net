@@ -178,7 +178,39 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
               )}
             </Badge>
           ))}
+          {/* Show custom skills that aren't in the predefined list */}
+          {selectedSkills?.filter((s: string) => !(SKILLS as readonly string[]).includes(s)).map((skill: string) => (
+            <Badge
+              key={skill}
+              variant="default"
+              className="cursor-pointer"
+              onClick={() => toggleSkill(skill)}
+            >
+              {skill}
+              <X className="h-3 w-3 ml-1" />
+            </Badge>
+          ))}
         </div>
+        {/* Custom skill input */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add a custom skill..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const val = (e.target as HTMLInputElement).value.trim();
+                if (val && !selectedSkills?.includes(val) && (selectedSkills?.length || 0) < 10) {
+                  setValue("skills_required", [...(selectedSkills || []), val]);
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }
+            }}
+            disabled={isLoading || (selectedSkills?.length || 0) >= 10}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Select from common skills above or type your own and press Enter
+        </p>
         {errors.skills_required && (
           <p className="text-sm text-destructive">
             {errors.skills_required.message}

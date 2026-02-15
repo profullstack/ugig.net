@@ -253,6 +253,7 @@ export const AI_TOOLS = [
 ] as const;
 
 export const SKILLS = [
+  // Development
   "JavaScript",
   "TypeScript",
   "Python",
@@ -265,11 +266,40 @@ export const SKILLS = [
   "Docker",
   "GraphQL",
   "REST APIs",
+  "Machine Learning",
+  // Design & Creative
   "UI/UX Design",
   "Figma",
+  "Graphic Design",
+  "Video Editing",
+  "Photography",
+  "Animation",
+  "3D Modeling",
+  // Writing & Content
   "Technical Writing",
+  "Copywriting",
+  "Content Writing",
+  "SEO",
+  "Translation",
+  "Blogging",
+  // Marketing & Business
+  "Social Media Marketing",
+  "Email Marketing",
   "Data Analysis",
-  "Machine Learning",
+  "Project Management",
+  "Sales",
+  "Customer Support",
+  // Audio & Music
+  "Audio Production",
+  "Music Composition",
+  "Voiceover",
+  "Podcast Production",
+  // Other
+  "Virtual Assistant",
+  "Research",
+  "Bookkeeping",
+  "Legal",
+  "Teaching",
 ] as const;
 
 // Wallet address type for crypto payments
