@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Auto-generate a DID for the user if they don't have one
     if (!profile?.did) {
       try {
-        const did = await generateAndClaimDid(supabase, userId);
+        const did = await generateAndClaimDid(supabase, userId, email);
         if (did) {
           console.log(`[Auth Confirmed] DID claimed for ${email}: ${did}`);
         }
@@ -123,7 +123,7 @@ function base58btcEncode(bytes: Uint8Array): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function generateAndClaimDid(supabase: any, userId: string): Promise<string | null> {
+async function generateAndClaimDid(supabase: any, userId: string, email: string): Promise<string | null> {
   // Generate ed25519 keypair
   const { publicKey: pubKeyObj } = generateKeyPairSync("ed25519");
   const pubKeyRaw = pubKeyObj.export({ type: "spki", format: "der" }).subarray(-32);
@@ -161,6 +161,7 @@ async function generateAndClaimDid(supabase: any, userId: string): Promise<strin
           did,
           public_key: publicKeyB64,
           platform: "ugig.net",
+          email,
         }),
       });
     } catch (err) {
