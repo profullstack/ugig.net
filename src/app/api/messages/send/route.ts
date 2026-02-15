@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { z } from "zod";
 
 const sendMessageSchema = z.object({
@@ -139,40 +140,58 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send email if recipient has been inactive for more than 1 hour
-    const lastActive = recipientProfile.last_active_at
-      ? new Date(recipientProfile.last_active_at)
+    // Send email notification with smart throttling:
+    // Only send if 1+ hour since last message in this conversation (from anyone other than recipient)
+    const { data: recentMessages } = await supabase
+      .from("messages")
+      .select("created_at")
+      .eq("conversation_id", conversationId)
+      .neq("sender_id", recipientProfile.id)
+      .neq("id", message.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const lastMessageTime = recentMessages?.[0]?.created_at
+      ? new Date(recentMessages[0].created_at)
       : null;
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const shouldSendEmail = !lastMessageTime || lastMessageTime < oneHourAgo;
 
-    if (!lastActive || lastActive < oneHourAgo) {
+    if (shouldSendEmail) {
       const supabaseAdmin = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
-      const {
-        data: { user: recipientUser },
-      } = await supabaseAdmin.auth.admin.getUserById(recipientProfile.id);
-      const recipientEmail = recipientUser?.email;
 
-      if (recipientEmail) {
-        const emailContent = newMessageEmail({
-          recipientName:
-            recipientProfile.full_name ||
-            recipientProfile.username ||
-            "there",
-          senderName,
-          messagePreview: content,
-          conversationId,
-          gigTitle: null,
-        });
+      const emailEnabled = await isEmailNotificationEnabled(
+        supabaseAdmin, recipientProfile.id, "email_new_message"
+      );
 
-        sendEmail({
-          to: recipientEmail,
-          ...emailContent,
-        }).catch((err) =>
-          console.error("Failed to send message notification email:", err)
-        );
+      if (emailEnabled) {
+        const {
+          data: { user: recipientUser },
+        } = await supabaseAdmin.auth.admin.getUserById(recipientProfile.id);
+        const recipientEmail = recipientUser?.email;
+
+        if (recipientEmail) {
+          const emailContent = newMessageEmail({
+            recipientName:
+              recipientProfile.full_name ||
+              recipientProfile.username ||
+              "there",
+            senderName,
+            messagePreview: content,
+            conversationId,
+            gigTitle: null,
+          });
+
+          sendEmail({
+            to: recipientEmail,
+            ...emailContent,
+          }).catch((err) =>
+            console.error("Failed to send message notification email:", err)
+          );
+        }
       }
     }
 

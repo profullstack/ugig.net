@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { messageSchema } from "@/lib/validations";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 
 // GET /api/conversations/[id]/messages - Get messages in a conversation
 export async function GET(
@@ -197,30 +198,46 @@ export async function POST(
         },
       });
 
-      // Send email if recipient has been inactive for more than 1 hour
-      const { data: recipientProfile } = await supabase
-        .from("profiles")
-        .select("full_name, username, last_active_at")
-        .eq("id", recipientId)
-        .single();
+      // Send email notification with smart throttling:
+      // Only send if 1+ hour since last message in this conversation (from anyone other than recipient)
+      // This prevents spamming during active conversations
+      const { data: recentMessages } = await supabase
+        .from("messages")
+        .select("created_at")
+        .eq("conversation_id", conversationId)
+        .neq("sender_id", recipientId)
+        .neq("id", message.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-      if (recipientProfile) {
-        const lastActive = recipientProfile.last_active_at
-          ? new Date(recipientProfile.last_active_at)
-          : null;
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const lastMessageTime = recentMessages?.[0]?.created_at
+        ? new Date(recentMessages[0].created_at)
+        : null;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const shouldSendEmail = !lastMessageTime || lastMessageTime < oneHourAgo;
 
-        if (!lastActive || lastActive < oneHourAgo) {
-          // Get recipient email from auth.users via admin client
-          const supabaseAdmin = createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-          );
+      if (shouldSendEmail) {
+        // Check notification settings
+        const supabaseAdmin = createAdminClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const emailEnabled = await isEmailNotificationEnabled(
+          supabaseAdmin, recipientId, "email_new_message"
+        );
+
+        if (emailEnabled) {
+          const { data: recipientProfile } = await supabase
+            .from("profiles")
+            .select("full_name, username")
+            .eq("id", recipientId)
+            .single();
+
           const { data: { user: recipientUser } } = await supabaseAdmin.auth.admin.getUserById(recipientId);
           const recipientEmail = recipientUser?.email;
 
-          if (recipientEmail) {
-            // Get conversation gig context if any
+          if (recipientEmail && recipientProfile) {
             const { data: convWithGig } = await supabase
               .from("conversations")
               .select("gig:gigs(title)")

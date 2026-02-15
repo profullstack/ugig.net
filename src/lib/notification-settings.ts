@@ -24,7 +24,7 @@ export async function isEmailNotificationEnabled(
   try {
     const { data, error } = await supabase
       .from("notification_settings")
-      .select(settingKey)
+      .select("*")
       .eq("user_id", userId)
       .single();
 
@@ -33,7 +33,7 @@ export async function isEmailNotificationEnabled(
       return true;
     }
 
-    return data[settingKey] !== false;
+    return (data as Record<string, unknown>)[settingKey] !== false;
   } catch {
     // Default to enabled on error
     return true;
