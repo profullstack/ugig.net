@@ -51,7 +51,7 @@ async function GigsList({
 
   // Parse tags from URL (comma-separated) or ?skill= query param
   const tagList = queryParams.skill
-    ? [queryParams.skill]
+    ? queryParams.skill.split(",").map(decodeURIComponent)
     : tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
   // Build query

@@ -66,9 +66,11 @@ export function GigFiltersWithTags({
     const sortValue = newParams?.sort !== undefined ? newParams.sort : currentSort;
     if (sortValue && sortValue !== "newest") params.set("sort", sortValue);
 
-    const tagPath = tags.length > 0 ? `/${tags.map(encodeURIComponent).join(",")}` : "";
+    if (tags.length > 0) {
+      params.set("skill", tags.map(encodeURIComponent).join(","));
+    }
     const queryString = params.toString();
-    return `/gigs${tagPath}${queryString ? `?${queryString}` : ""}`;
+    return `/gigs${queryString ? `?${queryString}` : ""}`;
   };
 
   const addTag = (tag: string) => {
