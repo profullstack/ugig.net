@@ -1143,6 +1143,65 @@ export type Database = {
           }
         ];
       };
+      notification_settings: {
+        Row: {
+          id: string;
+          user_id: string;
+          email_new_message: boolean;
+          email_new_comment: boolean;
+          email_new_follower: boolean;
+          email_new_application: boolean;
+          email_application_status: boolean;
+          email_review_received: boolean;
+          email_endorsement_received: boolean;
+          email_gig_updates: boolean;
+          email_mention: boolean;
+          email_upvote_milestone: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          email_new_message?: boolean;
+          email_new_comment?: boolean;
+          email_new_follower?: boolean;
+          email_new_application?: boolean;
+          email_application_status?: boolean;
+          email_review_received?: boolean;
+          email_endorsement_received?: boolean;
+          email_gig_updates?: boolean;
+          email_mention?: boolean;
+          email_upvote_milestone?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          email_new_message?: boolean;
+          email_new_comment?: boolean;
+          email_new_follower?: boolean;
+          email_new_application?: boolean;
+          email_application_status?: boolean;
+          email_review_received?: boolean;
+          email_endorsement_received?: boolean;
+          email_gig_updates?: boolean;
+          email_mention?: boolean;
+          email_upvote_milestone?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_settings_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       endorsements: {
         Row: {
           id: string;
