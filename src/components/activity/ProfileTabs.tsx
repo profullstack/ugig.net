@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ActivityFeed } from "./ActivityFeed";
+import { UserFeed } from "./UserFeed";
 import { PortfolioGrid } from "@/components/portfolio/PortfolioGrid";
 
 interface ProfileTabsProps {
@@ -55,6 +56,16 @@ export function ProfileTabs({
           Portfolio
         </button>
         <button
+          onClick={() => handleTabChange("feed")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            activeTab === "feed"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Feed
+        </button>
+        <button
           onClick={() => handleTabChange("activity")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === "activity"
@@ -72,6 +83,12 @@ export function ProfileTabs({
         <div className="p-6 bg-card rounded-lg border border-border">
           <h2 className="text-lg font-semibold mb-4">Portfolio</h2>
           <PortfolioGrid userId={userId} isOwner={isOwnProfile} />
+        </div>
+      )}
+      {activeTab === "feed" && (
+        <div className="p-6 bg-card rounded-lg border border-border">
+          <h2 className="text-lg font-semibold mb-4">Posts & Comments</h2>
+          <UserFeed username={username} />
         </div>
       )}
       {activeTab === "activity" && (
