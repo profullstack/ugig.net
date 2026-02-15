@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { getUserDid, onContentDownvoted } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/posts/[id]/downvote - Downvote a post (toggle)
 export async function POST(
@@ -74,6 +75,18 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", postId)
       .single();
+
+    // Log activity for downvoting
+    if (userVote === -1) {
+      void logActivity(supabase, {
+        userId: user.id,
+        activityType: "post_downvoted",
+        referenceId: postId,
+        referenceType: "post",
+        metadata: {},
+        isPublic: false,
+      });
+    }
 
     // Track negative reputation for post author when downvoted
     if (userVote === -1 && post.author_id !== user.id) {

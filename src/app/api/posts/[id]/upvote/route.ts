@@ -3,6 +3,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { sendEmail, upvoteMilestoneEmail } from "@/lib/email";
 import { getUserDid, onUpvoted } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 const UPVOTE_MILESTONES = [5, 10, 25, 50, 100, 250, 500, 1000];
 
@@ -79,6 +80,18 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", postId)
       .single();
+
+    // Log activity for upvoting
+    if (userVote === 1) {
+      void logActivity(supabase, {
+        userId: user.id,
+        activityType: "post_upvoted",
+        referenceId: postId,
+        referenceType: "post",
+        metadata: { post_preview: (post.content || "").slice(0, 100) },
+        isPublic: true,
+      });
+    }
 
     // Track reputation for upvoting (only when actually upvoting, not removing)
     if (userVote === 1) {

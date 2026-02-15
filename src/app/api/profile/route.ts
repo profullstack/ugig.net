@@ -3,6 +3,7 @@ import { profileSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { onProfileCompleted, onResumeUploaded } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
@@ -107,6 +108,16 @@ export async function PUT(request: NextRequest) {
     }
 
     console.log("Profile saved, wallet_addresses:", JSON.stringify(profile?.wallet_addresses, null, 2));
+
+    // Log profile update activity
+    void logActivity(supabase, {
+      userId: user.id,
+      activityType: "profile_updated",
+      referenceId: user.id,
+      referenceType: "profile",
+      metadata: {},
+      isPublic: true,
+    });
 
     // Fire reputation receipt if profile is complete and has DID
     if (profile?.did && profile?.profile_completed) {

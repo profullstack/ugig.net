@@ -7,6 +7,12 @@ import {
   CheckCircle,
   Star,
   Award,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  UserPlus,
+  UserCog,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import type { ActivityType } from "@/types";
@@ -60,12 +66,12 @@ const ACTIVITY_CONFIG: Record<
     label: "received a review",
   },
   post_created: {
-    icon: Briefcase,
+    icon: FileText,
     color: "text-blue-400",
     label: "created a post",
   },
   comment_posted: {
-    icon: Send,
+    icon: MessageSquare,
     color: "text-gray-500",
     label: "commented",
   },
@@ -80,9 +86,34 @@ const ACTIVITY_CONFIG: Record<
     label: "received an endorsement",
   },
   followed_user: {
-    icon: Star,
+    icon: UserPlus,
     color: "text-pink-500",
     label: "followed a user",
+  },
+  post_upvoted: {
+    icon: ThumbsUp,
+    color: "text-green-500",
+    label: "upvoted a post",
+  },
+  post_downvoted: {
+    icon: ThumbsDown,
+    color: "text-red-500",
+    label: "downvoted a post",
+  },
+  comment_upvoted: {
+    icon: ThumbsUp,
+    color: "text-green-400",
+    label: "upvoted a comment",
+  },
+  comment_downvoted: {
+    icon: ThumbsDown,
+    color: "text-red-400",
+    label: "downvoted a comment",
+  },
+  profile_updated: {
+    icon: UserCog,
+    color: "text-teal-500",
+    label: "updated their profile",
   },
 };
 
@@ -116,17 +147,23 @@ function formatRelativeTime(dateString: string): string {
 
 function getActivityLink(activity: ActivityItemProps["activity"]): string | null {
   const metadata = activity.metadata || {};
-  if (
-    activity.reference_type === "gig" &&
-    activity.reference_id
-  ) {
+  if (activity.reference_type === "gig" && activity.reference_id) {
     return `/gigs/${activity.reference_id}`;
   }
-  if (
-    activity.reference_type === "review" &&
-    metadata.gig_id
-  ) {
+  if (activity.reference_type === "post" && activity.reference_id) {
+    return `/post/${activity.reference_id}`;
+  }
+  if (activity.reference_type === "comment" && metadata.post_id) {
+    return `/post/${metadata.post_id}`;
+  }
+  if (activity.reference_type === "review" && metadata.gig_id) {
     return `/gigs/${metadata.gig_id}`;
+  }
+  if (activity.reference_type === "profile" && activity.user?.username) {
+    return `/u/${activity.user.username}`;
+  }
+  if (activity.activity_type === "followed_user" && metadata.followed_username) {
+    return `/u/${metadata.followed_username}`;
   }
   return null;
 }

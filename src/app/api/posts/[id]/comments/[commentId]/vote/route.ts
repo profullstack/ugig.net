@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { getUserDid, onUpvoted, onContentDownvoted } from "@/lib/reputation-hooks";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/posts/[id]/comments/[commentId]/vote - Vote on a comment
 export async function POST(
@@ -86,6 +87,18 @@ export async function POST(
       .select("upvotes, downvotes, score")
       .eq("id", commentId)
       .single();
+
+    // Log vote activity
+    if (userVote !== null) {
+      void logActivity(supabase, {
+        userId: user.id,
+        activityType: userVote === 1 ? "comment_upvoted" : "comment_downvoted",
+        referenceId: commentId,
+        referenceType: "comment",
+        metadata: { post_id: id },
+        isPublic: userVote === 1,
+      });
+    }
 
     // Track reputation for comment votes
     if (userVote === 1) {

@@ -10,7 +10,12 @@ export type ActivityType =
   | "comment_posted"
   | "endorsement_given"
   | "endorsement_received"
-  | "followed_user";
+  | "followed_user"
+  | "post_upvoted"
+  | "post_downvoted"
+  | "comment_upvoted"
+  | "comment_downvoted"
+  | "profile_updated";
 
 interface LogActivityParams {
   userId: string;
