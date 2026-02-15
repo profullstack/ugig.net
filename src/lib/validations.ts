@@ -208,7 +208,7 @@ export const portfolioItemSchema = z.object({
   url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
   image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
   tags: z.array(z.string().max(50)).max(10).default([]),
-  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable().or(z.literal("")),
 });
 
 export const portfolioItemUpdateSchema = z.object({
@@ -221,7 +221,7 @@ export const portfolioItemUpdateSchema = z.object({
   url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
   image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
   tags: z.array(z.string().max(50)).max(10).optional(),
-  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable().or(z.literal("")),
 });
 
 // =============================================
@@ -274,7 +274,7 @@ export const messageSchema = z.object({
 });
 
 export const conversationCreateSchema = z.object({
-  gig_id: z.string().uuid("Invalid gig ID").optional().nullable(),
+  gig_id: z.string().uuid("Invalid gig ID").optional().nullable().or(z.literal("")),
   recipient_id: z.string().uuid("Invalid recipient ID"),
 });
 
