@@ -94,8 +94,17 @@ async function GigsList({
   // Filter by skill tags
   // We need to filter gigs that have ANY of the tags in their skills_required
   if (tagList.length > 0) {
-    // Use case-insensitive array overlap
-    query = query.overlaps("skills_required", tagList);
+    // Build expanded tag list with common casings to handle case-insensitive matching
+    const expandedTags = new Set<string>();
+    for (const tag of tagList) {
+      expandedTags.add(tag);
+      expandedTags.add(tag.toLowerCase());
+      expandedTags.add(tag.charAt(0).toUpperCase() + tag.slice(1)); // Title case
+      expandedTags.add(tag.toUpperCase());
+      // Handle multi-word: "node.js" → "Node.js", "next.js" → "Next.js"
+      expandedTags.add(tag.replace(/\b\w/g, c => c.toUpperCase()));
+    }
+    query = query.overlaps("skills_required", [...expandedTags]);
   }
 
   // Apply sorting
