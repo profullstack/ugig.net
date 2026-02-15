@@ -17,6 +17,7 @@ interface GigsPageProps {
     location_type?: string;
     sort?: string;
     page?: string;
+    skill?: string;
   }>;
 }
 
@@ -48,8 +49,10 @@ async function GigsList({
   const queryParams = await searchParams;
   const supabase = await createClient();
 
-  // Parse tags from URL (comma-separated)
-  const tagList = tags?.[0]?.split(",").map(decodeURIComponent) || [];
+  // Parse tags from URL (comma-separated) or ?skill= query param
+  const tagList = queryParams.skill
+    ? [queryParams.skill]
+    : tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
   // Build query
   let query = supabase

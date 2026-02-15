@@ -185,7 +185,7 @@ export function PopularTagsList() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
                 <Link
-                  href={`/gigs/${encodeURIComponent(item.tag)}`}
+                  href={`/gigs?skill=${encodeURIComponent(item.tag)}`}
                   className="group flex items-center gap-2 min-w-0"
                 >
                   <Tag className="h-4 w-4 text-primary flex-shrink-0" />
