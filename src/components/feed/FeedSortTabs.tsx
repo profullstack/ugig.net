@@ -35,7 +35,7 @@ export function FeedSortTabs({ currentSort, currentTag }: FeedSortTabsProps) {
           key={value}
           onClick={() => handleSort(value)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+            "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             currentSort === value
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"

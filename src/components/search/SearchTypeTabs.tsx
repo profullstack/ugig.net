@@ -38,8 +38,8 @@ export function SearchTypeTabs({
             key={tab.value}
             onClick={() => onTabChange(tab.value)}
             className={cn(
-              "px-4 py-2.5 text-sm font-medium transition-colors relative",
-              "hover:text-foreground",
+              "px-4 py-2.5 text-sm font-medium transition-colors relative cursor-pointer",
+              "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeTab === tab.value
                 ? "text-foreground"
                 : "text-muted-foreground"

@@ -40,7 +40,7 @@ export function MobileMenu() {
     <div className="sm:hidden relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
         aria-label="Toggle menu"
         aria-expanded={isOpen}
       >
@@ -49,7 +49,14 @@ export function MobileMenu() {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setIsOpen(false)} />
+          <div
+            className="fixed inset-0 bg-black/40 z-40 cursor-pointer"
+            onClick={() => setIsOpen(false)}
+            role="button"
+            tabIndex={-1}
+            aria-label="Close menu"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsOpen(false); }}
+          />
           <div className="fixed inset-x-0 top-[73px] z-50 px-4">
             <div className="bg-card border border-border rounded-lg shadow-lg py-1 max-w-md mx-auto">
               {NAV_LINKS.map((link) => (

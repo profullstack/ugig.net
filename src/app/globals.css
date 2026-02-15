@@ -52,3 +52,19 @@ body {
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global a11y: ensure all interactive elements have pointer cursor */
+a, button, [role="button"], [role="link"], [tabindex="0"] {
+  cursor: pointer;
+}
+
+/* Skip to content for keyboard users */
+.sr-only:focus {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  clip: auto;
+  white-space: nowrap;
+  overflow: visible;
+}

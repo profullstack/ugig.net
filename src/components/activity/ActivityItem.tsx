@@ -226,7 +226,7 @@ export function ActivityItem({ activity, showUser = false }: ActivityItemProps) 
   );
 
   if (link) {
-    return <Link href={link}>{content}</Link>;
+    return <Link href={link} className="block cursor-pointer">{content}</Link>;
   }
 
   return content;

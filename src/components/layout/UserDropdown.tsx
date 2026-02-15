@@ -10,6 +10,7 @@ import {
   CreditCard,
   LogOut,
   LayoutDashboard,
+  Bell,
 } from "lucide-react";
 
 interface UserDropdownProps {
@@ -60,7 +61,7 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -87,7 +88,7 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
             <Link
               href={`/u/${username}`}
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
             >
               <User className="h-4 w-4" />
               View Public Profile
@@ -95,7 +96,7 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
             <Link
               href="/dashboard"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
@@ -103,15 +104,23 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
             <Link
               href="/profile"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
             >
               <Settings className="h-4 w-4" />
               Edit Profile
             </Link>
             <Link
+              href="/settings/notifications"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <Bell className="h-4 w-4" />
+              Notification Settings
+            </Link>
+            <Link
               href="/dashboard/subscription"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
             >
               <CreditCard className="h-4 w-4" />
               Billing
@@ -122,7 +131,7 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
           <div className="border-t border-border py-1">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left text-destructive"
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left text-destructive cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
               Log Out

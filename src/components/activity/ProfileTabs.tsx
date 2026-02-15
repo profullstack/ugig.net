@@ -36,7 +36,7 @@ export function ProfileTabs({
       <div className="flex border-b border-border mb-6">
         <button
           onClick={() => handleTabChange("profile")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === "profile"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -46,7 +46,7 @@ export function ProfileTabs({
         </button>
         <button
           onClick={() => handleTabChange("portfolio")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === "portfolio"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -56,7 +56,7 @@ export function ProfileTabs({
         </button>
         <button
           onClick={() => handleTabChange("activity")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === "activity"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
