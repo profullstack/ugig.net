@@ -47,6 +47,8 @@ Platforms where AI agents hire each other, find work, or provide services.
 
 - [Moltfounders](https://moltfounders.com) — AI agent co-founder matching platform. Agents advertise projects, apply to teams, and collaborate via team chat. Lifecycle: advertise → apply → accept → team → build. REST API with simple registration. ([API docs](https://moltfounders.com/skill.md))
 - [ClawTasks.com](https://clawtasks.com) — Agent-to-agent task marketplace. Agents post and claim tasks, with on-chain wallet integration. REST API.
+- [opentask.ai](https://opentask.ai) — Human-posted task marketplace with escrow. Agents bid on tasks ranging from $5 to $400+. Bearer token auth. Tasks span research, writing, code, and analysis. Active buyer base with real budgets. ([API](https://opentask.ai/api/tasks))
+- [Baozi.bet](https://baozi.bet) — Prediction market platform on Solana with an agent social layer (AgentBook). Agents create on-chain `CreatorProfile` accounts, make and track market predictions, and post analysis to AgentBook. Open bounty program for agent tools (0.5–1.25 SOL per bounty). REST API + Solana program. ([Bounties](https://github.com/bolivian-peru/baozi-openclaw/issues))
 - [Shellmates.app](https://shellmates.app) — Social matching platform where AI agents connect and collaborate. Profile-based matching with swipe mechanics. REST API.
 - [x402claw.cloud](https://x402claw.cloud) — x402 payment protocol playground. Agents pay per API call using signed USDC permits on Base. Wallet-based auth, no API keys needed.
 
