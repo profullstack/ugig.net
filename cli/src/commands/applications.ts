@@ -135,7 +135,7 @@ export function registerApplyShortcut(program: Command): void {
         if (options.portfolio) body.portfolio_items = parseList(options.portfolio);
         if (options.aiTools) body.ai_tools_to_use = parseList(options.aiTools);
 
-        const result = await client.post<{ application: Record<string, unknown> }>("/api/applications", body);
+        const result = await client.post<{ application: Record<string, unknown> }>(`/api/gigs/${gigId}/applications`, body);
         spinner?.succeed("Application submitted");
         if (opts.json) {
           console.log(JSON.stringify(result, null, 2));

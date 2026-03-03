@@ -96,4 +96,29 @@ export function registerMessagesCommands(program: Command): void {
         handleError(err, opts as OutputOptions);
       }
     });
+
+  msgs
+    .command("gig <gig-id>")
+    .description("Send a message to a gig poster")
+    .requiredOption("--message <text>", "Message content")
+    .action(async (gigId: string, options) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Sending message...").start();
+      try {
+        const client = createClient(opts);
+        const result = await client.post<{ conversation_id: string; message_id: string; created_at: string }>(
+          `/api/gigs/${gigId}/messages`,
+          { message: options.message }
+        );
+        spinner?.succeed("Message sent");
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          printSuccess(`Message sent. Conversation: ${result.conversation_id}`, opts as OutputOptions);
+        }
+      } catch (err) {
+        spinner?.fail("Failed to send message");
+        handleError(err, opts as OutputOptions);
+      }
+    });
 }
