@@ -9,7 +9,7 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
  * the initial message. Designed for programmatic/agent use.
  *
  * Body: { message: string }
- * Returns: { conversation_id, message_id }
+ * Returns: { conversation_id, message_id, created_at }
  *
  * Fixes #14
  */
@@ -60,6 +60,21 @@ export async function POST(
       return NextResponse.json(
         { error: "Cannot message yourself about your own gig" },
         { status: 400 }
+      );
+    }
+
+    // Authorization: caller must have an application for this gig (or be poster, caught above)
+    const { data: application } = await supabase
+      .from("applications")
+      .select("id")
+      .eq("gig_id", gigId)
+      .eq("applicant_id", user.id)
+      .single();
+
+    if (!application) {
+      return NextResponse.json(
+        { error: "You must apply to this gig before messaging the poster" },
+        { status: 403 }
       );
     }
 

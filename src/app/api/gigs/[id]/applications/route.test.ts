@@ -128,3 +128,102 @@ describe("POST /api/gigs/[id]/applications", () => {
     expect(body.error).toContain("cannot apply to your own gig");
   });
 });
+
+describe("POST /api/gigs/[id]/applications - success paths", () => {
+  it("returns 201 when application is created successfully", async () => {
+    const callLog: string[] = [];
+
+    const mockChain = () => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains", "order"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      return chain;
+    };
+
+    // Track which table is queried and return appropriate data
+    mockFrom.mockImplementation((table: string) => {
+      callLog.push(table);
+      const chain = mockChain();
+
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { poster_id: "poster-1", status: "active", title: "Test Gig", poster: { full_name: "Poster" } },
+          error: null,
+        });
+      } else if (table === "applications" && callLog.filter(t => t === "applications").length === 1) {
+        // First call: check existing — none found
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      } else if (table === "applications") {
+        // Second call: insert
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "app-1", gig_id: "00000000-0000-4000-a000-000000000001", applicant_id: "user-1" },
+          error: null,
+        });
+      } else if (table === "notifications") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+        // insert returns the chain directly
+        (chain.insert as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+      } else if (table === "profiles") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { full_name: "Applicant", username: "applicant" },
+          error: null,
+        });
+      }
+      return chain;
+    });
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const req = makeRequest({ cover_letter: "x".repeat(60) });
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.application).toBeDefined();
+    expect(body.application.id).toBe("app-1");
+  });
+
+  it("returns 400 when already applied", async () => {
+    const mockChain = () => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains", "order"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      return chain;
+    };
+
+    const callCount: Record<string, number> = {};
+    mockFrom.mockImplementation((table: string) => {
+      callCount[table] = (callCount[table] || 0) + 1;
+      const chain = mockChain();
+
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { poster_id: "poster-1", status: "active", title: "Test Gig", poster: { full_name: "Poster" } },
+          error: null,
+        });
+      } else if (table === "applications") {
+        // Existing application found
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "existing-app" },
+          error: null,
+        });
+      }
+      return chain;
+    });
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const req = makeRequest({ cover_letter: "x".repeat(60) });
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("already applied");
+  });
+});

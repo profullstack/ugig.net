@@ -122,3 +122,158 @@ describe("POST /api/gigs/[id]/messages", () => {
     expect(body.error).toContain("Cannot message yourself");
   });
 });
+
+describe("POST /api/gigs/[id]/messages - success paths", () => {
+  it("creates a new conversation and sends message", async () => {
+    const mockChain = () => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      return chain;
+    };
+
+    const callCount: Record<string, number> = {};
+    mockFrom.mockImplementation((table: string) => {
+      callCount[table] = (callCount[table] || 0) + 1;
+      const chain = mockChain();
+
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "00000000-0000-4000-a000-000000000001", poster_id: "poster-1", title: "Test Gig", status: "active" },
+          error: null,
+        });
+      } else if (table === "applications") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "app-1" },
+          error: null,
+        });
+      } else if (table === "conversations" && callCount["conversations"] === 1) {
+        // First call: no existing conversation
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      } else if (table === "conversations" && callCount["conversations"] === 2) {
+        // Second call: insert new conversation
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "conv-1" },
+          error: null,
+        });
+      } else if (table === "conversations") {
+        // Update last_message_at
+        (chain.eq as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+      } else if (table === "messages") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "msg-1", created_at: "2026-03-03T00:00:00Z" },
+          error: null,
+        });
+      } else if (table === "notifications") {
+        (chain.insert as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+      }
+      return chain;
+    });
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const req = makeRequest({ message: "Hi, I'm interested in this gig" });
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.conversation_id).toBe("conv-1");
+    expect(body.message_id).toBe("msg-1");
+    expect(body.created_at).toBeDefined();
+  });
+
+  it("reuses existing conversation", async () => {
+    const mockChain = () => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      return chain;
+    };
+
+    const callCount: Record<string, number> = {};
+    mockFrom.mockImplementation((table: string) => {
+      callCount[table] = (callCount[table] || 0) + 1;
+      const chain = mockChain();
+
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "00000000-0000-4000-a000-000000000001", poster_id: "poster-1", title: "Test Gig", status: "active" },
+          error: null,
+        });
+      } else if (table === "applications") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "app-1" },
+          error: null,
+        });
+      } else if (table === "conversations" && callCount["conversations"] === 1) {
+        // First: lookup existing conversation — found
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "existing-conv" },
+          error: null,
+        });
+      } else if (table === "conversations") {
+        // Second: update last_message_at
+        (chain.eq as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+      } else if (table === "messages") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "msg-2", created_at: "2026-03-03T00:00:00Z" },
+          error: null,
+        });
+      } else if (table === "notifications") {
+        (chain.insert as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+      }
+      return chain;
+    });
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const req = makeRequest({ message: "Following up on my application" });
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.conversation_id).toBe("existing-conv");
+  });
+
+  it("returns 403 when user has no application for gig", async () => {
+    const mockChain = () => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      return chain;
+    };
+
+    mockFrom.mockImplementation((table: string) => {
+      const chain = mockChain();
+
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { id: "00000000-0000-4000-a000-000000000001", poster_id: "poster-1", title: "Test Gig", status: "active" },
+          error: null,
+        });
+      } else if (table === "applications") {
+        // No application found
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      }
+      return chain;
+    });
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const req = makeRequest({ message: "Hello" });
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("must apply");
+  });
+});

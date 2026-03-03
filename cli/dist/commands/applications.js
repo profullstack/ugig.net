@@ -111,7 +111,6 @@ export function registerApplyShortcut(program) {
         try {
             const client = createClient(opts);
             const body = {
-                gig_id: gigId,
                 cover_letter: options.coverLetter,
             };
             if (options.rate !== undefined)
