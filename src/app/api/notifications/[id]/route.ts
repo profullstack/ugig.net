@@ -81,6 +81,18 @@ export async function DELETE(
     }
     const { user, supabase } = auth;
 
+    // First check if notification exists (#53)
+    const { data: existing } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!existing) {
+      return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+    }
+
     const { error } = await supabase
       .from("notifications")
       .delete()

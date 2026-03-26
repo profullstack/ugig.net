@@ -33,6 +33,7 @@ describe("skillListingSchema", () => {
     description: "This is a great skill for doing things",
     price_sats: 1000,
     tags: ["automation", "coding"],
+    skill_file_url: "https://example.com/skill.md",
   };
 
   it("accepts valid input", () => {
@@ -116,10 +117,17 @@ describe("skillListingSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("allows empty string for skill_file_url and website_url", () => {
+  it("rejects empty string for skill_file_url", () => {
     const result = skillListingSchema.safeParse({
       ...valid,
       skill_file_url: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows empty string for website_url", () => {
+    const result = skillListingSchema.safeParse({
+      ...valid,
       website_url: "",
     });
     expect(result.success).toBe(true);

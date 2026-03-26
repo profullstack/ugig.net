@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { authenticateApiKey } from "./api-key";
 import { authenticateAgentPass } from "./agentpass";
@@ -8,12 +8,14 @@ import {
 } from "@/lib/supabase/service";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ApiKeyScope } from "@/lib/api-keys";
 
 export type AuthenticatedUser = {
   id: string;
   email?: string;
   authMethod: "session" | "api_key" | "agentpass";
   passportId?: string;
+  scope?: ApiKeyScope;
 };
 
 export type AuthContext = {
@@ -85,16 +87,71 @@ export async function getAuthContext(
   const apiKeyResult = await authenticateApiKey(authHeader, apiKeyHeader);
 
   if (apiKeyResult) {
+    // Enforce public key scope restrictions
+    if (apiKeyResult.scope === "public") {
+      if (!isPublicScopeAllowed(request)) {
+        return null; // Will result in 401 from the route handler
+      }
+    }
+
     const serviceClient = createServiceRoleClient();
     return {
       user: {
         id: apiKeyResult.userId,
         authMethod: "api_key",
+        scope: apiKeyResult.scope,
       },
       supabase: serviceClient,
     };
   }
 
+  return null;
+}
+
+/**
+ * Routes allowed for public-scope API keys.
+ * Public keys can only read listings and create content.
+ */
+const PUBLIC_SCOPE_ALLOWLIST: Array<{ method: string; pattern: RegExp }> = [
+  // Create listings
+  { method: "POST", pattern: /^\/api\/gigs\/?$/ },
+  { method: "POST", pattern: /^\/api\/skills\/?$/ },
+  { method: "POST", pattern: /^\/api\/mcp\/?$/ },
+  { method: "POST", pattern: /^\/api\/applications\/?$/ },
+  // Browse/read endpoints
+  { method: "GET", pattern: /^\/api\/profile\/?$/ },
+  { method: "GET", pattern: /^\/api\/gigs(\/.*)?$/ },
+  { method: "GET", pattern: /^\/api\/mcp(\/.*)?$/ },
+  { method: "GET", pattern: /^\/api\/skills(\/.*)?$/ },
+  { method: "GET", pattern: /^\/api\/feed(\/.*)?$/ },
+  { method: "GET", pattern: /^\/api\/candidates(\/.*)?$/ },
+];
+
+function isPublicScopeAllowed(request: NextRequest): boolean {
+  const method = request.method.toUpperCase();
+  const pathname = new URL(request.url).pathname;
+
+  return PUBLIC_SCOPE_ALLOWLIST.some(
+    (rule) => rule.method === method && rule.pattern.test(pathname)
+  );
+}
+
+/**
+ * Check if the current auth context has public (restricted) scope.
+ * Returns a 403 NextResponse if restricted, or null if allowed.
+ * Use this in route handlers that need to give a specific error message
+ * instead of the generic 401 from getAuthContext.
+ */
+export function requireFullAccess(auth: AuthContext): NextResponse | null {
+  if (auth.user.scope === "public") {
+    return NextResponse.json(
+      {
+        error:
+          "This API key only has public (listing) access. Use a full-access key for this endpoint.",
+      },
+      { status: 403 }
+    );
+  }
   return null;
 }
 

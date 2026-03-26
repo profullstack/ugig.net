@@ -17,7 +17,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as "signup" | "email" | "recovery" | "invite" | null;
+  const type = searchParams.get("type") as "signup" | "email" | "recovery" | "invite" | "magiclink" | null;
+  const next = searchParams.get("next");
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
 
@@ -44,6 +45,11 @@ export async function GET(request: NextRequest) {
     // Success — redirect based on type
     if (type === "recovery") {
       return NextResponse.redirect(`${appUrl}/reset-password`);
+    }
+
+    // Magic link (OAuth flow) — go to next or dashboard
+    if (type === "magiclink" && next) {
+      return NextResponse.redirect(`${appUrl}${next}`);
     }
 
     // Signup/email confirmation — go to login with success message

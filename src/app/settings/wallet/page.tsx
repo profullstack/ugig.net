@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Zap, ArrowDownToLine, ArrowUpFromLine, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "@/components/providers/DialogProvider";
 import { SatsAmount, SatsFiatHint } from "@/components/ui/SatsAmount";
 
 interface Transaction {
@@ -110,6 +111,7 @@ function WithdrawSection({ balance, onWithdraw }: { balance: number; onWithdraw:
 }
 
 export default function WalletPage() {
+  const { alert } = useDialog();
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,7 +161,7 @@ export default function WalletPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Failed to create invoice");
+        await alert(data.error || "Failed to create invoice");
         setDepositing(false);
         return;
       }
@@ -184,7 +186,7 @@ export default function WalletPage() {
         }
       }, 3000);
     } catch {
-      alert("Failed to create invoice");
+      await alert("Failed to create invoice");
       setDepositing(false);
     }
   }
@@ -230,10 +232,10 @@ export default function WalletPage() {
             if (data.balance_sats !== undefined) {
               setBalance(data.balance_sats);
               refreshTransactions();
-              alert(`Synced ${data.synced} payment(s), +${data.credited_sats} sats`);
+              await alert(`Synced ${data.synced} payment(s), +${data.credited_sats} sats`);
             } else {
               refreshTransactions();
-              alert(data.message || "Already in sync");
+              await alert(data.message || "Already in sync");
             }
           }}
         >
@@ -339,7 +341,7 @@ export default function WalletPage() {
                           setBalance(data.balance_sats);
                           refreshTransactions();
                         } else {
-                          alert("Payment not yet received. Try again later.");
+                          await alert("Payment not yet received. Try again later.");
                         }
                       }}
                     >

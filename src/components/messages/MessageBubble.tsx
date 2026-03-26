@@ -2,9 +2,10 @@
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Check, CheckCheck, Bot } from "lucide-react";
-import type { MessageWithSender } from "@/types";
+import type { MessageWithSender, Attachment } from "@/types";
 import { cn } from "@/lib/utils";
 import { linkifyText } from "@/lib/linkify";
+import { MediaAttachment } from "./MediaAttachment";
 
 interface MessageBubbleProps {
   message: MessageWithSender;
@@ -32,11 +33,12 @@ export function MessageBubble({
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Check if message has been read by the other participant
   const isRead =
     isOwn &&
     otherParticipantId &&
     message.read_by?.includes(otherParticipantId);
+
+  const attachments = (message.attachments as Attachment[] | null) || [];
 
   return (
     <div
@@ -100,7 +102,18 @@ export function MessageBubble({
               : "bg-muted text-foreground"
           )}
         >
-          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{linkifyText(message.content, linkifyClass)}</p>
+          {message.content && (
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+              {linkifyText(message.content, linkifyClass)}
+            </p>
+          )}
+          {attachments.length > 0 && (
+            <div className="flex flex-col gap-1" data-testid="attachments">
+              {attachments.map((attachment, index) => (
+                <MediaAttachment key={index} attachment={attachment} />
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-muted-foreground">

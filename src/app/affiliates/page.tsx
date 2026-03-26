@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Megaphone, Users, TrendingUp, ExternalLink, Zap } from "lucide-react";
+import { Megaphone, Users, TrendingUp, Zap } from "lucide-react";
 import { SKILL_CATEGORIES } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -111,9 +111,11 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
     )
     .eq("status", "active");
 
-  if (queryParams.search) {
+  // Limit search param length to prevent oversized queries (#57)
+  const searchTerm = queryParams.search?.slice(0, 200);
+  if (searchTerm) {
     query = query.or(
-      `title.ilike.%${queryParams.search}%,description.ilike.%${queryParams.search}%`
+      `title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`
     );
   }
 
@@ -127,7 +129,7 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
 
   switch (queryParams.sort) {
     case "commission":
-      query = query.order("commission_rate", { ascending: false });
+      query = query.order("commission_flat_sats", { ascending: false });
       break;
     case "popular":
       query = query.order("total_affiliates", { ascending: false });
@@ -151,7 +153,9 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
       <div className="text-center py-12 bg-muted/30 rounded-lg">
         <Megaphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground mb-2">
-          {queryParams.search || queryParams.category || queryParams.tag
+          {queryParams.category
+            ? "No offers in this category yet."
+            : queryParams.search || queryParams.tag
             ? "No affiliate offers found matching your criteria."
             : "No affiliate offers yet. Create the first one!"}
         </p>
@@ -196,11 +200,11 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
               href={`/affiliates/${offer.slug}`}
               className="group p-5 border border-border rounded-lg bg-card hover:shadow-md hover:border-primary/30 transition-all duration-200"
             >
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-1">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <h3 className="font-semibold text-base sm:text-lg group-hover:text-primary transition-colors line-clamp-1 min-w-0">
                   {offer.title}
                 </h3>
-                <Badge className="shrink-0 ml-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                <Badge className="shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
                   <Zap className="h-3 w-3 mr-1" />
                   {commissionDisplay(offer)}
                 </Badge>
@@ -213,7 +217,7 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
               )}
 
               {offer.description && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2 whitespace-pre-wrap break-words">
                   {offer.description}
                 </p>
               )}
@@ -236,21 +240,10 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
                 </div>
               )}
 
-              {offer.product_url && (() => {
-                try {
-                  const parts = new URL(offer.product_url).hostname.split(".");
-                  const domain = parts.length > 2 ? parts.slice(-2).join(".") : parts.join(".");
-                  return (
-                    <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />
-                      {domain}
-                    </p>
-                  );
-                } catch { return null; }
-              })()}
+              {/* product_url domain hint removed — URL is hidden from public listing (#20) */}
 
-              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-y-1 text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
                   {profile?.username && (
                     <span className="flex items-center gap-1">
                       <Avatar className="h-4 w-4">
@@ -335,8 +328,8 @@ function AffiliateFilters({
   sort?: string;
 }) {
   const currentSort = sort || "newest";
+  // Don't persist search in category/sort filter links (#58)
   const base = {
-    ...(search ? { search } : {}),
     ...(tag ? { tag } : {}),
   };
 
@@ -348,7 +341,7 @@ function AffiliateFilters({
   ];
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-3 overflow-x-auto">
       {tag && (
         <div className="w-full flex items-center gap-2 text-sm text-muted-foreground">
           Filtered by tag: <Badge variant="secondary">{tag}</Badge>
@@ -363,6 +356,7 @@ function AffiliateFilters({
           name="search"
           placeholder="Search offers..."
           defaultValue={search}
+          maxLength={200}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
         {category && <input type="hidden" name="category" value={category} />}
@@ -410,9 +404,9 @@ export default async function AffiliatesPage({ searchParams }: AffiliatesPagePro
     <div className="flex flex-col min-h-screen">
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold">Affiliate Marketplace</h1>
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold">Affiliate Marketplace</h1>
+            <div className="flex gap-2 shrink-0">
               <Link href="/dashboard/affiliates">
                 <Button variant="outline" size="sm">My Dashboard</Button>
               </Link>

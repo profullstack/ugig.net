@@ -384,6 +384,79 @@ export function registerSkillsCommands(program: Command): void {
       }
     });
 
+  // ── Publish (activate) a skill ──────────────────────────────────
+
+  skills
+    .command("publish <slug>")
+    .description("Publish a skill listing (set status to active)")
+    .action(async (slug: string) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora(`Publishing ${slug}...`).start();
+      try {
+        const client = createClient(opts);
+        const result = await client.patch<{
+          listing: Record<string, unknown>;
+        }>(`/api/skills/${slug}`, { status: "active" });
+        spinner?.stop();
+        printSuccess(`Skill published: ${slug}`, opts as OutputOptions);
+        printDetail(result.listing, opts as OutputOptions);
+      } catch (err) {
+        spinner?.fail("Failed");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
+  // ── Publish all draft skills ───────────────────────────────────
+
+  skills
+    .command("publish-all")
+    .description("Publish all your draft skill listings")
+    .action(async () => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Fetching draft skills...").start();
+      try {
+        const client = createClient(opts);
+        const result = await client.get<{
+          listings: Record<string, unknown>[];
+        }>("/api/skills/my");
+
+        const drafts = (result.listings || []).filter(
+          (l: any) => l.status === "draft",
+        );
+
+        if (drafts.length === 0) {
+          spinner?.stop();
+          printSuccess("No draft skills to publish", opts as OutputOptions);
+          return;
+        }
+
+        if (spinner) spinner.text = `Publishing ${drafts.length} draft skill(s)...`;
+
+        let published = 0;
+        let failed = 0;
+
+        for (const skill of drafts) {
+          try {
+            await client.patch(`/api/skills/${(skill as any).slug}`, {
+              status: "active",
+            });
+            published++;
+          } catch {
+            failed++;
+          }
+        }
+
+        spinner?.stop();
+        printSuccess(
+          `Published ${published} skill(s)${failed > 0 ? `, ${failed} failed` : ""}`,
+          opts as OutputOptions,
+        );
+      } catch (err) {
+        spinner?.fail("Failed");
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
   // ── Delete listing ─────────────────────────────────────────────
 
   skills

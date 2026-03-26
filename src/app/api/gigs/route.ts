@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gigSchema, gigFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { sanitizeTitle, sanitizeContent, stripProtoPollution } from "@/lib/sanitize";
 import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Parse filters
     const filters = gigFiltersSchema.safeParse({
-      search: searchParams.get("search") || undefined,
+      search: (searchParams.get("search") || "").slice(0, 200) || undefined,
       category: searchParams.get("category") || undefined,
       skills: searchParams.get("skills")?.split(",").filter(Boolean) || undefined,
       budget_type: searchParams.get("budget_type") || undefined,
@@ -92,8 +93,13 @@ export async function GET(request: NextRequest) {
       query = query.eq("location_type", location_type);
     }
 
-    if (listing_type) {
+    // Default to 'hiring' unless explicitly requesting for_hire or 'all'
+    if (listing_type === "all") {
+      // No filter — return both types
+    } else if (listing_type) {
       query = query.eq("listing_type", listing_type);
+    } else {
+      query = query.eq("listing_type", "hiring");
     }
 
     if (account_type) {
@@ -154,7 +160,30 @@ export async function POST(request: NextRequest) {
     const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
     if (!rl.allowed) return rateLimitExceeded(rl);
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      const text = await request.text();
+      if (!text || text.trim().length === 0) {
+        return NextResponse.json({ error: "Request body is required" }, { status: 400 });
+      }
+      body = stripProtoPollution(JSON.parse(text));
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    // Sanitize inputs (#47, #52)
+    if (typeof (body as any).title === "string") {
+      (body as any).title = sanitizeTitle((body as any).title);
+    }
+    if (typeof (body as any).description === "string") {
+      (body as any).description = sanitizeContent((body as any).description);
+    }
+
+    // Default ai_tools_preferred to empty array if not provided (#45)
+    if (!(body as any).ai_tools_preferred) {
+      (body as any).ai_tools_preferred = [];
+    }
+
     const validationResult = gigSchema.safeParse(body);
 
     if (!validationResult.success) {

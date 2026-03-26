@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useDialog } from "@/components/providers/DialogProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ interface WebhookManagerProps {
 }
 
 export function WebhookManager({ initialWebhooks }: WebhookManagerProps) {
+  const { confirm } = useDialog();
   const [webhooks, setWebhooks] = useState<WebhookData[]>(initialWebhooks);
   const [newUrl, setNewUrl] = useState("");
   const [newEvents, setNewEvents] = useState<string[]>([]);
@@ -112,7 +114,7 @@ export function WebhookManager({ initialWebhooks }: WebhookManagerProps) {
 
   const handleDelete = async (id: string) => {
     if (
-      !confirm(
+      !await confirm(
         "Are you sure you want to delete this webhook? This action cannot be undone."
       )
     ) {

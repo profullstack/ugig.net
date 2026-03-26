@@ -15,6 +15,7 @@ import {
   Megaphone,
   HandCoins,
 } from "lucide-react";
+import { FundingDashboard } from "@/components/funding/FundingDashboard";
 
 export const metadata = {
   title: "Dashboard | ugig.net",
@@ -476,6 +477,14 @@ export default async function DashboardPage() {
               )}
             </div>
 
+            {/* Funding */}
+            <div className="p-6 bg-card rounded-lg border border-border shadow-sm">
+              <div className="pb-3 mb-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Funding ⚡</h2>
+              </div>
+              <FundingDashboard />
+            </div>
+
             {/* Profile Completion */}
             {profile && <ProfileCompletion profile={profile} />}
 
@@ -532,6 +541,24 @@ export default async function DashboardPage() {
                   className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
                 >
                   Skill Library
+                </Link>
+                <Link
+                  href="/dashboard/mcp"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  My MCP Servers
+                </Link>
+                <Link
+                  href="/mcp"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  MCP Marketplace
+                </Link>
+                <Link
+                  href="/dashboard/testimonials"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  Testimonials
                 </Link>
                 <Link
                   href="/dashboard/affiliates"

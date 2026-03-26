@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader2, MessageSquare, Reply } from "lucide-react";
 import Link from "next/link";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 interface Comment {
   id: string;
@@ -119,9 +120,7 @@ export function SkillComments({ slug, isAuthenticated }: SkillCommentsProps) {
             </span>
           </div>
 
-          <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-            {comment.content}
-          </p>
+          <MarkdownContent content={comment.content || ""} className="text-sm" />
 
           {isAuthenticated && comment.depth < 4 && (
             <button

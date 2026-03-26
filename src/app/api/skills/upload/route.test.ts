@@ -43,15 +43,27 @@ const mockIsScanAcceptable = vi.mocked(isScanAcceptable);
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function makeUploadRequest(fields: Record<string, string | Blob> = {}) {
-  const formData = new FormData();
-  for (const [key, value] of Object.entries(fields)) {
-    formData.append(key, value);
-  }
-  return new NextRequest("http://localhost/api/skills/upload", {
+/** Create a File-like object with arrayBuffer() that works in jsdom */
+function makeFile(content: string, name: string, type: string) {
+  const buf = Buffer.from(content);
+  return {
+    name,
+    type,
+    size: buf.length,
+    arrayBuffer: () => Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)),
+  };
+}
+
+function makeUploadRequest(fields: Record<string, string | ReturnType<typeof makeFile>> = {}) {
+  const store = new Map(Object.entries(fields));
+  const fakeFormData = {
+    get: (key: string) => store.get(key) ?? null,
+  };
+  const req = new NextRequest("http://localhost/api/skills/upload", {
     method: "POST",
-    body: formData,
   });
+  req.formData = () => Promise.resolve(fakeFormData as unknown as FormData);
+  return req;
 }
 
 function mockServiceChain(listing: any, scanInsert: any = { data: { id: "scan-1" }, error: null }) {
@@ -115,8 +127,8 @@ describe("POST /api/skills/upload", () => {
       supabase: {} as any,
     });
 
-    const file = new Blob(["test content"], { type: "text/plain" });
-    const response = await POST(makeUploadRequest({ file: file as any }));
+    const file = makeFile("test content", "test.txt", "text/plain");
+    const response = await POST(makeUploadRequest({ file }));
     expect(response.status).toBe(400);
   });
 
@@ -128,9 +140,9 @@ describe("POST /api/skills/upload", () => {
 
     mockServiceChain({ id: "listing-1", seller_id: "other-user", slug: "test" });
 
-    const file = new Blob(["test content"], { type: "text/plain" });
+    const file = makeFile("test content", "test.txt", "text/plain");
     const response = await POST(
-      makeUploadRequest({ file: file as any, listing_id: "listing-1" })
+      makeUploadRequest({ file, listing_id: "listing-1" })
     );
     expect(response.status).toBe(403);
   });
@@ -152,9 +164,9 @@ describe("POST /api/skills/upload", () => {
     });
     mockIsScanAcceptable.mockReturnValue(false);
 
-    const file = new Blob(["MZ"], { type: "application/octet-stream" });
+    const file = makeFile("MZ", "malicious.exe", "application/octet-stream");
     const response = await POST(
-      makeUploadRequest({ file: file as any, listing_id: "listing-1" })
+      makeUploadRequest({ file, listing_id: "listing-1" })
     );
 
     expect(response.status).toBe(422);
@@ -181,9 +193,9 @@ describe("POST /api/skills/upload", () => {
     mockIsScanAcceptable.mockReturnValue(true);
     mockUpload.mockResolvedValue({ error: null });
 
-    const file = new Blob(["safe content"], { type: "text/plain" });
+    const file = makeFile("safe content", "safe.txt", "text/plain");
     const response = await POST(
-      makeUploadRequest({ file: file as any, listing_id: "listing-1" })
+      makeUploadRequest({ file, listing_id: "listing-1" })
     );
 
     expect(response.status).toBe(200);

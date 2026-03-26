@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Bell,
   Zap,
+  Mail,
 } from "lucide-react";
 
 interface UserDropdownProps {
@@ -105,6 +106,14 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
             >
               <User className="h-4 w-4" />
               View Public Profile
+            </Link>
+            <Link
+              href="/dashboard/messages"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <Mail className="h-4 w-4" />
+              Inbox
             </Link>
             <Link
               href="/dashboard"

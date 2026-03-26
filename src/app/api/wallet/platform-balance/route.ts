@@ -18,16 +18,34 @@ export async function GET() {
       0
     ) ?? 0;
 
-    // Platform commission from system wallet
-    const { data: wallet } = await supabase
-      .from("wallets" as any)
-      .select("balance_sats")
+    // Platform commission: sum completed zap fees from wallet_transactions
+    // (more accurate than LNbits wallet balance which can get out of sync)
+    const { data: feeTxns } = await supabase
+      .from("wallet_transactions" as any)
+      .select("amount_sats")
       .eq("user_id", SYSTEM_WALLET_USER)
-      .single();
+      .eq("type", "zap_fee")
+      .eq("status", "completed");
+
+    const commissionSats = (feeTxns as any[])?.reduce(
+      (sum: number, t: any) => sum + (t.amount_sats || 0),
+      0
+    ) ?? 0;
+
+    // Fall back to wallet balance if no fee transactions yet
+    let finalCommission = commissionSats;
+    if (finalCommission === 0) {
+      const { data: wallet } = await supabase
+        .from("wallets" as any)
+        .select("balance_sats")
+        .eq("user_id", SYSTEM_WALLET_USER)
+        .single();
+      finalCommission = (wallet as any)?.balance_sats ?? 0;
+    }
 
     return NextResponse.json({
       balance_sats: totalSats,
-      commission_sats: (wallet as any)?.balance_sats ?? 0,
+      commission_sats: finalCommission,
     });
   } catch {
     return NextResponse.json({ balance_sats: 0, commission_sats: 0 });

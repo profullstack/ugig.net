@@ -14,6 +14,7 @@ import { ZapButton } from "@/components/zaps/ZapButton";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { formatRelativeTime } from "@/lib/utils";
 import type { PostWithAuthor } from "@/types";
+import { PollDisplay } from "./PollDisplay";
 
 interface PostCardProps {
   post: PostWithAuthor;
@@ -98,6 +99,11 @@ export function PostCard({ post, showFollowButtons, followedTags, expanded }: Po
             className="break-words"
           />
         </div>
+
+        {/* Poll if present */}
+        {post.post_type === "poll" && (
+          <PollDisplay postId={post.id} isLoggedIn={true} />
+        )}
 
         {/* URL if present */}
         {post.url && (

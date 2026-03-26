@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { conversationCreateSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
+
+const ARCHIVE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Lazy-archive stale conversations (last message > 7 days ago).
+ * Called before the inbox query so stale rows are filtered out.
+ */
+async function lazyArchiveStale(supabase: SupabaseClient<Database>) {
+  const cutoff = new Date(Date.now() - ARCHIVE_THRESHOLD_MS).toISOString();
+  await supabase
+    .from("conversations")
+    .update({ archived_at: new Date().toISOString() })
+    .is("archived_at", null)
+    .lt("last_message_at", cutoff);
+}
 
 // GET /api/conversations - List user's conversations
 export async function GET(request: NextRequest) {
@@ -11,8 +28,17 @@ export async function GET(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
+    // Check if requesting archived conversations
+    const { searchParams } = new URL(request.url);
+    const showArchived = searchParams.get("archived") === "true";
+
+    // Lazy-archive stale conversations before querying
+    if (!showArchived) {
+      await lazyArchiveStale(supabase);
+    }
+
     // Get conversations where user is a participant
-    const { data: conversations, error } = await supabase
+    let query = supabase
       .from("conversations")
       .select(
         `
@@ -25,6 +51,14 @@ export async function GET(request: NextRequest) {
       )
       .contains("participant_ids", [user.id])
       .order("last_message_at", { ascending: false, nullsFirst: false });
+
+    if (showArchived) {
+      query = query.not("archived_at", "is", null);
+    } else {
+      query = query.is("archived_at", null);
+    }
+
+    const { data: conversations, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -210,6 +244,62 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ data: conversation }, { status: 201 });
     }
+  } catch {
+    return NextResponse.json(
+      { error: "An unexpected error occurred" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/conversations - Archive or unarchive a conversation
+export async function PATCH(request: NextRequest) {
+  try {
+    const auth = await getAuthContext(request);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { user, supabase } = auth;
+
+    const body = await request.json();
+    const { conversation_id, archive } = body;
+
+    if (!conversation_id) {
+      return NextResponse.json(
+        { error: "conversation_id is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify user is a participant
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("id, participant_ids")
+      .eq("id", conversation_id)
+      .contains("participant_ids", [user.id])
+      .single();
+
+    if (!conv) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      );
+    }
+
+    const { data: updated, error } = await supabase
+      .from("conversations")
+      .update({
+        archived_at: archive === false ? null : new Date().toISOString(),
+      })
+      .eq("id", conversation_id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ data: updated });
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

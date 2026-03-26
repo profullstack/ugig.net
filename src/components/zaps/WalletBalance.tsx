@@ -14,12 +14,10 @@ export function WalletBalance() {
       .catch(() => {});
   }, []);
 
-  if (balance === null) return null;
-
   return (
-    <Link href="/settings/wallet" className="flex items-center gap-1 text-sm text-amber-500 hover:text-amber-400 transition-colors" title="Wallet">
-      <Zap className="h-4 w-4 fill-amber-500" />
-      <span className="font-medium">{balance.toLocaleString()}</span>
+    <Link href="/settings/wallet" className="flex items-center gap-1 text-sm text-amber-500 hover:text-amber-400 transition-colors min-w-[4.5rem] justify-end" title="Wallet">
+      <Zap className="h-4 w-4 fill-amber-500 shrink-0" />
+      <span className="font-medium tabular-nums">{balance !== null ? balance.toLocaleString() : "—"}</span>
     </Link>
   );
 }

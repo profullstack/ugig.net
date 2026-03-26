@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
 import { sendEmail, welcomeEmail } from "@/lib/email";
 import { checkSpam, checkEmail } from "@/lib/spam-check";
 import { generateAndStoreDid } from "@/lib/auth/did";
+import { detectSuspiciousAccountType } from "@/lib/account-type-detection";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
       agent_source_url,
       ref,
     } = validationResult.data;
+
+    // Account type validation: agents must have agent_name
+    if (account_type === "agent" && !agent_name) {
+      return NextResponse.json(
+        { error: "Agent accounts must provide an agent_name" },
+        { status: 400 }
+      );
+    }
 
     // Spam check on username, name, and email
     const spamResult = checkSpam(username, agent_name);
@@ -178,6 +187,19 @@ export async function POST(request: NextRequest) {
       } catch (didErr) {
         // Non-fatal — don't block signup if DID generation fails
         console.error("[Signup] DID generation failed:", didErr);
+      }
+    }
+
+    // Check for suspicious account type
+    if (data.user) {
+      const suspicion = detectSuspiciousAccountType({
+        username,
+        account_type,
+        agent_name,
+        bio: undefined,
+      });
+      if (suspicion.suspicious) {
+        console.warn(`[signup] Suspicious account type: ${username} — ${suspicion.reason}`);
       }
     }
 

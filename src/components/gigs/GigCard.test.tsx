@@ -161,14 +161,24 @@ describe("GigCard", () => {
     expect(screen.getByText("Remote")).toBeInTheDocument();
   });
 
-  it("displays payment coin when set", () => {
+  it("displays payment coin when set (sats for BTC)", () => {
     const gig = {
       ...baseGig,
       payment_coin: "BTC",
       poster: mockPoster,
     };
     render(<GigCard gig={gig} />);
-    expect(screen.getByText(/BTC/)).toBeInTheDocument();
+    expect(screen.getByText(/sats/)).toBeInTheDocument();
+  });
+
+  it("displays payment coin note for non-sats coins", () => {
+    const gig = {
+      ...baseGig,
+      payment_coin: "ETH",
+      poster: mockPoster,
+    };
+    render(<GigCard gig={gig} />);
+    expect(screen.getByText(/ETH/)).toBeInTheDocument();
   });
 
   it("links to the gig detail page", () => {

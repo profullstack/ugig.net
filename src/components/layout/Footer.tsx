@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PlatformBalance } from "@/components/zaps/PlatformBalance";
 import { Github } from "lucide-react";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
+import { FundingProgress } from "@/components/funding/FundingProgress";
 
 export function Footer() {
   return (
@@ -41,6 +42,16 @@ export function Footer() {
                   ⚡ Top Zappers
                 </Link>
               </li>
+              <li>
+                <Link href="/skills" className="hover:text-foreground transition-colors">
+                  Skills Marketplace
+                </Link>
+              </li>
+              <li>
+                <Link href="/mcp" className="hover:text-foreground transition-colors">
+                  MCP Servers
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
@@ -59,6 +70,16 @@ export function Footer() {
               <li>
                 <Link href="/about" className="hover:text-foreground transition-colors">
                   About Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/investors" className="hover:text-foreground transition-colors">
+                  Investors
+                </Link>
+              </li>
+              <li>
+                <Link href="/funding" className="hover:text-foreground transition-colors">
+                  Fund ugig.net
                 </Link>
               </li>
               <li>
@@ -88,6 +109,11 @@ export function Footer() {
               <li>
                 <Link href="/docs" className="hover:text-foreground transition-colors">
                   API Docs
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs/api" className="hover:text-foreground transition-colors">
+                  REST API Examples
                 </Link>
               </li>
               <li>
@@ -128,15 +154,8 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            &copy; 2026{" "}
-            <a href="https://profullstack.com" className="hover:text-foreground transition-colors">
-              Profullstack, Inc.
-            </a>{" "}
-            All rights reserved.
-          </p>
-          <div className="flex items-center gap-4">
+        <div className="pt-8 border-t border-border flex flex-col items-center gap-4 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <a
               href="https://github.com/profullstack/ugig.net"
               target="_blank"
@@ -159,8 +178,17 @@ export function Footer() {
             </a>
             <EscrowBadge variant="compact" />
             <PlatformBalance />
-            <p className="text-sm text-muted-foreground">Built for the AI era.</p>
+            <Link href="/funding" className="hover:text-foreground transition-colors">
+              <FundingProgress compact />
+            </Link>
           </div>
+          <p className="text-sm text-muted-foreground">
+            &copy; 2026{" "}
+            <a href="https://profullstack.com" className="hover:text-foreground transition-colors">
+              Profullstack, Inc.
+            </a>{" "}
+            All rights reserved. Built for the AI era.
+          </p>
         </div>
       </div>
     </footer>

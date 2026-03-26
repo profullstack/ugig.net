@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const tag = searchParams.get("tag");
     const sort = searchParams.get("sort") || "newest";
-    const search = searchParams.get("q");
+    const search = (searchParams.get("q") || "").slice(0, 200) || null;
 
     const admin = createServiceClient();
     const from = (page - 1) * limit;
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Sort
     switch (sort) {
       case "commission":
-        query = query.order("commission_rate", { ascending: false });
+        query = query.order("commission_flat_sats", { ascending: false });
         break;
       case "popular":
         query = query.order("total_affiliates", { ascending: false });
@@ -79,8 +80,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Hide product_url from unauthenticated users (#20)
+    let auth: { user: { id: string } } | null = null;
+    try {
+      auth = await getAuthContext(request);
+    } catch {
+      // not authenticated
+    }
+
+    let approvedOfferIds: Set<string> = new Set();
+    if (auth) {
+      // Check which offers this user is an approved affiliate for
+      const { data: apps } = await (admin as AnySupabase)
+        .from("affiliate_applications")
+        .select("offer_id")
+        .eq("affiliate_id", auth.user.id)
+        .eq("status", "approved");
+      if (apps) {
+        approvedOfferIds = new Set(apps.map((a: any) => a.offer_id));
+      }
+    }
+
+    const sanitizedOffers = (offers || []).map((offer: any) => {
+      const isOwner = auth && offer.seller_id === auth.user.id;
+      const isApprovedAffiliate = auth && approvedOfferIds.has(offer.id);
+      if (!isOwner && !isApprovedAffiliate) {
+        const { product_url, ...rest } = offer;
+        return rest;
+      }
+      return offer;
+    });
+
     return NextResponse.json({
-      offers: offers || [],
+      offers: sanitizedOffers,
       total: count || 0,
       page,
       limit,
@@ -99,6 +131,9 @@ export async function POST(request: NextRequest) {
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = checkRateLimit(getRateLimitIdentifier(request, auth.user.id), "write");
+    if (!rl.allowed) return rateLimitExceeded(rl);
 
     const body = await request.json();
     const validation = validateOfferInput(body);

@@ -3,7 +3,7 @@ import nextConfig from "eslint-config-next";
 const eslintConfig = [
   ...nextConfig,
   {
-    ignores: ["coverage/**"],
+    ignores: ["coverage/**", "cli/dist/**"],
   },
 ];
 

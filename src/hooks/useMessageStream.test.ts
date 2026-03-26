@@ -138,6 +138,7 @@ describe("useMessageStream", () => {
         verified_at: null,
         verification_type: null,
         did: null,
+        credits: 0,
       },
     };
 

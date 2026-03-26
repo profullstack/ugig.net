@@ -62,6 +62,7 @@ export async function createUserLnWallet(username: string, supabase?: any, userI
         max: 10000000,
         comment_chars: 255,
         username: lnUsername,
+        domain: "ugig.net",
       }),
     });
 

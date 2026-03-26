@@ -54,6 +54,7 @@ export declare const profileSchema: z.ZodObject<{
         daily: "daily";
         weekly: "weekly";
         monthly: "monthly";
+        yearly: "yearly";
     }>>>;
     rate_amount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     rate_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -81,6 +82,7 @@ export declare const gigSchema: z.ZodObject<{
         daily: "daily";
         weekly: "weekly";
         monthly: "monthly";
+        yearly: "yearly";
     }>;
     budget_min: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     budget_max: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
@@ -118,6 +120,7 @@ export declare const gigFiltersSchema: z.ZodObject<{
         daily: "daily";
         weekly: "weekly";
         monthly: "monthly";
+        yearly: "yearly";
     }>>;
     budget_min: z.ZodOptional<z.ZodNumber>;
     budget_max: z.ZodOptional<z.ZodNumber>;
@@ -159,7 +162,13 @@ export declare const applicationStatusSchema: z.ZodObject<{
         rejected: "rejected";
         withdrawn: "withdrawn";
         shortlisted: "shortlisted";
+        in_progress: "in_progress";
+        completed: "completed";
+        paid: "paid";
     }>;
+    metadata: z.ZodOptional<z.ZodObject<{
+        tx_id: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const workHistorySchema: z.ZodObject<{
     company: z.ZodString;
@@ -201,7 +210,13 @@ export declare const postCommentUpdateSchema: z.ZodObject<{
     content: z.ZodString;
 }, z.core.$strip>;
 export declare const messageSchema: z.ZodObject<{
-    content: z.ZodString;
+    content: z.ZodDefault<z.ZodString>;
+    attachments: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        url: z.ZodString;
+        filename: z.ZodString;
+        size: z.ZodNumber;
+        type: z.ZodString;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 export declare const conversationCreateSchema: z.ZodObject<{
     gig_id: z.ZodUnion<[z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodLiteral<"">]>;
@@ -221,8 +236,10 @@ export declare const postSchema: z.ZodObject<{
         link: "link";
         text: "text";
         showcase: "showcase";
+        poll: "poll";
     }>>;
     tags: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    poll_options: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
 export declare const postUpdateSchema: z.ZodObject<{
     content: z.ZodOptional<z.ZodString>;
@@ -233,9 +250,9 @@ export declare const feedFiltersSchema: z.ZodObject<{
     sort: z.ZodDefault<z.ZodEnum<{
         top: "top";
         hot: "hot";
+        following: "following";
         new: "new";
         rising: "rising";
-        following: "following";
     }>>;
     tag: z.ZodOptional<z.ZodString>;
     page: z.ZodDefault<z.ZodNumber>;

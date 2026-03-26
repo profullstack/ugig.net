@@ -40,7 +40,7 @@ export const skillListingSchema = z.object({
     .default([]),
   status: z.enum(["draft", "active"]).optional().default("draft"),
   source_url: z.string().url().optional().or(z.literal("")),
-  skill_file_url: z.string().url().optional().or(z.literal("")),
+  skill_file_url: z.string().url("Skill file URL is required"),
   website_url: z.string().url().optional().or(z.literal("")),
   clawhub_url: z.string().url().optional().or(z.literal("")),
 });

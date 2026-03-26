@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const data = validationResult.data;
 
     // Determine post_type from content
-    const postType = data.url ? "link" : data.post_type || "text";
+    const postType = data.poll_options?.length ? "poll" : data.url ? "link" : data.post_type || "text";
 
     const { data: post, error } = await supabase
       .from("posts")
@@ -70,6 +70,16 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Create poll options if this is a poll
+    if (postType === "poll" && data.poll_options?.length) {
+      const options = data.poll_options.map((text, i) => ({
+        post_id: post.id,
+        text,
+        position: i,
+      }));
+      await (supabase as any).from("poll_options").insert(options);
     }
 
     // Fire reputation receipt

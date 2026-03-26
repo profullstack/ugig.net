@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       .from("affiliate_applications")
       .select(`
         *,
-        affiliate_offers(id, title, slug, commission_rate, commission_type, price_sats, status,
+        affiliate_offers(id, title, slug, commission_rate, commission_type, commission_flat_sats, price_sats, status,
           profiles!affiliate_offers_seller_id_fkey(username))
       `)
       .eq("affiliate_id", auth.user.id)

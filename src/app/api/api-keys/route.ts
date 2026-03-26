@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     const { data: keys, error } = await supabase
       .from("api_keys")
-      .select("id, name, key_prefix, last_used_at, expires_at, created_at, revoked_at")
+      .select("id, name, key_prefix, scope, last_used_at, expires_at, created_at, revoked_at")
       .eq("user_id", user.id)
       .is("revoked_at", null)
       .order("created_at", { ascending: false });
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, expires_at } = validationResult.data;
+    const { name, expires_at, scope } = validationResult.data;
 
     // Check if user already has a key with this name
     const { data: existingKey } = await supabase
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate and hash the key
-    const rawKey = generateApiKey();
+    const rawKey = generateApiKey(scope);
     const keyHash = await hashApiKey(rawKey);
     const keyPrefix = getKeyPrefix(rawKey);
 
@@ -124,13 +124,14 @@ export async function POST(request: NextRequest) {
         key_hash: keyHash,
         key_prefix: keyPrefix,
         expires_at: expires_at || null,
+        scope,
       })
-      .select("id, name, key_prefix, created_at, expires_at")
+      .select("id, name, key_prefix, created_at, expires_at, scope")
       .single();
 
-    if (error) {
+    if (error || !apiKey) {
       console.error("API key creation error:", error);
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: error?.message || "Failed to create API key" }, { status: 400 });
     }
 
     // Return the full key only once at creation

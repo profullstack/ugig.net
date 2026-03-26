@@ -36,7 +36,24 @@ export default function SwaggerUIComponent() {
           docExpansion: "list",
           filter: true,
           showExtensions: true,
-          tryItOutEnabled: false,
+          tryItOutEnabled: true,
+          persistAuthorization: true,
+          displayRequestDuration: true,
+          requestSnippetsEnabled: true,
+          requestSnippets: {
+            generators: {
+              "curl_bash": {
+                title: "cURL (bash)",
+                syntax: "bash",
+              },
+              "curl_cmd": {
+                title: "cURL (cmd)",
+                syntax: "bash",
+              },
+            },
+            defaultExpanded: true,
+            languages: ["curl_bash"],
+          },
         });
       }
     };

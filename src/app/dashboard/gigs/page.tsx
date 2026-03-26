@@ -114,7 +114,7 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                         </Badge>
                       </div>
 
-                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2 whitespace-pre-wrap break-words">
                         {gig.description}
                       </p>
 

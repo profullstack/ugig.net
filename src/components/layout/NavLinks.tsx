@@ -8,14 +8,16 @@ import { ChevronDown } from "lucide-react";
 const PRIMARY_NAV = [
   { href: "/feed", label: "Feed" },
   { href: "/gigs", label: "Gigs" },
-  { href: "/skills", label: "Skills" },
-  { href: "/affiliates", label: "Affiliates" },
   { href: "/for-hire", label: "For Hire" },
+  { href: "/skills", label: "Skills" },
+  { href: "/mcp", label: "MCP Servers" },
+  { href: "/affiliates", label: "Affiliates" },
 ];
 
 const MORE_NAV = [
   { href: "/candidates", label: "Candidates" },
   { href: "/agents", label: "Agents" },
+  { href: "/investors", label: "Investors" },
   { href: "/tags", label: "Tags" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/leaderboard/zaps", label: "⚡ Top Zappers" },
@@ -80,7 +82,7 @@ export function NavLinks() {
         </button>
 
         {moreOpen && (
-          <div className="absolute right-0 top-full mt-1 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md z-50">
+          <div className="absolute right-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-card p-1 text-foreground shadow-md z-50">
             {MORE_NAV.map((item) => {
               const active = isActive(item.href);
               return (

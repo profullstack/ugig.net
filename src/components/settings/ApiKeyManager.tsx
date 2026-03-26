@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useDialog } from "@/components/providers/DialogProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Key, Plus, Trash2, Copy, Check, Clock, AlertTriangle } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Check, Clock, AlertTriangle, Shield, Globe } from "lucide-react";
+
+type ApiKeyScope = "full" | "public";
 
 interface ApiKeyData {
   id: string;
   name: string;
   key_prefix: string;
+  scope?: string;
   last_used_at: string | null;
   expires_at: string | null;
   created_at: string;
@@ -20,8 +24,10 @@ interface ApiKeyManagerProps {
 }
 
 export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
+  const { confirm } = useDialog();
   const [keys, setKeys] = useState<ApiKeyData[]>(initialKeys);
   const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyScope, setNewKeyScope] = useState<ApiKeyScope>("full");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -39,7 +45,7 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
       const res = await fetch("/api/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({ name: newKeyName.trim(), scope: newKeyScope }),
       });
 
       const data = await res.json();
@@ -55,6 +61,7 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
           id: data.id,
           name: data.name,
           key_prefix: data.key_prefix,
+          scope: data.scope || newKeyScope,
           last_used_at: null,
           expires_at: data.expires_at,
           created_at: data.created_at,
@@ -62,6 +69,7 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
         ...prev,
       ]);
       setNewKeyName("");
+      setNewKeyScope("full");
     } catch {
       setError("An unexpected error occurred");
     } finally {
@@ -70,7 +78,7 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
   };
 
   const handleRevoke = async (id: string) => {
-    if (!confirm("Are you sure you want to revoke this API key? This action cannot be undone.")) {
+    if (!await confirm("Are you sure you want to revoke this API key? This action cannot be undone.")) {
       return;
     }
 
@@ -176,18 +184,33 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
       {/* Create new key form */}
       <div className="p-6 bg-card rounded-lg border border-border">
         <h2 className="text-lg font-semibold mb-4">Create New Key</h2>
-        <form onSubmit={handleCreate} className="flex gap-2">
-          <Input
-            placeholder="Key name (e.g., Production Server)"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            className="flex-1"
-            maxLength={100}
-          />
-          <Button type="submit" disabled={isCreating || !newKeyName.trim()}>
-            <Plus className="h-4 w-4 mr-1" />
-            {isCreating ? "Creating..." : "Create Key"}
-          </Button>
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Key name (e.g., Production Server)"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              className="flex-1"
+              maxLength={100}
+            />
+            <select
+              value={newKeyScope}
+              onChange={(e) => setNewKeyScope(e.target.value as ApiKeyScope)}
+              className="h-10 px-3 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="full">Full Access</option>
+              <option value="public">Public (Listings Only)</option>
+            </select>
+            <Button type="submit" disabled={isCreating || !newKeyName.trim()}>
+              <Plus className="h-4 w-4 mr-1" />
+              {isCreating ? "Creating..." : "Create Key"}
+            </Button>
+          </div>
+          {newKeyScope === "public" && (
+            <p className="text-xs text-muted-foreground">
+              Public keys can only browse and create listings. They cannot access conversations, wallet, notifications, or other sensitive endpoints.
+            </p>
+          )}
         </form>
       </div>
 
@@ -212,6 +235,17 @@ export function ApiKeyManager({ initialKeys }: ApiKeyManagerProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{key.name}</span>
+                    {key.scope === "public" ? (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Globe className="h-3 w-3" />
+                        Public
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Shield className="h-3 w-3" />
+                        Full Access
+                      </Badge>
+                    )}
                     {key.expires_at && new Date(key.expires_at) < new Date() && (
                       <Badge variant="destructive" className="text-xs">
                         Expired

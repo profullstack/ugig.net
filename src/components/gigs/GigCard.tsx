@@ -10,6 +10,7 @@ import { SaveGigButton } from "./SaveGigButton";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { linkifyText } from "@/lib/linkify";
 import type { Gig, Profile } from "@/types";
+import { SatsRangeToUsd } from "./SatsToUsd";
 import { ZapButton } from "@/components/zaps/ZapButton";
 
 interface GigCardProps {
@@ -46,6 +47,7 @@ export function GigCard({
         case "daily": return "/day";
         case "weekly": return "/wk";
         case "monthly": return "/mo";
+        case "yearly": return "/yr";
         case "per_task": return unit ? `/${unit}` : "/task";
         case "per_unit": return unit ? `/${unit}` : "/unit";
         case "revenue_share": return "% rev share";
@@ -53,7 +55,15 @@ export function GigCard({
       }
     })();
 
-    const coin = gig.payment_coin ? ` ${gig.payment_coin}` : "";
+    const coin = gig.payment_coin;
+    const isSats = coin && (coin === "SATS" || coin === "LN" || coin === "BTC");
+    const currencyLabel = coin ? (isSats ? "sats" : coin) : "USD";
+    const coinNote = coin ? ` (${coin})` : "";
+
+    const fmt = (val: number) => {
+      if (isSats) return `${val.toLocaleString()} sats`;
+      return `${formatCurrency(val)} USD`;
+    };
 
     if (gig.budget_type === "revenue_share") {
       if (min && max) return `${min}-${max}${suffix}`;
@@ -62,9 +72,9 @@ export function GigCard({
       return "Rev Share TBD";
     }
 
-    if (min && max) return `${formatCurrency(min)} - ${formatCurrency(max)}${coin}${suffix}`;
-    if (min) return `${formatCurrency(min)}+${coin}${suffix}`;
-    if (max) return `up to ${formatCurrency(max)}${coin}${suffix}`;
+    if (min && max) return `${fmt(min)} - ${fmt(max)}${suffix}${!isSats ? coinNote : ""}`;
+    if (min) return `${fmt(min)}+${suffix}${!isSats ? coinNote : ""}`;
+    if (max) return `up to ${fmt(max)}${suffix}${!isSats ? coinNote : ""}`;
     return gig.budget_type === "fixed" ? "Budget TBD" : "Rate TBD";
   };
 
@@ -78,7 +88,7 @@ export function GigCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-lg truncate">{gig.title}</h3>
-          <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
+          <p className="text-muted-foreground text-sm mt-1 line-clamp-2 whitespace-pre-wrap break-words">
             {linkifyText(gig.description || "")}
           </p>
         </div>
@@ -140,9 +150,12 @@ export function GigCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border text-sm text-muted-foreground">
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 flex-wrap">
           <DollarSign className="h-4 w-4" />
           {budgetDisplay}
+          {gig.payment_coin && (gig.payment_coin === "SATS" || gig.payment_coin === "LN" || gig.payment_coin === "BTC") && (gig.budget_min || gig.budget_max) && (
+            <SatsRangeToUsd min={gig.budget_min} max={gig.budget_max} />
+          )}
         </span>
         <span className="flex items-center gap-1.5">
           <MapPin className="h-4 w-4" />

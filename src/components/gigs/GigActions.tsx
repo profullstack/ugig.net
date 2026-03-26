@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useDialog } from "@/components/providers/DialogProvider";
 
 interface GigActionsProps {
   gigId: string;
@@ -23,6 +24,7 @@ interface GigActionsProps {
 
 export function GigActions({ gigId, status }: GigActionsProps) {
   const router = useRouter();
+  const { confirm } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function GigActions({ gigId, status }: GigActionsProps) {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this gig? This action cannot be undone.")) {
+    if (!await confirm("Are you sure you want to delete this gig? This action cannot be undone.")) {
       return;
     }
 

@@ -99,6 +99,34 @@ export default function NewOfferPage() {
     setLoading(true);
     setError("");
 
+    // Client-side validation (#41)
+    if (form.title.trim().length < 3) {
+      setError("Title must be at least 3 characters");
+      setLoading(false);
+      return;
+    }
+    if (form.description.trim().length < 10) {
+      setError("Description must be at least 10 characters");
+      setLoading(false);
+      return;
+    }
+    if (form.commission_type === "percentage") {
+      const rate = parseFloat(form.commission_rate);
+      if (!rate || rate < 1 || rate > 90) {
+        setError("Commission rate must be between 1% and 90%");
+        setLoading(false);
+        return;
+      }
+    }
+    if (form.commission_type === "flat") {
+      const sats = parseInt(form.commission_flat_sats);
+      if (!sats || sats < 1) {
+        setError("Flat commission must be at least 1 sat");
+        setLoading(false);
+        return;
+      }
+    }
+
     const res = await fetch("/api/affiliates/offers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

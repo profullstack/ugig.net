@@ -117,6 +117,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update conversation last_message_at so it sorts to top of inbox
+    await supabase
+      .from("conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversationId);
+
     // Get sender info for notification
     const { data: senderProfile } = await supabase
       .from("profiles")

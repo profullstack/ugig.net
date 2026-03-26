@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { gigs as gigsApi } from "@/lib/api";
 import { Loader2, XCircle } from "lucide-react";
+import { useDialog } from "@/components/providers/DialogProvider";
 
 interface CloseGigButtonProps {
   gigId: string;
@@ -12,6 +13,7 @@ interface CloseGigButtonProps {
 }
 
 export function CloseGigButton({ gigId, status }: CloseGigButtonProps) {
+  const { confirm } = useDialog();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function CloseGigButton({ gigId, status }: CloseGigButtonProps) {
   }
 
   const handleCloseGig = async () => {
-    const ok = window.confirm(
+    const ok = await confirm(
       "Archive this gig? It will be marked closed and no longer accept applications."
     );
     if (!ok) return;

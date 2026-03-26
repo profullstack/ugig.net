@@ -8,6 +8,20 @@ import { importSkillFromUrl } from "@/lib/skills/url-import";
 import { isScanAcceptable } from "@/lib/skills/security-scan";
 
 /**
+ * Detect whether a submission looks like an MCP server listing based on title/tags.
+ */
+function isMcpSubmission(title: string, tags: string[]): boolean {
+  const lowerTitle = title.toLowerCase();
+  const lowerTags = tags.map((t) => t.toLowerCase());
+  return (
+    lowerTitle.includes("mcp") ||
+    lowerTags.includes("mcp") ||
+    lowerTitle.includes("mcp server") ||
+    lowerTitle.includes("mcp-server")
+  );
+}
+
+/**
  * GET /api/skills - Public listing of active skills
  */
 export async function GET(request: NextRequest) {
@@ -101,6 +115,51 @@ export async function POST(request: NextRequest) {
 
     const { title, tagline, description, price_sats, category, tags, status: requestedStatusRaw, source_url, skill_file_url, website_url, clawhub_url } = parsed.data;
     const requestedStatus = requestedStatusRaw || "active";
+
+    // Detect MCP submissions and redirect to mcp_listings table
+    if (isMcpSubmission(title, tags || [])) {
+      const admin = createServiceClient();
+      let slug = slugify(title);
+      if (!slug) slug = "mcp-server";
+
+      const { data: existing } = await admin
+        .from("mcp_listings" as any)
+        .select("id")
+        .eq("slug", slug)
+        .single();
+
+      if (existing) {
+        slug = `${slug}-${Date.now().toString(36)}`;
+      }
+
+      const { data: listing, error } = await admin
+        .from("mcp_listings" as any)
+        .insert({
+          seller_id: auth.user.id,
+          slug,
+          title,
+          tagline: tagline || null,
+          description,
+          price_sats,
+          category: category || null,
+          tags: tags || [],
+          status: requestedStatus || "active",
+          source_url: source_url || null,
+          mcp_server_url: skill_file_url || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        listing,
+        redirect_to: `/mcp/${(listing as any).slug}`,
+        listing_type: "mcp",
+      }, { status: 201 });
+    }
 
     // Generate unique slug
     let slug = slugify(title);

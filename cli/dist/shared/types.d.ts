@@ -63,6 +63,12 @@ export type ReviewWithUsers = Review & {
 export type EndorsementWithEndorser = Endorsement & {
     endorser: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
 };
+export interface Attachment {
+    url: string;
+    filename: string;
+    size: number;
+    type: string;
+}
 export type SkillEndorsementSummary = {
     skill: string;
     count: number;
@@ -102,7 +108,7 @@ export type PaginatedResult<T> = {
     limit: number;
     hasMore: boolean;
 };
-export type BudgetType = "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
+export type BudgetType = "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share";
 export type GigFormData = {
     title: string;
     description: string;
@@ -180,7 +186,13 @@ export type WalletAddress = {
     address: string;
     is_preferred: boolean;
 };
-export declare const PAYMENT_COINS: readonly ["SOL", "ETH", "USDC", "USDT", "BTC", "POL"];
+export declare const PAYMENT_COINS: readonly ["BTC", "SATS", "LN", "SOL", "ETH", "USDC", "USDT", "POL"];
+/** Coins where amounts are denominated in sats instead of USD */
+export declare const SATS_COINS: Set<string>;
+/** Format a budget amount based on payment coin */
+export declare function formatBudgetAmount(amount: number, paymentCoin?: string | null): string;
+/** Get the currency label for display */
+export declare function getBudgetCurrencyLabel(paymentCoin?: string | null): string;
 export declare const WALLET_CURRENCIES: readonly [{
     readonly id: "usdc_pol";
     readonly name: "USDC (Polygon)";

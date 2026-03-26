@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+// Mock useDialog
+const mockConfirm = vi.fn().mockResolvedValue(true);
+const mockAlert = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/components/providers/DialogProvider", () => ({
+  useDialog: () => ({ confirm: mockConfirm, alert: mockAlert }),
+}));
+
 import { GigActions } from "./GigActions";
 
 // Mock next/navigation
@@ -111,7 +119,7 @@ describe("GigActions", () => {
 
   it("calls delete API when deleting gig", async () => {
     vi.mocked(gigsApi.delete).mockResolvedValue({ data: {}, error: null });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockConfirm.mockResolvedValue(true);
 
     render(<GigActions gigId="gig-123" status="active" />);
 
@@ -128,7 +136,7 @@ describe("GigActions", () => {
   });
 
   it("shows confirmation dialog before deleting", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockConfirm.mockResolvedValue(false);
 
     render(<GigActions gigId="gig-123" status="active" />);
 
@@ -139,7 +147,9 @@ describe("GigActions", () => {
     const deleteButton = screen.getByText("Delete Gig");
     fireEvent.click(deleteButton);
 
-    expect(confirmSpy).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalled();
+    });
     expect(gigsApi.delete).not.toHaveBeenCalled();
   });
 

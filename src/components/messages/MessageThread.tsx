@@ -11,7 +11,7 @@ import { MessageInput } from "./MessageInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { StartVideoCallButton } from "@/components/video/StartVideoCallButton";
 import { useMessageStream } from "@/hooks/useMessageStream";
-import type { MessageWithSender, Profile, Gig } from "@/types";
+import type { MessageWithSender, Profile, Gig, Attachment } from "@/types";
 import { ArrowLeft, Wifi, WifiOff, ExternalLink } from "lucide-react";
 
 interface MessageThreadProps {
@@ -84,19 +84,57 @@ export function MessageThread({
     fetchMessages();
   }, [conversationId]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages — scroll the container, not the page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = containerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
+  // Upload files via API and return attachment metadata
+  const uploadFiles = async (files: File[]): Promise<Attachment[]> => {
+    const attachments: Attachment[] = [];
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("conversationId", conversationId);
+
+      const res = await fetch("/api/attachments/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(`Failed to upload ${file.name}: ${err.error}`);
+      }
+
+      const attachment = await res.json();
+      attachments.push(attachment);
+    }
+
+    return attachments;
+  };
+
   // Send message handler
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, files?: File[]) => {
+    let attachments: Attachment[] | undefined;
+
+    if (files && files.length > 0) {
+      attachments = await uploadFiles(files);
+    }
+
     const response = await fetch(
       `/api/conversations/${conversationId}/messages`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content: content || "",
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        }),
       }
     );
 

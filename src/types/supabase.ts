@@ -158,6 +158,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          archived_at: string | null
           created_at: string | null
           gig_id: string | null
           id: string
@@ -166,6 +167,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string | null
           gig_id?: string | null
           id?: string
@@ -174,6 +176,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          archived_at?: string | null
           created_at?: string | null
           gig_id?: string | null
           id?: string
@@ -1659,6 +1662,7 @@ export type Database = {
         | "daily"
         | "weekly"
         | "monthly"
+        | "yearly"
       gig_status: "draft" | "active" | "paused" | "closed" | "filled"
       location_type: "remote" | "onsite" | "hybrid"
       notification_type:
@@ -1835,6 +1839,7 @@ export const Constants = {
         "daily",
         "weekly",
         "monthly",
+        "yearly",
       ],
       gig_status: ["draft", "active", "paused", "closed", "filled"],
       location_type: ["remote", "onsite", "hybrid"],

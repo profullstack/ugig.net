@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Star, Download, Zap } from "lucide-react";
+import { Package, Star, Download, Zap, ShieldCheck, ShieldAlert, ShieldX, Shield } from "lucide-react";
 import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -55,7 +55,7 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
   const [supabase, btcUsd] = await Promise.all([createClient(), fetchBtcRate()]);
 
   const page = parseInt(queryParams.page || "1");
-  const limit = 20;
+  const limit = 21;
   const offset = (page - 1) * limit;
 
   let query = supabase
@@ -208,6 +208,26 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
                   <Download className="h-3.5 w-3.5" />
                   {listing.downloads_count}
                 </span>
+                {listing.scan_status === "clean" && (
+                  <span className="flex items-center gap-1" title="Security scan: clean">
+                    <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
+                  </span>
+                )}
+                {listing.scan_status === "suspicious" && (
+                  <span className="flex items-center gap-1" title="Security scan: suspicious">
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
+                  </span>
+                )}
+                {listing.scan_status === "malicious" && (
+                  <span className="flex items-center gap-1" title="Security scan: malicious">
+                    <ShieldX className="h-3.5 w-3.5 text-red-500" />
+                  </span>
+                )}
+                {!listing.scan_status && (
+                  <span className="flex items-center gap-1" title="Not scanned yet">
+                    <Shield className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  </span>
+                )}
               </div>
             </div>
           </Link>

@@ -2,9 +2,12 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { getKeyPrefix, verifyApiKey } from "@/lib/api-keys";
 import type { Database } from "@/types/database";
 
+import type { ApiKeyScope } from "@/lib/api-keys";
+
 export type ApiKeyAuthResult = {
   userId: string;
   keyId: string;
+  scope: ApiKeyScope;
 };
 
 /**
@@ -81,6 +84,7 @@ export async function authenticateApiKey(
       return {
         userId: candidate.user_id,
         keyId: candidate.key_id,
+        scope: (candidate.scope as ApiKeyScope) || "full",
       };
     }
   }

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ReferralTracker } from "@/components/referral/ReferralTracker";
 import { Footer } from "@/components/layout/Footer";
 import { BtcRateProvider } from "@/components/providers/BtcRateProvider";
+import { DialogProvider } from "@/components/providers/DialogProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -74,11 +75,13 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen antialiased">
         <BtcRateProvider>
+        <DialogProvider>
         <Suspense fallback={null}>
           <ReferralTracker />
         </Suspense>
         {children}
         <Footer />
+        </DialogProvider>
         </BtcRateProvider>
 
         {/* Datafast Analytics */}

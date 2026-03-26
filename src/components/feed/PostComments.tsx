@@ -12,6 +12,8 @@ import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { parseContentWithMentions } from "@/lib/mentions";
 import { linkifyText } from "@/lib/linkify";
+import { useDialog } from "@/components/providers/DialogProvider";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 function CommentContent({ content }: { content: string }) {
   const segments = parseContentWithMentions(content);
@@ -70,6 +72,7 @@ export function PostComments({
   currentUserId,
   postAuthorId,
 }: PostCommentsProps) {
+  const { confirm } = useDialog();
   const [threads, setThreads] = useState<CommentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
@@ -190,7 +193,7 @@ export function PostComments({
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
+    if (!await confirm("Are you sure you want to delete this comment?")) return;
 
     setError(null);
 
@@ -356,9 +359,7 @@ export function PostComments({
                 </div>
               </div>
             ) : (
-              <p className="text-sm mt-1 whitespace-pre-wrap break-words">
-                <CommentContent content={comment.content} />
-              </p>
+              <MarkdownContent content={comment.content || ""} className="text-sm mt-1" />
             )}
 
             {/* Action buttons */}

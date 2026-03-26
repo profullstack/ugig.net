@@ -110,7 +110,6 @@ export function registerWalletCommands(program: Command): void {
         handleError(err, opts as OutputOptions);
       }
     });
-}
 
   // ugig wallet withdraw <amount> <destination>
   wallet
@@ -135,3 +134,4 @@ export function registerWalletCommands(program: Command): void {
         handleError(err, opts as OutputOptions);
       }
     });
+}

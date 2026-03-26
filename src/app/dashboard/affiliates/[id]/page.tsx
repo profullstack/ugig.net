@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useDialog } from "@/components/providers/DialogProvider";
 import { SatsFiatHint } from "@/components/ui/SatsAmount";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -132,6 +133,7 @@ function StatCard({
 export default function SellerOfferDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { alert, confirm } = useDialog();
   const [offer, setOffer] = useState<OfferInfo | null>(null);
   const [affiliates, setAffiliates] = useState<AffiliateEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,10 +229,10 @@ export default function SellerOfferDetailPage() {
         setConvNote("");
         await fetchData();
       } else {
-        alert(data.error || "Failed to record conversion");
+        await alert(data.error || "Failed to record conversion");
       }
     } catch (err) {
-      alert("Failed to record conversion. Please try again.");
+      await alert("Failed to record conversion. Please try again.");
     } finally {
       setConvSubmitting(false);
     }
@@ -301,7 +303,7 @@ export default function SellerOfferDetailPage() {
                   if (res.ok) {
                     setOffer({ ...offer, auto_pay: newVal });
                   } else {
-                    alert("Failed to update auto-pay setting");
+                    await alert("Failed to update auto-pay setting");
                   }
                 }}
                 className="rounded border-border"
@@ -622,7 +624,7 @@ export default function SellerOfferDetailPage() {
                               variant="default"
                               className="h-7 px-2 text-xs bg-green-600 hover:bg-green-700"
                               onClick={async () => {
-                                if (!confirm(`Pay ${conv.commission_sats.toLocaleString()} sats commission to @${conv.username || "affiliate"}?`)) return;
+                                if (!await confirm(`Pay ${conv.commission_sats.toLocaleString()} sats commission to @${conv.username || "affiliate"}?`)) return;
                                 const res = await fetch(`/api/affiliates/offers/${id}/conversions/pay`, {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
@@ -632,7 +634,7 @@ export default function SellerOfferDetailPage() {
                                 if (res.ok) {
                                   await fetchData();
                                 } else {
-                                  alert(data.error || "Payment failed");
+                                  await alert(data.error || "Payment failed");
                                 }
                               }}
                             >
@@ -660,7 +662,7 @@ export default function SellerOfferDetailPage() {
                                   await fetchData();
                                 } else {
                                   const data = await res.json();
-                                  alert(data.error || "Failed to update");
+                                  await alert(data.error || "Failed to update");
                                 }
                               }}
                             >
@@ -671,7 +673,7 @@ export default function SellerOfferDetailPage() {
                               variant="ghost"
                               className="h-7 px-2 text-xs text-red-500 hover:text-red-700"
                               onClick={async () => {
-                                if (!confirm("Delete this conversion?")) return;
+                                if (!await confirm("Delete this conversion?")) return;
                                 const res = await fetch(`/api/affiliates/offers/${id}/conversions`, {
                                   method: "DELETE",
                                   headers: { "Content-Type": "application/json" },
@@ -681,7 +683,7 @@ export default function SellerOfferDetailPage() {
                                   await fetchData();
                                 } else {
                                   const data = await res.json();
-                                  alert(data.error || "Failed to delete");
+                                  await alert(data.error || "Failed to delete");
                                 }
                               }}
                             >

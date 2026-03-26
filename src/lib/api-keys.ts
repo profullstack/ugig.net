@@ -1,15 +1,20 @@
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
-const KEY_PREFIX = "ugig_live_";
+export type ApiKeyScope = "full" | "public";
+
+const KEY_PREFIXES: Record<ApiKeyScope, string> = {
+  full: "ugig_live_",
+  public: "ugig_pub_",
+};
 const BCRYPT_ROUNDS = 10;
 
 /**
- * Generate a new API key in the format: ugig_live_<random_32_chars>
+ * Generate a new API key in the format: ugig_live_<random> or ugig_pub_<random>
  */
-export function generateApiKey(): string {
+export function generateApiKey(scope: ApiKeyScope = "full"): string {
   const random = randomBytes(24).toString("base64url"); // 32 chars of URL-safe base64
-  return `${KEY_PREFIX}${random}`;
+  return `${KEY_PREFIXES[scope]}${random}`;
 }
 
 /**

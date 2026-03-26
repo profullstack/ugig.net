@@ -130,7 +130,7 @@ describe("GET /api/gigs", () => {
     expect(listingTypeCall).toBeTruthy();
   });
 
-  it("does not filter by listing_type when not provided", async () => {
+  it("defaults to listing_type=hiring when not provided", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.select = vi.fn().mockReturnValue(chain);
     chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
@@ -143,7 +143,8 @@ describe("GET /api/gigs", () => {
     const listingTypeCall = eqCalls.find(
       (call: unknown[]) => call[0] === "listing_type"
     );
-    expect(listingTypeCall).toBeUndefined();
+    expect(listingTypeCall).toBeDefined();
+    expect(listingTypeCall![1]).toBe("hiring");
   });
 
   it("returns error on invalid filters", async () => {

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "@/components/providers/DialogProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subscriptions as subscriptionsApi } from "@/lib/api";
 import { PLANS } from "@/lib/stripe";
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 
 type SubscriptionData = {
-  plan: "free" | "pro";
+  plan: "free" | "pro" | "lifetime";
   status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
@@ -28,6 +29,7 @@ type SubscriptionData = {
 
 function SubscriptionPageContent() {
   const searchParams = useSearchParams();
+  const { confirm } = useDialog();
   const [subscription, setSubscription] = useState<SubscriptionData | null>(
     null
   );
@@ -117,9 +119,42 @@ function SubscriptionPageContent() {
     }
   };
 
+  const handleLifetimeUpgrade = async () => {
+    setIsProcessing(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/payments/coinpayportal/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "subscription",
+          plan: "lifetime",
+          currency: "usdc_pol",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to start lifetime checkout" });
+        return;
+      }
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url as string;
+      } else {
+        setMessage({ type: "error", text: "Failed to get checkout URL" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to start lifetime checkout" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleCancel = async () => {
     if (
-      !confirm(
+      !await confirm(
         "Are you sure you want to cancel your subscription? You will keep Pro features until the end of your billing period."
       )
     ) {
@@ -177,7 +212,7 @@ function SubscriptionPageContent() {
           <Skeleton className="h-8 w-8" />
           <Skeleton className="h-8 w-48" />
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
@@ -186,8 +221,9 @@ function SubscriptionPageContent() {
   }
 
   const isPro =
-    subscription?.plan === "pro" &&
+    ["pro", "lifetime"].includes(subscription?.plan || "") &&
     ["active", "trialing"].includes(subscription?.status || "");
+  const isLifetime = subscription?.plan === "lifetime" && subscription?.status === "active";
   const isCanceling = subscription?.cancel_at_period_end;
 
   return (
@@ -228,8 +264,10 @@ function SubscriptionPageContent() {
           <div className="flex items-center gap-3">
             <Crown className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">You&apos;re on the Pro plan</p>
-              {subscription?.current_period_end && (
+              <p className="font-medium">
+                {isLifetime ? "You&apos;re on the Lifetime plan" : "You&apos;re on the Pro plan"}
+              </p>
+              {!isLifetime && subscription?.current_period_end && (
                 <p className="text-sm text-muted-foreground">
                   {isCanceling ? "Cancels" : "Renews"} on{" "}
                   {new Date(subscription.current_period_end).toLocaleDateString()}
@@ -237,7 +275,7 @@ function SubscriptionPageContent() {
               )}
             </div>
           </div>
-          {isCanceling ? (
+          {isLifetime ? null : isCanceling ? (
             <Button
               variant="outline"
               onClick={handleReactivate}
@@ -266,7 +304,7 @@ function SubscriptionPageContent() {
       )}
 
       {/* Plans */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         {/* Free Plan */}
         <div
           className={`p-6 rounded-lg border ${
@@ -324,7 +362,7 @@ function SubscriptionPageContent() {
         {/* Pro Plan */}
         <div
           className={`p-6 rounded-lg border ${
-            isPro ? "border-primary ring-2 ring-primary/20" : "border-border"
+            subscription?.plan === "pro" ? "border-primary ring-2 ring-primary/20" : "border-border"
           }`}
         >
           <div className="flex items-center justify-between mb-4">
@@ -332,7 +370,7 @@ function SubscriptionPageContent() {
               <h2 className="text-xl font-semibold">{PLANS.pro.name}</h2>
               <Crown className="h-5 w-5 text-primary" />
             </div>
-            {isPro && (
+            {subscription?.plan === "pro" && (
               <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                 Current
               </span>
@@ -389,7 +427,7 @@ function SubscriptionPageContent() {
               )}
             </Button>
           )}
-          {isPro && !isCanceling && (
+          {subscription?.plan === "pro" && !isCanceling && (
             <Button
               variant="outline"
               className="w-full"
@@ -398,6 +436,65 @@ function SubscriptionPageContent() {
             >
               <Calendar className="h-4 w-4 mr-2" />
               Manage Billing
+            </Button>
+          )}
+        </div>
+
+        {/* Lifetime Plan */}
+        <div
+          className={`p-6 rounded-lg border ${
+            isLifetime ? "border-primary ring-2 ring-primary/20" : "border-border"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold">Lifetime</h2>
+              <Crown className="h-5 w-5 text-primary" />
+            </div>
+            {isLifetime && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                Current
+              </span>
+            )}
+          </div>
+          <div className="mb-4">
+            <span className="text-3xl font-bold">$100</span>
+            <span className="text-muted-foreground"> one-time</span>
+          </div>
+          <ul className="space-y-3 mb-6">
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="h-4 w-4 text-green-500" />
+              Unlimited gig posts forever
+            </li>
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="h-4 w-4 text-green-500" />
+              Priority support
+            </li>
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="h-4 w-4 text-green-500" />
+              Premium features included for life
+            </li>
+          </ul>
+          <p className="text-sm text-green-600 dark:text-green-400 font-semibold mb-4">
+            🎉 Fund ugig.net $50+ and lifetime is included free
+          </p>
+          {!isLifetime && (
+            <Button
+              className="w-full"
+              onClick={handleLifetimeUpgrade}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Buy Lifetime ($100)
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -413,7 +510,8 @@ function SubscriptionPageLoading() {
         <Skeleton className="h-8 w-8" />
         <Skeleton className="h-8 w-48" />
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
+        <Skeleton className="h-64" />
         <Skeleton className="h-64" />
         <Skeleton className="h-64" />
       </div>

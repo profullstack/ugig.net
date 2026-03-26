@@ -224,6 +224,11 @@ export default function OfferDetailPage() {
               {offer.total_revenue_sats > 0 && (
                 <span>{formatSats(offer.total_revenue_sats)} sats volume</span>
               )}
+              {offer.cookie_days > 0 && (
+                <span className="flex items-center gap-1.5">
+                  🍪 {offer.cookie_days}-day cookie
+                </span>
+              )}
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
                 {new Date(offer.created_at).toLocaleDateString()}
@@ -297,7 +302,7 @@ export default function OfferDetailPage() {
                 })()}
                 {offer.price_sats > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    Product price: ${offer.price_sats.toFixed(2)} USD
+                    Product price: ${Number(offer.price_sats).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                   </p>
                 )}
               </div>

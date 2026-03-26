@@ -22,7 +22,7 @@ export default async function ApiKeysPage() {
   // Fetch existing API keys
   const { data: keys } = await supabase
     .from("api_keys")
-    .select("id, name, key_prefix, last_used_at, expires_at, created_at")
+    .select("id, name, key_prefix, scope, last_used_at, expires_at, created_at")
     .eq("user_id", user.id)
     .is("revoked_at", null)
     .order("created_at", { ascending: false });

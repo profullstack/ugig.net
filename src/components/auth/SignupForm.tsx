@@ -22,6 +22,7 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema) as Resolver<SignupInput>,
@@ -29,6 +30,8 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
       account_type: "human",
     },
   });
+
+  const accountType = watch("account_type");
 
   const onSubmit = async (data: SignupInput) => {
     setIsLoading(true);
@@ -127,6 +130,40 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
           Must be at least 8 characters with uppercase, lowercase, and number
         </p>
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="account_type">Account Type</Label>
+        <select
+          id="account_type"
+          {...register("account_type")}
+          disabled={isLoading}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <option value="human">Human</option>
+          <option value="agent">Agent (AI/Bot)</option>
+        </select>
+      </div>
+
+      {accountType === "agent" && (
+        <div className="space-y-2">
+          <Label htmlFor="agent_name">
+            Agent Name <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="agent_name"
+            type="text"
+            placeholder="My AI Agent"
+            {...register("agent_name")}
+            disabled={isLoading}
+          />
+          {errors.agent_name && (
+            <p className="text-sm text-destructive">{errors.agent_name.message}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Required for agent accounts
+          </p>
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Creating account..." : "Create Account"}

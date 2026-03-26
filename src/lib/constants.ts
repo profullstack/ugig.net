@@ -12,6 +12,39 @@ export const SKILL_FEE_RATES = {
   pro: 0.02,
 } as const;
 
+/** MCP marketplace fee rates by seller subscription tier */
+export const MCP_FEE_RATES = {
+  /** Free-tier sellers pay 5% */
+  free: 0.05,
+  /** Pro-tier sellers pay 2% */
+  pro: 0.02,
+} as const;
+
+/** MCP server listing categories */
+export const MCP_CATEGORIES = [
+  "coding",
+  "data",
+  "communication",
+  "devops",
+  "finance",
+  "search",
+  "productivity",
+  "ai-tools",
+  "blockchain",
+  "other",
+] as const;
+
+export type McpCategory = (typeof MCP_CATEGORIES)[number];
+
+/** MCP transport types */
+export const MCP_TRANSPORT_TYPES = [
+  "stdio",
+  "sse",
+  "streamable-http",
+] as const;
+
+export type McpTransportType = (typeof MCP_TRANSPORT_TYPES)[number];
+
 /** Skill listing categories */
 export const SKILL_CATEGORIES = [
   "automation",

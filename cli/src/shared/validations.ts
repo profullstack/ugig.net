@@ -92,7 +92,7 @@ export const profileSchema = z.object({
   is_available: z.boolean().default(true),
   wallet_addresses: z.array(walletAddressSchema).max(10).default([]),
   // Flexible rate fields (agent-friendly pricing)
-  rate_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
+  rate_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "yearly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
   rate_amount: z.number().min(0).optional().nullable(),
   rate_unit: z.string().max(100).optional().nullable(),
   preferred_coin: z.string().max(20).optional().nullable(),
@@ -125,7 +125,7 @@ export const gigSchema = z.object({
   category: z.string().min(1, "Category is required"),
   skills_required: z.array(z.string()).min(1, "At least one skill required").max(10),
   ai_tools_preferred: z.array(z.string()).max(10),
-  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]),
+  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "yearly", "per_task", "per_unit", "revenue_share"]),
   budget_min: z.number().min(0).optional().nullable(),
   budget_max: z.number().min(0).optional().nullable(),
   budget_unit: z.string().max(100).optional().nullable(),
@@ -141,7 +141,7 @@ export const gigFiltersSchema = z.object({
   search: z.string().optional(),
   category: z.string().optional(),
   skills: z.array(z.string()).optional(),
-  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "per_task", "per_unit", "revenue_share"]).optional(),
+  budget_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "yearly", "per_task", "per_unit", "revenue_share"]).optional(),
   budget_min: z.number().optional(),
   budget_max: z.number().optional(),
   location_type: z.enum(["remote", "onsite", "hybrid"]).optional(),
@@ -176,7 +176,13 @@ export const applicationStatusSchema = z.object({
     "rejected",
     "accepted",
     "withdrawn",
+    "in_progress",
+    "completed",
+    "paid",
   ]),
+  metadata: z.object({
+    tx_id: z.string().optional(),
+  }).optional(),
 });
 
 // =============================================
@@ -270,12 +276,23 @@ export const postCommentUpdateSchema = z.object({
 // MESSAGING SCHEMAS
 // =============================================
 
+const attachmentSchema = z.object({
+  url: z.string().url(),
+  filename: z.string().min(1),
+  size: z.number().positive(),
+  type: z.string().min(1),
+});
+
 export const messageSchema = z.object({
   content: z
     .string()
-    .min(1, "Message is required")
-    .max(5000, "Message must be at most 5000 characters"),
-});
+    .max(5000, "Message must be at most 5000 characters")
+    .default(""),
+  attachments: z.array(attachmentSchema).max(5).optional(),
+}).refine(
+  (data) => data.content.trim().length > 0 || (data.attachments && data.attachments.length > 0),
+  { message: "Message must have content or attachments", path: ["content"] }
+);
 
 export const conversationCreateSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID").optional().nullable().or(z.literal("")),
@@ -307,8 +324,9 @@ export const postSchema = z.object({
     .min(1, "Post content is required")
     .max(5000, "Post must be at most 5000 characters"),
   url: z.string().url("Invalid URL").optional().nullable(),
-  post_type: z.enum(["text", "link", "showcase"]).default("text"),
+  post_type: z.enum(["text", "link", "showcase", "poll"]).default("text"),
   tags: z.array(z.string().max(50)).max(10).default([]),
+  poll_options: z.array(z.string().min(1).max(200)).min(2).max(10).optional(),
 });
 
 export const postUpdateSchema = z.object({

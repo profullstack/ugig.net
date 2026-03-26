@@ -159,13 +159,8 @@ export async function POST(
       onApplicationSubmitted(userDid, gig_id);
     }
 
-    await supabase.from("notifications").insert({
-      user_id: gig.poster_id,
-      type: "new_application",
-      title: "New application received",
-      body: "Someone applied to your gig",
-      data: { gig_id, application_id: application.id },
-    });
+    // Note: notification is created by DB trigger (notify_on_new_application)
+    // Do NOT insert a duplicate notification here.
 
     const adminClient = createServiceClient();
     const { data: posterAuth } = await adminClient.auth.admin.getUserById(gig.poster_id);

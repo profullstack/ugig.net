@@ -24,9 +24,9 @@ export const PLANS = {
   },
   pro: {
     name: "Pro",
-    priceMonthly: 2900, // cents - $29/month
-    priceAnnual: 10800, // cents - $108/year ($9/month)
-    price: 2900, // default to monthly for backwards compat
+    priceMonthly: 900, // cents - $9/month
+    priceAnnual: 7200, // cents - $72/year ($6/month)
+    price: 900, // default to monthly for backwards compat
     postsPerMonth: Infinity,
     priceId: process.env.STRIPE_PRO_PRICE_ID,
   },

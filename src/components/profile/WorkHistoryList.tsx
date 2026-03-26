@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { WorkHistoryForm } from "./WorkHistoryForm";
 import type { WorkHistory } from "@/types";
 import { Plus, Pencil, Trash2, Briefcase } from "lucide-react";
+import { useDialog } from "@/components/providers/DialogProvider";
 
 export function WorkHistoryList() {
+  const { confirm } = useDialog();
   const [workHistory, setWorkHistory] = useState<WorkHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,7 +34,7 @@ export function WorkHistoryList() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this work history entry?")) {
+    if (!await confirm("Are you sure you want to delete this work history entry?")) {
       return;
     }
 
@@ -145,7 +147,7 @@ export function WorkHistoryList() {
                     {item.location && ` · ${item.location}`}
                   </p>
                   {item.description && (
-                    <p className="text-sm mt-2 text-muted-foreground line-clamp-2">
+                    <p className="text-sm mt-2 text-muted-foreground line-clamp-2 whitespace-pre-wrap break-words">
                       {item.description}
                     </p>
                   )}

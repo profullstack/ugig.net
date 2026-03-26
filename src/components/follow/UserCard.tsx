@@ -45,7 +45,7 @@ export function UserCard({ user, followedAt }: UserCardProps) {
         </div>
         <p className="text-sm text-muted-foreground">@{user.username}</p>
         {user.bio && (
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap break-words">
             {user.bio}
           </p>
         )}

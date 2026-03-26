@@ -27,7 +27,7 @@ describe("authenticateApiKey", () => {
     rpcMock.mockImplementation((fnName: string) => {
       if (fnName === "get_api_key_user") {
         return Promise.resolve({
-          data: [{ user_id: "user-1", key_id: "key-1", key_hash: "hash-1" }],
+          data: [{ user_id: "user-1", key_id: "key-1", key_hash: "hash-1", scope: "full" }],
           error: null,
         });
       }
@@ -44,17 +44,17 @@ describe("authenticateApiKey", () => {
 
   it("authenticates with X-API-Key header", async () => {
     const result = await authenticateApiKey(null, "ugig_live_abc123");
-    expect(result).toEqual({ userId: "user-1", keyId: "key-1" });
+    expect(result).toEqual({ userId: "user-1", keyId: "key-1", scope: "full" });
   });
 
   it("authenticates with Bearer API key in Authorization header", async () => {
     const result = await authenticateApiKey("Bearer ugig_live_abc123", null);
-    expect(result).toEqual({ userId: "user-1", keyId: "key-1" });
+    expect(result).toEqual({ userId: "user-1", keyId: "key-1", scope: "full" });
   });
 
   it("authenticates with ApiKey auth scheme", async () => {
     const result = await authenticateApiKey("ApiKey ugig_live_abc123", null);
-    expect(result).toEqual({ userId: "user-1", keyId: "key-1" });
+    expect(result).toEqual({ userId: "user-1", keyId: "key-1", scope: "full" });
   });
 
   it("rejects non-API-key Bearer tokens", async () => {

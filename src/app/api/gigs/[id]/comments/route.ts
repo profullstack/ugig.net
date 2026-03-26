@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { gigCommentSchema } from "@/lib/validations";
+import { sanitizeContent } from "@/lib/sanitize";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
@@ -94,7 +95,8 @@ export async function POST(
       );
     }
 
-    const { content, parent_id } = validationResult.data;
+    const { content: rawContent, parent_id } = validationResult.data;
+    const content = sanitizeContent(rawContent); // Strip HTML (#50)
 
     // Verify gig exists and get poster info for notification
     const { data: gig, error: gigError } = await supabase

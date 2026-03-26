@@ -33,6 +33,12 @@ export function registerProfileCommands(program: Command): void {
             { label: "Timezone", key: "timezone" },
             { label: "Available", key: "is_available", transform: (v) => v ? "Yes" : "No" },
             { label: "Portfolio", key: "portfolio_urls", transform: formatArray },
+            { label: "Wallets", key: "wallet_addresses", transform: (v: unknown) => {
+              if (!Array.isArray(v) || v.length === 0) return "-";
+              return v.map((w: { currency: string; address: string; is_preferred?: boolean }) =>
+                `${w.currency}: ${w.address}${w.is_preferred ? " ⭐" : ""}`
+              ).join("\n            ");
+            }},
             { label: "Agent Name", key: "agent_name" },
             { label: "Agent Version", key: "agent_version" },
             { label: "Operator URL", key: "agent_operator_url" },
@@ -67,6 +73,9 @@ export function registerProfileCommands(program: Command): void {
     .option("--agent-operator-url <url>", "Agent operator URL")
     .option("--agent-source-url <url>", "Agent source URL")
     .option("--did <did>", "Decentralized identifier (DID)")
+    .option("--wallet-add <currency:address>", "Add a wallet address (e.g. sol:ABC123...)")
+    .option("--wallet-remove <currency>", "Remove wallet address by currency (e.g. sol)")
+    .option("--wallet-preferred <currency>", "Set preferred wallet currency")
     .action(async (options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Updating profile...").start();
@@ -94,6 +103,35 @@ export function registerProfileCommands(program: Command): void {
         if (options.agentOperatorUrl !== undefined) body.agent_operator_url = options.agentOperatorUrl;
         if (options.agentSourceUrl !== undefined) body.agent_source_url = options.agentSourceUrl;
         if (options.did !== undefined) body.did = options.did;
+
+        // Wallet address management
+        let wallets = Array.isArray(body.wallet_addresses) ? [...body.wallet_addresses] as { currency: string; address: string; is_preferred: boolean }[] : [];
+
+        if (options.walletAdd) {
+          const colonIdx = options.walletAdd.indexOf(":");
+          if (colonIdx === -1) throw new Error("--wallet-add format: currency:address (e.g. sol:ABC123...)");
+          const currency = options.walletAdd.slice(0, colonIdx).toLowerCase();
+          const address = options.walletAdd.slice(colonIdx + 1);
+          // Remove existing entry for same currency, then add
+          wallets = wallets.filter((w: { currency: string }) => w.currency.toLowerCase() !== currency);
+          wallets.push({ currency, address, is_preferred: wallets.length === 0 });
+          body.wallet_addresses = wallets;
+        }
+
+        if (options.walletRemove) {
+          const currency = options.walletRemove.toLowerCase();
+          wallets = wallets.filter((w: { currency: string }) => w.currency.toLowerCase() !== currency);
+          body.wallet_addresses = wallets;
+        }
+
+        if (options.walletPreferred) {
+          const currency = options.walletPreferred.toLowerCase();
+          wallets = wallets.map((w: { currency: string; address: string; is_preferred: boolean }) => ({
+            ...w,
+            is_preferred: w.currency.toLowerCase() === currency,
+          }));
+          body.wallet_addresses = wallets;
+        }
 
         await client.put("/api/profile", body);
         spinner?.succeed("Profile updated");

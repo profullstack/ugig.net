@@ -8,7 +8,7 @@ import Link from "next/link";
 const ZAP_AMOUNTS = [1, 2, 5, 10, 20, 50, 100, 1000, 10000];
 
 interface ZapButtonProps {
-  targetType: "post" | "gig" | "comment" | "profile" | "skill";
+  targetType: "post" | "gig" | "comment" | "profile" | "skill" | "mcp";
   targetId: string;
   recipientId: string;
   totalSats?: number;

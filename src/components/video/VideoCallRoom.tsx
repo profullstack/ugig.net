@@ -52,6 +52,7 @@ export function VideoCallRoom({
   const [error, setError] = useState<string | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Stable callback refs to avoid re-initializing Jitsi on prop changes
   const onStartRef = useRef(onStart);
@@ -65,30 +66,53 @@ export function VideoCallRoom({
   });
 
   useEffect(() => {
-    // Load Jitsi Meet External API script
+    // Load Jitsi Meet External API script with fallback domains
     const loadScript = () => {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<string>((resolve, reject) => {
         if (window.JitsiMeetExternalAPI) {
-          resolve();
+          resolve("meet.jit.si");
           return;
         }
 
-        const script = document.createElement("script");
-        script.src = "https://meet.jit.si/external_api.js";
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Failed to load Jitsi Meet API"));
-        document.body.appendChild(script);
+        const sources = [
+          { url: "https://meet.jit.si/external_api.js", domain: "meet.jit.si" },
+          { url: "https://8x8.vc/external_api.js", domain: "8x8.vc" },
+        ];
+
+        let attempted = 0;
+
+        const tryLoad = (index: number) => {
+          if (index >= sources.length) {
+            reject(new Error(
+              "Failed to load video call service. This may be caused by an ad blocker or network issue. " +
+              "Try disabling your ad blocker and refreshing the page."
+            ));
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.src = sources[index].url;
+          script.async = true;
+          script.onload = () => resolve(sources[index].domain);
+          script.onerror = () => {
+            attempted++;
+            script.remove();
+            tryLoad(index + 1);
+          };
+          document.body.appendChild(script);
+        };
+
+        tryLoad(0);
       });
     };
 
     const initJitsi = async () => {
       try {
-        await loadScript();
+        const domain = await loadScript();
 
         if (!containerRef.current) return;
 
-        const api = new window.JitsiMeetExternalAPI("meet.jit.si", {
+        const api = new window.JitsiMeetExternalAPI(domain, {
           roomName: roomId,
           parentNode: containerRef.current,
           width: "100%",
@@ -165,7 +189,7 @@ export function VideoCallRoom({
         apiRef.current = null;
       }
     };
-  }, [roomId, displayName]);
+  }, [roomId, displayName, retryCount]);
 
   const toggleAudio = () => {
     apiRef.current?.executeCommand("toggleAudio");
@@ -185,10 +209,15 @@ export function VideoCallRoom({
         <div className="text-destructive text-lg font-medium">
           Failed to join video call
         </div>
-        <p className="text-muted-foreground">{error}</p>
-        <Button onClick={onLeave} variant="outline">
-          Go Back
-        </Button>
+        <p className="text-muted-foreground max-w-md">{error}</p>
+        <div className="flex gap-2">
+          <Button onClick={() => { setError(null); setIsLoading(true); setRetryCount(c => c + 1); }} variant="default">
+            Retry
+          </Button>
+          <Button onClick={onLeave} variant="outline">
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }

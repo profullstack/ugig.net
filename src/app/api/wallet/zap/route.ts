@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (amount_sats <= 0) {
       return NextResponse.json({ error: "Amount must be positive" }, { status: 400 });
     }
-    if (!["post", "gig", "comment", "profile", "skill"].includes(target_type)) {
+    if (!["post", "gig", "comment", "profile", "skill", "mcp"].includes(target_type)) {
       return NextResponse.json({ error: "Invalid target_type" }, { status: 400 });
     }
 
@@ -73,28 +73,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Zap transfer failed" }, { status: 502 });
     }
 
-    // Transfer platform fee: sender → platform wallet
+    // Transfer platform fee: sender → platform wallet (retry up to 3 times)
     if (fee_sats > 0) {
-      try {
-        await internalTransfer(
-          senderWallet.admin_key,
-          LNBITS_INVOICE_KEY,
-          fee_sats,
-          `ugig.net zap fee`,
-        );
-      } catch (err) {
-        // Fee transfer failed but recipient got paid — log it, don't fail the zap
-        console.error("[Zap] Platform fee transfer failed:", err);
+      let feeTransferred = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await internalTransfer(
+            senderWallet.admin_key,
+            LNBITS_INVOICE_KEY,
+            fee_sats,
+            `ugig.net zap fee`,
+          );
+          feeTransferred = true;
+          break;
+        } catch (err) {
+          console.error(`[Zap] Platform fee transfer attempt ${attempt}/3 failed:`, err);
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * attempt));
+        }
+      }
+      if (!feeTransferred) {
+        console.error(`[Zap] Platform fee transfer failed after 3 attempts (${fee_sats} sats lost)`);
       }
     }
 
-    // Get updated balances from LNbits
-    const newSenderBalance = await getLnBalance(senderWallet.invoice_key);
-    const newRecipientBalance = await getLnBalance(recipientWallet.invoice_key);
+    // Wait for LNbits internal transfers to settle before querying balances
+    await new Promise((r) => setTimeout(r, 500));
 
-    // Sync Supabase caches
+    // Get updated balances from LNbits (retry once if balance looks stale)
+    let newSenderBalance = await getLnBalance(senderWallet.invoice_key);
+    let newRecipientBalance = await getLnBalance(recipientWallet.invoice_key);
+
+    // Sanity check: recipient balance should have increased
+    // If LNbits is still stale, wait and retry once
+    if (newRecipientBalance === 0 || newRecipientBalance < recipient_amount) {
+      await new Promise((r) => setTimeout(r, 1000));
+      newSenderBalance = await getLnBalance(senderWallet.invoice_key);
+      newRecipientBalance = await getLnBalance(recipientWallet.invoice_key);
+    }
+
+    // Sync Supabase caches (sender, recipient, AND platform wallet)
     await syncBalanceCache(admin, senderId, newSenderBalance);
     await syncBalanceCache(admin, recipient_id, newRecipientBalance);
+
+    // Sync platform wallet balance so the footer commission display stays current
+    let platformBalanceAfter = 0;
+    if (fee_sats > 0) {
+      try {
+        const platformBalance = await getLnBalance(LNBITS_INVOICE_KEY);
+        platformBalanceAfter = platformBalance;
+        await syncBalanceCache(admin, PLATFORM_WALLET_USER_ID, platformBalance);
+      } catch (err) {
+        console.error("[Zap] Platform balance sync failed:", err);
+      }
+    }
 
     // Create zap record
     const { data: zap } = await admin
@@ -113,7 +144,6 @@ export async function POST(request: NextRequest) {
 
     const zapId = (zap as any)?.id;
 
-    // Create wallet transactions for audit trail
     const txns: any[] = [
       {
         user_id: senderId,
@@ -137,7 +167,7 @@ export async function POST(request: NextRequest) {
         user_id: PLATFORM_WALLET_USER_ID,
         type: "zap_fee",
         amount_sats: fee_sats,
-        balance_after: 0,
+        balance_after: platformBalanceAfter,
         reference_id: zapId,
         status: "completed",
       });

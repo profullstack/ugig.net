@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS } from "@/lib/constants";
 import { Loader2, Trash2, Link as LinkIcon, Sparkles, Shield, CheckCircle, AlertCircle, Terminal, Copy, Check } from "lucide-react";
 import { GenerateScanButton } from "./GenerateScanButton";
+import { useDialog } from "@/components/providers/DialogProvider";
 
 interface SkillListingFormProps {
   slug?: string; // If editing
@@ -30,6 +31,7 @@ interface SkillListingFormProps {
 
 export function SkillListingForm({ slug, listingId, initialData }: SkillListingFormProps) {
   const router = useRouter();
+  const { confirm } = useDialog();
   const isEdit = !!slug;
 
   const [title, setTitle] = useState(initialData?.title || "");
@@ -187,6 +189,13 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
         }
       }
 
+      // If server detected this as an MCP listing, redirect to /mcp/
+      if (data.redirect_to) {
+        router.push(data.redirect_to);
+        router.refresh();
+        return;
+      }
+
       const newSlug = data.listing?.slug || slug;
 
       // Generate ClawHub publish command if requested
@@ -225,7 +234,7 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
   }
 
   async function handleDelete() {
-    if (!confirm("Archive this skill listing? It will be hidden from the marketplace.")) return;
+    if (!await confirm("Archive this skill listing? It will be hidden from the marketplace.")) return;
 
     setDeleting(true);
     try {
@@ -246,7 +255,7 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
       <div className="space-y-2">
         <Label htmlFor="skill_file_url">
           <LinkIcon className="h-3.5 w-3.5 inline mr-1" />
-          Skill File URL
+          Skill File URL *
         </Label>
         <div className="flex gap-2">
           <Input
@@ -256,6 +265,7 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
             onChange={(e) => setSkillFileUrl(e.target.value)}
             placeholder="https://github.com/user/repo/blob/main/SKILL.md"
             className="flex-1"
+            required
           />
           {isEdit && (
             <Button

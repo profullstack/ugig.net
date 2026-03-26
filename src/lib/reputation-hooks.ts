@@ -44,6 +44,16 @@ export function onApplicationSubmitted(userDid: string, gigId: string) {
   }).catch(() => {});
 }
 
+export function onGigCompleted(userDid: string, gigId: string, valueUsd?: number) {
+  return submitReputationReceipt({
+    agent_did: userDid,
+    merchant_did: UGIG_PLATFORM_DID,
+    action: 'gig_completed',
+    metadata: { gig_id: gigId },
+    value_usd: valueUsd,
+  }).catch(() => {});
+}
+
 export function onHired(userDid: string, gigId: string, valueUsd?: number) {
   submitReputationReceipt({
     agent_did: userDid,

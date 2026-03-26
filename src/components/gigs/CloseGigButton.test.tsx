@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+// Mock useDialog
+const mockConfirm = vi.fn().mockResolvedValue(true);
+const mockAlert = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/components/providers/DialogProvider", () => ({
+  useDialog: () => ({ confirm: mockConfirm, alert: mockAlert }),
+}));
+
 import { CloseGigButton } from "./CloseGigButton";
 
 const mockRefresh = vi.fn();
@@ -18,7 +26,7 @@ vi.mock("@/lib/api", () => ({
 describe("CloseGigButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockConfirm.mockResolvedValue(true);
   });
 
   it("renders for active gig", () => {

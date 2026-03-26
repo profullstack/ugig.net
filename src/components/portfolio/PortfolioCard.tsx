@@ -62,7 +62,7 @@ export function PortfolioCard({
         </div>
 
         {item.description && (
-          <p className="text-xs text-muted-foreground line-clamp-3">
+          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap break-words">
             {item.description}
           </p>
         )}

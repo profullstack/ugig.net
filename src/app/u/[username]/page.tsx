@@ -35,6 +35,9 @@ import { ProfileTabs } from "@/components/activity/ProfileTabs";
 import { FollowButton } from "@/components/follow/FollowButton";
 import { FollowCounts } from "@/components/follow/FollowCounts";
 import { SkillEndorsements } from "@/components/endorsements";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
+import { TestimonialSection } from "@/components/testimonials/TestimonialSection";
+import { CompletedGigs } from "@/components/profile/CompletedGigs";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -132,6 +135,94 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(3);
+
+  // Get approved testimonials for this profile
+  const { data: testimonials } = await supabase
+    .from("testimonials")
+    .select("id, rating, content, created_at, author_id")
+    .eq("profile_id", profile.id)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  // Fetch testimonial author profiles
+  const testimonialAuthorIds = [...new Set((testimonials || []).map((t) => t.author_id))];
+  let testimonialAuthors: Record<string, { username: string; full_name: string | null; avatar_url: string | null }> = {};
+  if (testimonialAuthorIds.length > 0) {
+    const { data: tAuthors } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_url")
+      .in("id", testimonialAuthorIds);
+    if (tAuthors) {
+      testimonialAuthors = Object.fromEntries(
+        tAuthors.map((a) => [a.id, { username: a.username, full_name: a.full_name, avatar_url: a.avatar_url }])
+      );
+    }
+  }
+
+  const formattedTestimonials = (testimonials || []).map((t) => ({
+    id: t.id,
+    rating: t.rating,
+    content: t.content,
+    created_at: t.created_at,
+    author_id: t.author_id,
+    author: testimonialAuthors[t.author_id] || { username: "unknown", full_name: null, avatar_url: null },
+  }));
+
+  // Check if current user already left a testimonial
+  let hasExistingTestimonial = false;
+  if (currentUser && currentUser.id !== profile.id) {
+    const { data: existing } = await supabase
+      .from("testimonials")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .eq("author_id", currentUser.id)
+      .is("gig_id", null)
+      .limit(1);
+    hasExistingTestimonial = (existing && existing.length > 0) || false;
+  }
+
+  // Get completed gigs (where this user was the accepted applicant)
+  const { data: completedApps } = await supabase
+    .from("applications")
+    .select("id, gig_id, updated_at, status, gig:gigs!gig_id(id, title, budget_type, budget_min, poster_id, poster:profiles!poster_id(username, full_name))")
+    .eq("applicant_id", profile.id)
+    .eq("status", "accepted")
+    .order("updated_at", { ascending: false });
+
+  const completedGigsList = (completedApps || []).map((app: any) => ({
+    id: app.id,
+    gig_id: app.gig?.id || app.gig_id,
+    gig_title: app.gig?.title || "Untitled Gig",
+    gig_budget_type: app.gig?.budget_type || "fixed",
+    gig_budget_min: app.gig?.budget_min || null,
+    poster_username: app.gig?.poster?.username || "unknown",
+    poster_full_name: app.gig?.poster?.full_name || null,
+    completed_at: app.updated_at,
+  }));
+
+  // Check which gigs the current user already left testimonials for
+  let existingTestimonialGigIds = new Set<string>();
+  let existingTestimonialsByGigId: Record<string, { rating: number; content: string; created_at: string }> = {};
+  if (currentUser && completedGigsList.length > 0) {
+    const gigIds = completedGigsList.map((g: any) => g.gig_id);
+    const { data: existingGigTestimonials } = await supabase
+      .from("testimonials")
+      .select("gig_id, rating, content, created_at")
+      .eq("author_id", currentUser.id)
+      .eq("profile_id", profile.id)
+      .in("gig_id", gigIds)
+      .order("created_at", { ascending: false });
+
+    existingTestimonialGigIds = new Set(
+      (existingGigTestimonials || []).map((t: any) => t.gig_id).filter(Boolean)
+    );
+
+    existingTestimonialsByGigId = Object.fromEntries(
+      (existingGigTestimonials || [])
+        .filter((t: any) => t.gig_id)
+        .map((t: any) => [t.gig_id, { rating: t.rating, content: t.content, created_at: t.created_at }])
+    );
+  }
 
   // Get work history
   const { data: workHistory } = await supabase
@@ -300,7 +391,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                     </p>
                   )}
                   {profile.agent_description && (
-                    <p className="text-muted-foreground">{profile.agent_description}</p>
+                    <p className="text-muted-foreground whitespace-pre-wrap break-words">{profile.agent_description}</p>
                   )}
                   <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-purple-200 dark:border-purple-800/50">
                     {profile.agent_version && (
@@ -410,9 +501,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                             {item.location && ` · ${item.location}`}
                           </p>
                           {item.description && (
-                            <p className="text-sm mt-2 text-muted-foreground">
-                              {item.description}
-                            </p>
+                            <MarkdownContent content={item.description} className="text-sm mt-2" />
                           )}
                         </div>
                       ))}
@@ -451,6 +540,27 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 )}
               </div>
             </ProfileTabs>
+            {/* Completed Gigs */}
+            {completedGigsList.length > 0 && (
+              <CompletedGigs
+                profileId={profile.id}
+                profileUsername={profile.username}
+                gigs={completedGigsList}
+                currentUserId={currentUser?.id || null}
+                isOwnProfile={currentUser?.id === profile.id}
+                existingTestimonialGigIds={existingTestimonialGigIds}
+                existingTestimonialsByGigId={existingTestimonialsByGigId}
+              />
+            )}
+
+            {/* Testimonials Section */}
+            <TestimonialSection
+              profileId={profile.id}
+              currentUserId={currentUser?.id || null}
+              isOwnProfile={currentUser?.id === profile.id}
+              initialTestimonials={formattedTestimonials}
+              hasExisting={hasExistingTestimonial}
+            />
           </div>
 
           {/* Sidebar */}

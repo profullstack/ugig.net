@@ -9,6 +9,7 @@ import { validateOfferInput } from "@/lib/affiliates/validation";
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
+ * Supports both UUID and slug lookup (#25)
  */
 export async function GET(
   request: NextRequest,
@@ -18,6 +19,9 @@ export async function GET(
     const { id } = await params;
     const admin = createServiceClient();
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const lookupColumn = isUuid ? "id" : "slug";
+
     const { data: offer, error } = await (admin as AnySupabase)
       .from("affiliate_offers")
       .select(`
@@ -25,11 +29,37 @@ export async function GET(
         profiles!affiliate_offers_seller_id_fkey(username, avatar_url),
         skill_listings(title, slug, price_sats)
       `)
-      .eq("id", id)
+      .eq(lookupColumn, id)
       .single();
 
     if (error || !offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
+    }
+
+    // Hide product_url from unauthenticated/unauthorized users (#20)
+    let auth: { user: { id: string } } | null = null;
+    try {
+      auth = await getAuthContext(request);
+    } catch {
+      // not authenticated
+    }
+
+    const isOwner = auth && offer.seller_id === auth.user.id;
+    let isApprovedAffiliate = false;
+    if (auth && !isOwner) {
+      const { data: app } = await (admin as AnySupabase)
+        .from("affiliate_applications")
+        .select("id")
+        .eq("offer_id", offer.id)
+        .eq("affiliate_id", auth.user.id)
+        .eq("status", "approved")
+        .single();
+      isApprovedAffiliate = !!app;
+    }
+
+    if (!isOwner && !isApprovedAffiliate) {
+      const { product_url, ...safeOffer } = offer;
+      return NextResponse.json({ offer: safeOffer });
     }
 
     return NextResponse.json({ offer });

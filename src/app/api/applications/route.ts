@@ -19,7 +19,17 @@ export async function POST(request: NextRequest) {
     const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
     if (!rl.allowed) return rateLimitExceeded(rl);
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      const text = await request.text();
+      if (!text || text.trim().length === 0) {
+        return NextResponse.json({ error: "Request body is required" }, { status: 400 });
+      }
+      body = JSON.parse(text);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
     const validationResult = applicationSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -96,14 +106,8 @@ export async function POST(request: NextRequest) {
       onApplicationSubmitted(userDid, gig_id);
     }
 
-    // Create notification for gig poster
-    await supabase.from("notifications").insert({
-      user_id: gig.poster_id,
-      type: "new_application",
-      title: "New application received",
-      body: "Someone applied to your gig",
-      data: { gig_id, application_id: application.id },
-    });
+    // Note: notification is created by DB trigger (notify_on_new_application)
+    // Do NOT insert a duplicate notification here.
 
     // Send email notification to gig poster
     // Get poster email from auth.users (not in profiles table)

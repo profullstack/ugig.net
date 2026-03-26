@@ -200,6 +200,7 @@ describe("POST /api/skills", () => {
         price_sats: 1000,
         category: "automation",
         tags: ["test"],
+        skill_file_url: "https://example.com/SKILL.md",
       })
     );
 

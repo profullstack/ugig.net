@@ -7,6 +7,7 @@ import { PortfolioForm } from "./PortfolioForm";
 import { Button } from "@/components/ui/button";
 import { Plus, FolderOpen } from "lucide-react";
 import type { PortfolioItemWithGig } from "@/types";
+import { useDialog } from "@/components/providers/DialogProvider";
 
 interface PortfolioGridProps {
   userId: string;
@@ -14,6 +15,7 @@ interface PortfolioGridProps {
 }
 
 export function PortfolioGrid({ userId, isOwner = false }: PortfolioGridProps) {
+  const { confirm } = useDialog();
   const [items, setItems] = useState<PortfolioItemWithGig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -41,7 +43,7 @@ export function PortfolioGrid({ userId, isOwner = false }: PortfolioGridProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this portfolio item?")) return;
+    if (!await confirm("Remove this portfolio item?")) return;
     const result = await portfolioApi.delete(id);
     if (!result.error) {
       setItems((prev) => prev.filter((item) => item.id !== id));

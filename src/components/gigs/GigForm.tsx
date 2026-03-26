@@ -53,7 +53,10 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
   const selectedSkills = watch("skills_required");
   const selectedTools = watch("ai_tools_preferred");
   const budgetType = watch("budget_type");
+  const paymentCoin = watch("payment_coin");
   const listingType = watch("listing_type");
+  const isSatsCoin = paymentCoin && (paymentCoin === "SATS" || paymentCoin === "LN" || paymentCoin === "BTC");
+  const currencySymbol = isSatsCoin ? "sats" : "$";
   const isForHire = listingType === "for_hire";
 
   const toggleSkill = (skill: string) => {
@@ -281,6 +284,7 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
               <option value="daily">Daily Rate</option>
               <option value="weekly">Weekly Rate</option>
               <option value="monthly">Monthly Rate</option>
+              <option value="yearly">Yearly Rate</option>
               <option value="per_task">Per Task</option>
               <option value="per_unit">Per Unit</option>
               <option value="revenue_share">Revenue Share</option>
@@ -288,38 +292,40 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="budget_min">
-              {budgetType === "hourly" ? "Min Rate ($/hr)" :
-               budgetType === "daily" ? "Min Rate ($/day)" :
-               budgetType === "weekly" ? "Min Rate ($/wk)" :
-               budgetType === "monthly" ? "Min Rate ($/mo)" :
+              {budgetType === "hourly" ? `Min Rate (${currencySymbol}/hr)` :
+               budgetType === "daily" ? `Min Rate (${currencySymbol}/day)` :
+               budgetType === "weekly" ? `Min Rate (${currencySymbol}/wk)` :
+               budgetType === "monthly" ? `Min Rate (${currencySymbol}/mo)` :
+               budgetType === "yearly" ? `Min Rate (${currencySymbol}/yr)` :
                budgetType === "revenue_share" ? "Min Share (%)" :
-               (budgetType === "per_task" || budgetType === "per_unit") ? "Min Rate ($/unit)" :
-               isForHire ? "Min Rate ($)" : "Min Budget ($)"}
+               (budgetType === "per_task" || budgetType === "per_unit") ? `Min Rate (${currencySymbol}/unit)` :
+               isForHire ? `Min Rate (${currencySymbol})` : `Min Budget (${currencySymbol})`}
             </Label>
             <Input
               id="budget_min"
               type="number"
-              placeholder="0"
-              step={budgetType === "per_task" || budgetType === "per_unit" ? "0.01" : "1"}
+              placeholder={isSatsCoin ? "e.g. 50000" : "0"}
+              step={isSatsCoin ? "1" : (budgetType === "per_task" || budgetType === "per_unit") ? "0.01" : "1"}
               {...register("budget_min", { valueAsNumber: true })}
               disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="budget_max">
-              {budgetType === "hourly" ? "Max Rate ($/hr)" :
-               budgetType === "daily" ? "Max Rate ($/day)" :
-               budgetType === "weekly" ? "Max Rate ($/wk)" :
-               budgetType === "monthly" ? "Max Rate ($/mo)" :
+              {budgetType === "hourly" ? `Max Rate (${currencySymbol}/hr)` :
+               budgetType === "daily" ? `Max Rate (${currencySymbol}/day)` :
+               budgetType === "weekly" ? `Max Rate (${currencySymbol}/wk)` :
+               budgetType === "monthly" ? `Max Rate (${currencySymbol}/mo)` :
+               budgetType === "yearly" ? `Max Rate (${currencySymbol}/yr)` :
                budgetType === "revenue_share" ? "Max Share (%)" :
-               (budgetType === "per_task" || budgetType === "per_unit") ? "Max Rate ($/unit)" :
-               isForHire ? "Max Rate ($)" : "Max Budget ($)"}
+               (budgetType === "per_task" || budgetType === "per_unit") ? `Max Rate (${currencySymbol}/unit)` :
+               isForHire ? `Max Rate (${currencySymbol})` : `Max Budget (${currencySymbol})`}
             </Label>
             <Input
               id="budget_max"
               type="number"
-              placeholder="0"
-              step={budgetType === "per_task" || budgetType === "per_unit" ? "0.01" : "1"}
+              placeholder={isSatsCoin ? "e.g. 100000" : "0"}
+              step={isSatsCoin ? "1" : (budgetType === "per_task" || budgetType === "per_unit") ? "0.01" : "1"}
               {...register("budget_max", { valueAsNumber: true })}
               disabled={isLoading}
             />

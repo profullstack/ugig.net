@@ -142,7 +142,7 @@ export async function POST(
       );
     }
 
-    const { content } = validationResult.data;
+    const { content, attachments } = validationResult.data;
 
     // Create message
     const { data: message, error } = await supabase
@@ -150,8 +150,9 @@ export async function POST(
       .insert({
         conversation_id: conversationId,
         sender_id: user.id,
-        content,
+        content: content || "",
         read_by: [user.id], // Sender has read their own message
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       })
       .select(
         `
@@ -169,6 +170,12 @@ export async function POST(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Update conversation last_message_at so it sorts to top of inbox
+    await supabase
+      .from("conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversationId);
 
     // Create notification for recipient(s)
     const recipientIds = conversation.participant_ids.filter(

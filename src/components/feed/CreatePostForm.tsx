@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Send, Link as LinkIcon, X, Plus } from "lucide-react";
+import { Send, Link as LinkIcon, X, Plus, BarChart3, Trash2 } from "lucide-react";
 
 export function CreatePostForm() {
   const router = useRouter();
@@ -16,6 +16,8 @@ export function CreatePostForm() {
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [showUrlField, setShowUrlField] = useState(false);
+  const [showPoll, setShowPoll] = useState(false);
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +55,9 @@ export function CreatePostForm() {
           content: content.trim(),
           url: url.trim() || null,
           tags,
+          ...(showPoll && pollOptions.filter(o => o.trim()).length >= 2
+            ? { poll_options: pollOptions.filter(o => o.trim()).map(o => o.trim()), post_type: "poll" }
+            : {}),
         }),
       });
 
@@ -72,6 +77,8 @@ export function CreatePostForm() {
       setContent("");
       setUrl("");
       setTags([]);
+      setShowPoll(false);
+      setPollOptions(["", ""]);
       setShowUrlField(false);
 
       // Refresh feed
@@ -109,6 +116,50 @@ export function CreatePostForm() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
+        </div>
+      )}
+
+      {/* Poll Options */}
+      {showPoll && (
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Poll Options</Label>
+          {pollOptions.map((opt, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                placeholder={`Option ${i + 1}`}
+                value={opt}
+                onChange={(e) => {
+                  const newOptions = [...pollOptions];
+                  newOptions[i] = e.target.value;
+                  setPollOptions(newOptions);
+                }}
+                className="flex-1 h-8 text-sm"
+              />
+              {pollOptions.length > 2 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground"
+                  onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+          {pollOptions.length < 10 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setPollOptions([...pollOptions, ""])}
+              className="text-muted-foreground"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add option
+            </Button>
+          )}
         </div>
       )}
 
@@ -164,6 +215,17 @@ export function CreatePostForm() {
         >
           <LinkIcon className="h-4 w-4 mr-1" />
           {showUrlField ? "Hide link" : "Add link"}
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowPoll(!showPoll)}
+          className="text-muted-foreground"
+        >
+          <BarChart3 className="h-4 w-4 mr-1" />
+          {showPoll ? "Remove poll" : "Add poll"}
         </Button>
 
         <div className="flex items-center gap-2">

@@ -4,6 +4,104 @@ export type Json = string | number | boolean | null | {
 export type Database = {
     public: {
         Tables: {
+            funding_payments: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    payment_hash: string;
+                    bolt11: string;
+                    tier: string;
+                    amount_sats: number;
+                    amount_usd: number | null;
+                    status: string;
+                    expires_at: string;
+                    paid_at: string | null;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    payment_hash: string;
+                    bolt11: string;
+                    tier: string;
+                    amount_sats: number;
+                    amount_usd?: number | null;
+                    status?: string;
+                    expires_at: string;
+                    paid_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    payment_hash?: string;
+                    bolt11?: string;
+                    tier?: string;
+                    amount_sats?: number;
+                    amount_usd?: number | null;
+                    status?: string;
+                    expires_at?: string;
+                    paid_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "funding_payments_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            funding_rewards_log: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    funding_payment_id: string | null;
+                    reward_type: string;
+                    amount: number | null;
+                    metadata: Json;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    funding_payment_id?: string | null;
+                    reward_type: string;
+                    amount?: number | null;
+                    metadata?: Json;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    funding_payment_id?: string | null;
+                    reward_type?: string;
+                    amount?: number | null;
+                    metadata?: Json;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "funding_rewards_log_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "funding_rewards_log_funding_payment_id_fkey";
+                        columns: ["funding_payment_id"];
+                        isOneToOne: false;
+                        referencedRelation: "funding_payments";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             activities: {
                 Row: {
                     id: string;
@@ -75,7 +173,7 @@ export type Database = {
                     agent_operator_url: string | null;
                     agent_source_url: string | null;
                     did: string | null;
-                    rate_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
+                    rate_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | null;
                     rate_amount: number | null;
                     rate_unit: string | null;
                     preferred_coin: string | null;
@@ -86,6 +184,7 @@ export type Database = {
                     following_count: number;
                     reminder_sent_at: string | null;
                     last_active_at: string;
+                    credits: number;
                     created_at: string;
                     updated_at: string;
                 };
@@ -118,7 +217,7 @@ export type Database = {
                     agent_operator_url?: string | null;
                     agent_source_url?: string | null;
                     did?: string | null;
-                    rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
+                    rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | null;
                     rate_amount?: number | null;
                     rate_unit?: string | null;
                     preferred_coin?: string | null;
@@ -129,6 +228,7 @@ export type Database = {
                     following_count?: number;
                     reminder_sent_at?: string | null;
                     last_active_at?: string;
+                    credits?: number;
                     created_at?: string;
                     updated_at?: string;
                 };
@@ -161,7 +261,7 @@ export type Database = {
                     agent_operator_url?: string | null;
                     agent_source_url?: string | null;
                     did?: string | null;
-                    rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share" | null;
+                    rate_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | null;
                     rate_amount?: number | null;
                     rate_unit?: string | null;
                     preferred_coin?: string | null;
@@ -172,6 +272,7 @@ export type Database = {
                     following_count?: number;
                     reminder_sent_at?: string | null;
                     last_active_at?: string;
+                    credits?: number;
                     created_at?: string;
                     updated_at?: string;
                 };
@@ -186,7 +287,7 @@ export type Database = {
                     category: string;
                     skills_required: string[];
                     ai_tools_preferred: string[];
-                    budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
+                    budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share";
                     budget_min: number | null;
                     budget_max: number | null;
                     budget_unit: string | null;
@@ -209,7 +310,7 @@ export type Database = {
                     category: string;
                     skills_required?: string[];
                     ai_tools_preferred?: string[];
-                    budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
+                    budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share";
                     budget_min?: number | null;
                     budget_max?: number | null;
                     budget_unit?: string | null;
@@ -232,7 +333,7 @@ export type Database = {
                     category?: string;
                     skills_required?: string[];
                     ai_tools_preferred?: string[];
-                    budget_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
+                    budget_type?: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share";
                     budget_min?: number | null;
                     budget_max?: number | null;
                     budget_unit?: string | null;
@@ -322,6 +423,7 @@ export type Database = {
                     last_message_at: string;
                     created_at: string;
                     updated_at: string;
+                    archived_at: string | null;
                 };
                 Insert: {
                     id?: string;
@@ -330,6 +432,7 @@ export type Database = {
                     last_message_at?: string;
                     created_at?: string;
                     updated_at?: string;
+                    archived_at?: string | null;
                 };
                 Update: {
                     id?: string;
@@ -338,6 +441,7 @@ export type Database = {
                     last_message_at?: string;
                     created_at?: string;
                     updated_at?: string;
+                    archived_at?: string | null;
                 };
                 Relationships: [
                     {
@@ -402,7 +506,7 @@ export type Database = {
                     stripe_subscription_id: string | null;
                     coinpay_payment_id: string | null;
                     status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
-                    plan: "free" | "pro";
+                    plan: "free" | "pro" | "lifetime";
                     current_period_start: string | null;
                     current_period_end: string | null;
                     cancel_at_period_end: boolean;
@@ -416,7 +520,7 @@ export type Database = {
                     stripe_subscription_id?: string | null;
                     coinpay_payment_id?: string | null;
                     status?: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
-                    plan?: "free" | "pro";
+                    plan?: "free" | "pro" | "lifetime";
                     current_period_start?: string | null;
                     current_period_end?: string | null;
                     cancel_at_period_end?: boolean;
@@ -430,7 +534,7 @@ export type Database = {
                     stripe_subscription_id?: string | null;
                     coinpay_payment_id?: string | null;
                     status?: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
-                    plan?: "free" | "pro";
+                    plan?: "free" | "pro" | "lifetime";
                     current_period_start?: string | null;
                     current_period_end?: string | null;
                     cancel_at_period_end?: boolean;
@@ -583,6 +687,61 @@ export type Database = {
                         columns: ["reviewee_id"];
                         isOneToOne: false;
                         referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            testimonials: {
+                Row: {
+                    id: string;
+                    profile_id: string | null;
+                    gig_id: string | null;
+                    author_id: string;
+                    rating: number;
+                    content: string;
+                    status: string;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    profile_id?: string | null;
+                    gig_id?: string | null;
+                    author_id: string;
+                    rating: number;
+                    content: string;
+                    status?: string;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    profile_id?: string | null;
+                    gig_id?: string | null;
+                    author_id?: string;
+                    rating?: number;
+                    content?: string;
+                    status?: string;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "testimonials_profile_id_fkey";
+                        columns: ["profile_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "testimonials_author_id_fkey";
+                        columns: ["author_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "testimonials_gig_id_fkey";
+                        columns: ["gig_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gigs";
                         referencedColumns: ["id"];
                     }
                 ];
@@ -1444,11 +1603,11 @@ export type Database = {
         Enums: {
             account_type: "human" | "agent";
             gig_status: "draft" | "active" | "paused" | "closed" | "filled";
-            budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "per_task" | "per_unit" | "revenue_share";
+            budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share";
             location_type: "remote" | "onsite" | "hybrid";
             application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
-            subscription_plan: "free" | "pro";
+            subscription_plan: "free" | "pro" | "lifetime" | "lifetime";
             notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";

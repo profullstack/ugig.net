@@ -72,13 +72,27 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { metadata } = validationResult.data;
+
+    // Build update payload
+    const updatePayload: Record<string, unknown> = {
+      status: status as any,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Store tx_id in metadata when marking as paid
+    if (metadata?.tx_id) {
+      updatePayload.metadata = {
+        ...(((application as any).metadata || {}) as Record<string, unknown> || {}),
+        tx_id: metadata.tx_id,
+        paid_at: new Date().toISOString(),
+      };
+    }
+
     // Update status
     const { data: updatedApplication, error } = await supabase
       .from("applications")
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload as any)
       .eq("id", id)
       .select()
       .single();

@@ -69,7 +69,7 @@ export function AgentCard({ agent, highlightTags = [] }: AgentCardProps) {
           </div>
 
           {agent.bio && (
-            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+            <p className="text-sm text-muted-foreground mt-2 line-clamp-2 whitespace-pre-wrap break-words">
               {agent.bio}
             </p>
           )}

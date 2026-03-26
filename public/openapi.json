@@ -43,7 +43,8 @@
     { "name": "API Keys", "description": "Manage programmatic API keys" },
     { "name": "Activity", "description": "User activity feeds" },
     { "name": "Subscriptions", "description": "Pro plan subscription management" },
-    { "name": "Payments", "description": "Crypto payments via CoinPayPortal" }
+    { "name": "Payments", "description": "Crypto payments via CoinPayPortal" },
+    { "name": "MCP Marketplace", "description": "Browse, list, purchase, and review MCP server listings" }
   ],
   "components": {
     "securitySchemes": {
@@ -467,6 +468,171 @@
           "comment": { "type": "string", "nullable": true },
           "endorser": { "$ref": "#/components/schemas/ProfileSummary" },
           "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "McpCategory": {
+        "type": "string",
+        "enum": ["coding", "data", "communication", "devops", "finance", "search", "productivity", "ai-tools", "blockchain", "other"]
+      },
+      "McpTransportType": {
+        "type": "string",
+        "enum": ["stdio", "sse", "streamable-http"]
+      },
+      "McpListing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "seller_id": { "type": "string", "format": "uuid" },
+          "slug": { "type": "string" },
+          "title": { "type": "string" },
+          "tagline": { "type": "string", "nullable": true },
+          "description": { "type": "string" },
+          "price_sats": { "type": "integer" },
+          "category": { "$ref": "#/components/schemas/McpCategory" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string", "enum": ["draft", "active", "archived"] },
+          "mcp_server_url": { "type": "string", "format": "uri", "nullable": true },
+          "source_url": { "type": "string", "format": "uri", "nullable": true },
+          "transport_type": { "$ref": "#/components/schemas/McpTransportType" },
+          "supported_tools": { "type": "array", "items": { "type": "string" } },
+          "downloads_count": { "type": "integer" },
+          "rating_avg": { "type": "number" },
+          "upvotes": { "type": "integer" },
+          "downvotes": { "type": "integer" },
+          "score": { "type": "integer" },
+          "scan_status": { "type": "string", "nullable": true },
+          "scan_rating": { "type": "string", "nullable": true },
+          "zaps_total": { "type": "integer", "description": "Total sats zapped to this listing" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "seller": { "$ref": "#/components/schemas/ProfileSummary" }
+        }
+      },
+      "McpListingInput": {
+        "type": "object",
+        "required": ["title", "description", "price_sats"],
+        "properties": {
+          "title": { "type": "string", "minLength": 3, "maxLength": 120 },
+          "tagline": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string", "minLength": 10, "maxLength": 10000 },
+          "price_sats": { "type": "integer", "minimum": 0 },
+          "category": { "$ref": "#/components/schemas/McpCategory" },
+          "tags": { "type": "array", "items": { "type": "string", "maxLength": 30 }, "maxItems": 10 },
+          "status": { "type": "string", "enum": ["draft", "active"], "default": "draft" },
+          "mcp_server_url": { "type": "string", "format": "uri" },
+          "source_url": { "type": "string", "format": "uri" },
+          "transport_type": { "$ref": "#/components/schemas/McpTransportType" },
+          "supported_tools": { "type": "array", "items": { "type": "string", "maxLength": 100 }, "maxItems": 50 }
+        }
+      },
+      "McpReview": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "listing_id": { "type": "string", "format": "uuid" },
+          "purchase_id": { "type": "string", "format": "uuid" },
+          "reviewer_id": { "type": "string", "format": "uuid" },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "comment": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "reviewer": { "$ref": "#/components/schemas/ProfileSummary" }
+        }
+      },
+      "McpReviewInput": {
+        "type": "object",
+        "required": ["rating"],
+        "properties": {
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "comment": { "type": "string", "maxLength": 2000 }
+        }
+      },
+      "McpComment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "listing_id": { "type": "string", "format": "uuid" },
+          "author_id": { "type": "string", "format": "uuid" },
+          "parent_id": { "type": "string", "format": "uuid", "nullable": true },
+          "content": { "type": "string" },
+          "depth": { "type": "integer" },
+          "upvotes": { "type": "integer" },
+          "downvotes": { "type": "integer" },
+          "score": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "author": { "$ref": "#/components/schemas/ProfileSummary" },
+          "replies": { "type": "array", "items": { "$ref": "#/components/schemas/McpComment" } }
+        }
+      },
+      "McpCommentInput": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "parent_id": { "type": "string", "format": "uuid", "nullable": true, "description": "Parent comment ID for threaded replies" }
+        }
+      },
+      "McpVoteInput": {
+        "type": "object",
+        "required": ["vote_type"],
+        "properties": {
+          "vote_type": { "type": "integer", "enum": [1, -1], "description": "1 for upvote, -1 for downvote. Sending the same value again toggles it off." }
+        }
+      },
+      "McpVoteResult": {
+        "type": "object",
+        "properties": {
+          "upvotes": { "type": "integer" },
+          "downvotes": { "type": "integer" },
+          "score": { "type": "integer" },
+          "user_vote": { "type": "integer", "nullable": true, "enum": [1, -1, null] }
+        }
+      },
+      "McpPurchaseResult": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "purchase_id": { "type": "string", "format": "uuid" },
+          "fee_sats": { "type": "integer" },
+          "fee_rate": { "type": "number" },
+          "new_balance": { "type": "integer" }
+        }
+      },
+      "McpDownloadResult": {
+        "type": "object",
+        "properties": {
+          "mcp_server_url": { "type": "string", "format": "uri" },
+          "transport_type": { "$ref": "#/components/schemas/McpTransportType" },
+          "supported_tools": { "type": "array", "items": { "type": "string" } },
+          "title": { "type": "string" }
+        }
+      },
+      "McpScanFinding": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string" },
+          "severity": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      },
+      "McpScanResult": {
+        "type": "object",
+        "properties": {
+          "scan": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "rating": { "type": "string" },
+              "security_score": { "type": "number" },
+              "findings_count": { "type": "integer" },
+              "findings": { "type": "array", "items": { "$ref": "#/components/schemas/McpScanFinding" } },
+              "spidershield_available": { "type": "boolean" },
+              "mcp_scan_available": { "type": "boolean" },
+              "scanner_version": { "type": "string" },
+              "scan_id": { "type": "string", "format": "uuid", "nullable": true },
+              "scanned_at": { "type": "string", "format": "date-time" }
+            }
+          }
         }
       }
     }
@@ -2816,6 +2982,438 @@
           },
           "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp": {
+      "get": {
+        "tags": ["MCP Marketplace"],
+        "summary": "List active MCP servers",
+        "description": "Public paginated listing of active MCP servers with search, category filtering, tag filtering, and sorting.",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Search in title, description, and tagline" },
+          { "name": "category", "in": "query", "schema": { "$ref": "#/components/schemas/McpCategory" }, "description": "Filter by category" },
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Filter by tags (comma-separated)" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["newest", "popular", "rating", "price_low", "price_high"], "default": "newest" }, "description": "Sort order" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 }, "description": "Page number (20 items per page)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of MCP server listings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listings": { "type": "array", "items": { "$ref": "#/components/schemas/McpListing" } },
+                    "total": { "type": "integer" },
+                    "page": { "type": "integer" },
+                    "per_page": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Create a new MCP server listing",
+        "description": "Create a new MCP server listing. Requires authentication.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpListingInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Listing created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listing": { "$ref": "#/components/schemas/McpListing" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/my": {
+      "get": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Get seller's own MCP listings",
+        "description": "Returns the authenticated user's MCP listings (excluding archived) along with aggregate sales stats.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "responses": {
+          "200": {
+            "description": "Seller listings and stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listings": { "type": "array", "items": { "$ref": "#/components/schemas/McpListing" } },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "total_sales": { "type": "integer" },
+                        "total_revenue_sats": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}": {
+      "get": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Get a single MCP listing by slug",
+        "description": "Returns listing details, seller profile, reviews, purchase status, and user vote. If authenticated, includes whether the current user has purchased and their vote.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP listing details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listing": { "$ref": "#/components/schemas/McpListing" },
+                    "purchased": { "type": "boolean", "description": "Whether the current user has purchased this listing" },
+                    "user_vote": { "type": "integer", "nullable": true, "enum": [1, -1, null], "description": "Current user's vote (1=up, -1=down, null=none)" },
+                    "reviews": { "type": "array", "items": { "$ref": "#/components/schemas/McpReview" } }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Update an MCP listing",
+        "description": "Partially update an MCP listing. Only the listing owner can update.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpListingInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Listing updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listing": { "$ref": "#/components/schemas/McpListing" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Forbidden — not the listing owner", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Archive an MCP listing",
+        "description": "Soft-delete (archive) an MCP listing. Only the listing owner can archive.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Forbidden — not the listing owner", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/purchase": {
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Purchase an MCP server",
+        "description": "Purchase an MCP server listing using wallet balance. Cannot purchase your own listing or re-purchase.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/McpPurchaseResult" }
+              }
+            }
+          },
+          "400": { "description": "Listing not active or cannot purchase own listing", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "402": { "description": "Insufficient balance", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Already purchased", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/download": {
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Get MCP server connection details",
+        "description": "Returns the MCP server URL and connection info. Requires purchase (or ownership). Increments download count.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connection details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/McpDownloadResult" }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Purchase required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found or no server URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/vote": {
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Upvote or downvote an MCP listing",
+        "description": "Toggle upvote/downvote on an MCP listing. Sending the same vote_type again removes the vote.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpVoteInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vote recorded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/McpVoteResult" }
+              }
+            }
+          },
+          "400": { "description": "Invalid vote_type or listing not active", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/reviews": {
+      "get": {
+        "tags": ["MCP Marketplace"],
+        "summary": "List reviews for an MCP server",
+        "description": "Returns all reviews for an MCP listing, ordered newest first.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of reviews",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reviews": { "type": "array", "items": { "$ref": "#/components/schemas/McpReview" } }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Leave a review on an MCP server",
+        "description": "Submit a review for a purchased MCP server. Only one review per purchase is allowed.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpReviewInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "review": { "$ref": "#/components/schemas/McpReview" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Purchase required before reviewing", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Already reviewed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/comments": {
+      "get": {
+        "tags": ["MCP Marketplace"],
+        "summary": "List comments on an MCP listing",
+        "description": "Returns threaded comments for an active MCP listing, built into a tree structure.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Threaded comments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comments": { "type": "array", "items": { "$ref": "#/components/schemas/McpComment" } },
+                    "total": { "type": "integer", "description": "Total flat comment count" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Create a comment on an MCP listing",
+        "description": "Post a comment or reply on an active MCP listing. Supports threaded replies up to 5 levels deep.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpCommentInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comment": { "$ref": "#/components/schemas/McpComment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error or listing not active", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Listing or parent comment not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/mcp/{slug}/scan": {
+      "post": {
+        "tags": ["MCP Marketplace"],
+        "summary": "Trigger a security scan",
+        "description": "Run SpiderShield + mcp-scan security analysis on the MCP server. Only the listing owner can trigger scans. Requires a server URL or source URL.",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" }, "description": "URL slug of the MCP listing" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scan results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/McpScanResult" }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Forbidden — not the listing owner", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "422": { "description": "No scannable content (missing server URL and source URL)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
         }
       }
     }
