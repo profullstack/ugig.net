@@ -12,8 +12,9 @@
  *   4. If valid, maps to existing user (by email) or creates a new agent account
  */
 
-import { createHmac } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendEmail } from "@/lib/email";
 import { generateApiKey, hashApiKey, getKeyPrefix } from "@/lib/api-keys";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -134,40 +135,80 @@ async function findOrCreateUser(
 
   const username = `ap_${passport.id.replace(/^ap_/, "").slice(0, 12)}`;
   const displayName = passport.name || `Agent ${passport.id.slice(-6)}`;
-  const tempPassword = `agentpass_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const randomPassword = randomBytes(32).toString("hex");
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email,
-    password: tempPassword,
+    password: randomPassword,
     email_confirm: true,
     user_metadata: {
       username,
       account_type: "agent",
       agent_name: displayName,
       agentpass_id: passport.id,
+      oauth_provider: "agentpass",
     },
   });
 
   if (authError || !authData.user) {
+    // If email already exists, find the existing user
+    if (
+      (authError as any)?.code === "email_exists" ||
+      authError?.message?.includes("already been registered")
+    ) {
+      let existingUser: any = null;
+      let page = 1;
+      while (!existingUser) {
+        const {
+          data: { users },
+        } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+        if (!users || users.length === 0) break;
+        existingUser = users.find(
+          (u: any) => u.email?.toLowerCase() === email!.toLowerCase()
+        );
+        page++;
+      }
+      if (!existingUser) {
+        console.error("[AgentPass] User exists but couldn't find by email:", email);
+        return null;
+      }
+      // Link passport ID to existing profile
+      await supabase
+        .from("profiles")
+        .update({ agentpass_id: passport.id } as any)
+        .eq("id", existingUser.id);
+      return existingUser.id;
+    }
     console.error("[AgentPass] Failed to create user:", authError?.message);
     return null;
   }
 
   const userId = authData.user.id;
 
-  // Create profile
+  // Create profile (consistent with CoinPay OAuth flow)
   await supabase.from("profiles").upsert(
     {
       id: userId,
       email,
       username,
+      full_name: displayName,
       display_name: displayName,
       account_type: "agent",
       agent_name: displayName,
       agentpass_id: passport.id,
+      profile_completed: false,
     } as any,
     { onConflict: "id" }
   );
+
+  // Link OAuth identity (consistent with CoinPay flow)
+  await (supabase as any).from("oauth_identities").insert({
+    user_id: userId,
+    provider: "agentpass",
+    provider_user_id: passport.id,
+    email,
+    metadata: { name: displayName, agentpass_id: passport.id },
+  });
 
   // Generate API key so the agent can also use standard auth
   const rawKey = generateApiKey();
@@ -179,6 +220,36 @@ async function findOrCreateUser(
     key_hash: keyHash,
     key_prefix: keyPrefix,
   });
+
+  // Send welcome email with password reset link (consistent with CoinPay flow)
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    const { data: resetLink } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email,
+    });
+    const resetUrl = resetLink?.properties?.hashed_token
+      ? `${appUrl}/auth/confirm?token_hash=${resetLink.properties.hashed_token}&type=recovery&next=/reset-password`
+      : `${appUrl}/forgot-password`;
+
+    await sendEmail({
+      to: email,
+      subject: "Welcome to ugig.net — Set your password",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #667eea;">Welcome to ugig.net${displayName ? `, ${displayName}` : ""}! 🎉</h2>
+          <p>Your account has been created via AgentPass. You can always log in using AgentPass, but if you'd like to set a password for direct login, click below:</p>
+          <p style="margin: 25px 0;">
+            <a href="${resetUrl}" style="background: #667eea; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Set Your Password</a>
+          </p>
+          <p style="color: #6b7280; font-size: 14px;">This link expires in 24 hours. If you don't need a password, you can ignore this — AgentPass login will always work.</p>
+        </div>
+      `,
+      text: `Welcome to ugig.net! Set your password here: ${resetUrl}`,
+    });
+  } catch (emailErr) {
+    console.error("[AgentPass] Welcome email failed (non-fatal):", emailErr);
+  }
 
   console.log(`[AgentPass] Created agent account ${username} for passport ${passport.id}`);
   return userId;
