@@ -158,6 +158,17 @@ export function LoginForm() {
         Sign in with CoinPay
       </a>
 
+      {/* AgentPass Login */}
+      <a
+        href="/agent-login"
+        className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
+      >
+        <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+        Sign in with AgentPass
+      </a>
+
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="text-primary hover:underline">
