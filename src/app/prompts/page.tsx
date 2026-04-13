@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { FileText, Star, Download, Zap } from "lucide-react";
 import { PROMPT_CATEGORIES } from "@/lib/constants";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 
 export const metadata: Metadata = {
   title: "Prompt Marketplace | ugig.net",
@@ -238,6 +239,7 @@ async function PromptList({ searchParams }: { searchParams: PromptsPageProps["se
                   <Download className="h-3.5 w-3.5" />
                   {listing.downloads_count}
                 </span>
+                <CopyLinkButton path={`/prompts/${listing.slug}`} />
               </div>
             </div>
           </Link>

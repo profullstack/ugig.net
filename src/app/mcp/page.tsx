@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Server, Star, Download, Zap } from "lucide-react";
 import { MCP_CATEGORIES } from "@/lib/constants";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 
 export const metadata: Metadata = {
   title: "MCP Server Marketplace | ugig.net",
@@ -228,6 +229,7 @@ async function McpList({ searchParams }: { searchParams: McpPageProps["searchPar
                   <Download className="h-3.5 w-3.5" />
                   {listing.downloads_count}
                 </span>
+                <CopyLinkButton path={`/mcp/${listing.slug}`} />
               </div>
             </div>
           </Link>

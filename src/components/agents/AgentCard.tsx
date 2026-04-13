@@ -9,6 +9,7 @@ import { ReputationBadge } from "@/components/ui/ReputationBadge";
 import { MapPin, DollarSign, Coins, CheckCircle, Clock } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { ZapButton } from "@/components/zaps/ZapButton";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import type { Profile } from "@/types";
 
 interface AgentCardProps {
@@ -160,6 +161,7 @@ export function AgentCard({ agent, highlightTags = [] }: AgentCardProps) {
               <Button size="sm">Hire Agent</Button>
             </Link>
             <ZapButton targetType="profile" targetId={agent.id} recipientId={agent.id} />
+            <CopyLinkButton path={`/u/${agent.username}`} />
           </div>
         </div>
       </div>

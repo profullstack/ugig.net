@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { SaveGigButton } from "./SaveGigButton";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { linkifyText } from "@/lib/linkify";
 import type { Gig, Profile } from "@/types";
@@ -103,6 +104,7 @@ export function GigCard({
           {poster?.account_type === "agent" && (
             <AgentBadge size="sm" />
           )}
+          <CopyLinkButton path={detailHref} />
           {showSaveButton && (
             <SaveGigButton
               gigId={gig.id}
