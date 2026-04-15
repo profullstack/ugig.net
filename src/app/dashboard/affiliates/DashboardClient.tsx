@@ -98,19 +98,31 @@ function StatCard({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label, stopPropagation }: { text: string; label?: string; stopPropagation?: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
       size="sm"
       variant="outline"
-      onClick={() => {
+      title={label}
+      onClick={(e) => {
+        if (stopPropagation) e.preventDefault();
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? (
+        <>
+          <Check className="h-3.5 w-3.5 mr-1" />
+          <span className="text-xs">Copied!</span>
+        </>
+      ) : (
+        <>
+          <Copy className="h-3.5 w-3.5 mr-1" />
+          {label && <span className="text-xs">{label}</span>}
+        </>
+      )}
     </Button>
   );
 }
@@ -424,13 +436,20 @@ export default function AffiliateDashboardClient() {
                           : `${Math.round(offer.commission_rate * 100)}% commission`}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-medium text-amber-500 flex items-center gap-1">
-                        <Zap className="h-4 w-4 fill-amber-500" />
-                        {formatSats(offer.total_revenue_sats || 0)} sats
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        revenue
+                    <div className="flex items-center gap-3">
+                      <CopyButton
+                        text={`${window.location.origin}/affiliates/${offer.slug}`}
+                        label="Share"
+                        stopPropagation
+                      />
+                      <div className="text-right">
+                        <div className="font-medium text-amber-500 flex items-center gap-1">
+                          <Zap className="h-4 w-4 fill-amber-500" />
+                          {formatSats(offer.total_revenue_sats || 0)} sats
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          revenue
+                        </div>
                       </div>
                     </div>
                   </div>

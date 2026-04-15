@@ -71,12 +71,13 @@ function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
       size="sm"
       variant="outline"
+      title={label}
       onClick={() => {
         navigator.clipboard.writeText(text);
         setCopied(true);
@@ -84,9 +85,15 @@ function CopyButton({ text }: { text: string }) {
       }}
     >
       {copied ? (
-        <Check className="h-3.5 w-3.5" />
+        <>
+          <Check className="h-3.5 w-3.5 mr-1" />
+          <span className="text-xs">Copied!</span>
+        </>
       ) : (
-        <Copy className="h-3.5 w-3.5" />
+        <>
+          <Copy className="h-3.5 w-3.5 mr-1" />
+          {label && <span className="text-xs">{label}</span>}
+        </>
       )}
     </Button>
   );
@@ -313,12 +320,18 @@ export default function SellerOfferDetailPage() {
               </span>
             </label>
           </div>
-          <Link href={`/affiliates/${offer.slug}/edit`}>
-            <Button variant="outline" size="sm">
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit Offer
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <CopyButton
+              text={`${typeof window !== "undefined" ? window.location.origin : ""}/affiliates/${offer.slug}`}
+              label="Copy shareable link"
+            />
+            <Link href={`/affiliates/${offer.slug}/edit`}>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Offer
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
