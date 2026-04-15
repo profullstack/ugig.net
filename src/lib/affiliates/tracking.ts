@@ -55,8 +55,24 @@ export async function recordClick(
 
   const ipHash = ip ? hashIP(ip) : null;
 
-  // Rate limit: max 1 click per visitor per offer per hour
-  if (ipHash) {
+  // Deduplicate by visitorId + trackingCode within 24 hours
+  if (visitorId) {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await (admin as AnySupabase)
+      .from("affiliate_clicks")
+      .select("id", { count: "exact", head: true })
+      .eq("tracking_code", trackingCode)
+      .eq("visitor_id", visitorId)
+      .gte("created_at", oneDayAgo);
+
+    if ((count ?? 0) > 0) {
+      // Deduplicated — same visitor already clicked this link within 24h
+      return { ok: true, offer_id: app.offer_id };
+    }
+  }
+
+  // Rate limit: max 1 click per IP per offer per hour (fallback when no visitorId)
+  if (ipHash && !visitorId) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count } = await (admin as AnySupabase)
       .from("affiliate_clicks")
