@@ -59,9 +59,12 @@ export async function GET(request: NextRequest) {
       redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/affiliates/${offer.slug}`;
     }
 
-    // Add ref param to destination for client-side cookie tracking
+    // Add ref param to destination for client-side cookie tracking (internal URLs only)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const dest = new URL(redirectUrl);
-    dest.searchParams.set("ugig_ref", ref);
+    if (dest.origin === new URL(appUrl).origin) {
+      dest.searchParams.set("ugig_ref", ref);
+    }
 
     // Set affiliate tracking cookie (30 days default, offer can override)
     const response = NextResponse.redirect(dest);
