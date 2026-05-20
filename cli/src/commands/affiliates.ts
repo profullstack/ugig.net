@@ -305,6 +305,7 @@ export function registerAffiliatesCommands(program: Command): void {
 
         const result = await client.post<{
           application: Record<string, unknown>;
+          tracking_url?: string;
         }>(`/api/affiliates/offers/${id}/apply`, body);
         spinner?.stop();
         printSuccess("Applied to affiliate offer", opts as OutputOptions);
@@ -316,8 +317,8 @@ export function registerAffiliatesCommands(program: Command): void {
             { label: "Tracking URL", key: "tracking_url" },
           ],
           {
-            ...(result.application || (result as unknown as Record<string, unknown>)),
-            tracking_url: (result as unknown as Record<string, unknown>).tracking_url,
+            ...result.application,
+            tracking_url: result.tracking_url,
           },
           opts as OutputOptions,
         );

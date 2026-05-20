@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
@@ -32,8 +32,12 @@ describe("GET /api/affiliates/my", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("adds shareable tracking URLs to approved affiliate applications", async () => {
-    process.env.NEXT_PUBLIC_APP_URL = "https://ugig.net";
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://ugig.net");
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user-affiliate", authMethod: "session" },
     });
