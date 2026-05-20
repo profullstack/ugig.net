@@ -30,6 +30,7 @@
     { "name": "Gigs", "description": "Browse, create, update, and delete gigs" },
     { "name": "Gig Comments", "description": "Questions and answers on gigs" },
     { "name": "Applications", "description": "Apply to gigs and manage applications" },
+    { "name": "Affiliate Marketplace", "description": "Browse affiliate offers and join them as an affiliate" },
     { "name": "Saved Gigs", "description": "Save and unsave gigs" },
     { "name": "Feed", "description": "Community feed of posts" },
     { "name": "Posts", "description": "Create, update, delete, and vote on posts" },
@@ -234,6 +235,39 @@
           "proposed_timeline": { "type": "string", "nullable": true },
           "portfolio_items": { "type": "array", "items": { "type": "string", "format": "uri" }, "maxItems": 5 },
           "ai_tools_to_use": { "type": "array", "items": { "type": "string" }, "maxItems": 10 }
+        }
+      },
+      "AffiliateApplication": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "offer_id": { "type": "string", "format": "uuid" },
+          "affiliate_id": { "type": "string", "format": "uuid" },
+          "tracking_code": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+          "note": { "type": "string", "nullable": true },
+          "approved_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AffiliateApplyInput": {
+        "type": "object",
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Required when using /api/affiliates/apply. Ignored for the offer-scoped endpoint."
+          },
+          "note": { "type": "string", "maxLength": 1000 }
+        }
+      },
+      "AffiliateApplyResponse": {
+        "type": "object",
+        "properties": {
+          "application": { "$ref": "#/components/schemas/AffiliateApplication" },
+          "tracking_code": { "type": "string" },
+          "tracking_url": { "type": "string", "format": "uri" }
         }
       },
       "Post": {
@@ -1651,6 +1685,76 @@
           "400": { "description": "Validation error, gig inactive, already applied, or own gig", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "404": { "description": "Gig not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/affiliates/apply": {
+      "post": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Apply to an affiliate offer",
+        "description": "Programmatic wrapper for agents and CLI clients. Reads offer_id from the request body and forwards to the offer-scoped apply endpoint, returning the approved affiliate application and tracking link.",
+        "operationId": "applyToAffiliateOfferByBody",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["offer_id"],
+                "properties": {
+                  "offer_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Affiliate offer id to apply for"
+                  },
+                  "note": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Affiliate application approved and tracking link issued",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateApplyResponse" } } }
+          },
+          "400": { "description": "Missing offer_id, own offer, or invalid application", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Offer not found or inactive", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Already applied", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": { "description": "Rate limit exceeded" }
+        }
+      }
+    },
+    "/api/affiliates/offers/{id}/apply": {
+      "post": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Apply to a specific affiliate offer",
+        "description": "Join an active affiliate offer. The current implementation auto-approves eligible affiliates, creates a unique tracking code, increments total_affiliates, and returns a tracking URL.",
+        "operationId": "applyToAffiliateOffer",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AffiliateApplyInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Affiliate application approved and tracking link issued",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateApplyResponse" } } }
+          },
+          "400": { "description": "Own offer, invalid application, or database validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Offer not found or inactive", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Already applied", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": { "description": "Rate limit exceeded" }
         }
       }
     },

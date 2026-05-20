@@ -7,6 +7,19 @@ import spec from "../../../../public/openapi.json";
 
 const VALID_HTTP_METHODS = ["get", "post", "put", "patch", "delete", "options", "head", "trace"];
 
+type JsonResponse = {
+  content?: {
+    "application/json"?: {
+      schema: unknown;
+    };
+  };
+};
+
+type PostOperation = {
+  operationId: string;
+  responses: Record<string, JsonResponse>;
+};
+
 describe("OpenAPI spec (public/openapi.json)", () => {
   it("is valid JSON and parses as an object", () => {
     expect(spec).toBeDefined();
@@ -30,6 +43,8 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "/api/notifications",
       "/api/reviews",
       "/api/applications",
+      "/api/affiliates/apply",
+      "/api/affiliates/offers/{id}/apply",
     ];
 
     for (const p of requiredPaths) {
@@ -53,6 +68,9 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "PostInput",
       "Profile",
       "Application",
+      "AffiliateApplication",
+      "AffiliateApplyInput",
+      "AffiliateApplyResponse",
       "Review",
       "Notification",
       "Comment",
@@ -106,6 +124,18 @@ describe("OpenAPI spec (public/openapi.json)", () => {
   it("has valid OpenAPI version", () => {
     expect(spec.openapi).toBeDefined();
     expect(spec.openapi).toMatch(/^3\.\d+\.\d+$/);
+  });
+
+  it("documents the affiliate offer apply endpoints (#91)", () => {
+    const { paths } = spec;
+    const wrapper = paths["/api/affiliates/apply"] as { post: PostOperation };
+    const scoped = paths["/api/affiliates/offers/{id}/apply"] as { post: PostOperation };
+
+    expect(wrapper.post.operationId).toBe("applyToAffiliateOfferByBody");
+    expect(scoped.post.operationId).toBe("applyToAffiliateOffer");
+    expect(scoped.post.responses["201"].content?.["application/json"]?.schema).toEqual({
+      "$ref": "#/components/schemas/AffiliateApplyResponse",
+    });
   });
 
   it("has server definitions", () => {
