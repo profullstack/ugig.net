@@ -348,7 +348,7 @@ export async function createInvoice(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": apiKey,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       business_id: merchantId,
@@ -384,7 +384,7 @@ export async function sendInvoice(invoiceId: string): Promise<InvoiceResponse> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": apiKey,
+      Authorization: `Bearer ${apiKey}`,
     },
   });
 
