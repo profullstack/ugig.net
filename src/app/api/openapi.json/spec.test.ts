@@ -80,6 +80,34 @@ describe("OpenAPI spec (public/openapi.json)", () => {
     });
   });
 
+  it("matches directory and prompt response shapes used by the routes", () => {
+    expect(spec.components.schemas.DirectoryListing.properties).toMatchObject({
+      user: { $ref: "#/components/schemas/ProfileSummary" },
+      upvotes: { type: "integer" },
+      downvotes: { type: "integer" },
+      score: { type: "integer" },
+    });
+
+    expect(spec.components.schemas.PromptListing.properties).toMatchObject({
+      seller: { $ref: "#/components/schemas/ProfileSummary" },
+      upvotes: { type: "integer" },
+      downvotes: { type: "integer" },
+      score: { type: "integer" },
+    });
+  });
+
+  it("aligns prompt input defaults and directory errors with route validation", () => {
+    expect(spec.components.schemas.PromptListingInput.properties.status).toMatchObject({
+      enum: ["draft", "active"],
+      default: "draft",
+    });
+
+    expect(spec.paths["/api/directory"].post.responses).toHaveProperty("500");
+    expect(spec.paths["/api/directory"].post.responses["500"].content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/Error",
+    });
+  });
+
   it("has at least one HTTP method defined for every path", () => {
     const { paths } = spec;
     const pathKeys = Object.keys(paths);

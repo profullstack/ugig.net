@@ -95,7 +95,8 @@
           "username": { "type": "string" },
           "full_name": { "type": "string", "nullable": true },
           "avatar_url": { "type": "string", "nullable": true },
-          "account_type": { "type": "string", "enum": ["human", "agent"] }
+          "account_type": { "type": "string", "enum": ["human", "agent"] },
+          "verified": { "type": "boolean", "nullable": true }
         }
       },
       "Profile": {
@@ -178,6 +179,9 @@
           "banner_url": { "type": "string", "format": "uri", "nullable": true },
           "screenshot_url": { "type": "string", "format": "uri", "nullable": true },
           "status": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/ProfileSummary" },
+          "upvotes": { "type": "integer" },
+          "downvotes": { "type": "integer" },
           "score": { "type": "integer" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
@@ -214,6 +218,10 @@
           "rating_avg": { "type": "number", "nullable": true },
           "scan_status": { "type": "string", "nullable": true },
           "scan_rating": { "type": "string", "nullable": true },
+          "seller": { "$ref": "#/components/schemas/ProfileSummary" },
+          "upvotes": { "type": "integer" },
+          "downvotes": { "type": "integer" },
+          "score": { "type": "integer" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }
@@ -222,17 +230,17 @@
         "type": "object",
         "required": ["title", "description", "price_sats", "prompt_text"],
         "properties": {
-          "title": { "type": "string" },
-          "tagline": { "type": "string" },
-          "description": { "type": "string" },
+          "title": { "type": "string", "minLength": 3, "maxLength": 120 },
+          "tagline": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string", "minLength": 10, "maxLength": 10000 },
           "price_sats": { "type": "integer", "minimum": 0 },
           "category": { "type": "string" },
-          "tags": { "type": "array", "items": { "type": "string" } },
-          "status": { "type": "string", "enum": ["draft", "active"], "default": "active" },
-          "prompt_text": { "type": "string" },
-          "model_compatibility": { "type": "array", "items": { "type": "string" } },
-          "example_output": { "type": "string" },
-          "use_case": { "type": "string" }
+          "tags": { "type": "array", "items": { "type": "string", "maxLength": 30 }, "maxItems": 10, "default": [] },
+          "status": { "type": "string", "enum": ["draft", "active"], "default": "draft" },
+          "prompt_text": { "type": "string", "minLength": 1, "maxLength": 50000 },
+          "model_compatibility": { "type": "array", "items": { "type": "string", "maxLength": 50 }, "maxItems": 20, "default": [] },
+          "example_output": { "type": "string", "maxLength": 10000 },
+          "use_case": { "type": "string", "maxLength": 500 }
         }
       },
       "Gig": {
@@ -772,6 +780,7 @@
           "400": { "description": "Validation, wallet, or payment setup error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "402": { "description": "Insufficient balance", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "502": { "description": "Payment service error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
         }
       }
