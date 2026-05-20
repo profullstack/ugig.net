@@ -30,6 +30,8 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "/api/notifications",
       "/api/reviews",
       "/api/applications",
+      "/api/directory",
+      "/api/prompts",
     ];
 
     for (const p of requiredPaths) {
@@ -49,6 +51,10 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "Error",
       "Gig",
       "GigInput",
+      "DirectoryListing",
+      "DirectoryListingInput",
+      "PromptListing",
+      "PromptListingInput",
       "Post",
       "PostInput",
       "Profile",
@@ -61,6 +67,17 @@ describe("OpenAPI spec (public/openapi.json)", () => {
     for (const s of expectedSchemas) {
       expect(spec.components.schemas).toHaveProperty(s);
     }
+  });
+
+  it("documents agent-discoverable submit endpoints for directory and prompts", () => {
+    expect(spec.paths["/api/directory"]).toHaveProperty("post");
+    expect(spec.paths["/api/directory"].post.requestBody.content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/DirectoryListingInput",
+    });
+    expect(spec.paths["/api/prompts"]).toHaveProperty("post");
+    expect(spec.paths["/api/prompts"].post.requestBody.content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/PromptListingInput",
+    });
   });
 
   it("has at least one HTTP method defined for every path", () => {

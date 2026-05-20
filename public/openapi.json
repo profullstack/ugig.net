@@ -44,7 +44,9 @@
     { "name": "Activity", "description": "User activity feeds" },
     { "name": "Subscriptions", "description": "Pro plan subscription management" },
     { "name": "Payments", "description": "Crypto payments via CoinPayPortal" },
-    { "name": "MCP Marketplace", "description": "Browse, list, purchase, and review MCP server listings" }
+    { "name": "MCP Marketplace", "description": "Browse, list, purchase, and review MCP server listings" },
+    { "name": "Directory", "description": "Browse and submit project directory listings" },
+    { "name": "Prompts", "description": "Browse and submit prompt marketplace listings" }
   ],
   "components": {
     "securitySchemes": {
@@ -162,6 +164,76 @@
           "is_preferred": { "type": "boolean" }
         },
         "required": ["currency", "address"]
+      },
+      "DirectoryListing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "description": { "type": "string", "nullable": true },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "logo_url": { "type": "string", "format": "uri", "nullable": true },
+          "banner_url": { "type": "string", "format": "uri", "nullable": true },
+          "screenshot_url": { "type": "string", "format": "uri", "nullable": true },
+          "status": { "type": "string" },
+          "score": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DirectoryListingInput": {
+        "type": "object",
+        "required": ["title", "url"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "url": { "type": "string", "format": "uri" },
+          "description": { "type": "string", "maxLength": 500 },
+          "tags": { "type": "array", "items": { "type": "string", "maxLength": 50 }, "maxItems": 10 },
+          "logo_url": { "type": "string", "format": "uri" },
+          "banner_url": { "type": "string", "format": "uri" },
+          "screenshot_url": { "type": "string", "format": "uri" }
+        }
+      },
+      "PromptListing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "seller_id": { "type": "string", "format": "uuid" },
+          "slug": { "type": "string" },
+          "title": { "type": "string" },
+          "tagline": { "type": "string", "nullable": true },
+          "description": { "type": "string" },
+          "price_sats": { "type": "integer" },
+          "category": { "type": "string", "nullable": true },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string", "enum": ["draft", "active", "archived"] },
+          "model_compatibility": { "type": "array", "items": { "type": "string" } },
+          "downloads_count": { "type": "integer" },
+          "rating_avg": { "type": "number", "nullable": true },
+          "scan_status": { "type": "string", "nullable": true },
+          "scan_rating": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PromptListingInput": {
+        "type": "object",
+        "required": ["title", "description", "price_sats", "prompt_text"],
+        "properties": {
+          "title": { "type": "string" },
+          "tagline": { "type": "string" },
+          "description": { "type": "string" },
+          "price_sats": { "type": "integer", "minimum": 0 },
+          "category": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string", "enum": ["draft", "active"], "default": "active" },
+          "prompt_text": { "type": "string" },
+          "model_compatibility": { "type": "array", "items": { "type": "string" } },
+          "example_output": { "type": "string" },
+          "use_case": { "type": "string" }
+        }
       },
       "Gig": {
         "type": "object",
@@ -638,6 +710,139 @@
     }
   },
   "paths": {
+    "/api/directory": {
+      "get": {
+        "tags": ["Directory"],
+        "summary": "List directory listings",
+        "description": "Browse active project directory listings. No authentication required.",
+        "operationId": "listDirectoryListings",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Search title and description" },
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated tag filter" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Directory listing page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listings": { "type": "array", "items": { "$ref": "#/components/schemas/DirectoryListing" } },
+                    "total": { "type": "integer" },
+                    "page": { "type": "integer" },
+                    "per_page": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Directory"],
+        "summary": "Submit a directory listing",
+        "description": "Create a project directory listing. Requires authentication and an LN balance for the listing fee.",
+        "operationId": "createDirectoryListing",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DirectoryListingInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Directory listing created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listing": { "$ref": "#/components/schemas/DirectoryListing" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation, wallet, or payment setup error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "402": { "description": "Insufficient balance", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "502": { "description": "Payment service error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/prompts": {
+      "get": {
+        "tags": ["Prompts"],
+        "summary": "List prompt listings",
+        "description": "Browse active prompt marketplace listings. No authentication required.",
+        "operationId": "listPromptListings",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Search title, tagline, and description" },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated tag filter" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["newest", "popular", "rating", "price_low", "price_high"], "default": "newest" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompt listing page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listings": { "type": "array", "items": { "$ref": "#/components/schemas/PromptListing" } },
+                    "total": { "type": "integer" },
+                    "page": { "type": "integer" },
+                    "per_page": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Prompts"],
+        "summary": "Create a prompt listing",
+        "description": "Submit a prompt marketplace listing. The API auto-generates a unique slug and runs a non-blocking prompt security scan.",
+        "operationId": "createPromptListing",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PromptListingInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Prompt listing created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "listing": { "$ref": "#/components/schemas/PromptListing" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
     "/api/auth/signup": {
       "post": {
         "tags": ["Auth"],
