@@ -45,6 +45,9 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "/api/applications",
       "/api/affiliates/apply",
       "/api/affiliates/offers/{id}/apply",
+      "/api/affiliates/click",
+      "/api/affiliates/offers/{id}/conversions",
+      "/api/affiliates/offers/{id}/conversions/pay",
     ];
 
     for (const p of requiredPaths) {
@@ -71,6 +74,11 @@ describe("OpenAPI spec (public/openapi.json)", () => {
       "AffiliateApplication",
       "AffiliateApplyInput",
       "AffiliateApplyResponse",
+      "AffiliateConversion",
+      "AffiliateConversionInput",
+      "AffiliateConversionUpdateInput",
+      "AffiliateConversionActionInput",
+      "AffiliateConversionMutationResponse",
       "Review",
       "Notification",
       "Comment",
@@ -135,6 +143,28 @@ describe("OpenAPI spec (public/openapi.json)", () => {
     expect(scoped.post.operationId).toBe("applyToAffiliateOffer");
     expect(scoped.post.responses["201"].content?.["application/json"]?.schema).toEqual({
       "$ref": "#/components/schemas/AffiliateApplyResponse",
+    });
+  });
+
+  it("documents affiliate tracking and conversion endpoints (#89)", () => {
+    const { paths } = spec;
+    const click = paths["/api/affiliates/click"] as { get: PostOperation };
+    const conversions = paths["/api/affiliates/offers/{id}/conversions"] as {
+      get: PostOperation;
+      post: PostOperation;
+      put: PostOperation;
+      delete: PostOperation;
+    };
+    const pay = paths["/api/affiliates/offers/{id}/conversions/pay"] as { post: PostOperation };
+
+    expect(click.get.operationId).toBe("recordAffiliateClick");
+    expect(conversions.get.operationId).toBe("listAffiliateConversions");
+    expect(conversions.post.operationId).toBe("recordAffiliateConversion");
+    expect(conversions.put.operationId).toBe("updateAffiliateConversion");
+    expect(conversions.delete.operationId).toBe("deleteAffiliateConversion");
+    expect(pay.post.operationId).toBe("payAffiliateConversion");
+    expect(conversions.post.responses["200"].content?.["application/json"]?.schema).toEqual({
+      "$ref": "#/components/schemas/AffiliateConversionMutationResponse",
     });
   });
 

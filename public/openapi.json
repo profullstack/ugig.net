@@ -270,6 +270,61 @@
           "tracking_url": { "type": "string", "format": "uri" }
         }
       },
+      "AffiliateConversion": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "affiliate_id": { "type": "string", "format": "uuid" },
+          "username": { "type": "string", "nullable": true },
+          "sale_amount_sats": { "type": "integer", "minimum": 0 },
+          "commission_sats": { "type": "integer", "minimum": 0 },
+          "status": { "type": "string", "enum": ["pending", "paid", "clawed_back"] },
+          "source": { "type": "string", "enum": ["auto", "manual", "webhook"] },
+          "note": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AffiliateConversionInput": {
+        "type": "object",
+        "required": ["affiliate_id", "sale_amount_sats"],
+        "properties": {
+          "affiliate_id": { "type": "string", "format": "uuid" },
+          "sale_amount_sats": { "type": "integer", "minimum": 1 },
+          "note": { "type": "string", "maxLength": 1000 }
+        }
+      },
+      "AffiliateConversionUpdateInput": {
+        "type": "object",
+        "required": ["conversion_id"],
+        "properties": {
+          "conversion_id": { "type": "string", "format": "uuid" },
+          "sale_amount_sats": { "type": "integer", "minimum": 1 },
+          "note": { "type": "string", "maxLength": 1000 },
+          "status": { "type": "string", "enum": ["pending", "paid", "clawed_back"] }
+        }
+      },
+      "AffiliateConversionActionInput": {
+        "type": "object",
+        "required": ["conversion_id"],
+        "properties": {
+          "conversion_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "AffiliateConversionMutationResponse": {
+        "type": "object",
+        "properties": {
+          "conversion": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "commission_sats": { "type": "integer", "minimum": 0 },
+              "settles_at": { "type": "string", "format": "date-time", "nullable": true },
+              "source": { "type": "string", "enum": ["manual"] },
+              "note": { "type": "string", "nullable": true }
+            }
+          }
+        }
+      },
       "Post": {
         "type": "object",
         "properties": {
@@ -1755,6 +1810,147 @@
           "404": { "description": "Offer not found or inactive", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "409": { "description": "Already applied", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
           "429": { "description": "Rate limit exceeded" }
+        }
+      }
+    },
+    "/api/affiliates/click": {
+      "get": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Record an affiliate click and redirect",
+        "description": "Tracking endpoint for affiliate links. Records a click for the approved tracking code, stores attribution cookies, and redirects to the offer destination.",
+        "operationId": "recordAffiliateClick",
+        "parameters": [
+          { "name": "ugig_ref", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Affiliate tracking code returned by the apply endpoint" }
+        ],
+        "responses": {
+          "302": { "description": "Redirects to the offer destination or affiliate marketplace fallback" },
+          "307": { "description": "Redirects to the offer destination or affiliate marketplace fallback" }
+        }
+      }
+    },
+    "/api/affiliates/offers/{id}/conversions": {
+      "get": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "List conversions for an affiliate offer",
+        "description": "Seller-only endpoint for inspecting recorded affiliate conversions on one offer.",
+        "operationId": "listAffiliateConversions",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Affiliate conversions for the offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversions": { "type": "array", "items": { "$ref": "#/components/schemas/AffiliateConversion" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not authorized for this offer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Offer not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Unexpected error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Record a manual affiliate conversion",
+        "description": "Seller-only endpoint for recording an external sale against an approved affiliate for an offer.",
+        "operationId": "recordAffiliateConversion",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateConversionInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Manual conversion recorded",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateConversionMutationResponse" } } }
+          },
+          "400": { "description": "Invalid conversion input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not authorized for this offer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Offer not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Unexpected error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Update an affiliate conversion",
+        "description": "Seller-only endpoint for updating a conversion's note, status, or sale amount.",
+        "operationId": "updateAffiliateConversion",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateConversionUpdateInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Conversion updated", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } } } },
+          "400": { "description": "Invalid update input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not authorized for this offer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Unexpected error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Delete an unpaid affiliate conversion",
+        "description": "Seller-only endpoint for deleting a conversion that has not already been paid.",
+        "operationId": "deleteAffiliateConversion",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateConversionActionInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Conversion deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } } } },
+          "400": { "description": "Invalid delete input or paid conversion", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not authorized for this offer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Conversion not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Unexpected error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/affiliates/offers/{id}/conversions/pay": {
+      "post": {
+        "tags": ["Affiliate Marketplace"],
+        "summary": "Pay an affiliate conversion",
+        "description": "Seller-only endpoint that pays a pending affiliate conversion through the internal Lightning wallet transfer flow.",
+        "operationId": "payAffiliateConversion",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Affiliate offer id" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AffiliateConversionActionInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversion paid",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "commission_sats": { "type": "integer", "minimum": 0 } } } } }
+          },
+          "400": { "description": "Invalid payment input or conversion state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not authorized for this offer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Conversion not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "500": { "description": "Payment or unexpected error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
         }
       }
     },
