@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { withCommissionEstimate } from "@/lib/affiliates/commission";
 import { createServiceClient } from "@/lib/supabase/service";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any;
 import { validateOfferInput } from "@/lib/affiliates/validation";
 
+type AnySupabase = any;
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
@@ -57,12 +56,14 @@ export async function GET(
       isApprovedAffiliate = !!app;
     }
 
+    const offerWithEstimate = withCommissionEstimate(offer);
+
     if (!isOwner && !isApprovedAffiliate) {
-      const { product_url, ...safeOffer } = offer;
+      const { product_url, ...safeOffer } = offerWithEstimate;
       return NextResponse.json({ offer: safeOffer });
     }
 
-    return NextResponse.json({ offer });
+    return NextResponse.json({ offer: offerWithEstimate });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }

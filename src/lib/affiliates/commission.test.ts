@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateCommission, calculatePlatformFee, recordConversion } from "./commission";
+import { calculateCommission, calculatePlatformFee, estimateOfferCommission, recordConversion } from "./commission";
 
 describe("calculateCommission", () => {
   it("calculates percentage commission", () => {
@@ -32,6 +32,50 @@ describe("calculateCommission", () => {
       10000
     );
     expect(result).toBe(0);
+  });
+});
+
+describe("estimateOfferCommission", () => {
+  it("returns exact flat commission estimates", () => {
+    expect(
+      estimateOfferCommission({
+        commission_rate: 0.2,
+        commission_type: "flat",
+        commission_flat_sats: 500,
+        price_sats: 0,
+      })
+    ).toEqual({
+      estimated_commission_sats: 500,
+      commission_basis: "flat",
+    });
+  });
+
+  it("estimates percentage commission from the listed price", () => {
+    expect(
+      estimateOfferCommission({
+        commission_rate: 0.2,
+        commission_type: "percentage",
+        commission_flat_sats: 0,
+        price_sats: 1234,
+      })
+    ).toEqual({
+      estimated_commission_sats: 246,
+      commission_basis: "listed_price",
+    });
+  });
+
+  it("marks zero-price percentage offers as sale-amount dependent", () => {
+    expect(
+      estimateOfferCommission({
+        commission_rate: 0.2,
+        commission_type: "percentage",
+        commission_flat_sats: 0,
+        price_sats: 0,
+      })
+    ).toEqual({
+      estimated_commission_sats: null,
+      commission_basis: "sale_amount",
+    });
   });
 });
 

@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any;
+import { withCommissionEstimate } from "@/lib/affiliates/commission";
 import { validateOfferInput } from "@/lib/affiliates/validation";
 
+type AnySupabase = any;
 
 function slugify(text: string): string {
   return text
@@ -102,13 +101,14 @@ export async function GET(request: NextRequest) {
     }
 
     const sanitizedOffers = (offers || []).map((offer: any) => {
+      const offerWithEstimate = withCommissionEstimate(offer);
       const isOwner = auth && offer.seller_id === auth.user.id;
       const isApprovedAffiliate = auth && approvedOfferIds.has(offer.id);
       if (!isOwner && !isApprovedAffiliate) {
-        const { product_url, ...rest } = offer;
+        const { product_url, ...rest } = offerWithEstimate;
         return rest;
       }
-      return offer;
+      return offerWithEstimate;
     });
 
     return NextResponse.json({

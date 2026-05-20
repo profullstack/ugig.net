@@ -22,6 +22,16 @@ export interface CommissionResult {
   error?: string;
 }
 
+export interface CommissionEstimate {
+  estimated_commission_sats: number | null;
+  commission_basis: "flat" | "listed_price" | "sale_amount";
+}
+
+type CommissionEstimateOffer = Pick<
+  AffiliateOffer,
+  "commission_rate" | "commission_type" | "commission_flat_sats" | "price_sats"
+>;
+
 async function findConversionByPurchaseId(
   admin: SupabaseClient,
   purchaseId?: string
@@ -60,6 +70,49 @@ export function calculateCommission(
     return offer.commission_flat_sats || 0;
   }
   return Math.floor(saleAmountSats * offer.commission_rate);
+}
+
+/**
+ * Estimate the commission an affiliate can expect from the offer listing.
+ *
+ * Flat offers are exact. Percentage offers are estimated from the public
+ * listing price when one exists; otherwise the real commission depends on the
+ * eventual sale amount passed to recordConversion().
+ */
+export function estimateOfferCommission(offer: CommissionEstimateOffer): CommissionEstimate {
+  const commissionType = offer.commission_type === "flat" ? "flat" : "percentage";
+  const flatSats = Number(offer.commission_flat_sats ?? 0);
+
+  if (commissionType === "flat") {
+    return {
+      estimated_commission_sats: Number.isFinite(flatSats) ? Math.max(0, Math.floor(flatSats)) : 0,
+      commission_basis: "flat",
+    };
+  }
+
+  const priceSats = Number(offer.price_sats ?? 0);
+  const commissionRate = Number(offer.commission_rate ?? 0);
+
+  if (!Number.isFinite(priceSats) || priceSats <= 0 || !Number.isFinite(commissionRate)) {
+    return {
+      estimated_commission_sats: null,
+      commission_basis: "sale_amount",
+    };
+  }
+
+  return {
+    estimated_commission_sats: Math.max(0, Math.floor(priceSats * commissionRate)),
+    commission_basis: "listed_price",
+  };
+}
+
+export function withCommissionEstimate<T extends CommissionEstimateOffer>(
+  offer: T
+): T & CommissionEstimate {
+  return {
+    ...offer,
+    ...estimateOfferCommission(offer),
+  };
 }
 
 /**

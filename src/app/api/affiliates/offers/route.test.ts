@@ -98,6 +98,50 @@ describe("GET /api/affiliates/offers", () => {
     expect(res.status).toBe(200);
     expect(body.offers[0].product_url).toBeUndefined();
   });
+
+  it("includes commission estimate fields for affiliates (#90)", async () => {
+    const offers = [
+      {
+        id: "flat",
+        title: "Flat Offer",
+        seller_id: "seller1",
+        commission_type: "flat",
+        commission_rate: 0.2,
+        commission_flat_sats: 1500,
+        price_sats: 0,
+      },
+      {
+        id: "percentage",
+        title: "Percentage Offer",
+        seller_id: "seller2",
+        commission_type: "percentage",
+        commission_rate: 0.2,
+        commission_flat_sats: 0,
+        price_sats: 10000,
+      },
+      {
+        id: "variable",
+        title: "Variable Offer",
+        seller_id: "seller3",
+        commission_type: "percentage",
+        commission_rate: 0.2,
+        commission_flat_sats: 0,
+        price_sats: 0,
+      },
+    ];
+    mockFrom.mockReturnValue(chainable(offers, null, offers.length));
+    mockGetAuthContext.mockResolvedValue(null);
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offers).toMatchObject([
+      { id: "flat", estimated_commission_sats: 1500, commission_basis: "flat" },
+      { id: "percentage", estimated_commission_sats: 2000, commission_basis: "listed_price" },
+      { id: "variable", estimated_commission_sats: null, commission_basis: "sale_amount" },
+    ]);
+  });
 });
 
 describe("POST /api/affiliates/offers", () => {

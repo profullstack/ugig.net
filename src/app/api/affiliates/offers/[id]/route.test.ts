@@ -106,6 +106,29 @@ describe("GET /api/affiliates/offers/[id]", () => {
     expect(body.offer.product_url).toBeUndefined();
   });
 
+  it("includes commission estimate fields in offer details (#90)", async () => {
+    const offer = {
+      id: "some-uuid",
+      title: "Percentage Offer",
+      seller_id: "seller1",
+      slug: "percentage-offer",
+      commission_type: "percentage",
+      commission_rate: 0.2,
+      commission_flat_sats: 0,
+      price_sats: 2500,
+    };
+
+    mockFrom.mockReturnValue(chainable(offer));
+    mockGetAuthContext.mockResolvedValue(null);
+
+    const res = await GET(makeRequest("percentage-offer"), makeParams("percentage-offer"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.estimated_commission_sats).toBe(500);
+    expect(body.offer.commission_basis).toBe("listed_price");
+  });
+
   it("returns 404 for non-existent offer", async () => {
     mockFrom.mockReturnValue(chainable(null, { message: "not found" }));
 
