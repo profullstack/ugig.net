@@ -110,10 +110,16 @@ describe("SUPPORTED_CURRENCIES", () => {
 describe("CoinPayPortal invoice API", () => {
   const originalApiKey = process.env.COINPAY_API_KEY;
   const originalMerchantId = process.env.COINPAY_MERCHANT_ID;
+  const originalUgigBusinessId = process.env.COINPAY_UGIG_BUSINESS_ID;
+  const originalBusinessId = process.env.COINPAY_BUSINESS_ID;
+  const originalGenericBusinessId = process.env.BUSINESS_ID;
 
   beforeEach(() => {
     process.env.COINPAY_API_KEY = "cp_live_" + "a".repeat(32);
     process.env.COINPAY_MERCHANT_ID = "biz_123";
+    delete process.env.COINPAY_UGIG_BUSINESS_ID;
+    delete process.env.COINPAY_BUSINESS_ID;
+    delete process.env.BUSINESS_ID;
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -144,6 +150,24 @@ describe("CoinPayPortal invoice API", () => {
       process.env.COINPAY_MERCHANT_ID = originalMerchantId;
     }
 
+    if (originalUgigBusinessId === undefined) {
+      delete process.env.COINPAY_UGIG_BUSINESS_ID;
+    } else {
+      process.env.COINPAY_UGIG_BUSINESS_ID = originalUgigBusinessId;
+    }
+
+    if (originalBusinessId === undefined) {
+      delete process.env.COINPAY_BUSINESS_ID;
+    } else {
+      process.env.COINPAY_BUSINESS_ID = originalBusinessId;
+    }
+
+    if (originalGenericBusinessId === undefined) {
+      delete process.env.BUSINESS_ID;
+    } else {
+      process.env.BUSINESS_ID = originalGenericBusinessId;
+    }
+
     vi.unstubAllGlobals();
   });
 
@@ -158,6 +182,22 @@ describe("CoinPayPortal invoice API", () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.COINPAY_API_KEY}`,
         }),
+      })
+    );
+  });
+
+  it("uses UGig-specific business id env aliases before the generic merchant id", async () => {
+    process.env.COINPAY_UGIG_BUSINESS_ID = "biz_ugig";
+    process.env.COINPAY_BUSINESS_ID = "biz_coinpay";
+    process.env.BUSINESS_ID = "biz_generic";
+    process.env.COINPAY_MERCHANT_ID = "biz_merchant";
+
+    await createInvoice({ amount: 25, currency: "USD", notes: "test invoice" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://coinpayportal.com/api/invoices",
+      expect.objectContaining({
+        body: expect.stringContaining('"business_id":"biz_ugig"'),
       })
     );
   });

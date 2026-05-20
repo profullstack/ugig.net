@@ -338,7 +338,11 @@ export async function createInvoice(
   options: CreateInvoiceOptions
 ): Promise<InvoiceResponse> {
   const apiKey = process.env.COINPAY_API_KEY;
-  const merchantId = process.env.COINPAY_MERCHANT_ID;
+  const merchantId =
+    process.env.COINPAY_UGIG_BUSINESS_ID ||
+    process.env.COINPAY_BUSINESS_ID ||
+    process.env.BUSINESS_ID ||
+    process.env.COINPAY_MERCHANT_ID;
 
   if (!apiKey || !merchantId) {
     throw new Error("CoinPayPortal credentials not configured");
