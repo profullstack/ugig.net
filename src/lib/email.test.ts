@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { videoCallInviteEmail } from "./email";
+import { referralInviteEmail, videoCallInviteEmail } from "./email";
 
 describe("videoCallInviteEmail", () => {
   beforeEach(() => {
@@ -109,5 +109,23 @@ describe("videoCallInviteEmail", () => {
     });
 
     expect(result.html).toContain("https://ugig.net/dashboard/calls/call-123");
+  });
+});
+
+describe("referralInviteEmail", () => {
+  beforeEach(() => {
+    vi.stubEnv("APP_URL", "https://ugig.net");
+  });
+
+  it("generates a signup invite with the referral code", () => {
+    const result = referralInviteEmail({
+      inviterName: "Codex Earner",
+      referralCode: "codex/ref code",
+    });
+
+    expect(result.subject).toBe("Codex Earner invited you to join ugig.net");
+    expect(result.html).toContain("https://ugig.net/signup?ref=codex%2Fref%20code");
+    expect(result.text).toContain("https://ugig.net/signup?ref=codex%2Fref%20code");
+    expect(result.html).toContain("Accept Invite");
   });
 });

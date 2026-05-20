@@ -14,6 +14,13 @@ vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: () => mockCreateServiceClient(),
 }));
 
+const mockSendEmail = vi.fn();
+const mockReferralInviteEmail = vi.fn();
+vi.mock("@/lib/email", () => ({
+  sendEmail: (...args: unknown[]) => mockSendEmail(...args),
+  referralInviteEmail: (...args: unknown[]) => mockReferralInviteEmail(...args),
+}));
+
 const mockSelect = vi.fn();
 const mockInsert = vi.fn();
 const mockEq = vi.fn();
@@ -64,6 +71,12 @@ describe("GET /api/referrals", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateServiceClient.mockReturnValue(makeServiceClientWithNoExistingReferrals());
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    mockSendEmail.mockResolvedValue({ success: true });
   });
 
   it("should return 401 when not authenticated", async () => {
@@ -143,7 +156,7 @@ describe("POST /api/referrals", () => {
     const mockSelectChain = {
       eq: vi.fn().mockReturnValue({
         single: vi.fn().mockResolvedValue({
-          data: { referral_code: "testuser", username: "testuser" },
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
           error: null,
         }),
       }),
@@ -164,7 +177,57 @@ describe("POST /api/referrals", () => {
     const res = await POST(makePostRequest({ emails: ["friend@test.com"] }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.message).toContain("1 invite(s) created");
+    expect(body.message).toContain("1 invite(s) created and sent");
+    expect(body.email_delivery_failed).toBe(0);
+    expect(mockReferralInviteEmail).toHaveBeenCalledWith({
+      inviterName: "Test User",
+      referralCode: "testuser",
+    });
+    expect(mockSendEmail).toHaveBeenCalledWith({
+      to: "friend@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+  });
+
+  it("should keep created invites when email delivery fails", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+    mockSendEmail.mockResolvedValueOnce({ success: false, error: "resend failed" });
+
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: null, username: "testuser", full_name: null },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsertChain = {
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "ref1", referred_email: "friend@test.com", status: "pending" }],
+        error: null,
+      }),
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: () => mockInsertChain };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({ emails: ["friend@test.com"] }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.message).toContain("1 email(s) failed to send");
+    expect(body.email_delivery_failed).toBe(1);
+    expect(mockReferralInviteEmail).toHaveBeenCalledWith({
+      inviterName: "testuser",
+      referralCode: "testuser",
+    });
   });
 
   it("should return 400 for invalid emails only", async () => {

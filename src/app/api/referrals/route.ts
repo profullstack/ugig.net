@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { referralInviteEmail, sendEmail } from "@/lib/email";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 // GET /api/referrals - List my referrals
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
     }
 
     const total = referrals?.length || 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const registered = referrals?.filter((r: any) => r.status !== "pending").length || 0;
 
     return NextResponse.json({
@@ -120,10 +119,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's referral code
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: profile } = await (supabase as any)
       .from("profiles")
-      .select("referral_code, username")
+      .select("referral_code, username, full_name")
       .eq("id", user.id)
       .single();
 
@@ -132,6 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     const referralCode = profile.referral_code || profile.username;
+    const inviterName = profile.full_name || profile.username || "Someone";
 
     // Validate emails and create referrals
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -160,9 +159,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const emailContent = referralInviteEmail({ inviterName, referralCode });
+    const emailResults = await Promise.all(
+      validEmails.map((email: string) =>
+        sendEmail({ to: email, ...emailContent })
+      )
+    );
+    const failedEmailCount = emailResults.filter((result) => !result.success).length;
+
     return NextResponse.json({
-      message: `${validEmails.length} invite(s) created`,
+      message: failedEmailCount > 0
+        ? `${validEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
+        : `${validEmails.length} invite(s) created and sent`,
       data: referrals,
+      email_delivery_failed: failedEmailCount,
     });
   } catch {
     return NextResponse.json(
