@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
             activity_type: "referral_signup",
             reference_id: data.user.id,
             reference_type: "user",
-            metadata: { referred_username: username, referred_email: email },
+            metadata: { referred_username: username },
             is_public: true,
           });
 
