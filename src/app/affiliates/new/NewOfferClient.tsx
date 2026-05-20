@@ -110,6 +110,11 @@ export default function NewOfferClient() {
       setLoading(false);
       return;
     }
+    if (!form.product_url.trim()) {
+      setError("Product URL is required for affiliate offers");
+      setLoading(false);
+      return;
+    }
     if (form.commission_type === "percentage") {
       const rate = parseFloat(form.commission_rate);
       if (!rate || rate < 1 || rate > 90) {
@@ -133,7 +138,7 @@ export default function NewOfferClient() {
       body: JSON.stringify({
         title: form.title,
         description: form.description,
-        product_url: form.product_url || undefined,
+        product_url: form.product_url.trim(),
         product_type: form.product_type,
         price_sats: parseInt(form.price_sats) || 0,
         commission_rate: form.commission_type === "percentage" ? parseFloat(form.commission_rate) / 100 : 0,
@@ -242,13 +247,14 @@ export default function NewOfferClient() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="product_url">Product URL</Label>
+          <Label htmlFor="product_url">Product URL *</Label>
           <Input
             id="product_url"
             type="url"
             value={form.product_url}
             onChange={(e) => updateForm("product_url", e.target.value)}
             placeholder="https://..."
+            required
           />
           <p className="text-xs text-muted-foreground">Where buyers land after clicking affiliate links</p>
         </div>

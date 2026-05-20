@@ -152,6 +152,7 @@ describe("POST /api/affiliates/offers", () => {
       body: JSON.stringify({
         title: "<b>Test</b> Offer",
         description: "A description that is long enough for validation",
+        product_url: "https://example.com/product",
         price_sats: 1000,
         commission_type: "percentage",
         commission_rate: 0.2,
@@ -174,6 +175,7 @@ describe("POST /api/affiliates/offers", () => {
       body: JSON.stringify({
         title: "Test Offer",
         description: "A description that is long enough",
+        product_url: "https://example.com/product",
         price_sats: 1000,
         commission_type: "flat",
         commission_flat_sats: -500,
@@ -182,6 +184,29 @@ describe("POST /api/affiliates/offers", () => {
 
     const res = await POST(req);
     expect(res.status).toBe(400);
+  });
+
+  it("rejects active offers without a product_url or listing_id (#88)", async () => {
+    mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Test Offer",
+        description: "A description that is long enough",
+        product_url: "   ",
+        price_sats: 1000,
+        commission_type: "percentage",
+        commission_rate: 0.2,
+      }),
+    });
+
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("product_url");
+    expect(body.error).toContain("listing_id");
   });
 
   it("returns 401 for unauthenticated requests", async () => {

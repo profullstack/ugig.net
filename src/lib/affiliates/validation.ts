@@ -60,13 +60,22 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
   }
 
   // Normalize product_url — trim whitespace, treat blank as null (#18 - XSS prevention)
-  if (input.product_url) {
-    input.product_url = input.product_url.trim();
-    if (input.product_url.length === 0) {
-      input.product_url = undefined;
-    } else if (!isValidUrl(input.product_url)) {
+  if (input.product_url !== undefined) {
+    const productUrl = input.product_url.trim();
+    input.product_url = productUrl || undefined;
+    if (input.product_url && !isValidUrl(input.product_url)) {
       errors.push("product_url must use http:// or https:// scheme");
     }
+  }
+
+  if (input.listing_id !== undefined) {
+    const listingId = input.listing_id.trim();
+    input.listing_id = listingId || undefined;
+  }
+
+  const status = input.status || "active";
+  if (status === "active" && !input.product_url && !input.listing_id) {
+    errors.push("Active affiliate offers require product_url or listing_id");
   }
 
   // Default price_sats to 0 if not provided (#28)
@@ -140,6 +149,8 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
       settlement_delay_days: settlementDays,
       product_type: input.product_type || "digital",
       tags: input.tags?.map((t) => t.trim().toLowerCase()).filter(Boolean) || [],
+      listing_id: input.listing_id,
+      status,
     },
   };
 }

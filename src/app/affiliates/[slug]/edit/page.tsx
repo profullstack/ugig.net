@@ -32,6 +32,7 @@ export default function EditOfferPage() {
     description: "",
     product_url: "",
     product_type: "digital",
+    listing_id: "",
     price_sats: "",
     commission_rate: "20",
     commission_type: "percentage",
@@ -113,6 +114,7 @@ export default function EditOfferPage() {
             description: o.description || "",
             product_url: o.product_url || "",
             product_type: o.product_type || "digital",
+            listing_id: o.listing_id || "",
             price_sats: String(o.price_sats || 0),
             commission_rate: String(Math.round((o.commission_rate || 0) * 100)),
             commission_type: o.commission_type || "percentage",
@@ -135,13 +137,19 @@ export default function EditOfferPage() {
     setLoading(true);
     setError("");
 
+    if (!form.product_url.trim() && !form.listing_id) {
+      setError("Product URL is required for affiliate offers");
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch(`/api/affiliates/offers/${offerId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
         description: form.description,
-        product_url: form.product_url || undefined,
+        product_url: form.product_url.trim() || undefined,
         product_type: form.product_type,
         price_sats: parseInt(form.price_sats) || 0,
         commission_rate: form.commission_type === "percentage" ? parseFloat(form.commission_rate) / 100 : 0,
@@ -250,13 +258,14 @@ export default function EditOfferPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="product_url">Product URL</Label>
+          <Label htmlFor="product_url">Product URL{form.listing_id ? "" : " *"}</Label>
           <Input
             id="product_url"
             type="url"
             value={form.product_url}
             onChange={(e) => updateForm("product_url", e.target.value)}
             placeholder="https://..."
+            required={!form.listing_id}
           />
           <p className="text-xs text-muted-foreground">Where buyers land after clicking affiliate links</p>
         </div>

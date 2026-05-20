@@ -15,14 +15,10 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
-vi.mock("@/lib/affiliates/validation", () => ({
-  validateOfferInput: vi.fn(),
-}));
+import { GET, PATCH } from "./route";
 
-import { GET } from "./route";
-
-function makeRequest(id: string) {
-  return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
+function makeRequest(id: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}`, init);
 }
 
 function makeParams(id: string) {
@@ -111,5 +107,96 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAuthContext.mockResolvedValue({ user: { id: "seller1" } });
+  });
+
+  it("rejects clearing the last active destination (#88)", async () => {
+    mockFrom.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({
+            data: {
+              id: "offer1",
+              seller_id: "seller1",
+              product_url: "https://example.com/product",
+              listing_id: null,
+              status: "active",
+            },
+            error: null,
+          }),
+        }),
+      }),
+    });
+
+    const res = await PATCH(
+      makeRequest("offer1", {
+        method: "PATCH",
+        body: JSON.stringify({ product_url: "   " }),
+      }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("product_url");
+    expect(body.error).toContain("listing_id");
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows clearing product_url when a listing_id still provides a destination (#88)", async () => {
+    const updateMock = vi.fn().mockReturnValue({
+      eq: () => ({
+        select: () => ({
+          single: () => Promise.resolve({
+            data: {
+              id: "offer1",
+              seller_id: "seller1",
+              product_url: null,
+              listing_id: "listing-1",
+              status: "active",
+            },
+            error: null,
+          }),
+        }),
+      }),
+    });
+
+    mockFrom
+      .mockReturnValueOnce({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({
+              data: {
+                id: "offer1",
+                seller_id: "seller1",
+                product_url: "https://example.com/product",
+                listing_id: "listing-1",
+                status: "active",
+              },
+              error: null,
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        update: updateMock,
+      });
+
+    const res = await PATCH(
+      makeRequest("offer1", {
+        method: "PATCH",
+        body: JSON.stringify({ product_url: "   " }),
+      }),
+      makeParams("offer1")
+    );
+
+    expect(res.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ product_url: null }));
   });
 });

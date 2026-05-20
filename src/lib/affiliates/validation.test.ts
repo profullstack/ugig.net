@@ -105,13 +105,24 @@ describe("validateOfferInput", () => {
     expect(result.errors.some((e) => e.includes("price_sats"))).toBe(true);
   });
 
-  it("trims whitespace-only product_url to undefined", () => {
+  it("rejects active offers without product_url or listing_id (#88)", () => {
     const result = validateOfferInput({
       ...validInput,
       product_url: "   ",
     });
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("product_url") && e.includes("listing_id"))).toBe(true);
+  });
+
+  it("accepts active offers with a listing_id fallback (#88)", () => {
+    const result = validateOfferInput({
+      ...validInput,
+      product_url: "   ",
+      listing_id: " listing-123 ",
+    });
     expect(result.ok).toBe(true);
     expect(result.sanitized!.product_url).toBeFalsy();
+    expect(result.sanitized!.listing_id).toBe("listing-123");
   });
 
   // Regression tests for defaults

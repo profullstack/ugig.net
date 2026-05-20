@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { isValidUrl } from "@/lib/affiliates/validation";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-import { validateOfferInput } from "@/lib/affiliates/validation";
-
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
@@ -87,7 +85,7 @@ export async function PATCH(
     // Check ownership
     const { data: existing } = await (admin as AnySupabase)
       .from("affiliate_offers")
-      .select("id, seller_id")
+      .select("id, seller_id, product_url, listing_id, status")
       .eq("id", id)
       .single();
 
@@ -99,10 +97,22 @@ export async function PATCH(
 
     // Partial validation — only validate provided fields
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    let nextProductUrl = existing.product_url || null;
+    let nextListingId = existing.listing_id || null;
+    let nextStatus = existing.status || "active";
 
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.description !== undefined) updateData.description = body.description.trim();
-    if (body.product_url !== undefined) updateData.product_url = body.product_url;
+    if (body.product_url !== undefined) {
+      if (body.product_url !== null && typeof body.product_url !== "string") {
+        return NextResponse.json({ error: "product_url must be a string" }, { status: 400 });
+      }
+      nextProductUrl = typeof body.product_url === "string" ? body.product_url.trim() || null : null;
+      if (nextProductUrl && !isValidUrl(nextProductUrl)) {
+        return NextResponse.json({ error: "product_url must use http:// or https:// scheme" }, { status: 400 });
+      }
+      updateData.product_url = nextProductUrl;
+    }
     if (body.product_type !== undefined) updateData.product_type = body.product_type;
     if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
     if (body.commission_rate !== undefined) updateData.commission_rate = body.commission_rate;
@@ -113,8 +123,22 @@ export async function PATCH(
     if (body.promo_text !== undefined) updateData.promo_text = body.promo_text;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.tags !== undefined) updateData.tags = body.tags;
-    if (body.status !== undefined) updateData.status = body.status;
+    if (body.listing_id !== undefined) {
+      if (body.listing_id !== null && typeof body.listing_id !== "string") {
+        return NextResponse.json({ error: "listing_id must be a string" }, { status: 400 });
+      }
+      nextListingId = typeof body.listing_id === "string" ? body.listing_id.trim() || null : null;
+      updateData.listing_id = nextListingId;
+    }
+    if (body.status !== undefined) {
+      nextStatus = body.status;
+      updateData.status = body.status;
+    }
     if (body.auto_pay !== undefined) updateData.auto_pay = !!body.auto_pay;
+
+    if (nextStatus === "active" && !nextProductUrl && !nextListingId) {
+      return NextResponse.json({ error: "Active affiliate offers require product_url or listing_id" }, { status: 400 });
+    }
 
     const { data: offer, error } = await (admin as AnySupabase)
       .from("affiliate_offers")
