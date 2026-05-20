@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext, requireFullAccess } from "@/lib/auth/get-user";
 import { createPayment, type SupportedCurrency } from "@/lib/coinpayportal";
 import { z } from "zod";
 
@@ -14,16 +14,14 @@ const createPaymentSchema = z.object({
 // POST /api/payments/coinpayportal/create - Create a new payment
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const fullAccessError = requireFullAccess(auth);
+    if (fullAccessError) return fullAccessError;
+
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const validationResult = createPaymentSchema.safeParse(body);
