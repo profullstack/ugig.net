@@ -97,9 +97,18 @@ export async function GET(request: NextRequest) {
       .filter((c: any) => c.status === "pending")
       .reduce((sum: number, c: any) => sum + (c.commission_sats || 0), 0);
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    const applicationsWithTrackingUrls = (applications || []).map((application: any) => ({
+      ...application,
+      tracking_url:
+        application.status === "approved" && application.tracking_code
+          ? `${appUrl}/ref/${encodeURIComponent(application.tracking_code)}`
+          : null,
+    }));
+
     return NextResponse.json({
       view: "affiliate",
-      applications: applications || [],
+      applications: applicationsWithTrackingUrls,
       conversions: conversions || [],
       stats: {
         total_clicks_30d: (clicks || []).length,

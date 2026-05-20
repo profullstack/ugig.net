@@ -260,6 +260,7 @@ export function registerAffiliatesCommands(program: Command): void {
               { header: "Offer", key: "offer_title", width: 30, transform: truncate(28) },
               { header: "Status", key: "status", width: 12 },
               { header: "Tracking Code", key: "tracking_code", width: 16 },
+              { header: "Tracking URL", key: "tracking_url", width: 42, transform: truncate(40) },
               { header: "Applied", key: "created_at", transform: relativeDate },
             ],
             result.applications.map((a: Record<string, unknown>) => ({
@@ -312,8 +313,12 @@ export function registerAffiliatesCommands(program: Command): void {
             { label: "Application ID", key: "id" },
             { label: "Status", key: "status" },
             { label: "Tracking Code", key: "tracking_code" },
+            { label: "Tracking URL", key: "tracking_url" },
           ],
-          result.application || (result as unknown as Record<string, unknown>),
+          {
+            ...(result.application || (result as unknown as Record<string, unknown>)),
+            tracking_url: (result as unknown as Record<string, unknown>).tracking_url,
+          },
           opts as OutputOptions,
         );
       } catch (err) {
