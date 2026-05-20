@@ -18,13 +18,14 @@ export async function GET(request: NextRequest) {
     const admin = createServiceClient();
 
     // Look up the offer from the tracking code
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: app } = await (admin as any)
       .from("affiliate_applications")
-      .select(`
+      .select(
+        `
         offer_id,
-        affiliate_offers!inner(product_url, slug, listing_id, skill_listings(slug))
-      `)
+        affiliate_offers!inner(product_url, slug, listing_id, cookie_days, skill_listings(slug))
+      `
+      )
       .eq("tracking_code", ref)
       .eq("status", "approved")
       .single();
@@ -34,9 +35,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Record the click
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || request.headers.get("x-real-ip")
-      || "unknown";
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
 
     await recordClick(admin, {
       trackingCode: ref,
@@ -63,13 +65,15 @@ export async function GET(request: NextRequest) {
     const dest = new URL(redirectUrl);
     dest.searchParams.set("ugig_ref", ref);
 
-    // Set affiliate tracking cookie (30 days default, offer can override)
+    const cookieDays = offer.cookie_days || 30;
+
+    // Set affiliate tracking cookie for the offer's attribution window
     const response = NextResponse.redirect(dest);
     response.cookies.set("aff_ref", ref, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60, // 30 days
+      maxAge: cookieDays * 24 * 60 * 60,
       path: "/",
     });
 
