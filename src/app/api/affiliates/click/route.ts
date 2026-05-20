@@ -8,12 +8,14 @@ import { randomUUID } from "crypto";
  * This is the tracking endpoint — affiliate links hit this, then redirect to the offer.
  */
 export async function GET(request: NextRequest) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
   try {
     const { searchParams } = new URL(request.url);
     const ref = searchParams.get("ugig_ref");
 
     if (!ref) {
-      return NextResponse.redirect(new URL("/affiliates", request.url));
+      return NextResponse.redirect(new URL("/affiliates", appUrl));
     }
 
     const admin = createServiceClient();
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (!app) {
-      return NextResponse.redirect(new URL("/affiliates", request.url));
+      return NextResponse.redirect(new URL("/affiliates", appUrl));
     }
 
     // Read or generate a persistent visitor ID from cookie
@@ -67,7 +69,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Add ref param to destination for client-side cookie tracking (internal URLs only)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const dest = new URL(redirectUrl);
     if (dest.origin === new URL(appUrl).origin) {
       dest.searchParams.set("ugig_ref", ref);
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     console.error("Affiliate click error:", err);
-    return NextResponse.redirect(new URL("/affiliates", request.url));
+    const appFallback = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    return NextResponse.redirect(new URL("/affiliates", appFallback));
   }
 }
