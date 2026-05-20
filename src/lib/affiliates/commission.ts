@@ -1,7 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { AFFILIATE_DEFAULTS, PLATFORM_WALLET_USER_ID } from "@/lib/constants";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 
@@ -21,6 +20,33 @@ export interface CommissionResult {
   commission_sats?: number;
   settles_at?: string;
   error?: string;
+}
+
+async function findConversionByPurchaseId(
+  admin: SupabaseClient,
+  purchaseId?: string
+): Promise<CommissionResult | null> {
+  if (!purchaseId) return null;
+
+  const { data, error } = await (admin as AnySupabase)
+    .from("affiliate_conversions")
+    .select("id, commission_sats, settles_at")
+    .eq("purchase_id", purchaseId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to check existing affiliate conversion:", error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return {
+    ok: true,
+    conversion_id: data.id,
+    commission_sats: data.commission_sats,
+    settles_at: data.settles_at,
+  };
 }
 
 /**
@@ -60,6 +86,9 @@ export async function recordConversion(
 ): Promise<CommissionResult> {
   const { offerId, affiliateId, buyerId, clickId, purchaseId, saleAmountSats } = params;
 
+  const existing = await findConversionByPurchaseId(admin, purchaseId);
+  if (existing) return existing;
+
   // Fetch offer
   const { data: offer, error: offerErr } = await (admin as AnySupabase)
     .from("affiliate_offers")
@@ -97,6 +126,11 @@ export async function recordConversion(
     .single();
 
   if (convErr) {
+    if (purchaseId && convErr.code === "23505") {
+      const raceWinner = await findConversionByPurchaseId(admin, purchaseId);
+      if (raceWinner) return raceWinner;
+    }
+
     console.error("Failed to create conversion:", convErr);
     return { ok: false, error: convErr.message };
   }
