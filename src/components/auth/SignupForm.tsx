@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -13,11 +13,19 @@ import { Label } from "@/components/ui/label";
 import { getStoredReferral, clearStoredReferral } from "@/components/referral/ReferralTracker";
 
 export function SignupForm({ referralCode }: { referralCode?: string | null }) {
-  // Check prop first (from server), then localStorage (set by ReferralTracker on any page)
-  const ref = referralCode || getStoredReferral();
+  const [ref, setRef] = useState<string | null>(referralCode ?? null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (referralCode) {
+      setRef(referralCode);
+      return;
+    }
+
+    setRef(getStoredReferral());
+  }, [referralCode]);
 
   const {
     register,
