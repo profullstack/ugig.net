@@ -60,10 +60,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { application_id, action } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
-    if (!application_id || !["approve", "reject"].includes(action)) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { application_id, action } = body as Record<string, unknown>;
+
+    if (typeof application_id !== "string" || !["approve", "reject"].includes(action as string)) {
       return NextResponse.json(
         { error: "application_id and action (approve|reject) required" },
         { status: 400 }

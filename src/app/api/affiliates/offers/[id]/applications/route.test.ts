@@ -22,6 +22,14 @@ function makePatchRequest(id: string, body: Record<string, unknown>) {
   });
 }
 
+function makeRawPatchRequest(id: string, body: string) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}/applications`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+}
+
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
@@ -42,6 +50,33 @@ function chainable(data: unknown, error: unknown = null) {
 describe("PATCH /api/affiliates/offers/[id]/applications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("rejects malformed JSON before updating the application", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller-1", authMethod: "session" },
+    });
+
+    const res = await PATCH(
+      makeRawPatchRequest("offer-1", "{not valid json"),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid request body" });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-object JSON before updating the application", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller-1", authMethod: "session" },
+    });
+
+    const res = await PATCH(makeRawPatchRequest("offer-1", "null"), makeParams("offer-1"));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid request body" });
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("still returns the updated application when notification insert fails", async () => {
