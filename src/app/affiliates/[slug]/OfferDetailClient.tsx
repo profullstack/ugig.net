@@ -40,6 +40,38 @@ function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
+function copyWithTextarea(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the DOM fallback when clipboard writes are blocked.
+  }
+
+  return copyWithTextarea(text);
+}
+
 export default function OfferDetailClient() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
@@ -48,6 +80,8 @@ export default function OfferDetailClient() {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [copiedTrackingUrl, setCopiedTrackingUrl] = useState(false);
+  const [copyError, setCopyError] = useState("");
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [btcUsd, setBtcUsd] = useState<number | null>(null);
@@ -55,14 +89,18 @@ export default function OfferDetailClient() {
   useEffect(() => {
     fetch("/api/rates/btc")
       .then((r) => r.json())
-      .then((d) => { if (d.rate) setBtcUsd(d.rate); })
+      .then((d) => {
+        if (d.rate) setBtcUsd(d.rate);
+      })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
-      .then((d) => { if (d.user?.id) setCurrentUserId(d.user.id); })
+      .then((d) => {
+        if (d.user?.id) setCurrentUserId(d.user.id);
+      })
       .catch(() => {});
   }, []);
 
@@ -80,7 +118,9 @@ export default function OfferDetailClient() {
         }
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   async function handleApply() {
@@ -113,6 +153,20 @@ export default function OfferDetailClient() {
     setApplying(false);
   }
 
+  async function handleCopyTrackingUrl() {
+    setCopyError("");
+
+    const copied = await copyText(trackingUrl);
+    if (!copied) {
+      setCopiedTrackingUrl(false);
+      setCopyError("Copy failed. Select the tracking link and copy it manually.");
+      return;
+    }
+
+    setCopiedTrackingUrl(true);
+    setTimeout(() => setCopiedTrackingUrl(false), 2000);
+  }
+
   if (loading) {
     return (
       <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
@@ -132,9 +186,10 @@ export default function OfferDetailClient() {
     );
   }
 
-  const commissionDisplay = offer.commission_type === "flat"
-    ? `${formatSats(offer.commission_flat_sats)} sats per sale`
-    : `${Math.round(offer.commission_rate * 100)}% per sale`;
+  const commissionDisplay =
+    offer.commission_type === "flat"
+      ? `${formatSats(offer.commission_flat_sats)} sats per sale`
+      : `${Math.round(offer.commission_rate * 100)}% per sale`;
 
   return (
     <main className="flex-1 container mx-auto px-4 py-8">
@@ -154,15 +209,14 @@ export default function OfferDetailClient() {
             <div>
               <div className="flex items-start gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{offer.title}</h1>
-                <Badge
-                  variant="outline"
-                  className="capitalize shrink-0 mt-1"
-                >
+                <Badge variant="outline" className="capitalize shrink-0 mt-1">
                   {offer.product_type}
                 </Badge>
                 {currentUserId && currentUserId === offer.seller_id && (
                   <Link href={`/affiliates/${slug}/edit`}>
-                    <Button variant="outline" size="sm" className="shrink-0 mt-0.5">Edit</Button>
+                    <Button variant="outline" size="sm" className="shrink-0 mt-0.5">
+                      Edit
+                    </Button>
                   </Link>
                 )}
               </div>
@@ -177,7 +231,10 @@ export default function OfferDetailClient() {
                   >
                     <Avatar className="h-5 w-5">
                       {offer.profiles.avatar_url ? (
-                        <AvatarImage src={offer.profiles.avatar_url} alt={offer.profiles.username} />
+                        <AvatarImage
+                          src={offer.profiles.avatar_url}
+                          alt={offer.profiles.username}
+                        />
                       ) : null}
                       <AvatarFallback className="text-[10px]">
                         {offer.profiles.username[0]?.toUpperCase() || "?"}
@@ -195,10 +252,7 @@ export default function OfferDetailClient() {
                 <h2 className="text-sm font-medium text-muted-foreground mb-2">Tags</h2>
                 <div className="flex flex-wrap gap-2">
                   {offer.tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/affiliates?tag=${encodeURIComponent(tag)}`}
-                    >
+                    <Link key={tag} href={`/affiliates?tag=${encodeURIComponent(tag)}`}>
                       <Badge
                         variant="secondary"
                         className="cursor-pointer hover:bg-secondary/80 transition-colors"
@@ -225,9 +279,7 @@ export default function OfferDetailClient() {
                 <span>{formatSats(offer.total_revenue_sats)} sats volume</span>
               )}
               {offer.cookie_days > 0 && (
-                <span className="flex items-center gap-1.5">
-                  🍪 {offer.cookie_days}-day cookie
-                </span>
+                <span className="flex items-center gap-1.5">🍪 {offer.cookie_days}-day cookie</span>
               )}
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
@@ -285,24 +337,29 @@ export default function OfferDetailClient() {
                   if (offer.commission_type === "percentage" && offer.price_sats > 0) {
                     const usd = (offer.price_sats * offer.commission_rate).toFixed(2);
                     return (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        ≈ ${usd} USD per sale
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">≈ ${usd} USD per sale</p>
                     );
                   }
-                  if (offer.commission_type === "flat" && offer.commission_flat_sats > 0 && btcUsd) {
+                  if (
+                    offer.commission_type === "flat" &&
+                    offer.commission_flat_sats > 0 &&
+                    btcUsd
+                  ) {
                     const usd = ((offer.commission_flat_sats / 1e8) * btcUsd).toFixed(2);
                     return (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        ≈ ${usd} USD per sale
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">≈ ${usd} USD per sale</p>
                     );
                   }
                   return null;
                 })()}
                 {offer.price_sats > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    Product price: ${Number(offer.price_sats).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                    Product price: $
+                    {Number(offer.price_sats).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    USD
                   </p>
                 )}
               </div>
@@ -335,30 +392,21 @@ export default function OfferDetailClient() {
                           className="text-xs font-mono"
                           onClick={(e) => (e.target as HTMLInputElement).select()}
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigator.clipboard.writeText(trackingUrl)}
-                        >
-                          Copy
+                        <Button size="sm" variant="outline" onClick={handleCopyTrackingUrl}>
+                          {copiedTrackingUrl ? "Copied!" : "Copy"}
                         </Button>
                       </div>
+                      {copyError && <p className="text-xs text-red-500 mt-1">{copyError}</p>}
                     </div>
                   )}
                 </div>
               ) : (
-                <Button
-                  className="w-full"
-                  onClick={handleApply}
-                  disabled={applying}
-                >
+                <Button className="w-full" onClick={handleApply} disabled={applying}>
                   {applying ? "Applying..." : "Become an Affiliate"}
                 </Button>
               )}
 
-              {error && (
-                <p className="text-sm text-red-500 mt-2">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
             </div>
 
             {offer.product_url && (
@@ -372,7 +420,9 @@ export default function OfferDetailClient() {
                   try {
                     const parts = new URL(offer.product_url).hostname.split(".");
                     return parts.length > 2 ? parts.slice(-2).join(".") : parts.join(".");
-                  } catch { return "View Product"; }
+                  } catch {
+                    return "View Product";
+                  }
                 })()}
                 <ExternalLink className="h-3 w-3 opacity-50" />
               </a>
