@@ -63,6 +63,11 @@ export default function ReferralsPage() {
   }, []);
 
   const copyLink = async () => {
+    if (!referralLink) {
+      setError("Referral link is still loading. Please try again.");
+      return;
+    }
+
     await navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -166,7 +171,8 @@ export default function ReferralsPage() {
           />
           <button
             onClick={copyLink}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
+            disabled={!referralLink}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm disabled:opacity-50"
           >
             <Copy className="h-4 w-4" />
             {copied ? "Copied!" : "Copy"}
