@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordClick } from "@/lib/affiliates/tracking";
@@ -61,13 +62,13 @@ export async function GET(request: NextRequest) {
     if (offer.product_url) {
       redirectUrl = offer.product_url;
     } else if (offer.listing_id && offer.skill_listings?.slug) {
-      redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/skills/${offer.skill_listings.slug}`;
+      redirectUrl = `${getAppUrl(request)}/skills/${offer.skill_listings.slug}`;
     } else {
-      redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/affiliates/${offer.slug}`;
+      redirectUrl = `${getAppUrl(request)}/affiliates/${offer.slug}`;
     }
 
     // Add ref param to destination for client-side cookie tracking (internal URLs only)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    const appUrl = getAppUrl(request);
     const dest = new URL(redirectUrl);
     if (dest.origin === new URL(appUrl).origin) {
       dest.searchParams.set("ugig_ref", ref);

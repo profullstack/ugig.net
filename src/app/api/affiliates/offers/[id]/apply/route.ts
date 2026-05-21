@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -127,7 +128,7 @@ export async function POST(
     return NextResponse.json({
       application,
       tracking_code: trackingCode,
-      tracking_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`,
+      tracking_url: `${getAppUrl(request)}/ref/${trackingCode}`,
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });

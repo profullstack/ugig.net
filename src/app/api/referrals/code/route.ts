@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       code,
-      link: `https://ugig.net/?ref=${code}`,
+      link: `${getAppUrl(request)}/?ref=${code}`,
     });
   } catch {
     return NextResponse.json(

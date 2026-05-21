@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GET } from "./route";
 import { NextRequest } from "next/server";
 
@@ -16,9 +16,9 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
-function makeRequest(id: string) {
+function makeRequest(id: string, origin = "http://localhost") {
   return new NextRequest(
-    `http://localhost/api/affiliates/offers/${id}/affiliates`
+    `${origin}/api/affiliates/offers/${id}/affiliates`
   );
 }
 
@@ -45,8 +45,15 @@ function chainable(data: unknown, error: unknown = null) {
 }
 
 describe("GET /api/affiliates/offers/[id]/affiliates", () => {
+  let originalAppUrl: string | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
   });
 
   it("returns 401 for unauthenticated requests", async () => {
@@ -91,6 +98,7 @@ describe("GET /api/affiliates/offers/[id]/affiliates", () => {
   });
 
   it("returns affiliate list with stats for owner", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://ugig.net";
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user-seller", authMethod: "session" },
     });
@@ -218,5 +226,114 @@ describe("GET /api/affiliates/offers/[id]/affiliates", () => {
     const body = await res.json();
     expect(body.affiliates).toEqual([]);
     expect(body.offer.title).toBe("Empty Offer");
+  })
+  // Regression test for #135: tracking URLs should use the request origin
+  // when NEXT_PUBLIC_APP_URL is not configured
+    // Regression test for #135: tracking URLs should respect NEXT_PUBLIC_APP_URL
+  // instead of using a hardcoded origin
+  it("uses NEXT_PUBLIC_APP_URL as origin for tracking URL instead of hardcoded domain", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://staging.example.com";
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          title: "Test Offer",
+          slug: "test-offer",
+          status: "active",
+          commission_rate: 0.1,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+          total_clicks: 0,
+          total_conversions: 0,
+          total_revenue_sats: 0,
+          total_commissions_sats: 0,
+        });
+      }
+
+      if (table === "affiliate_applications") {
+        return chainable([
+          {
+            id: "app-1",
+            affiliate_id: "aff-1",
+            status: "approved",
+            tracking_code: "alice-abc123",
+            created_at: "2026-01-15T00:00:00Z",
+            approved_at: "2026-01-16T00:00:00Z",
+            profiles: { username: "alice", avatar_url: null },
+          },
+        ]);
+      }
+
+      if (table === "affiliate_clicks") return chainable([]);
+      if (table === "affiliate_conversions") return chainable([]);
+      return chainable([]);
+    });
+
+    const res = await GET(makeRequest("offer-1"), makeParams("offer-1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.affiliates[0].tracking_url).toBe(
+      "http://staging.example.com/api/affiliates/click?ugig_ref=alice-abc123"
+    );
   });
+
+  it("prefers NEXT_PUBLIC_APP_URL over request origin in tracking URL", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://custom.example.com";
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          title: "Test Offer",
+          slug: "test-offer",
+          status: "active",
+          commission_rate: 0.1,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+          total_clicks: 0,
+          total_conversions: 0,
+          total_revenue_sats: 0,
+          total_commissions_sats: 0,
+        });
+      }
+
+      if (table === "affiliate_applications") {
+        return chainable([
+          {
+            id: "app-1",
+            affiliate_id: "aff-1",
+            status: "approved",
+            tracking_code: "alice-abc123",
+            created_at: "2026-01-15T00:00:00Z",
+            approved_at: "2026-01-16T00:00:00Z",
+            profiles: { username: "alice", avatar_url: null },
+          },
+        ]);
+      }
+
+      if (table === "affiliate_clicks") return chainable([]);
+      if (table === "affiliate_conversions") return chainable([]);
+      return chainable([]);
+    });
+
+    const res = await GET(
+      makeRequest("offer-1", "http://localhost"),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.affiliates[0].tracking_url).toBe(
+      "https://custom.example.com/api/affiliates/click?ugig_ref=alice-abc123"
+    );
+  });
+
 });

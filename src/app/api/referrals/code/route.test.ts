@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GET } from "./route";
 import { NextRequest } from "next/server";
 
@@ -12,8 +12,15 @@ function makeRequest() {
 }
 
 describe("GET /api/referrals/code", () => {
+  let originalAppUrl: string | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
   });
 
   it("should return 401 when not authenticated", async () => {
@@ -23,6 +30,7 @@ describe("GET /api/referrals/code", () => {
   });
 
   it("should return referral code and link", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://ugig.net";
     const mockSupabase = {
       from: () => ({
         select: () => ({
@@ -68,5 +76,32 @@ describe("GET /api/referrals/code", () => {
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(404);
+  });
+  // Regression test for #135: referral link should use configured app URL
+  it("should use NEXT_PUBLIC_APP_URL as origin for referral link", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://staging.example.com";
+    const mockSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () =>
+              Promise.resolve({
+                data: { referral_code: "janedoe", username: "janedoe" },
+                error: null,
+              }),
+          }),
+        }),
+      }),
+    };
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user2" },
+      supabase: mockSupabase,
+    });
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.link).toBe("http://staging.example.com/?ref=janedoe");
   });
 });

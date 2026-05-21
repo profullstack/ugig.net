@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -9,6 +10,6 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+  const baseUrl = getAppUrl(request);
   return NextResponse.redirect(`${baseUrl}/api/affiliates/click?ugig_ref=${encodeURIComponent(code)}`);
 }

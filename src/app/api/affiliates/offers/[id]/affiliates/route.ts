@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -159,7 +160,7 @@ export async function GET(
           tracking_code: app.tracking_code,
           tracking_url:
             app.status === "approved" && app.tracking_code
-              ? `https://ugig.net/api/affiliates/click?ugig_ref=${app.tracking_code}`
+              ? `${getAppUrl(request)}/api/affiliates/click?ugig_ref=${app.tracking_code}`
               : null,
           clicks_30d: clicksByAffiliate[app.affiliate_id] || 0,
           conversions: convStats.count,
