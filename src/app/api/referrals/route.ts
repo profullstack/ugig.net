@@ -36,10 +36,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 
@@ -56,17 +53,11 @@ export async function POST(request: NextRequest) {
     const { emails } = body;
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
-      return NextResponse.json(
-        { error: "Please provide an array of emails" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Please provide an array of emails" }, { status: 400 });
     }
 
     if (emails.length > 20) {
-      return NextResponse.json(
-        { error: "Maximum 20 invites at a time" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Maximum 20 invites at a time" }, { status: 400 });
     }
 
     // Spam throttling: max 50 invites per day, max 10 per hour
@@ -81,10 +72,7 @@ export async function POST(request: NextRequest) {
       .gte("created_at", oneHourAgo);
 
     if ((hourlyCount ?? 0) + emails.length > 10) {
-      return NextResponse.json(
-        { error: "Too many invites. Max 10 per hour." },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Too many invites. Max 10 per hour." }, { status: 429 });
     }
 
     const { count: dailyCount } = await (svc as AnySupabase)
@@ -100,8 +88,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prevent duplicate invites to same email
-    const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase());
+    // Prevent duplicate invites to same email. De-dupe the current request first so
+    // users do not create/send duplicate invites when the same address appears
+    // multiple times with different casing or whitespace.
+    const normalizedEmails = Array.from(new Set(emails.map((e: string) => e.trim().toLowerCase())));
     const { data: existingInvites } = await (svc as AnySupabase)
       .from("referrals")
       .select("referred_email")
@@ -137,10 +127,7 @@ export async function POST(request: NextRequest) {
     const validEmails = newEmails.filter((e: string) => emailRegex.test(e));
 
     if (validEmails.length === 0) {
-      return NextResponse.json(
-        { error: "No valid email addresses provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
     }
 
     const referralRows = validEmails.map((email: string) => ({
@@ -161,23 +148,19 @@ export async function POST(request: NextRequest) {
 
     const emailContent = referralInviteEmail({ inviterName, referralCode });
     const emailResults = await Promise.all(
-      validEmails.map((email: string) =>
-        sendEmail({ to: email, ...emailContent })
-      )
+      validEmails.map((email: string) => sendEmail({ to: email, ...emailContent }))
     );
     const failedEmailCount = emailResults.filter((result) => !result.success).length;
 
     return NextResponse.json({
-      message: failedEmailCount > 0
-        ? `${validEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
-        : `${validEmails.length} invite(s) created and sent`,
+      message:
+        failedEmailCount > 0
+          ? `${validEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
+          : `${validEmails.length} invite(s) created and sent`,
       data: referrals,
       email_delivery_failed: failedEmailCount,
     });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }

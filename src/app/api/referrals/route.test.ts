@@ -191,6 +191,73 @@ describe("POST /api/referrals", () => {
     });
   });
 
+  it("deduplicates repeated emails in a single invite request", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    let insertedRows: Array<{ referred_email: string }> = [];
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsertChain = {
+      select: vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          data: insertedRows.map((row, index) => ({
+            id: `ref${index + 1}`,
+            referred_email: row.referred_email,
+            status: "pending",
+          })),
+          error: null,
+        })
+      ),
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") {
+        return {
+          insert: (rows: Array<{ referred_email: string }>) => {
+            insertedRows = rows;
+            return mockInsertChain;
+          },
+        };
+      }
+      return {};
+    });
+
+    const res = await POST(
+      makePostRequest({
+        emails: [" Friend@Test.com ", "friend@test.com", "other@test.com"],
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(insertedRows.map((row) => row.referred_email)).toEqual([
+      "friend@test.com",
+      "other@test.com",
+    ]);
+    expect(mockSendEmail).toHaveBeenCalledTimes(2);
+    expect(mockSendEmail).toHaveBeenNthCalledWith(1, {
+      to: "friend@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    expect(mockSendEmail).toHaveBeenNthCalledWith(2, {
+      to: "other@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+  });
+
   it("should keep created invites when email delivery fails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
