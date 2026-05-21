@@ -15,14 +15,18 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
-vi.mock("@/lib/affiliates/validation", () => ({
-  validateOfferInput: vi.fn(),
-}));
-
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 function makeRequest(id: string) {
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
+}
+
+function makePatchRequest(id: string, body: string | Record<string, unknown>) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}`, {
+    method: "PATCH",
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function makeParams(id: string) {
@@ -111,5 +115,98 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAuthContext.mockResolvedValue({ user: { id: "seller1" } });
+  });
+
+  function mockExistingOffer() {
+    let updatePayload: Record<string, unknown> | null = null;
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({
+              data: { id: "offer1", seller_id: "seller1" },
+              error: null,
+            }),
+        }),
+      }),
+      update: (payload: Record<string, unknown>) => {
+        updatePayload = payload;
+        return {
+          eq: () => ({
+            select: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: { id: "offer1", ...payload },
+                  error: null,
+                }),
+            }),
+          }),
+        };
+      },
+    });
+    return () => updatePayload;
+  }
+
+  it("returns 400 for malformed JSON before updating", async () => {
+    const getUpdatePayload = mockExistingOffer();
+
+    const res = await PATCH(makePatchRequest("offer1", "{"), makeParams("offer1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("valid JSON body");
+    expect(getUpdatePayload()).toBeNull();
+  });
+
+  it("returns 400 for invalid update field types before updating", async () => {
+    const getUpdatePayload = mockExistingOffer();
+
+    const res = await PATCH(
+      makePatchRequest("offer1", {
+        title: 123,
+        product_url: { href: "https://example.com" },
+        tags: ["valid", { label: "bad" }],
+        auto_pay: "true",
+      }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("Title must be text");
+    expect(body.error).toContain("product_url must be a string");
+    expect(body.error).toContain("tags must contain only strings");
+    expect(getUpdatePayload()).toBeNull();
+  });
+
+  it("validates and sanitizes update fields before saving", async () => {
+    const getUpdatePayload = mockExistingOffer();
+
+    const res = await PATCH(
+      makePatchRequest("offer1", {
+        title: " <b>Updated Offer</b> ",
+        product_url: " https://example.com/product ",
+        tags: [" AI ", "Marketing"],
+        auto_pay: false,
+      }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.title).toBe("Updated Offer");
+    expect(getUpdatePayload()).toMatchObject({
+      title: "Updated Offer",
+      product_url: "https://example.com/product",
+      tags: ["ai", "marketing"],
+      auto_pay: false,
+    });
   });
 });

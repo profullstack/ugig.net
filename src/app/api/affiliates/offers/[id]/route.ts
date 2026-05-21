@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { safeParseBody } from "@/lib/sanitize";
 import { createServiceClient } from "@/lib/supabase/service";
+import { validateOfferUpdateInput, type OfferInput } from "@/lib/affiliates/validation";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-import { validateOfferInput } from "@/lib/affiliates/validation";
 
+type OfferUpdateBody = Partial<OfferInput> & { auto_pay?: unknown };
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
@@ -95,26 +96,41 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
     }
 
-    const body = await request.json();
+    const body = await safeParseBody<OfferUpdateBody>(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Please provide a valid JSON body" },
+        { status: 400 }
+      );
+    }
 
-    // Partial validation — only validate provided fields
-    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const { auto_pay, ...offerFields } = body;
+    const validation = validateOfferUpdateInput(offerFields);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: validation.errors.join(", ") },
+        { status: 400 }
+      );
+    }
 
-    if (body.title !== undefined) updateData.title = body.title.trim();
-    if (body.description !== undefined) updateData.description = body.description.trim();
-    if (body.product_url !== undefined) updateData.product_url = body.product_url;
-    if (body.product_type !== undefined) updateData.product_type = body.product_type;
-    if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
-    if (body.commission_rate !== undefined) updateData.commission_rate = body.commission_rate;
-    if (body.commission_type !== undefined) updateData.commission_type = body.commission_type;
-    if (body.commission_flat_sats !== undefined) updateData.commission_flat_sats = body.commission_flat_sats;
-    if (body.cookie_days !== undefined) updateData.cookie_days = body.cookie_days;
-    if (body.settlement_delay_days !== undefined) updateData.settlement_delay_days = body.settlement_delay_days;
-    if (body.promo_text !== undefined) updateData.promo_text = body.promo_text;
-    if (body.category !== undefined) updateData.category = body.category;
-    if (body.tags !== undefined) updateData.tags = body.tags;
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.auto_pay !== undefined) updateData.auto_pay = !!body.auto_pay;
+    const updateData: Record<string, unknown> = {
+      ...(validation.sanitized || {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (auto_pay !== undefined) {
+      if (typeof auto_pay !== "boolean") {
+        return NextResponse.json(
+          { error: "auto_pay must be a boolean" },
+          { status: 400 }
+        );
+      }
+      updateData.auto_pay = auto_pay;
+    }
+
+    if (Object.keys(updateData).length === 1) {
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+    }
 
     const { data: offer, error } = await (admin as AnySupabase)
       .from("affiliate_offers")

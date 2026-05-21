@@ -77,6 +77,46 @@ describe("validateOfferInput", () => {
     );
   });
 
+  it("keeps required-field validation for missing title and description", () => {
+    const result = validateOfferInput({
+      price_sats: 1000,
+      commission_type: "percentage",
+      commission_rate: 0.2,
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "Title must be at least 3 characters",
+        "Description must be at least 10 characters",
+      ])
+    );
+  });
+
+  it("rejects malformed numeric and enum fields without coercing them", () => {
+    const result = validateOfferInput({
+      ...validInput,
+      price_sats: "1000",
+      commission_type: "bonus",
+      commission_rate: "0.2",
+      commission_flat_sats: "500",
+      cookie_days: "30",
+      settlement_delay_days: Number.NaN,
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "price_sats must be a non-negative number",
+        "commission_type must be percentage or flat",
+        "commission_rate must be a number",
+        "commission_flat_sats must be a number",
+        "Cookie window must be 1-365 days",
+        "Settlement delay must be 1-90 days",
+      ])
+    );
+  });
+
   it("strips HTML tags from title (#26)", () => {
     const result = validateOfferInput({
       ...validInput,
