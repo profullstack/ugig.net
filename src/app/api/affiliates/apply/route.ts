@@ -7,15 +7,12 @@ import { safeParseBody } from "@/lib/sanitize";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await safeParseBody<{ offer_id?: string }>(request);
-    if (!body || !body.offer_id) {
-      return NextResponse.json(
-        { error: "offer_id is required in request body" },
-        { status: 400 }
-      );
+    const body = await safeParseBody<Record<string, unknown>>(request);
+    if (!body || typeof body.offer_id !== "string" || !body.offer_id.trim()) {
+      return NextResponse.json({ error: "offer_id must be a non-empty string" }, { status: 400 });
     }
 
-    const offerId = body.offer_id;
+    const offerId = body.offer_id.trim();
     const url = new URL(`/api/affiliates/offers/${encodeURIComponent(offerId)}/apply`, request.url);
 
     // Forward auth headers
@@ -29,15 +26,12 @@ export async function POST(request: NextRequest) {
     const res = await fetch(url.toString(), {
       method: "POST",
       headers: forwardHeaders,
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, offer_id: offerId }),
     });
 
     const data = await res.json().catch(() => ({ error: "Upstream error" }));
     return NextResponse.json(data, { status: res.status });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
