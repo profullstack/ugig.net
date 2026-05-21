@@ -3,6 +3,22 @@ import { Resend } from "resend";
 const FROM_EMAIL = process.env.FROM_EMAIL || "notifications@ugig.net";
 const PRODUCTION_URL = "https://ugig.net";
 
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
+}
+
+function inlineText(value: string): string {
+  return value.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+
 /** Get the app base URL, never returning localhost for emails */
 function getBaseUrl(): string {
   const appUrl = process.env.APP_URL;
@@ -15,15 +31,6 @@ function getBaseUrl(): string {
 function getResendClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
   return new Resend(process.env.RESEND_API_KEY);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 interface SendEmailParams {
@@ -72,13 +79,20 @@ export function videoCallInviteEmail(params: {
 }) {
   const { participantName, initiatorName, callId, gigTitle, scheduledAt } = params;
   const baseUrl = getBaseUrl();
-  const joinUrl = `${baseUrl}/dashboard/calls/${callId}`;
+  const joinUrl = `${baseUrl}/dashboard/calls/${encodeURIComponent(callId)}`;
+  const joinUrlHtml = escapeHtml(joinUrl);
+  const participantNameHtml = escapeHtml(participantName);
+  const initiatorNameHtml = escapeHtml(initiatorName);
+  const participantNameText = inlineText(participantName);
+  const initiatorNameText = inlineText(initiatorName);
+  const gigTitleHtml = gigTitle ? escapeHtml(gigTitle) : "";
+  const gigTitleText = gigTitle ? inlineText(gigTitle) : "";
 
   const gigLine = gigTitle
-    ? `<p style="color: #6b7280; font-size: 14px;">Regarding: <strong>${gigTitle}</strong></p>`
+    ? `<p style="color: #6b7280; font-size: 14px;">Regarding: <strong>${gigTitleHtml}</strong></p>`
     : "";
 
-  const gigLineText = gigTitle ? `Regarding: ${gigTitle}\n` : "";
+  const gigLineText = gigTitle ? `Regarding: ${gigTitleText}\n` : "";
 
   const scheduleLine = scheduledAt
     ? `<p style="color: #6b7280; font-size: 14px;">Scheduled for: <strong>${new Date(scheduledAt).toLocaleString()}</strong></p>`
@@ -104,16 +118,16 @@ export function videoCallInviteEmail(params: {
   </div>
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-    <p style="margin-top: 0;">Hi ${participantName},</p>
+    <p style="margin-top: 0;">Hi ${participantNameHtml},</p>
 
-    <p><strong>${initiatorName}</strong> has invited you to a video call on ugig.net.</p>
+    <p><strong>${initiatorNameHtml}</strong> has invited you to a video call on ugig.net.</p>
 
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
       ${gigLine}
       ${scheduleLine}
     </div>
 
-    <a href="${joinUrl}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+    <a href="${joinUrlHtml}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       Join Video Call
     </a>
 
@@ -135,9 +149,9 @@ export function videoCallInviteEmail(params: {
   const text = `
 ${title}
 
-Hi ${participantName},
+Hi ${participantNameText},
 
-${initiatorName} has invited you to a video call on ugig.net.
+${initiatorNameText} has invited you to a video call on ugig.net.
 ${gigLineText}${scheduleLineText}
 Join the call: ${joinUrl}
 
@@ -148,7 +162,7 @@ ugig.net - AI-Powered Gig Marketplace
 `;
 
   return {
-    subject: `${initiatorName} invited you to a video call`,
+    subject: `${initiatorNameText} invited you to a video call`,
     html,
     text,
   };
@@ -161,7 +175,9 @@ export function referralInviteEmail(params: {
   const { inviterName, referralCode } = params;
   const baseUrl = getBaseUrl();
   const signupUrl = `${baseUrl}/signup?ref=${encodeURIComponent(referralCode)}`;
+  const signupUrlHtml = escapeHtml(signupUrl);
   const inviterNameHtml = escapeHtml(inviterName);
+  const inviterNameText = inlineText(inviterName);
 
   const html = `
 <!DOCTYPE html>
@@ -181,7 +197,7 @@ export function referralInviteEmail(params: {
 
     <p><strong>${inviterNameHtml}</strong> invited you to join ugig.net, a marketplace for AI-assisted professionals.</p>
 
-    <a href="${signupUrl}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
+    <a href="${signupUrlHtml}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       Accept Invite
     </a>
 
@@ -202,7 +218,7 @@ You're invited to ugig.net
 
 Hi there,
 
-${inviterName} invited you to join ugig.net, a marketplace for AI-assisted professionals.
+${inviterNameText} invited you to join ugig.net, a marketplace for AI-assisted professionals.
 
 Accept the invite: ${signupUrl}
 
@@ -211,7 +227,7 @@ ugig.net - AI-Powered Gig Marketplace
 `;
 
   return {
-    subject: `${inviterName} invited you to join ugig.net`,
+    subject: `${inviterNameText} invited you to join ugig.net`,
     html,
     text,
   };

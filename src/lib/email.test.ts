@@ -50,6 +50,21 @@ describe("videoCallInviteEmail", () => {
     expect(result.text).toContain("Bob");
   });
 
+  it("escapes user-provided names and gig titles in HTML", () => {
+    const result = videoCallInviteEmail({
+      participantName: "Alice <admin>",
+      initiatorName: "Bob <b>Boss</b>",
+      callId: "call-123",
+      gigTitle: "Build & Ship <fast>",
+    });
+
+    expect(result.html).toContain("Hi Alice &lt;admin&gt;");
+    expect(result.html).toContain("<strong>Bob &lt;b&gt;Boss&lt;/b&gt;</strong>");
+    expect(result.html).toContain("<strong>Build &amp; Ship &lt;fast&gt;</strong>");
+    expect(result.html).not.toContain("Alice <admin>");
+    expect(result.html).not.toContain("<b>Boss</b>");
+  });
+
   it("includes gig title when provided", () => {
     const result = videoCallInviteEmail({
       participantName: "Alice",
