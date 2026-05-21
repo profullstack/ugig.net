@@ -72,6 +72,21 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}));
 
+    // Validate note field (#145 — must be string if provided)
+    if (body.note !== undefined && body.note !== null) {
+      if (typeof body.note !== "string") {
+        return NextResponse.json(
+          { error: "note must be a string" },
+          { status: 400 }
+        );
+      }
+    }
+    // Normalize blank / whitespace-only notes to null
+    const normalizedNote =
+      typeof body.note === "string" && body.note.trim().length > 0
+        ? body.note.trim()
+        : null;
+
     // Auto-approve for now (sellers can change to manual later)
     const { data: application, error } = await (admin as AnySupabase)
       .from("affiliate_applications")
@@ -81,7 +96,7 @@ export async function POST(
         tracking_code: trackingCode,
         status: "approved",
         approved_at: new Date().toISOString(),
-        note: body.note || null,
+        note: normalizedNote,
       })
       .select()
       .single();
