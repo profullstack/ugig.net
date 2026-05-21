@@ -43,6 +43,7 @@ export default function ReferralsPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loadingLink, setLoadingLink] = useState(true);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function ReferralsPage() {
         setReferralLink(data.link);
         setReferralCode(data.code);
       }
+      setLoadingLink(false);
     });
     loadReferrals().then((data) => {
       if (data) {
@@ -63,6 +65,7 @@ export default function ReferralsPage() {
   }, []);
 
   const copyLink = async () => {
+    if (!referralLink) return;
     await navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -166,10 +169,11 @@ export default function ReferralsPage() {
           />
           <button
             onClick={copyLink}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
+            disabled={loadingLink || !referralLink}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Copy className="h-4 w-4" />
-            {copied ? "Copied!" : "Copy"}
+            {loadingLink ? "Loading..." : copied ? "Copied!" : "Copy"}
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
