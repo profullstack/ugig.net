@@ -69,6 +69,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmails = Array.from(
+      new Set(emails.map((email: string) => email.trim().toLowerCase()))
+    );
+
     // Spam throttling: max 50 invites per day, max 10 per hour
     const svc = createServiceClient();
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneHourAgo);
 
-    if ((hourlyCount ?? 0) + emails.length > 10) {
+    if ((hourlyCount ?? 0) + normalizedEmails.length > 10) {
       return NextResponse.json(
         { error: "Too many invites. Max 10 per hour." },
         { status: 429 }
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneDayAgo);
 
-    if ((dailyCount ?? 0) + emails.length > 50) {
+    if ((dailyCount ?? 0) + normalizedEmails.length > 50) {
       return NextResponse.json(
         { error: "Daily invite limit reached. Max 50 per day." },
         { status: 429 }
@@ -101,7 +105,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Prevent duplicate invites to same email
-    const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase());
     const { data: existingInvites } = await (svc as AnySupabase)
       .from("referrals")
       .select("referred_email")

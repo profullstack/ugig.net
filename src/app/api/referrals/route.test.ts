@@ -191,6 +191,65 @@ describe("POST /api/referrals", () => {
     });
   });
 
+  it("should dedupe repeated emails in the same invite batch", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    let insertedRows: Array<Record<string, unknown>> = [];
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsertChain = {
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "ref1", referred_email: "friend@test.com", status: "pending" }],
+        error: null,
+      }),
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") {
+        return {
+          insert: (rows: Array<Record<string, unknown>>) => {
+            insertedRows = rows;
+            return mockInsertChain;
+          },
+        };
+      }
+      return {};
+    });
+
+    const res = await POST(makePostRequest({
+      emails: ["Friend@Test.com", " friend@test.com "],
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.message).toContain("1 invite(s) created and sent");
+    expect(insertedRows).toEqual([
+      {
+        referrer_id: "user1",
+        referred_email: "friend@test.com",
+        referral_code: "testuser",
+        status: "pending",
+      },
+    ]);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith({
+      to: "friend@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+  });
+
   it("should keep created invites when email delivery fails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
