@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateOfferInput, stripHtmlTags, isValidUrl } from "./validation";
+import { validateOfferInput, stripHtmlTags, isValidUrl, validateApplyNote } from "./validation";
 
 describe("stripHtmlTags", () => {
   it("removes HTML tags from strings", () => {
@@ -178,5 +178,68 @@ describe("validateOfferInput", () => {
   it("rejects description shorter than 10 characters", () => {
     const result = validateOfferInput({ ...validInput, description: "Short" });
     expect(result.ok).toBe(false);
+  });
+});
+
+
+describe("validateApplyNote (#145)", () => {
+  it("accepts a valid string note", () => {
+    const result = validateApplyNote("Please consider me");
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe("Please consider me");
+  });
+
+  it("trims whitespace from note", () => {
+    const result = validateApplyNote("  hello  ");
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe("hello");
+  });
+
+  it("normalizes whitespace-only note to null", () => {
+    const result = validateApplyNote("   ");
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(null);
+  });
+
+  it("normalizes undefined note to null", () => {
+    const result = validateApplyNote(undefined);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(null);
+  });
+
+  it("normalizes null note to null", () => {
+    const result = validateApplyNote(null);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(null);
+  });
+
+  it("rejects object as note (#145 regression)", () => {
+    const result = validateApplyNote({ malicious: true } as any);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("note must be a string");
+  });
+
+  it("rejects array as note (#145 regression)", () => {
+    const result = validateApplyNote(["hack"] as any);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("note must be a string");
+  });
+
+  it("rejects number as note (#145 regression)", () => {
+    const result = validateApplyNote(42 as any);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("note must be a string");
+  });
+
+  it("rejects boolean as note (#145 regression)", () => {
+    const result = validateApplyNote(true as any);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("note must be a string");
+  });
+
+  it("accepts empty string and normalizes to null", () => {
+    const result = validateApplyNote("");
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(null);
   });
 });

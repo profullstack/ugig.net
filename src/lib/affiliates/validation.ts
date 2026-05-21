@@ -143,3 +143,26 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
     },
   };
 }
+
+
+/**
+ * Validate and normalize the `note` field on affiliate apply requests (#145).
+ * Returns { ok, error?, value } where value is the normalized note (string or null).
+ */
+export function validateApplyNote(note: unknown): {
+  ok: boolean;
+  error?: string;
+  value: string | null;
+} {
+  if (note === undefined || note === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof note !== "string") {
+    return { ok: false, error: "note must be a string", value: null };
+  }
+  const trimmed = note.trim();
+  if (trimmed.length === 0) {
+    return { ok: true, value: null };
+  }
+  return { ok: true, value: trimmed };
+}
