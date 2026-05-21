@@ -41,16 +41,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if already applied
     const { data: existing } = await (admin as AnySupabase)
       .from("affiliate_applications")
-      .select("id, status")
+      .select("id, status, tracking_code")
       .eq("offer_id", id)
       .eq("affiliate_id", auth.user.id)
       .single();
 
     if (existing) {
+      const trackingUrl = existing.tracking_code
+        ? `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${existing.tracking_code}`
+        : null;
+
       return NextResponse.json(
         {
           error: `Already ${existing.status}`,
           application: existing,
+          tracking_code: existing.tracking_code || null,
+          tracking_url: trackingUrl,
         },
         { status: 409 }
       );

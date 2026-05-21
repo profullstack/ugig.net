@@ -54,6 +54,54 @@ describe("POST /api/affiliates/offers/[id]/apply", () => {
     });
   });
 
+  it("returns the existing tracking link when the affiliate already applied", async () => {
+    const tableCalls: Record<string, number> = {};
+
+    mockFrom.mockImplementation((table: string) => {
+      tableCalls[table] = (tableCalls[table] || 0) + 1;
+
+      if (table === "affiliate_offers") {
+        return mockQuery({
+          data: {
+            id: "offer-1",
+            seller_id: "seller-user",
+            status: "active",
+            slug: "test-offer",
+          },
+          error: null,
+        });
+      }
+
+      if (table === "affiliate_applications") {
+        return mockQuery({
+          data: {
+            id: "application-1",
+            status: "approved",
+            tracking_code: "alice-test-offer",
+          },
+          error: null,
+        });
+      }
+
+      return mockQuery({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toBe("Already approved");
+    expect(body.application).toMatchObject({
+      id: "application-1",
+      status: "approved",
+      tracking_code: "alice-test-offer",
+    });
+    expect(body.tracking_code).toBe("alice-test-offer");
+    expect(body.tracking_url).toBe("https://ugig.net/ref/alice-test-offer");
+    expect(mockFrom).not.toHaveBeenCalledWith("profiles");
+    expect(mockFrom).not.toHaveBeenCalledWith("notifications");
+  });
+
   it("still returns the approved application when seller notification insert fails", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const tableCalls: Record<string, number> = {};
