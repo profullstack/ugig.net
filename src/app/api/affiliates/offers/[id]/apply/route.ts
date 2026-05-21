@@ -3,18 +3,13 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 import { generateTrackingCode } from "@/lib/affiliates/tracking";
-
 
 /**
  * POST /api/affiliates/offers/[id]/apply - Apply to become an affiliate for an offer
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -52,10 +47,13 @@ export async function POST(
       .single();
 
     if (existing) {
-      return NextResponse.json({
-        error: `Already ${existing.status}`,
-        application: existing,
-      }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: `Already ${existing.status}`,
+          application: existing,
+        },
+        { status: 409 }
+      );
     }
 
     // Get affiliate's username for tracking code
@@ -114,21 +112,32 @@ export async function POST(
     }
 
     // Notify seller
-    await (admin as AnySupabase)
-      .from("notifications")
-      .insert({
-        user_id: offer.seller_id,
-        type: "affiliate_application",
-        title: "New affiliate joined! 🤝",
-        body: `${profile?.username || "Someone"} is now promoting your offer`,
-        data: { offer_id: id, application_id: application.id },
-      });
+    try {
+      const { error: notificationError } = await (admin as AnySupabase)
+        .from("notifications")
+        .insert({
+          user_id: offer.seller_id,
+          type: "affiliate_application",
+          title: "New affiliate joined! 🤝",
+          body: `${profile?.username || "Someone"} is now promoting your offer`,
+          data: { offer_id: id, application_id: application.id },
+        });
 
-    return NextResponse.json({
-      application,
-      tracking_code: trackingCode,
-      tracking_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`,
-    }, { status: 201 });
+      if (notificationError) {
+        console.warn("Failed to create affiliate application notification", notificationError);
+      }
+    } catch (notificationError) {
+      console.warn("Failed to create affiliate application notification", notificationError);
+    }
+
+    return NextResponse.json(
+      {
+        application,
+        tracking_code: trackingCode,
+        tracking_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`,
+      },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
