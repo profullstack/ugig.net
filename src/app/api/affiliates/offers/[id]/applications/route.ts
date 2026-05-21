@@ -2,17 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-
 
 /**
  * GET /api/affiliates/offers/[id]/applications - List affiliates for an offer (seller only)
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -35,10 +30,12 @@ export async function GET(
 
     const { data: applications, error } = await (admin as AnySupabase)
       .from("affiliate_applications")
-      .select(`
+      .select(
+        `
         *,
         profiles!affiliate_applications_affiliate_id_fkey(username, avatar_url)
-      `)
+      `
+      )
       .eq("offer_id", id)
       .order("created_at", { ascending: false });
 
@@ -55,10 +52,7 @@ export async function GET(
 /**
  * PATCH /api/affiliates/offers/[id]/applications - Approve/reject an application
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -70,7 +64,10 @@ export async function PATCH(
     const { application_id, action } = body;
 
     if (!application_id || !["approve", "reject"].includes(action)) {
-      return NextResponse.json({ error: "application_id and action (approve|reject) required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "application_id and action (approve|reject) required" },
+        { status: 400 }
+      );
     }
 
     const admin = createServiceClient();
@@ -107,19 +104,32 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Notify affiliate
+    // Notify affiliate. The status update already succeeded, so notification
+    // delivery should not make the API report a failed approval/rejection.
     const notificationType = status === "approved" ? "affiliate_approved" : "affiliate_rejected";
-    await (admin as AnySupabase)
-      .from("notifications")
-      .insert({
-        user_id: application.affiliate_id,
-        type: notificationType,
-        title: status === "approved" ? "Affiliate application approved! 🎉" : "Affiliate application declined",
-        body: status === "approved"
-          ? `You've been approved to promote this offer. Your tracking link is ready!`
-          : "Your affiliate application was not approved.",
-        data: { offer_id: id, application_id },
-      });
+    try {
+      const { error: notificationError } = await (admin as AnySupabase)
+        .from("notifications")
+        .insert({
+          user_id: application.affiliate_id,
+          type: notificationType,
+          title:
+            status === "approved"
+              ? "Affiliate application approved! 🎉"
+              : "Affiliate application declined",
+          body:
+            status === "approved"
+              ? `You've been approved to promote this offer. Your tracking link is ready!`
+              : "Your affiliate application was not approved.",
+          data: { offer_id: id, application_id },
+        });
+
+      if (notificationError) {
+        console.warn("Failed to create affiliate application notification", notificationError);
+      }
+    } catch (error) {
+      console.warn("Failed to create affiliate application notification", error);
+    }
 
     return NextResponse.json({ application });
   } catch {
