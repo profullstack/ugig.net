@@ -233,12 +233,15 @@ export default function EditOfferPage() {
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={form.category} onValueChange={(v) => updateForm("category", v)}>
+            <Select
+              value={form.category || "none"}
+              onValueChange={(v) => updateForm("category", v === "none" ? "" : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {SKILL_CATEGORIES.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat.charAt(0).toUpperCase() + cat.slice(1)}
