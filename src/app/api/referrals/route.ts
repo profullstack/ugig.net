@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { referralInviteEmail, sendEmail } from "@/lib/email";
+import { safeParseBody } from "@/lib/sanitize";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type AnySupabase = any;
@@ -52,8 +53,8 @@ export async function POST(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
-    const { emails } = body;
+    const body = await safeParseBody<{ emails?: unknown }>(request);
+    const emails = body?.emails;
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       return NextResponse.json(
@@ -69,6 +70,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!emails.every((email): email is string => typeof email === "string")) {
+      return NextResponse.json(
+        { error: "Please provide an array of email strings" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmails = emails.map((e) => e.trim().toLowerCase());
+    const uniqueEmails = Array.from(new Set(normalizedEmails));
+    const currentUserEmail = typeof user.email === "string"
+      ? user.email.trim().toLowerCase()
+      : null;
+    const inviteEmails = currentUserEmail
+      ? uniqueEmails.filter((email) => email !== currentUserEmail)
+      : uniqueEmails;
+
+    if (inviteEmails.length === 0) {
+      return NextResponse.json(
+        { error: "You cannot invite your own email address" },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validInviteEmails = inviteEmails.filter((e: string) => emailRegex.test(e));
+
+    if (validInviteEmails.length === 0) {
+      return NextResponse.json(
+        { error: "No valid email addresses provided" },
+        { status: 400 }
+      );
+    }
+
     // Spam throttling: max 50 invites per day, max 10 per hour
     const svc = createServiceClient();
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -80,7 +114,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneHourAgo);
 
-    if ((hourlyCount ?? 0) + emails.length > 10) {
+    if ((hourlyCount ?? 0) + validInviteEmails.length > 10) {
       return NextResponse.json(
         { error: "Too many invites. Max 10 per hour." },
         { status: 429 }
@@ -93,7 +127,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneDayAgo);
 
-    if ((dailyCount ?? 0) + emails.length > 50) {
+    if ((dailyCount ?? 0) + validInviteEmails.length > 50) {
       return NextResponse.json(
         { error: "Daily invite limit reached. Max 50 per day." },
         { status: 429 }
@@ -101,15 +135,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Prevent duplicate invites to same email
-    const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase());
     const { data: existingInvites } = await (svc as AnySupabase)
       .from("referrals")
       .select("referred_email")
       .eq("referrer_id", user.id)
-      .in("referred_email", normalizedEmails);
+      .in("referred_email", validInviteEmails);
 
     const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
-    const newEmails = normalizedEmails.filter((e: string) => !alreadyInvited.has(e));
+    const newEmails = validInviteEmails.filter((e: string) => !alreadyInvited.has(e));
 
     if (newEmails.length === 0) {
       return NextResponse.json(
@@ -132,17 +165,7 @@ export async function POST(request: NextRequest) {
     const referralCode = profile.referral_code || profile.username;
     const inviterName = profile.full_name || profile.username || "Someone";
 
-    // Validate emails and create referrals
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validEmails = newEmails.filter((e: string) => emailRegex.test(e));
-
-    if (validEmails.length === 0) {
-      return NextResponse.json(
-        { error: "No valid email addresses provided" },
-        { status: 400 }
-      );
-    }
-
+    const validEmails = newEmails;
     const referralRows = validEmails.map((email: string) => ({
       referrer_id: user.id,
       referred_email: email.trim().toLowerCase(),

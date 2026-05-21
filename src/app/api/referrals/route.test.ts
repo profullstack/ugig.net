@@ -34,7 +34,15 @@ const mockSupabase = {
   })),
 };
 
-function makeServiceClientWithNoExistingReferrals() {
+function makeServiceClientWithReferralCounts({
+  hourlyCount = 0,
+  dailyCount = 0,
+  existingInvites = [],
+}: {
+  hourlyCount?: number;
+  dailyCount?: number;
+  existingInvites?: Array<{ referred_email: string }>;
+} = {}) {
   let referralsQueryCount = 0;
 
   return {
@@ -43,16 +51,20 @@ function makeServiceClientWithNoExistingReferrals() {
         eq: vi.fn().mockReturnValue({
           gte: vi.fn().mockImplementation(() => {
             referralsQueryCount += 1;
-            if (referralsQueryCount <= 2) {
-              return Promise.resolve({ count: 0, error: null });
-            }
-            return Promise.resolve({ data: [], error: null });
+            return Promise.resolve({
+              count: referralsQueryCount === 1 ? hourlyCount : dailyCount,
+              error: null,
+            });
           }),
-          in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          in: vi.fn().mockResolvedValue({ data: existingInvites, error: null }),
         }),
       }),
     })),
   };
+}
+
+function makeServiceClientWithNoExistingReferrals() {
+  return makeServiceClientWithReferralCounts();
 }
 
 function makeGetRequest() {
@@ -63,6 +75,14 @@ function makePostRequest(body: Record<string, unknown>) {
   return new NextRequest("http://localhost/api/referrals", {
     method: "POST",
     body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function makeRawPostRequest(body: string) {
+  return new NextRequest("http://localhost/api/referrals", {
+    method: "POST",
+    body,
     headers: { "Content-Type": "application/json" },
   });
 }
@@ -134,6 +154,32 @@ describe("POST /api/referrals", () => {
     expect(body.error).toContain("array of emails");
   });
 
+  it("should return 400 for malformed JSON", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makeRawPostRequest("{"));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("array of emails");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+  });
+
+  it("should return 400 for non-string email entries", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makePostRequest({ emails: [123, "friend@test.com"] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("email strings");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+  });
+
   it("should return 400 for too many emails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
@@ -145,6 +191,20 @@ describe("POST /api/referrals", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("Maximum 20");
+  });
+
+  it("should return 400 before side effects when inviting only your own email", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1", email: "Owner@Test.com" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makePostRequest({ emails: [" owner@test.com "] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("own email");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   it("should create referrals for valid emails", async () => {
@@ -191,6 +251,69 @@ describe("POST /api/referrals", () => {
     });
   });
 
+  it("should deduplicate normalized emails before creating referrals", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    let insertedRows: Array<{ referred_email: string }> = [];
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsertChain = {
+      select: vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          data: insertedRows.map((row, index) => ({
+            id: `ref${index + 1}`,
+            referred_email: row.referred_email,
+            status: "pending",
+          })),
+          error: null,
+        })
+      ),
+    };
+    const mockInsertRows = vi.fn().mockImplementation((rows) => {
+      insertedRows = rows;
+      return mockInsertChain;
+    });
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: mockInsertRows };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({
+      emails: ["Friend@Test.com", " friend@test.com ", "other@test.com"],
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.message).toContain("2 invite(s) created and sent");
+    expect(insertedRows.map((row) => row.referred_email)).toEqual([
+      "friend@test.com",
+      "other@test.com",
+    ]);
+    expect(mockSendEmail).toHaveBeenCalledTimes(2);
+    expect(mockSendEmail).toHaveBeenNthCalledWith(1, {
+      to: "friend@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    expect(mockSendEmail).toHaveBeenNthCalledWith(2, {
+      to: "other@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+  });
+
   it("should keep created invites when email delivery fails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
@@ -230,28 +353,71 @@ describe("POST /api/referrals", () => {
     });
   });
 
-  it("should return 400 for invalid emails only", async () => {
+  it("should return 400 before side effects for invalid emails only", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
       supabase: mockSupabase,
-    });
-
-    const mockSelectChain = {
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { referral_code: "testuser", username: "testuser" },
-          error: null,
-        }),
-      }),
-    };
-    mockSupabase.from.mockImplementation((table: string) => {
-      if (table === "profiles") return { select: () => mockSelectChain };
-      return {};
     });
 
     const res = await POST(makePostRequest({ emails: ["not-an-email", "also-bad"] }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("No valid email");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("should not count invalid email syntax against invite limits", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+    mockCreateServiceClient.mockReturnValue(makeServiceClientWithReferralCounts({
+      hourlyCount: 9,
+    }));
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    mockSendEmail.mockResolvedValue({ success: true });
+
+    let insertedRows: Array<{ referred_email: string }> = [];
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsertChain = {
+      select: vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          data: insertedRows.map((row, index) => ({
+            id: `ref${index + 1}`,
+            referred_email: row.referred_email,
+            status: "pending",
+          })),
+          error: null,
+        })
+      ),
+    };
+    const mockInsertRows = vi.fn().mockImplementation((rows) => {
+      insertedRows = rows;
+      return mockInsertChain;
+    });
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: mockInsertRows };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({ emails: ["not-an-email", "friend@test.com"] }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.message).toContain("1 invite(s) created and sent");
+    expect(insertedRows.map((row) => row.referred_email)).toEqual(["friend@test.com"]);
   });
 });
