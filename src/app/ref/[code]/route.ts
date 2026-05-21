@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildAffiliateTrackingUrl, getAffiliateBaseUrl } from "@/lib/affiliates/tracking-url";
 
 /**
  * GET /ref/[code] - Short affiliate tracking link
@@ -9,6 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
-  return NextResponse.redirect(`${baseUrl}/api/affiliates/click?ugig_ref=${encodeURIComponent(code)}`);
+  return NextResponse.redirect(
+    buildAffiliateTrackingUrl(getAffiliateBaseUrl(request.url), code)
+  );
 }
