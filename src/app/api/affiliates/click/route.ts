@@ -45,14 +45,18 @@ export async function GET(request: NextRequest) {
       request.headers.get("x-real-ip") ||
       "unknown";
 
-    await recordClick(admin, {
-      trackingCode: ref,
-      visitorId,
-      ip,
-      userAgent: request.headers.get("user-agent") || undefined,
-      referer: request.headers.get("referer") || undefined,
-      landedUrl: request.url,
-    });
+    try {
+      await recordClick(admin, {
+        trackingCode: ref,
+        visitorId,
+        ip,
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        landedUrl: request.url,
+      });
+    } catch (error) {
+      console.warn("Failed to record affiliate click", error);
+    }
 
     // Determine redirect URL
     const offer = app.affiliate_offers;
