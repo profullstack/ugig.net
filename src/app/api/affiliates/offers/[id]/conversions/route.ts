@@ -3,7 +3,6 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordConversion } from "@/lib/affiliates/commission";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 /**
@@ -148,6 +147,10 @@ export async function POST(
       );
     }
 
+    if (note !== undefined && note !== null && typeof note !== "string") {
+      return NextResponse.json({ error: "note must be a string" }, { status: 400 });
+    }
+
     // Verify the affiliate is approved for this offer
     const { data: application } = await (admin as AnySupabase)
       .from("affiliate_applications")
@@ -192,7 +195,7 @@ export async function POST(
         commission_sats: result.commission_sats,
         settles_at: result.settles_at,
         source: "manual",
-        note: note?.trim() || null,
+        note: typeof note === "string" ? note.trim() || null : null,
       },
     });
   } catch {

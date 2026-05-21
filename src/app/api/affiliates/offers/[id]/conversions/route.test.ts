@@ -321,4 +321,35 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     const body2 = await res2.json();
     expect(body2.error).toBe("sale_amount_sats must be a positive number");
   });
+
+  it("rejects non-string notes before recording a conversion", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await POST(
+      makePostRequest("offer-1", {
+        affiliate_id: "aff-1",
+        sale_amount_sats: 5000,
+        note: { text: "paid elsewhere" },
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("note must be a string");
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_applications");
+    expect(mockRecordConversion).not.toHaveBeenCalled();
+  });
 });
