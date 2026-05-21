@@ -29,6 +29,38 @@ async function loadCode() {
   return null;
 }
 
+function copyWithTextarea(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the DOM fallback for blocked clipboard writes.
+  }
+
+  return copyWithTextarea(text);
+}
+
 export default function ReferralsPage() {
   const [referralLink, setReferralLink] = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -40,6 +72,7 @@ export default function ReferralsPage() {
   });
   const [emails, setEmails] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -63,7 +96,15 @@ export default function ReferralsPage() {
   }, []);
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(referralLink);
+    setCopyError(null);
+
+    const copiedLink = await copyText(referralLink);
+    if (!copiedLink) {
+      setCopied(false);
+      setCopyError("Copy failed. Select the link and copy it manually.");
+      return;
+    }
+
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -179,6 +220,7 @@ export default function ReferralsPage() {
             {copied ? "Copied!" : "Copy"}
           </button>
         </div>
+        {copyError && <p className="text-sm text-destructive">{copyError}</p>}
         <p className="text-xs text-muted-foreground">
           Your referral code: <span className="font-mono font-medium">{referralCode}</span>
         </p>
