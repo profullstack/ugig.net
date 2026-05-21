@@ -59,6 +59,24 @@ describe("validateOfferInput", () => {
     expect(result.errors.some((e) => e.includes("product_url"))).toBe(true);
   });
 
+  it("rejects non-string text and URL fields without throwing", () => {
+    const result = validateOfferInput({
+      ...validInput,
+      title: { text: "Bad title" },
+      description: ["Bad description"],
+      product_url: { href: "https://example.com" },
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "Title must be text",
+        "Description must be text",
+        "product_url must be a string",
+      ])
+    );
+  });
+
   it("strips HTML tags from title (#26)", () => {
     const result = validateOfferInput({
       ...validInput,
@@ -168,6 +186,22 @@ describe("validateOfferInput", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes("10 tags"))).toBe(true);
+  });
+
+  it("rejects malformed tag payloads without throwing", () => {
+    expect(
+      validateOfferInput({
+        ...validInput,
+        tags: "finance",
+      } as any).errors
+    ).toContain("tags must be an array");
+
+    expect(
+      validateOfferInput({
+        ...validInput,
+        tags: ["finance", { label: "crypto" }],
+      } as any).errors
+    ).toContain("tags must contain only strings");
   });
 
   it("rejects title shorter than 3 characters", () => {

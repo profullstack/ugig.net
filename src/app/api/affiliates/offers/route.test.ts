@@ -126,6 +126,32 @@ describe("POST /api/affiliates/offers", () => {
     expect(body.error).toContain("product_url");
   });
 
+  it("rejects malformed field types before creating an offer", async () => {
+    mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers", {
+      method: "POST",
+      body: JSON.stringify({
+        title: { text: "Bad title" },
+        description: ["not text"],
+        product_url: { href: "https://example.com" },
+        tags: ["valid", { label: "invalid" }],
+        price_sats: 1000,
+        commission_type: "percentage",
+        commission_rate: 0.2,
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Title must be text");
+    expect(body.error).toContain("Description must be text");
+    expect(body.error).toContain("product_url must be a string");
+    expect(body.error).toContain("tags must contain only strings");
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it("strips HTML from title (#26)", async () => {
     mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
     

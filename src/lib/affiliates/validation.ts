@@ -41,26 +41,35 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
   const errors: string[] = [];
 
   // Strip HTML tags from title and description (#26)
-  if (input.title) {
+  if (typeof input.title !== "string") {
+    errors.push("Title must be text");
+  } else if (input.title) {
     input.title = stripHtmlTags(input.title);
   }
-  if (input.description) {
+  if (typeof input.description !== "string") {
+    errors.push("Description must be text");
+  } else if (input.description) {
     input.description = stripHtmlTags(input.description);
   }
 
-  if (!input.title || input.title.trim().length < 3) {
+  if (typeof input.title === "string" && (!input.title || input.title.trim().length < 3)) {
     errors.push("Title must be at least 3 characters");
   }
-  if (input.title && input.title.length > 200) {
+  if (typeof input.title === "string" && input.title.length > 200) {
     errors.push("Title must be under 200 characters");
   }
 
-  if (!input.description || input.description.trim().length < 10) {
+  if (
+    typeof input.description === "string" &&
+    (!input.description || input.description.trim().length < 10)
+  ) {
     errors.push("Description must be at least 10 characters");
   }
 
   // Normalize product_url — trim whitespace, treat blank as null (#18 - XSS prevention)
-  if (input.product_url) {
+  if (input.product_url !== undefined && input.product_url !== null && typeof input.product_url !== "string") {
+    errors.push("product_url must be a string");
+  } else if (input.product_url) {
     input.product_url = input.product_url.trim();
     if (input.product_url.length === 0) {
       input.product_url = undefined;
@@ -119,8 +128,14 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
     errors.push(`Category must be one of: ${SKILL_CATEGORIES.join(", ")}`);
   }
 
-  if (input.tags && input.tags.length > 10) {
-    errors.push("Maximum 10 tags");
+  if (input.tags !== undefined) {
+    if (!Array.isArray(input.tags)) {
+      errors.push("tags must be an array");
+    } else if (input.tags.some((tag) => typeof tag !== "string")) {
+      errors.push("tags must contain only strings");
+    } else if (input.tags.length > 10) {
+      errors.push("Maximum 10 tags");
+    }
   }
 
   if (errors.length > 0) {
