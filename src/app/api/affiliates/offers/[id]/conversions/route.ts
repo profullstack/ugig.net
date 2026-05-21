@@ -3,16 +3,12 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordConversion } from "@/lib/affiliates/commission";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 /**
  * GET /api/affiliates/offers/[id]/conversions - List conversions for an offer (seller only)
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -41,7 +37,8 @@ export async function GET(
     let conversions: any[] = [];
     const { data: convData, error: convErr } = await (admin as AnySupabase)
       .from("affiliate_conversions")
-      .select(`
+      .select(
+        `
         id,
         affiliate_id,
         sale_amount_sats,
@@ -51,7 +48,8 @@ export async function GET(
         note,
         created_at,
         profiles!affiliate_conversions_affiliate_id_fkey(username)
-      `)
+      `
+      )
       .eq("offer_id", id)
       .order("created_at", { ascending: false });
 
@@ -59,7 +57,9 @@ export async function GET(
       // FK join might not exist — retry without join
       const { data: fallbackData } = await (admin as AnySupabase)
         .from("affiliate_conversions")
-        .select("id, affiliate_id, sale_amount_sats, commission_sats, status, source, note, created_at")
+        .select(
+          "id, affiliate_id, sale_amount_sats, commission_sats, status, source, note, created_at"
+        )
         .eq("offer_id", id)
         .order("created_at", { ascending: false });
       conversions = fallbackData || [];
@@ -93,20 +93,14 @@ export async function GET(
 
     return NextResponse.json({ conversions: list });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 
 /**
  * POST /api/affiliates/offers/[id]/conversions - Record a manual conversion (seller only)
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -135,10 +129,7 @@ export async function POST(
     const { affiliate_id, sale_amount_sats, note } = body;
 
     if (!affiliate_id || typeof affiliate_id !== "string") {
-      return NextResponse.json(
-        { error: "affiliate_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "affiliate_id is required" }, { status: 400 });
     }
 
     if (!sale_amount_sats || typeof sale_amount_sats !== "number" || sale_amount_sats <= 0) {
@@ -196,10 +187,7 @@ export async function POST(
       },
     });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 
@@ -207,10 +195,7 @@ export async function POST(
  * PUT /api/affiliates/offers/[id]/conversions - Update a conversion (seller only)
  * Body: { conversion_id, sale_amount_sats?, note?, status? }
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -239,7 +224,13 @@ export async function PUT(
 
     const updateData: Record<string, unknown> = {};
     if (typeof note === "string") updateData.note = note.trim();
-    if (typeof status === "string" && ["pending", "paid", "clawed_back"].includes(status)) {
+    if (status === "paid") {
+      return NextResponse.json(
+        { error: "Use the payout endpoint to mark conversions paid" },
+        { status: 400 }
+      );
+    }
+    if (typeof status === "string" && ["pending", "clawed_back"].includes(status)) {
       updateData.status = status;
     }
     if (typeof sale_amount_sats === "number" && sale_amount_sats > 0) {

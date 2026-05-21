@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET, POST } from "./route";
+import { GET, POST, PUT } from "./route";
 import { NextRequest } from "next/server";
 
 // Mock auth
@@ -23,20 +23,23 @@ vi.mock("@/lib/affiliates/commission", () => ({
 }));
 
 function makeGetRequest(id: string) {
-  return new NextRequest(
-    `http://localhost/api/affiliates/offers/${id}/conversions`
-  );
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}/conversions`);
 }
 
 function makePostRequest(id: string, body: Record<string, unknown>) {
-  return new NextRequest(
-    `http://localhost/api/affiliates/offers/${id}/conversions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
-  );
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}/conversions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function makePutRequest(id: string, body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}/conversions`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 function makeParams(id: string) {
@@ -245,14 +248,11 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     expect(body.conversion.note).toBe("Gumroad purchase #123");
 
     // Verify recordConversion was called with correct params
-    expect(mockRecordConversion).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        offerId: "offer-1",
-        affiliateId: "aff-1",
-        saleAmountSats: 10000,
-      }
-    );
+    expect(mockRecordConversion).toHaveBeenCalledWith(expect.anything(), {
+      offerId: "offer-1",
+      affiliateId: "aff-1",
+      saleAmountSats: 10000,
+    });
   });
 
   it("rejects if affiliate is not approved", async () => {
@@ -320,5 +320,43 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     expect(res2.status).toBe(400);
     const body2 = await res2.json();
     expect(body2.error).toBe("sale_amount_sats must be a positive number");
+  });
+});
+
+describe("PUT /api/affiliates/offers/[id]/conversions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects marking a conversion paid without the payout endpoint", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          commission_rate: 0.1,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await PUT(
+      makePutRequest("offer-1", {
+        conversion_id: "conv-1",
+        status: "paid",
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Use the payout endpoint to mark conversions paid");
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
   });
 });
