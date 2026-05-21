@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any;
 import { generateTrackingCode } from "@/lib/affiliates/tracking";
 
+type AnySupabase = any;
+
+function trackingUrl(trackingCode: string): string {
+  return `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`;
+}
 
 /**
  * POST /api/affiliates/offers/[id]/apply - Apply to become an affiliate for an offer
@@ -46,7 +48,7 @@ export async function POST(
     // Check if already applied
     const { data: existing } = await (admin as AnySupabase)
       .from("affiliate_applications")
-      .select("id, status")
+      .select("id, status, tracking_code")
       .eq("offer_id", id)
       .eq("affiliate_id", auth.user.id)
       .single();
@@ -55,6 +57,8 @@ export async function POST(
       return NextResponse.json({
         error: `Already ${existing.status}`,
         application: existing,
+        tracking_code: existing.tracking_code,
+        tracking_url: existing.tracking_code ? trackingUrl(existing.tracking_code) : null,
       }, { status: 409 });
     }
 
@@ -127,7 +131,7 @@ export async function POST(
     return NextResponse.json({
       application,
       tracking_code: trackingCode,
-      tracking_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`,
+      tracking_url: trackingUrl(trackingCode),
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
