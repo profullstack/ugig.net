@@ -31,6 +31,14 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeRawRequest(body: string) {
+  return new NextRequest("http://localhost/api/auth/login", {
+    method: "POST",
+    body,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 describe("POST /api/auth/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,5 +92,13 @@ describe("POST /api/auth/login", () => {
   it("should return 400 for invalid input", async () => {
     const res = await POST(makeRequest({ email: "not-an-email", password: "" }));
     expect(res.status).toBe(400);
+  });
+
+  it("should return 400 for malformed JSON without signing in", async () => {
+    const res = await POST(makeRawRequest("{not valid json"));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid request body");
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
   });
 });
