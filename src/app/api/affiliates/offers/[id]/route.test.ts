@@ -19,10 +19,18 @@ vi.mock("@/lib/affiliates/validation", () => ({
   validateOfferInput: vi.fn(),
 }));
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 function makeRequest(id: string) {
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
+}
+
+function makePatchRequest(id: string, body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 function makeParams(id: string) {
@@ -111,5 +119,38 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAuthContext.mockResolvedValue({ user: { id: "seller1" } });
+  });
+
+  it("rejects non-string title updates", async () => {
+    mockFrom.mockReturnValue(chainable({ id: "offer1", seller_id: "seller1" }));
+
+    const res = await PATCH(
+      makePatchRequest("offer1", { title: 123 }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("title must be a string");
+  });
+
+  it("rejects non-string description updates", async () => {
+    mockFrom.mockReturnValue(chainable({ id: "offer1", seller_id: "seller1" }));
+
+    const res = await PATCH(
+      makePatchRequest("offer1", { description: { text: "not a string" } }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("description must be a string");
   });
 });
