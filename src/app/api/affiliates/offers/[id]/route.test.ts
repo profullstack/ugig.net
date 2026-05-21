@@ -51,7 +51,7 @@ describe("GET /api/affiliates/offers/[id]", () => {
   it("looks up by UUID when id is a UUID (#25)", async () => {
     const uuid = "550e8400-e29b-41d4-a716-446655440000";
     const offer = { id: uuid, title: "Test", seller_id: "seller1", slug: "test" };
-    
+
     let eqColumn: string | undefined;
     mockFrom.mockReturnValue({
       select: () => ({
@@ -70,7 +70,7 @@ describe("GET /api/affiliates/offers/[id]", () => {
   it("looks up by slug when id is not a UUID (#25)", async () => {
     const slug = "my-cool-offer";
     const offer = { id: "some-uuid", title: "Test", seller_id: "seller1", slug };
-    
+
     let eqColumn: string | undefined;
     mockFrom.mockReturnValue({
       select: () => ({
@@ -93,6 +93,10 @@ describe("GET /api/affiliates/offers/[id]", () => {
       seller_id: "seller1",
       slug: "test",
       product_url: "https://secret.example.com",
+      commission_type: "percentage",
+      commission_rate: 0.2,
+      commission_flat_sats: 0,
+      price_sats: 1000,
     };
 
     mockFrom.mockReturnValue(chainable(offer));
@@ -104,6 +108,32 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(body.offer.product_url).toBeUndefined();
+    expect(body.offer.estimated_commission_sats).toBe(200);
+    expect(body.offer.commission_basis).toBe("listed_price");
+  });
+
+  it("marks percentage commissions without a listed price as sale amount based (#90)", async () => {
+    const offer = {
+      id: "some-uuid",
+      title: "Variable Commission",
+      seller_id: "seller1",
+      slug: "variable",
+      product_url: "https://secret.example.com",
+      commission_type: "percentage",
+      commission_rate: 0.2,
+      commission_flat_sats: 0,
+      price_sats: 0,
+    };
+
+    mockFrom.mockReturnValue(chainable(offer));
+    mockGetAuthContext.mockResolvedValue(null);
+
+    const res = await GET(makeRequest("variable"), makeParams("variable"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.estimated_commission_sats).toBeNull();
+    expect(body.offer.commission_basis).toBe("sale_amount");
   });
 
   it("returns 404 for non-existent offer", async () => {

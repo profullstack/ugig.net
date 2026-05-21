@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withCommissionEstimate } from "@/lib/affiliates/commission-estimate";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 import { validateOfferInput } from "@/lib/affiliates/validation";
-
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
  * Supports both UUID and slug lookup (#25)
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const admin = createServiceClient();
@@ -24,17 +20,20 @@ export async function GET(
 
     const { data: offer, error } = await (admin as AnySupabase)
       .from("affiliate_offers")
-      .select(`
+      .select(
+        `
         *,
         profiles!affiliate_offers_seller_id_fkey(username, avatar_url),
         skill_listings(title, slug, price_sats)
-      `)
+      `
+      )
       .eq(lookupColumn, id)
       .single();
 
     if (error || !offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
     }
+    const offerWithEstimate = withCommissionEstimate(offer);
 
     // Hide product_url from unauthenticated/unauthorized users (#20)
     let auth: { user: { id: string } } | null = null;
@@ -58,11 +57,11 @@ export async function GET(
     }
 
     if (!isOwner && !isApprovedAffiliate) {
-      const { product_url, ...safeOffer } = offer;
+      const { product_url, ...safeOffer } = offerWithEstimate;
       return NextResponse.json({ offer: safeOffer });
     }
 
-    return NextResponse.json({ offer });
+    return NextResponse.json({ offer: offerWithEstimate });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
@@ -71,10 +70,7 @@ export async function GET(
 /**
  * PATCH /api/affiliates/offers/[id] - Update an offer (seller only)
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -107,9 +103,11 @@ export async function PATCH(
     if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
     if (body.commission_rate !== undefined) updateData.commission_rate = body.commission_rate;
     if (body.commission_type !== undefined) updateData.commission_type = body.commission_type;
-    if (body.commission_flat_sats !== undefined) updateData.commission_flat_sats = body.commission_flat_sats;
+    if (body.commission_flat_sats !== undefined)
+      updateData.commission_flat_sats = body.commission_flat_sats;
     if (body.cookie_days !== undefined) updateData.cookie_days = body.cookie_days;
-    if (body.settlement_delay_days !== undefined) updateData.settlement_delay_days = body.settlement_delay_days;
+    if (body.settlement_delay_days !== undefined)
+      updateData.settlement_delay_days = body.settlement_delay_days;
     if (body.promo_text !== undefined) updateData.promo_text = body.promo_text;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.tags !== undefined) updateData.tags = body.tags;

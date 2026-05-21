@@ -74,7 +74,10 @@ describe("GET /api/affiliates/offers", () => {
 
     const res = await GET(makeRequest({ sort: "commission" }));
     expect(res.status).toBe(200);
-    expect(orderSpy).toHaveBeenCalledWith("commission_flat_sats", expect.objectContaining({ ascending: false }));
+    expect(orderSpy).toHaveBeenCalledWith(
+      "commission_flat_sats",
+      expect.objectContaining({ ascending: false })
+    );
   });
 
   it("filters by search query (#21)", async () => {
@@ -97,6 +100,56 @@ describe("GET /api/affiliates/offers", () => {
 
     expect(res.status).toBe(200);
     expect(body.offers[0].product_url).toBeUndefined();
+  });
+
+  it("adds estimated commission fields to offer responses (#90)", async () => {
+    const offers = [
+      {
+        id: "flat",
+        title: "Flat Offer",
+        seller_id: "seller1",
+        commission_type: "flat",
+        commission_flat_sats: 40000,
+        commission_rate: 0,
+        price_sats: 0,
+      },
+      {
+        id: "priced",
+        title: "Priced Percentage",
+        seller_id: "seller2",
+        commission_type: "percentage",
+        commission_flat_sats: 0,
+        commission_rate: 0.2,
+        price_sats: 1000,
+      },
+      {
+        id: "variable",
+        title: "Variable Percentage",
+        seller_id: "seller3",
+        commission_type: "percentage",
+        commission_flat_sats: 0,
+        commission_rate: 0.2,
+        price_sats: 0,
+      },
+    ];
+    mockFrom.mockReturnValue(chainable(offers, null, 3));
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offers[0]).toMatchObject({
+      estimated_commission_sats: 40000,
+      commission_basis: "flat",
+    });
+    expect(body.offers[1]).toMatchObject({
+      estimated_commission_sats: 200,
+      commission_basis: "listed_price",
+    });
+    expect(body.offers[2]).toMatchObject({
+      estimated_commission_sats: null,
+      commission_basis: "sale_amount",
+    });
   });
 });
 
@@ -128,16 +181,17 @@ describe("POST /api/affiliates/offers", () => {
 
   it("strips HTML from title (#26)", async () => {
     mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
-    
+
     const insertMock = vi.fn().mockReturnValue({
       select: () => ({
-        single: () => Promise.resolve({
-          data: { id: "new-id", slug: "test-offer", title: "Test Offer" },
-          error: null,
-        }),
+        single: () =>
+          Promise.resolve({
+            data: { id: "new-id", slug: "test-offer", title: "Test Offer" },
+            error: null,
+          }),
       }),
     });
-    
+
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({

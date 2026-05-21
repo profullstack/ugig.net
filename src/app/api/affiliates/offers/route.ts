@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { withCommissionEstimate } from "@/lib/affiliates/commission-estimate";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 import { validateOfferInput } from "@/lib/affiliates/validation";
-
 
 function slugify(text: string): string {
   return text
@@ -35,11 +34,14 @@ export async function GET(request: NextRequest) {
 
     let query = (admin as AnySupabase)
       .from("affiliate_offers")
-      .select(`
+      .select(
+        `
         *,
         profiles!affiliate_offers_seller_id_fkey(username, avatar_url),
         skill_listings(title, slug)
-      `, { count: "exact" })
+      `,
+        { count: "exact" }
+      )
       .eq("status", "active");
 
     if (category) {
@@ -102,13 +104,14 @@ export async function GET(request: NextRequest) {
     }
 
     const sanitizedOffers = (offers || []).map((offer: any) => {
+      const offerWithEstimate = withCommissionEstimate(offer);
       const isOwner = auth && offer.seller_id === auth.user.id;
       const isApprovedAffiliate = auth && approvedOfferIds.has(offer.id);
       if (!isOwner && !isApprovedAffiliate) {
-        const { product_url, ...rest } = offer;
+        const { product_url, ...rest } = offerWithEstimate;
         return rest;
       }
-      return offer;
+      return offerWithEstimate;
     });
 
     return NextResponse.json({
@@ -185,7 +188,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ offer }, { status: 201 });
+    return NextResponse.json({ offer: withCommissionEstimate(offer) }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
