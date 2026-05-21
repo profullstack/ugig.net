@@ -147,6 +147,20 @@ describe("POST /api/referrals", () => {
     expect(body.error).toContain("Maximum 20");
   });
 
+  it("should return 400 when any invite email is not a string", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makePostRequest({ emails: ["friend@test.com", 42] }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("All invite emails must be strings");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+  });
+
   it("should create referrals for valid emails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
