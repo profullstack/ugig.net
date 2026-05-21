@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
-import { ArrowLeft, Users, TrendingUp, Calendar, ExternalLink, Zap } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Calendar, ExternalLink, Zap, Copy, Check } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface AffiliateOffer {
@@ -40,6 +40,31 @@ function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the textarea fallback below.
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
 export default function OfferDetailClient() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
@@ -48,6 +73,7 @@ export default function OfferDetailClient() {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [trackingCopied, setTrackingCopied] = useState(false);
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [btcUsd, setBtcUsd] = useState<number | null>(null);
@@ -111,6 +137,19 @@ export default function OfferDetailClient() {
       }
     }
     setApplying(false);
+  }
+
+  async function handleCopyTrackingUrl() {
+    setError("");
+    setTrackingCopied(false);
+
+    if (await copyText(trackingUrl)) {
+      setTrackingCopied(true);
+      window.setTimeout(() => setTrackingCopied(false), 2000);
+      return;
+    }
+
+    setError("Unable to copy tracking link. Select the link and copy it manually.");
   }
 
   if (loading) {
@@ -338,9 +377,14 @@ export default function OfferDetailClient() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigator.clipboard.writeText(trackingUrl)}
+                          onClick={handleCopyTrackingUrl}
                         >
-                          Copy
+                          {trackingCopied ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                          {trackingCopied ? "Copied" : "Copy"}
                         </Button>
                       </div>
                     </div>
