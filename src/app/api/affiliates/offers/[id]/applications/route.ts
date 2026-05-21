@@ -93,6 +93,8 @@ export async function PATCH(
     };
     if (status === "approved") {
       updateData.approved_at = new Date().toISOString();
+    } else {
+      updateData.approved_at = null;
     }
 
     const { data: application, error } = await (admin as AnySupabase)
