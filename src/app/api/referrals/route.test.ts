@@ -147,6 +147,21 @@ describe("POST /api/referrals", () => {
     expect(body.error).toContain("Maximum 20");
   });
 
+  it("should validate email syntax before rate limiting", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const emails = Array.from({ length: 11 }, (_, i) => `not-email-${i}`);
+    const res = await POST(makePostRequest({ emails }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("No valid email");
+    expect(mockCreateServiceClient).not.toHaveBeenCalled();
+  });
+
   it("should create referrals for valid emails", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
