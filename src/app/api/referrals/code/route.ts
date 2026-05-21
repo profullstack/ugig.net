@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: profile, error } = await (supabase as any)
       .from("profiles")
       .select("referral_code, username")
@@ -22,10 +21,13 @@ export async function GET(request: NextRequest) {
     }
 
     const code = profile.referral_code || profile.username;
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin || "https://ugig.net"
+    ).replace(/\/$/, "");
 
     return NextResponse.json({
       code,
-      link: `https://ugig.net/?ref=${code}`,
+      link: `${baseUrl}/?ref=${encodeURIComponent(code)}`,
     });
   } catch {
     return NextResponse.json(
