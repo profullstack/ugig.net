@@ -6,6 +6,16 @@ const saveGigSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
 });
 
+async function parseJsonBody(request: NextRequest) {
+  try {
+    return { body: await request.json() };
+  } catch {
+    return {
+      response: NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+    };
+  }
+}
+
 // GET /api/saved-gigs - List user's saved gigs
 export async function GET(request: NextRequest) {
   try {
@@ -54,9 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Filter out closed/deleted gigs and transform response
     const activeGigs = savedGigs
-      .filter(
-        (sg) => sg.gig && (sg.gig as { status: string }).status === "active"
-      )
+      .filter((sg) => sg.gig && (sg.gig as { status: string }).status === "active")
       .map((sg) => ({
         saved_id: sg.id,
         saved_at: sg.created_at,
@@ -65,10 +73,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ gigs: activeGigs });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 
@@ -81,7 +86,10 @@ export async function POST(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request);
+    if (parsed.response) return parsed.response;
+
+    const body = parsed.body;
     const validationResult = saveGigSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -105,18 +113,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (gig.status !== "active") {
-      return NextResponse.json(
-        { error: "Can only save active gigs" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Can only save active gigs" }, { status: 400 });
     }
 
     // Can't save your own gig
     if (gig.poster_id === user.id) {
-      return NextResponse.json(
-        { error: "Cannot save your own gig" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Cannot save your own gig" }, { status: 400 });
     }
 
     // Check if already saved
@@ -128,10 +130,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      return NextResponse.json(
-        { error: "Gig already saved" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Gig already saved" }, { status: 409 });
     }
 
     const { data: savedGig, error } = await supabase
@@ -149,10 +148,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ saved: savedGig }, { status: 201 });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 
@@ -165,7 +161,10 @@ export async function DELETE(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request);
+    if (parsed.response) return parsed.response;
+
+    const body = parsed.body;
     const validationResult = saveGigSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -189,9 +188,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: "Gig unsaved successfully" });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
