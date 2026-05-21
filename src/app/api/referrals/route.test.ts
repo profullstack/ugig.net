@@ -236,6 +236,35 @@ describe("POST /api/referrals", () => {
       supabase: mockSupabase,
     });
 
+    const res = await POST(makePostRequest({ emails: ["not-an-email", "also-bad"] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("No valid email");
+  });
+
+  // Regression test for #143: Invalid emails should return 400 before rate-limit check
+  it("returns 400 for all-invalid emails, NOT 429 rate-limit (#143)", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    // Even if rate limiter would trigger, invalid emails should fail validation first
+    const res = await POST(makePostRequest({ emails: ["not-valid", "bad-email", "nope"] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("No valid email");
+    // Should NOT be 429
+    expect(res.status).not.toBe(429);
+  });
+
+  // Regression test for #143: Mixed valid+invalid emails should only count valid toward rate limit
+  it("only counts valid emails toward rate limit, not invalid ones (#143)", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
     const mockSelectChain = {
       eq: vi.fn().mockReturnValue({
         single: vi.fn().mockResolvedValue({
@@ -244,14 +273,29 @@ describe("POST /api/referrals", () => {
         }),
       }),
     };
+    const mockInsertChain = {
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "ref1", referred_email: "valid@test.com", status: "pending" }],
+        error: null,
+      }),
+    };
+
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: () => mockInsertChain };
       return {};
     });
 
-    const res = await POST(makePostRequest({ emails: ["not-an-email", "also-bad"] }));
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain("No valid email");
+    // Send 9 invalid + 1 valid email. With old code, emails.length=10 would count
+    // toward rate limit. With fix, only validEmails.length=1 counts.
+    // This should succeed since only 1 valid email is within the limit of 10/hour
+    const emails = [
+      "invalid1", "invalid2", "invalid3", "invalid4", "invalid5",
+      "invalid6", "invalid7", "invalid8", "invalid9",
+      "valid@test.com",
+    ];
+    const res = await POST(makePostRequest({ emails }));
+    // Should succeed (not 429) since only 1 valid email counts toward the rate limit
+    expect(res.status).not.toBe(429);
   });
 });

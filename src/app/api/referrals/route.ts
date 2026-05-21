@@ -69,7 +69,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate email syntax BEFORE rate-limit checks (#143)
+    // Only valid emails should count toward throttle limits
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = emails.filter((e: string) => typeof e === "string" && emailRegex.test(e.trim().toLowerCase()));
+
+    if (validEmails.length === 0) {
+      return NextResponse.json(
+        { error: "No valid email addresses provided" },
+        { status: 400 }
+      );
+    }
+
     // Spam throttling: max 50 invites per day, max 10 per hour
+    // Only count valid emails toward rate limits (#143)
     const svc = createServiceClient();
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -80,7 +93,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneHourAgo);
 
-    if ((hourlyCount ?? 0) + emails.length > 10) {
+    if ((hourlyCount ?? 0) + validEmails.length > 10) {
       return NextResponse.json(
         { error: "Too many invites. Max 10 per hour." },
         { status: 429 }
@@ -93,7 +106,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneDayAgo);
 
-    if ((dailyCount ?? 0) + emails.length > 50) {
+    if ((dailyCount ?? 0) + validEmails.length > 50) {
       return NextResponse.json(
         { error: "Daily invite limit reached. Max 50 per day." },
         { status: 429 }
@@ -109,14 +122,6 @@ export async function POST(request: NextRequest) {
       .in("referred_email", normalizedEmails);
 
     const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
-    const newEmails = normalizedEmails.filter((e: string) => !alreadyInvited.has(e));
-
-    if (newEmails.length === 0) {
-      return NextResponse.json(
-        { error: "All these emails have already been invited" },
-        { status: 400 }
-      );
-    }
 
     // Get user's referral code
     const { data: profile } = await (supabase as any)
@@ -132,18 +137,17 @@ export async function POST(request: NextRequest) {
     const referralCode = profile.referral_code || profile.username;
     const inviterName = profile.full_name || profile.username || "Someone";
 
-    // Validate emails and create referrals
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validEmails = newEmails.filter((e: string) => emailRegex.test(e));
+    // Filter valid emails that aren't already invited (#143)
+    const newValidEmails = validEmails.filter((e: string) => !alreadyInvited.has(e));
 
-    if (validEmails.length === 0) {
+    if (newValidEmails.length === 0) {
       return NextResponse.json(
-        { error: "No valid email addresses provided" },
+        { error: "All these emails have already been invited" },
         { status: 400 }
       );
     }
 
-    const referralRows = validEmails.map((email: string) => ({
+    const referralRows = newValidEmails.map((email: string) => ({
       referrer_id: user.id,
       referred_email: email.trim().toLowerCase(),
       referral_code: referralCode,
@@ -161,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     const emailContent = referralInviteEmail({ inviterName, referralCode });
     const emailResults = await Promise.all(
-      validEmails.map((email: string) =>
+      newValidEmails.map((email: string) =>
         sendEmail({ to: email, ...emailContent })
       )
     );
@@ -169,8 +173,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: failedEmailCount > 0
-        ? `${validEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
-        : `${validEmails.length} invite(s) created and sent`,
+        ? `${newValidEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
+        : `${newValidEmails.length} invite(s) created and sent`,
       data: referrals,
       email_delivery_failed: failedEmailCount,
     });

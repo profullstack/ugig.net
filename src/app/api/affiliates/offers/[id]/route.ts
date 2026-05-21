@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-import { validateOfferInput } from "@/lib/affiliates/validation";
+import { validateOfferInput, isValidUrl } from "@/lib/affiliates/validation";
 
 
 /**
@@ -102,7 +102,12 @@ export async function PATCH(
 
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.description !== undefined) updateData.description = body.description.trim();
-    if (body.product_url !== undefined) updateData.product_url = body.product_url;
+    if (body.product_url !== undefined) {
+      if (body.product_url && body.product_url.trim().length > 0 && !isValidUrl(body.product_url.trim())) {
+        return NextResponse.json({ error: "product_url must use http:// or https:// scheme" }, { status: 400 });
+      }
+      updateData.product_url = body.product_url.trim() || null;
+    }
     if (body.product_type !== undefined) updateData.product_type = body.product_type;
     if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
     if (body.commission_rate !== undefined) updateData.commission_rate = body.commission_rate;

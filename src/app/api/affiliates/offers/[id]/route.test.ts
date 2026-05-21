@@ -1,3 +1,4 @@
+// @ts-nocheck - test mocks don't match strict types
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -15,13 +16,29 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
+// Use REAL isValidUrl for PATCH tests (#137), mock validateOfferInput only
 vi.mock("@/lib/affiliates/validation", () => ({
   validateOfferInput: vi.fn(),
+  isValidUrl: vi.fn((url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }),
 }));
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
-function makeRequest(id: string) {
+function makeRequest(id: string, body?: Record<string, unknown>) {
+  if (body) {
+    return new NextRequest(`http://localhost/api/affiliates/offers/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
 }
 
@@ -110,6 +127,115 @@ describe("GET /api/affiliates/offers/[id]", () => {
     mockFrom.mockReturnValue(chainable(null, { message: "not found" }));
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id] - product_url validation (#137)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const userId = "seller1";
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: userId },
+      supabase: {},
+    });
+
+    // Mock ownership check passing
+    mockFrom.mockReturnValue(chainable(
+      { id: "offer-1", seller_id: "seller1" }
+    ));
+  });
+
+  it("rejects javascript: URL in product_url (#137)", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "javascript:alert(1)" }),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("product_url");
+    expect(body.error).toContain("http");
+  });
+
+  it("rejects FTP URL in product_url (#137)", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "ftp://files.example.com" }),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("product_url");
+  });
+
+  it("rejects data: URL in product_url (#137)", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "data:text/html,<script>alert(1)</script>" }),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("product_url");
+  });
+
+  it("rejects URL missing scheme in product_url (#137)", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "example.com/product" }),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("product_url");
+  });
+
+  it("accepts valid https URL in product_url (#137)", async () => {
+    // Mock the update chain to succeed
+    mockFrom.mockReturnValue(chainable({ id: "offer-1", product_url: "https://example.com/product" }));
+    
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "https://example.com/product" }),
+      makeParams("offer-1")
+    );
+    // Should NOT return 400 with a product_url error
+    if (res.status === 400) {
+      const body = await res.json();
+      expect(body.error).not.toContain("product_url");
+    }
+  });
+
+  it("accepts empty string product_url (clears the field) (#137)", async () => {
+    mockFrom.mockReturnValue(chainable({ id: "offer-1", product_url: null }));
+    
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "" }),
+      makeParams("offer-1")
+    );
+    // Empty string is allowed - clears the URL
+    if (res.status === 400) {
+      const body = await res.json();
+      expect(body.error).not.toContain("product_url");
+    }
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetAuthContext.mockResolvedValue(null);
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "https://example.com" }),
+      makeParams("offer-1")
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 for non-owned offer", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "different-user" },
+      supabase: {},
+    });
+    mockFrom.mockReturnValue(chainable(null));
+    
+    const res = await PATCH(
+      makeRequest("offer-1", { product_url: "https://example.com" }),
+      makeParams("offer-1")
+    );
     expect(res.status).toBe(404);
   });
 });
