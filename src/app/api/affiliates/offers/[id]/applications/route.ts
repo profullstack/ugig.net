@@ -2,17 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
+async function updateAffiliateCountForStatusChange(
+  admin: AnySupabase,
+  offerId: string,
+  currentCount: number | null | undefined,
+  previousStatus: string | null,
+  nextStatus: string
+) {
+  if (previousStatus === nextStatus) return;
+
+  const delta = nextStatus === "approved" ? 1 : previousStatus === "approved" ? -1 : 0;
+  if (delta === 0) return;
+
+  const totalAffiliates = Math.max(0, (currentCount || 0) + delta);
+
+  const { error } = await admin
+    .from("affiliate_offers")
+    .update({
+      total_affiliates: totalAffiliates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", offerId);
+
+  if (error) {
+    console.warn("Failed to update affiliate count", error);
+  }
+}
 
 /**
  * GET /api/affiliates/offers/[id]/applications - List affiliates for an offer (seller only)
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -25,7 +47,7 @@ export async function GET(
     // Verify seller ownership
     const { data: offer } = await (admin as AnySupabase)
       .from("affiliate_offers")
-      .select("id, seller_id")
+      .select("id, seller_id, total_affiliates")
       .eq("id", id)
       .single();
 
@@ -35,10 +57,12 @@ export async function GET(
 
     const { data: applications, error } = await (admin as AnySupabase)
       .from("affiliate_applications")
-      .select(`
+      .select(
+        `
         *,
         profiles!affiliate_applications_affiliate_id_fkey(username, avatar_url)
-      `)
+      `
+      )
       .eq("offer_id", id)
       .order("created_at", { ascending: false });
 
@@ -55,10 +79,7 @@ export async function GET(
 /**
  * PATCH /api/affiliates/offers/[id]/applications - Approve/reject an application
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const auth = await getAuthContext(request);
@@ -70,7 +91,10 @@ export async function PATCH(
     const { application_id, action } = body;
 
     if (!application_id || !["approve", "reject"].includes(action)) {
-      return NextResponse.json({ error: "application_id and action (approve|reject) required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "application_id and action (approve|reject) required" },
+        { status: 400 }
+      );
     }
 
     const admin = createServiceClient();
@@ -84,6 +108,19 @@ export async function PATCH(
 
     if (!offer || offer.seller_id !== auth.user.id) {
       return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
+    }
+
+    const { data: existingApplication, error: existingApplicationError } = await (
+      admin as AnySupabase
+    )
+      .from("affiliate_applications")
+      .select("id, status")
+      .eq("id", application_id)
+      .eq("offer_id", id)
+      .single();
+
+    if (existingApplicationError || !existingApplication) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 });
     }
 
     const status = action === "approve" ? "approved" : "rejected";
@@ -107,19 +144,29 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    await updateAffiliateCountForStatusChange(
+      admin,
+      id,
+      offer.total_affiliates,
+      typeof existingApplication.status === "string" ? existingApplication.status : null,
+      status
+    );
+
     // Notify affiliate
     const notificationType = status === "approved" ? "affiliate_approved" : "affiliate_rejected";
-    await (admin as AnySupabase)
-      .from("notifications")
-      .insert({
-        user_id: application.affiliate_id,
-        type: notificationType,
-        title: status === "approved" ? "Affiliate application approved! 🎉" : "Affiliate application declined",
-        body: status === "approved"
+    await (admin as AnySupabase).from("notifications").insert({
+      user_id: application.affiliate_id,
+      type: notificationType,
+      title:
+        status === "approved"
+          ? "Affiliate application approved! 🎉"
+          : "Affiliate application declined",
+      body:
+        status === "approved"
           ? `You've been approved to promote this offer. Your tracking link is ready!`
           : "Your affiliate application was not approved.",
-        data: { offer_id: id, application_id },
-      });
+      data: { offer_id: id, application_id },
+    });
 
     return NextResponse.json({ application });
   } catch {
