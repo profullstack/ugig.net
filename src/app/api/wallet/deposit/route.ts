@@ -3,6 +3,22 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getUserLnWallet, createInvoice, getLnBalance } from "@/lib/lightning/wallet-utils";
 
+type DepositRequestBody = {
+  amount_sats?: unknown;
+};
+
+async function parseDepositRequestBody(request: NextRequest): Promise<DepositRequestBody | null> {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as DepositRequestBody;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
@@ -10,8 +26,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { amount_sats } = await request.json();
-    if (!amount_sats || amount_sats <= 0 || amount_sats > 1000000) {
+    const body = await parseDepositRequestBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { amount_sats } = body;
+    if (
+      typeof amount_sats !== "number" ||
+      !Number.isInteger(amount_sats) ||
+      amount_sats <= 0 ||
+      amount_sats > 1000000
+    ) {
       return NextResponse.json({ error: "Invalid amount (1-1,000,000 sats)" }, { status: 400 });
     }
 
