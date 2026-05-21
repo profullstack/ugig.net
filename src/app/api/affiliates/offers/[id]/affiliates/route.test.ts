@@ -18,7 +18,7 @@ vi.mock("@/lib/supabase/service", () => ({
 
 function makeRequest(id: string) {
   return new NextRequest(
-    `http://localhost/api/affiliates/offers/${id}/affiliates`
+    `http://localhost:3000/api/affiliates/offers/${id}/affiliates`
   );
 }
 
@@ -173,7 +173,7 @@ describe("GET /api/affiliates/offers/[id]/affiliates", () => {
     expect(alice.username).toBe("alice");
     expect(alice.status).toBe("approved");
     expect(alice.tracking_url).toBe(
-      "https://ugig.net/api/affiliates/click?ugig_ref=alice-abc123"
+      "http://localhost:3000/api/affiliates/click?ugig_ref=alice-abc123"
     );
     expect(alice.clicks_30d).toBe(3);
     expect(alice.conversions).toBe(2);

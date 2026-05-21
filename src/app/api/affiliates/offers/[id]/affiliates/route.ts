@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  buildAffiliateTrackingUrl,
+  getAffiliateBaseUrl,
+} from "@/lib/affiliates/tracking-url";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 /**
@@ -135,6 +138,7 @@ export async function GET(
     }
 
     // Build response with per-affiliate stats
+    const baseUrl = getAffiliateBaseUrl(request.url);
     const affiliates = affiliateList.map(
       (app: {
         id: string;
@@ -159,7 +163,7 @@ export async function GET(
           tracking_code: app.tracking_code,
           tracking_url:
             app.status === "approved" && app.tracking_code
-              ? `https://ugig.net/api/affiliates/click?ugig_ref=${app.tracking_code}`
+              ? buildAffiliateTrackingUrl(baseUrl, app.tracking_code)
               : null,
           clicks_30d: clicksByAffiliate[app.affiliate_id] || 0,
           conversions: convStats.count,

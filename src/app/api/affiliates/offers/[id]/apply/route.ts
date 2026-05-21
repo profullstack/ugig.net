@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any;
 import { generateTrackingCode } from "@/lib/affiliates/tracking";
+import {
+  buildAffiliateTrackingUrl,
+  getAffiliateBaseUrl,
+} from "@/lib/affiliates/tracking-url";
 
+type AnySupabase = any;
 
 /**
  * POST /api/affiliates/offers/[id]/apply - Apply to become an affiliate for an offer
@@ -127,7 +129,7 @@ export async function POST(
     return NextResponse.json({
       application,
       tracking_code: trackingCode,
-      tracking_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/ref/${trackingCode}`,
+      tracking_url: buildAffiliateTrackingUrl(getAffiliateBaseUrl(request.url), trackingCode),
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
