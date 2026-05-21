@@ -62,6 +62,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!emails.every((email: unknown) => typeof email === "string")) {
+      return NextResponse.json(
+        { error: "All email entries must be strings" },
+        { status: 400 }
+      );
+    }
+
     if (emails.length > 20) {
       return NextResponse.json(
         { error: "Maximum 20 invites at a time" },

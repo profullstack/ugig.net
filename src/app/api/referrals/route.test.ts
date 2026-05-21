@@ -254,4 +254,43 @@ describe("POST /api/referrals", () => {
     const body = await res.json();
     expect(body.error).toContain("No valid email");
   });
+
+  // --- Regression tests for #141: reject non-string email entries ---
+
+  it("should return 400 for non-string email entries (e.g. number in array)", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    // Mixed array: valid string + number
+    const res = await POST(makePostRequest({ emails: ["friend@test.com", 42] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("All email entries must be strings");
+  });
+
+  it("should return 400 for null in email array", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makePostRequest({ emails: [null] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("All email entries must be strings");
+  });
+
+  it("should return 400 for object in email array", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const res = await POST(makePostRequest({ emails: [{ email: "test@test.com" }] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("All email entries must be strings");
+  });
 });
