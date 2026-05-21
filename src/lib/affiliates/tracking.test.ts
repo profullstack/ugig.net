@@ -156,6 +156,85 @@ describe("findAttribution", () => {
     });
   });
 
+  it("requires the same visitor when attributing with a tracking-code cookie", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-20T12:00:00Z"));
+
+    const admin = makeAffiliateSupabase({
+      application: {
+        affiliate_id: "aff-1",
+        tracking_code: "alice-abc123",
+        status: "approved",
+        offer_id: "offer-1",
+      },
+      offer: { id: "offer-1", cookie_days: 30 },
+      clicks: [
+        {
+          id: "other-visitor-click",
+          offer_id: "offer-1",
+          affiliate_id: "aff-1",
+          tracking_code: "alice-abc123",
+          visitor_id: "visitor-other",
+          created_at: "2026-05-20T06:00:00Z",
+        },
+      ],
+    });
+
+    const result = await findAttribution(admin as any, {
+      offerId: "offer-1",
+      trackingCode: "alice-abc123",
+      visitorId: "visitor-current",
+    });
+
+    expect(result).toEqual({ affiliated: false });
+  });
+
+  it("credits the matching visitor when tracking-code attribution has a visitor id", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-20T12:00:00Z"));
+
+    const admin = makeAffiliateSupabase({
+      application: {
+        affiliate_id: "aff-1",
+        tracking_code: "alice-abc123",
+        status: "approved",
+        offer_id: "offer-1",
+      },
+      offer: { id: "offer-1", cookie_days: 30 },
+      clicks: [
+        {
+          id: "older-other-visitor-click",
+          offer_id: "offer-1",
+          affiliate_id: "aff-1",
+          tracking_code: "alice-abc123",
+          visitor_id: "visitor-other",
+          created_at: "2026-05-20T07:00:00Z",
+        },
+        {
+          id: "matching-visitor-click",
+          offer_id: "offer-1",
+          affiliate_id: "aff-1",
+          tracking_code: "alice-abc123",
+          visitor_id: "visitor-current",
+          created_at: "2026-05-20T06:00:00Z",
+        },
+      ],
+    });
+
+    const result = await findAttribution(admin as any, {
+      offerId: "offer-1",
+      trackingCode: "alice-abc123",
+      visitorId: "visitor-current",
+    });
+
+    expect(result).toEqual({
+      affiliated: true,
+      affiliate_id: "aff-1",
+      click_id: "matching-visitor-click",
+      tracking_code: "alice-abc123",
+    });
+  });
+
   it("does not credit an expired tracking-code cookie", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-20T12:00:00Z"));

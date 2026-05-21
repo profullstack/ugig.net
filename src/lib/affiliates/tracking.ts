@@ -179,15 +179,21 @@ export async function findAttribution(
     if (app) {
       const windowStart = await getAttributionWindowStart(admin, offerId);
 
-      // Require a real click inside the offer's attribution window.
-      const { data: clicks } = await (admin as AnySupabase)
+      // Require a real click inside the offer's attribution window. When the
+      // caller has a visitor id, the click must belong to that same visitor.
+      let clickQuery = (admin as AnySupabase)
         .from("affiliate_clicks")
         .select("id")
         .eq("tracking_code", trackingCode)
         .eq("offer_id", offerId)
         .gte("created_at", windowStart)
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
+
+      if (visitorId) {
+        clickQuery = clickQuery.eq("visitor_id", visitorId);
+      }
+
+      const { data: clicks } = await clickQuery.limit(1);
 
       if (!clicks || clicks.length === 0) {
         return { affiliated: false };
@@ -212,14 +218,13 @@ export async function findAttribution(
     .select("id, affiliate_id, tracking_code")
     .eq("offer_id", offerId)
     .gte("created_at", windowStart)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .order("created_at", { ascending: false });
 
   if (visitorId) {
     query = query.eq("visitor_id", visitorId);
   }
 
-  const { data: clicks } = await query;
+  const { data: clicks } = await query.limit(1);
 
   if (clicks && clicks.length > 0) {
     return {
