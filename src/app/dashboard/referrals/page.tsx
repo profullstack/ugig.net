@@ -84,18 +84,21 @@ export default function ReferralsPage() {
       return;
     }
 
-    const res = await fetch("/api/referrals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emails: emailList }),
-    });
+    try {
+      const res = await fetch("/api/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: emailList }),
+      });
 
-    const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      setError(data.error);
-    } else {
-      setSuccess(data.message);
+      if (!res.ok) {
+        setError(data?.error || "Failed to send invites");
+        return;
+      }
+
+      setSuccess(data?.message || "Invites sent");
       setEmails("");
       loadReferrals().then((d) => {
         if (d) {
@@ -103,8 +106,11 @@ export default function ReferralsPage() {
           setStats(d.stats);
         }
       });
+    } catch {
+      setError("Failed to send invites");
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const statusBadge = (status: string) => {
@@ -125,7 +131,8 @@ export default function ReferralsPage() {
       <div>
         <h1 className="text-2xl font-bold">Invite Friends</h1>
         <p className="text-muted-foreground mt-1">
-          Share your referral link and earn ⚡ 25 sats for each friend who signs up. They get 25 sats too!
+          Share your referral link and earn ⚡ 25 sats for each friend who signs up. They get 25
+          sats too!
         </p>
       </div>
 
@@ -187,12 +194,8 @@ export default function ReferralsPage() {
           rows={3}
           className="w-full bg-muted/50 border border-border rounded-md px-3 py-2 text-sm resize-none"
         />
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
-        {success && (
-          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
         <button
           onClick={sendInvites}
           disabled={sending}
@@ -232,9 +235,7 @@ export default function ReferralsPage() {
                       {new Date(r.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {r.registered_at
-                        ? new Date(r.registered_at).toLocaleDateString()
-                        : "—"}
+                      {r.registered_at ? new Date(r.registered_at).toLocaleDateString() : "—"}
                     </td>
                   </tr>
                 ))}
@@ -243,6 +244,6 @@ export default function ReferralsPage() {
           </div>
         )}
       </div>
-        </div>
+    </div>
   );
 }
