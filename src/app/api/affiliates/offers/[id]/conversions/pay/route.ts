@@ -3,7 +3,6 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getUserLnWallet, internalTransfer } from "@/lib/lightning/wallet-utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
 /**
@@ -45,7 +44,7 @@ export async function POST(
     // Get the conversion
     const { data: conv } = await (admin as AnySupabase)
       .from("affiliate_conversions")
-      .select("id, affiliate_id, commission_sats, status")
+      .select("id, affiliate_id, commission_sats, status, settles_at")
       .eq("id", conversion_id)
       .eq("offer_id", id)
       .single();
@@ -60,6 +59,10 @@ export async function POST(
 
     if (conv.status === "clawed_back") {
       return NextResponse.json({ error: "Cannot pay a clawed back conversion" }, { status: 400 });
+    }
+
+    if (conv.settles_at && new Date(conv.settles_at) > new Date()) {
+      return NextResponse.json({ error: "Conversion has not settled yet" }, { status: 400 });
     }
 
     if (conv.commission_sats <= 0) {
