@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isValidUrl } from "@/lib/affiliates/validation";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-import { validateOfferInput } from "@/lib/affiliates/validation";
-
 
 /**
  * GET /api/affiliates/offers/[id] - Get offer details
@@ -102,7 +100,25 @@ export async function PATCH(
 
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.description !== undefined) updateData.description = body.description.trim();
-    if (body.product_url !== undefined) updateData.product_url = body.product_url;
+    if (body.product_url !== undefined) {
+      if (body.product_url === null) {
+        updateData.product_url = null;
+      } else if (typeof body.product_url !== "string") {
+        return NextResponse.json({ error: "product_url must be a string" }, { status: 400 });
+      } else {
+        const productUrl = body.product_url.trim();
+        if (productUrl.length === 0) {
+          updateData.product_url = null;
+        } else if (!isValidUrl(productUrl)) {
+          return NextResponse.json(
+            { error: "product_url must use http:// or https:// scheme" },
+            { status: 400 }
+          );
+        } else {
+          updateData.product_url = productUrl;
+        }
+      }
+    }
     if (body.product_type !== undefined) updateData.product_type = body.product_type;
     if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
     if (body.commission_rate !== undefined) updateData.commission_rate = body.commission_rate;

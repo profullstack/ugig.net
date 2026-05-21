@@ -15,11 +15,7 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
-vi.mock("@/lib/affiliates/validation", () => ({
-  validateOfferInput: vi.fn(),
-}));
-
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 function makeRequest(id: string) {
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
@@ -111,5 +107,74 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller1", authMethod: "session" },
+    });
+  });
+
+  it("rejects non-http product_url updates", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({ id: "offer-1", seller_id: "seller1" });
+      }
+      return chainable([]);
+    });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers/offer-1", {
+      method: "PATCH",
+      body: JSON.stringify({ product_url: "javascript:alert(1)" }),
+    });
+
+    const res = await PATCH(req, makeParams("offer-1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("product_url must use http:// or https:// scheme");
+  });
+
+  it("trims valid product_url updates before saving", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table !== "affiliate_offers") return chainable([]);
+
+      const update = vi.fn((data: Record<string, unknown>) => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({
+              data: { id: "offer-1", seller_id: "seller1", ...data },
+              error: null,
+            })),
+          })),
+        })),
+      }));
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({
+              data: { id: "offer-1", seller_id: "seller1" },
+              error: null,
+            })),
+          })),
+        })),
+        update,
+      };
+    });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers/offer-1", {
+      method: "PATCH",
+      body: JSON.stringify({ product_url: "  https://example.com/product  " }),
+    });
+
+    const res = await PATCH(req, makeParams("offer-1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.product_url).toBe("https://example.com/product");
   });
 });
