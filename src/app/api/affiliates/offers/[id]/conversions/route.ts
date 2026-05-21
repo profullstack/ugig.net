@@ -148,6 +148,13 @@ export async function POST(
       );
     }
 
+    if (!Number.isInteger(sale_amount_sats)) {
+      return NextResponse.json(
+        { error: "sale_amount_sats must be a whole number (satoshis are indivisible)" },
+        { status: 400 }
+      );
+    }
+
     // Verify the affiliate is approved for this offer
     const { data: application } = await (admin as AnySupabase)
       .from("affiliate_applications")
@@ -243,6 +250,12 @@ export async function PUT(
       updateData.status = status;
     }
     if (typeof sale_amount_sats === "number" && sale_amount_sats > 0) {
+      if (!Number.isInteger(sale_amount_sats)) {
+        return NextResponse.json(
+          { error: "sale_amount_sats must be a whole number (satoshis are indivisible)" },
+          { status: 400 }
+        );
+      }
       updateData.sale_amount_sats = sale_amount_sats;
       const { calculateCommission } = await import("@/lib/affiliates/commission");
       updateData.commission_sats = calculateCommission(offer, sale_amount_sats);

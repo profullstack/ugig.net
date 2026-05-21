@@ -56,6 +56,9 @@ export function calculateCommission(
   offer: Pick<AffiliateOffer, "commission_rate" | "commission_type" | "commission_flat_sats">,
   saleAmountSats: number
 ): number {
+  if (!Number.isInteger(saleAmountSats) || saleAmountSats < 0) {
+    throw new Error("saleAmountSats must be a non-negative integer");
+  }
   if (offer.commission_type === "flat") {
     return offer.commission_flat_sats || 0;
   }
