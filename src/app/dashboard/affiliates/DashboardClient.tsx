@@ -46,6 +46,31 @@ function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the textarea fallback below.
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
 function StatCard({
   label,
   value,
@@ -105,11 +130,15 @@ function CopyButton({ text, label, stopPropagation }: { text: string; label?: st
       size="sm"
       variant="outline"
       title={label}
-      onClick={(e) => {
-        if (stopPropagation) e.preventDefault();
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+      onClick={async (e) => {
+        if (stopPropagation) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (await copyText(text)) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
       }}
     >
       {copied ? (
