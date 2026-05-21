@@ -115,6 +115,8 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
     errors.push(`Product type must be one of: ${AFFILIATE_PRODUCT_TYPES.join(", ")}`);
   }
 
+  // Normalize "none" sentinel from Radix Select to undefined (#151)
+  if (input.category === "none") input.category = undefined;
   if (input.category && !SKILL_CATEGORIES.includes(input.category as any)) {
     errors.push(`Category must be one of: ${SKILL_CATEGORIES.join(", ")}`);
   }

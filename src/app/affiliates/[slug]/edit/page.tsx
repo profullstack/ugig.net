@@ -39,7 +39,7 @@ export default function EditOfferPage() {
     cookie_days: "30",
     settlement_delay_days: "7",
     promo_text: "",
-    category: "",
+    category: "none",
     tags: [] as string[],
   });
   const [tagInput, setTagInput] = useState("");
@@ -120,7 +120,7 @@ export default function EditOfferPage() {
             cookie_days: String(o.cookie_days || 30),
             settlement_delay_days: String(o.settlement_delay_days || 7),
             promo_text: o.promo_text || "",
-            category: o.category || "",
+            category: o.category || "none",
             tags: o.tags || [],
           });
         }
@@ -150,7 +150,7 @@ export default function EditOfferPage() {
         cookie_days: parseInt(form.cookie_days) || 30,
         settlement_delay_days: parseInt(form.settlement_delay_days) || 7,
         promo_text: form.promo_text || undefined,
-        category: form.category || undefined,
+        category: form.category === "none" ? undefined : form.category || undefined,
         tags: form.tags,
       }),
     });
@@ -238,7 +238,7 @@ export default function EditOfferPage() {
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {SKILL_CATEGORIES.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat.charAt(0).toUpperCase() + cat.slice(1)}

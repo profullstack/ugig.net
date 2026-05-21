@@ -243,3 +243,34 @@ describe("validateApplyNote (#145)", () => {
     expect(result.value).toBe(null);
   });
 });
+
+// Regression test for #151 - Radix Select "none" sentinel for empty category
+describe("category none sentinel (#151)", () => {
+  const validInput = {
+    title: "Test Offer Title",
+    description: "This is a valid description for the offer",
+    product_url: "https://example.com",
+    price_sats: 1000,
+    commission_type: "percentage",
+    commission_rate: 0.2,
+  };
+
+  it('normalizes category "none" to undefined (Radix Select cannot use empty string value)', () => {
+    const result = validateOfferInput({ ...validInput, category: "none" });
+    expect(result.ok).toBe(true);
+    expect(result.sanitized!.category).toBeUndefined();
+  });
+
+  it("accepts a valid category string", () => {
+    // Use the first category from SKILL_CATEGORIES if available
+    const result = validateOfferInput({ ...validInput, category: "coding" });
+    expect(result.ok).toBe(true);
+    // category stays as-is since it's a valid category
+  });
+
+  it("accepts undefined category (no category selected)", () => {
+    const result = validateOfferInput({ ...validInput, category: undefined });
+    expect(result.ok).toBe(true);
+    expect(result.sanitized!.category).toBeUndefined();
+  });
+});
