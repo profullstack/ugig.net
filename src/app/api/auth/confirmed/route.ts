@@ -19,6 +19,19 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { sendEmail, welcomeEmail } from "@/lib/email";
 import { generateAndStoreDid } from "@/lib/auth/did";
 import { createUserLnWallet } from "@/lib/lightning/create-wallet";
+import { safeParseBody } from "@/lib/sanitize";
+
+type AuthWebhookPayload = {
+  type?: string;
+  record?: {
+    email_confirmed_at?: string | null;
+    id?: string;
+    email?: string;
+  };
+  old_record?: {
+    email_confirmed_at?: string | null;
+  };
+};
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -40,7 +53,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await safeParseBody<AuthWebhookPayload>(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
     // Supabase auth webhook payload
     const { type, record } = body;

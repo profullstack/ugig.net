@@ -27,6 +27,14 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeRawRequest(body: string) {
+  return new NextRequest("http://localhost/api/auth/resend-confirmation", {
+    method: "POST",
+    body,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 describe("POST /api/auth/resend-confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,5 +62,13 @@ describe("POST /api/auth/resend-confirmation", () => {
   it("should return 400 for invalid email", async () => {
     const res = await POST(makeRequest({ email: "not-valid" }));
     expect(res.status).toBe(400);
+  });
+
+  it("should return 400 for malformed JSON without resending", async () => {
+    const res = await POST(makeRawRequest("{"));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid request body");
+    expect(mockResend).not.toHaveBeenCalled();
   });
 });

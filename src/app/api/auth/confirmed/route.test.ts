@@ -64,6 +64,16 @@ function makeRequest(body: unknown, secret: string | null = "test-webhook-secret
   });
 }
 
+function makeRawRequest(body: string, secret: string | null = "test-webhook-secret"): NextRequest {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (secret !== null) headers["authorization"] = `Bearer ${secret}`;
+  return new NextRequest("http://localhost/api/auth/confirmed", {
+    method: "POST",
+    headers,
+    body,
+  });
+}
+
 function confirmationPayload(overrides?: {
   userId?: string;
   email?: string;
@@ -180,6 +190,15 @@ describe("POST /api/auth/confirmed", () => {
       );
       expect(res.status).toBe(400);
     });
+
+    it("returns 400 for malformed JSON without sending email", async () => {
+      const res = await POST(makeRawRequest("{"));
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.error).toBe("Invalid request body");
+      expect(mockSendEmail).not.toHaveBeenCalled();
+    });
   });
 
   describe("DID auto-generation", () => {
@@ -194,7 +213,6 @@ describe("POST /api/auth/confirmed", () => {
 
       // Should have called update on profiles to store the DID
       expect(mockUpdate).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateArg = (mockUpdate.mock.calls as any)[0]?.[0] as Record<string, unknown>;
       expect(updateArg).toHaveProperty("did");
       expect(updateArg.did).toMatch(/^did:key:z/);
@@ -211,7 +229,6 @@ describe("POST /api/auth/confirmed", () => {
 
       await POST(makeRequest(confirmationPayload()));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const did = ((mockUpdate.mock.calls as any)[0]?.[0] as Record<string, unknown>)?.did as string;
       // did:key:z<base58btc-encoded multicodec>
       expect(did).toMatch(/^did:key:z[1-9A-HJ-NP-Za-km-z]+$/);

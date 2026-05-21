@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeParseBody } from "@/lib/sanitize";
 import { resetPasswordSchema } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await safeParseBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
     const validationResult = resetPasswordSchema.safeParse(body);
 
     if (!validationResult.success) {
