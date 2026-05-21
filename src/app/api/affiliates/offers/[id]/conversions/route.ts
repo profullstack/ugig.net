@@ -3,8 +3,11 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordConversion } from "@/lib/affiliates/commission";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
+
+function isPositiveIntegerSats(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
 
 /**
  * GET /api/affiliates/offers/[id]/conversions - List conversions for an offer (seller only)
@@ -141,9 +144,9 @@ export async function POST(
       );
     }
 
-    if (!sale_amount_sats || typeof sale_amount_sats !== "number" || sale_amount_sats <= 0) {
+    if (!isPositiveIntegerSats(sale_amount_sats)) {
       return NextResponse.json(
-        { error: "sale_amount_sats must be a positive number" },
+        { error: "sale_amount_sats must be a positive integer" },
         { status: 400 }
       );
     }
@@ -242,7 +245,13 @@ export async function PUT(
     if (typeof status === "string" && ["pending", "paid", "clawed_back"].includes(status)) {
       updateData.status = status;
     }
-    if (typeof sale_amount_sats === "number" && sale_amount_sats > 0) {
+    if (sale_amount_sats !== undefined && !isPositiveIntegerSats(sale_amount_sats)) {
+      return NextResponse.json(
+        { error: "sale_amount_sats must be a positive integer" },
+        { status: 400 }
+      );
+    }
+    if (typeof sale_amount_sats === "number") {
       updateData.sale_amount_sats = sale_amount_sats;
       const { calculateCommission } = await import("@/lib/affiliates/commission");
       updateData.commission_sats = calculateCommission(offer, sale_amount_sats);

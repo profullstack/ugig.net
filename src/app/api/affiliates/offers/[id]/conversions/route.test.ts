@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET, POST } from "./route";
+import { GET, POST, PUT } from "./route";
 import { NextRequest } from "next/server";
 
 // Mock auth
@@ -18,8 +18,10 @@ vi.mock("@/lib/supabase/service", () => ({
 
 // Mock recordConversion
 const mockRecordConversion = vi.fn();
+const mockCalculateCommission = vi.fn();
 vi.mock("@/lib/affiliates/commission", () => ({
   recordConversion: (...args: unknown[]) => mockRecordConversion(...args),
+  calculateCommission: (...args: unknown[]) => mockCalculateCommission(...args),
 }));
 
 function makeGetRequest(id: string) {
@@ -33,6 +35,17 @@ function makePostRequest(id: string, body: Record<string, unknown>) {
     `http://localhost/api/affiliates/offers/${id}/conversions`,
     {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+function makePutRequest(id: string, body: Record<string, unknown>) {
+  return new NextRequest(
+    `http://localhost/api/affiliates/offers/${id}/conversions`,
+    {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
@@ -319,6 +332,73 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     );
     expect(res2.status).toBe(400);
     const body2 = await res2.json();
-    expect(body2.error).toBe("sale_amount_sats must be a positive number");
+    expect(body2.error).toBe("sale_amount_sats must be a positive integer");
+  });
+
+  it("rejects fractional sale amounts", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await POST(
+      makePostRequest("offer-1", {
+        affiliate_id: "aff-1",
+        sale_amount_sats: 100.5,
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("sale_amount_sats must be a positive integer");
+    expect(mockRecordConversion).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/affiliates/offers/[id]/conversions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects fractional sale amount updates", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          commission_rate: 10,
+          commission_type: "percentage",
+          commission_flat_sats: null,
+        });
+      }
+      return chainable({ data: null, error: null });
+    });
+
+    const res = await PUT(
+      makePutRequest("offer-1", {
+        conversion_id: "conv-1",
+        sale_amount_sats: 100.5,
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("sale_amount_sats must be a positive integer");
+    expect(mockCalculateCommission).not.toHaveBeenCalled();
   });
 });
