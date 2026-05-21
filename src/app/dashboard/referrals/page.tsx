@@ -84,27 +84,32 @@ export default function ReferralsPage() {
       return;
     }
 
-    const res = await fetch("/api/referrals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emails: emailList }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error);
-    } else {
-      setSuccess(data.message);
-      setEmails("");
-      loadReferrals().then((d) => {
-        if (d) {
-          setReferrals(d.data || []);
-          setStats(d.stats);
-        }
+    try {
+      const res = await fetch("/api/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: emailList }),
       });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(data?.error || "Failed to send invites");
+      } else {
+        setSuccess(data?.message || "Invites sent");
+        setEmails("");
+        loadReferrals().then((d) => {
+          if (d) {
+            setReferrals(d.data || []);
+            setStats(d.stats);
+          }
+        });
+      }
+    } catch {
+      setError("Failed to send invites. Please try again.");
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const statusBadge = (status: string) => {
