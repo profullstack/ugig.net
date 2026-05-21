@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PLATFORM_FEE_RATE, PLATFORM_WALLET_USER_ID } from "@/lib/constants";
 import { getUserDid, onZapSent, onZapReceived } from "@/lib/reputation-hooks";
+import { safeParseBody } from "@/lib/sanitize";
 import {
   getUserLnWallet,
   getLnBalance,
@@ -29,7 +30,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rawBody = await request.json();
+    const rawBody = await safeParseBody(request);
+    if (!rawBody) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
     const parsed = zapRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
