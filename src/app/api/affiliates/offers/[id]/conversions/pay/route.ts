@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getUserLnWallet, internalTransfer } from "@/lib/lightning/wallet-utils";
+import { safeParseBody } from "@/lib/sanitize";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
@@ -35,8 +36,8 @@ export async function POST(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { conversion_id } = body;
+    const body = await safeParseBody<{ conversion_id?: unknown }>(request);
+    const conversion_id = body?.conversion_id;
 
     if (!conversion_id) {
       return NextResponse.json({ error: "conversion_id is required" }, { status: 400 });
