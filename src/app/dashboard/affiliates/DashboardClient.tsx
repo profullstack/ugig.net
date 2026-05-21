@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SatsFiatHint } from "@/components/ui/SatsAmount";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { copyToClipboard } from "@/lib/copy-to-clipboard";
 import {
   Tabs,
   TabsContent,
@@ -105,11 +106,13 @@ function CopyButton({ text, label, stopPropagation }: { text: string; label?: st
       size="sm"
       variant="outline"
       title={label}
-      onClick={(e) => {
+      onClick={async (e) => {
         if (stopPropagation) e.preventDefault();
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        const ok = await copyToClipboard(text);
+        if (ok) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
       }}
     >
       {copied ? (
