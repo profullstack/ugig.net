@@ -56,6 +56,14 @@ function makeRequest(body: any) {
   }) as any;
 }
 
+function makeRawRequest(body: string) {
+  return new Request("http://localhost/api/wallet/withdraw", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  }) as any;
+}
+
 describe("POST /api/wallet/withdraw", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,6 +99,24 @@ describe("POST /api/wallet/withdraw", () => {
     mockGetAuthContext.mockResolvedValue(null);
     const res = await POST(makeRequest({ amount_sats: 100, destination: "user@wallet.com" }));
     expect(res.status).toBe(401);
+  });
+
+  it("rejects malformed JSON without starting withdrawal lookup", async () => {
+    const res = await POST(makeRawRequest("{not valid json"));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Invalid request body");
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-object JSON bodies without starting withdrawal lookup", async () => {
+    const res = await POST(makeRequest(null));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Invalid request body");
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
   });
 
   it("rejects missing fields", async () => {
@@ -130,6 +156,15 @@ describe("POST /api/wallet/withdraw", () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toMatch(/whole number/i);
+  });
+
+  it("rejects non-string destinations", async () => {
+    const res = await POST(makeRequest({ amount_sats: 100, destination: 123 }));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/destination must be a string/i);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
   });
 
   it("rejects invalid destination", async () => {

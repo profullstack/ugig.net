@@ -9,6 +9,23 @@ const MAX_WITHDRAW = 100000;
 const DAILY_WITHDRAW_LIMIT = 500000;
 const HOURLY_WITHDRAW_LIMIT = 3;
 
+type WithdrawRequestBody = {
+  amount_sats?: unknown;
+  destination?: unknown;
+};
+
+async function parseWithdrawRequestBody(request: NextRequest): Promise<WithdrawRequestBody | null> {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as WithdrawRequestBody;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
@@ -16,13 +33,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { amount_sats, destination } = await request.json();
+    const body = await parseWithdrawRequestBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { amount_sats, destination } = body;
 
     if (!amount_sats || !destination) {
       return NextResponse.json({ error: "amount_sats and destination are required" }, { status: 400 });
     }
-    if (!Number.isInteger(amount_sats)) {
+    if (typeof amount_sats !== "number" || !Number.isInteger(amount_sats)) {
       return NextResponse.json({ error: "Amount must be a whole number" }, { status: 400 });
+    }
+    if (typeof destination !== "string") {
+      return NextResponse.json({ error: "Destination must be a string" }, { status: 400 });
     }
     if (amount_sats < MIN_WITHDRAW || amount_sats > MAX_WITHDRAW) {
       return NextResponse.json({
