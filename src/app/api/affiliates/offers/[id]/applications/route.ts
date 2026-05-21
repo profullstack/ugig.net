@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
+async function readJsonObject(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * GET /api/affiliates/offers/[id]/applications - List affiliates for an offer (seller only)
@@ -66,8 +76,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { application_id, action } = body;
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const application_id = typeof body.application_id === "string" ? body.application_id : "";
+    const action = typeof body.action === "string" ? body.action : "";
 
     if (!application_id || !["approve", "reject"].includes(action)) {
       return NextResponse.json({ error: "application_id and action (approve|reject) required" }, { status: 400 });
