@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordConversion } from "@/lib/affiliates/commission";
+import { safeParseBody } from "@/lib/sanitize";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
@@ -131,7 +132,15 @@ export async function POST(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await safeParseBody<{
+      affiliate_id?: unknown;
+      sale_amount_sats?: unknown;
+      note?: unknown;
+    }>(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
     const { affiliate_id, sale_amount_sats, note } = body;
 
     if (!affiliate_id || typeof affiliate_id !== "string") {
@@ -177,8 +186,9 @@ export async function POST(
 
     // Update source and note on the created conversion
     const updateData: Record<string, unknown> = { source: "manual" };
-    if (note && typeof note === "string") {
-      updateData.note = note.trim();
+    const noteText = typeof note === "string" ? note.trim() : null;
+    if (noteText) {
+      updateData.note = noteText;
     }
 
     await (admin as AnySupabase)
@@ -192,7 +202,7 @@ export async function POST(
         commission_sats: result.commission_sats,
         settles_at: result.settles_at,
         source: "manual",
-        note: note?.trim() || null,
+        note: noteText,
       },
     });
   } catch {

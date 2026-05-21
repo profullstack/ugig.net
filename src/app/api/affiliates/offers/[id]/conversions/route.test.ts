@@ -39,6 +39,17 @@ function makePostRequest(id: string, body: Record<string, unknown>) {
   );
 }
 
+function makeRawPostRequest(id: string, body: string) {
+  return new NextRequest(
+    `http://localhost/api/affiliates/offers/${id}/conversions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    }
+  );
+}
+
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
@@ -320,5 +331,31 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     expect(res2.status).toBe(400);
     const body2 = await res2.json();
     expect(body2.error).toBe("sale_amount_sats must be a positive number");
+  });
+
+  it("returns 400 for malformed JSON request bodies", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await POST(
+      makeRawPostRequest("offer-1", "{not valid json"),
+      makeParams("offer-1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid request body");
+    expect(mockRecordConversion).not.toHaveBeenCalled();
   });
 });
