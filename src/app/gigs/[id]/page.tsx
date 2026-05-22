@@ -26,6 +26,7 @@ import { CloseGigButton } from "@/components/gigs/CloseGigButton";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { SatsRangeToUsd } from "@/components/gigs/SatsToUsd";
+import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
 import { ZapButton } from "@/components/zaps/ZapButton";
 import { GigTestimonialSection } from "@/components/testimonials/GigTestimonialSection";
 import { HiredWorkerReview } from "@/components/gigs/HiredWorkerReview";
@@ -425,34 +426,26 @@ export default async function GigPage({ params }: GigPageProps) {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Apply Card */}
-            <div className="border border-border rounded-lg p-6 bg-card">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  <span className="text-2xl font-bold">{budgetDisplay}</span>
-                </div>
-                {gig.payment_coin && (gig.payment_coin === "SATS" || gig.payment_coin === "LN" || gig.payment_coin === "BTC") && (gig.budget_min || gig.budget_max) && (
+            <PriceBox
+              amount={budgetDisplay}
+              amountHint={
+                gig.payment_coin && (gig.payment_coin === "SATS" || gig.payment_coin === "LN" || gig.payment_coin === "BTC") && (gig.budget_min || gig.budget_max) ? (
                   <SatsRangeToUsd min={gig.budget_min} max={gig.budget_max} className="text-sm text-muted-foreground" />
-                )}
-                <div className="text-sm text-muted-foreground">
-                  <span className="capitalize">{gig.budget_type.replace("_", " ")}</span> rate{gig.budget_unit ? ` (per ${gig.budget_unit})` : ""}
-                </div>
+                ) : null
+              }
+              subtitle={
+                <><span className="capitalize">{gig.budget_type.replace("_", " ")}</span> rate{gig.budget_unit ? ` (per ${gig.budget_unit})` : ""}</>
+              }
+            >
+              {gig.duration && (
+                <PriceBoxRow icon={<Briefcase className="h-4 w-4" />}>{gig.duration}</PriceBoxRow>
+              )}
 
-                {gig.duration && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-4 w-4" />
-                    <span>{gig.duration}</span>
-                  </div>
-                )}
+              {gig.location && (
+                <PriceBoxRow icon={<MapPin className="h-4 w-4" />}>{gig.location}</PriceBoxRow>
+              )}
 
-                {gig.location && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{gig.location}</span>
-                  </div>
-                )}
-
-                {gig.status === "active" && !isOwner && (
+              {gig.status === "active" && !isOwner && (
                   <>
                     {user ? (
                       hasApplied ? (
@@ -518,8 +511,7 @@ export default async function GigPage({ params }: GigPageProps) {
                     )}
                   </div>
                 )}
-              </div>
-            </div>
+            </PriceBox>
 
             {/* Poster Info */}
             {poster && (
