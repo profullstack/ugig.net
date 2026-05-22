@@ -13,6 +13,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
+import { formatBountyPayout } from "@/lib/bounties";
 import { SubmitForm } from "./SubmitForm";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -140,36 +141,31 @@ export default async function BountyDetailPage({
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-base">
-                  <DollarSign className="h-4 w-4 mr-0.5" />
-                  {Number(bounty.payout_usd).toFixed(2)}
-                </Badge>
-                {bounty.payment_coin && (
-                  <Badge variant="secondary">{bounty.payment_coin}</Badge>
-                )}
-                {isCreator && (
-                  <Link href={`/bounties/${bounty.id}/edit`}>
-                    <Button size="sm" variant="outline" className="gap-1.5">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                  </Link>
-                )}
-              </div>
+              {isCreator && (
+                <Link href={`/bounties/${bounty.id}/edit`} className="flex-shrink-0">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </Link>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
-              <div className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                <DollarSign className="h-4 w-4" />
+                {formatBountyPayout(bounty.payout_usd, bounty.payment_coin)}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
                 {submissionCount || 0} submission
                 {(submissionCount ?? 0) === 1 ? "" : "s"}
                 {bounty.max_submissions && ` / ${bounty.max_submissions}`}
-              </div>
-              <div className="inline-flex items-center gap-1.5">
+              </span>
+              <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-4 w-4" />
                 Posted {new Date(bounty.created_at).toLocaleDateString()}
-              </div>
+              </span>
               {bounty.status !== "open" && (
                 <Badge variant="secondary" className="capitalize">
                   {bounty.status}

@@ -12,6 +12,7 @@ import {
   Clock,
   XCircle,
 } from "lucide-react";
+import { formatBountyPayout } from "@/lib/bounties";
 
 export const metadata = {
   title: "My Bounties | ugig.net",
@@ -83,7 +84,7 @@ export default async function DashboardBountiesPage({
     .select(
       `
       id, status, payout_status, pay_url, created_at,
-      bounty:bounties (id, title, payout_usd)
+      bounty:bounties (id, title, payout_usd, payment_coin)
     `
     )
     .eq("submitter_id", user.id)
@@ -94,7 +95,7 @@ export default async function DashboardBountiesPage({
     payout_status: "unpaid" | "invoiced" | "paid";
     pay_url: string | null;
     created_at: string;
-    bounty: { id: string; title: string; payout_usd: number } | null;
+    bounty: { id: string; title: string; payout_usd: number; payment_coin: string | null } | null;
   }>;
 
   return (
@@ -180,25 +181,15 @@ export default async function DashboardBountiesPage({
                           Posted {new Date(b.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-                          <DollarSign className="h-3 w-3 mr-0.5" />
-                          {Number(b.payout_usd).toFixed(2)}
-                        </Badge>
-                        {b.payment_coin && (
-                          <Badge variant="secondary" className="text-xs">
-                            {b.payment_coin}
-                          </Badge>
-                        )}
-                        <Badge
-                          variant="secondary"
-                          className="capitalize"
-                        >
-                          {b.status}
-                        </Badge>
-                      </div>
+                      <Badge variant="secondary" className="capitalize">
+                        {b.status}
+                      </Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground mt-2">
+                      <span className="inline-flex items-center gap-1 text-sm text-foreground font-medium">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        {formatBountyPayout(b.payout_usd, b.payment_coin)}
+                      </span>
                       <span>
                         {stat.total} submission{stat.total === 1 ? "" : "s"}
                         {b.max_submissions && ` / ${b.max_submissions}`}
@@ -266,7 +257,7 @@ export default async function DashboardBountiesPage({
                 <p className="text-xs text-muted-foreground">
                   Submitted {new Date(s.created_at).toLocaleDateString()}
                   {s.bounty && (
-                    <> · ${Number(s.bounty.payout_usd).toFixed(2)} payout</>
+                    <> · {formatBountyPayout(s.bounty.payout_usd, s.bounty.payment_coin)} payout</>
                   )}
                 </p>
               </Link>

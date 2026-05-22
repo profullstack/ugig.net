@@ -3,8 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Target, DollarSign, Users, Plus } from "lucide-react";
+import { formatBountyPayout } from "@/lib/bounties";
 
 export const metadata: Metadata = {
   title: "Bounties | ugig.net",
@@ -93,32 +93,23 @@ export default async function BountiesPage() {
                   href={`/bounties/${b.id}`}
                   className="p-5 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
                 >
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <h2 className="font-semibold line-clamp-2">{b.title}</h2>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">
-                        <DollarSign className="h-3 w-3 mr-0.5" />
-                        {Number(b.payout_usd).toFixed(2)}
-                      </Badge>
-                      {b.payment_coin && (
-                        <Badge variant="secondary" className="text-xs">
-                          {b.payment_coin}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                  <h2 className="font-semibold line-clamp-2 mb-2">{b.title}</h2>
                   <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
                     {b.description}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-t border-border pt-3">
+                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                      <DollarSign className="h-4 w-4" />
+                      {formatBountyPayout(b.payout_usd, b.payment_coin)}
+                    </span>
+                    <span className="text-xs">
                       by{" "}
                       {b.creator?.full_name ||
                         b.creator?.username ||
                         "Anonymous"}
                     </span>
                     {b.max_submissions && (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 text-xs">
                         <Users className="h-3 w-3" />
                         Cap: {b.max_submissions}
                       </span>
