@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createInvoice, sendInvoice } from "@/lib/coinpayportal";
+import { createPayment, type SupportedCurrency } from "@/lib/coinpayportal";
 import { z } from "zod";
 
 const createInvoiceSchema = z.object({
@@ -10,6 +10,30 @@ const createInvoiceSchema = z.object({
   notes: z.string().optional(),
   due_date: z.string().optional(),
 });
+
+const COINPAY_CURRENCY_BY_COIN: Record<string, SupportedCurrency> = {
+  BTC: "btc",
+  ETH: "eth",
+  POL: "pol",
+  MATIC: "pol",
+  SOL: "sol",
+  USDC: "usdc_sol",
+  USDC_POL: "usdc_pol",
+  USDC_POLYGON: "usdc_pol",
+  USDC_SOL: "usdc_sol",
+  USDC_SOLANA: "usdc_sol",
+  USDC_ETH: "usdc_eth",
+  USDC_ETHEREUM: "usdc_eth",
+  USDT: "usdt",
+};
+
+function getPaymentCurrency(paymentCoin?: string | null): SupportedCurrency {
+  const key = (paymentCoin || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+  return COINPAY_CURRENCY_BY_COIN[key] || "usdc_sol";
+}
 
 // GET /api/gigs/[id]/invoice - Get invoices for a gig
 export async function GET(
@@ -76,7 +100,7 @@ export async function POST(
     // Get gig
     const { data: gig } = await supabase
       .from("gigs")
-      .select("id, title, poster_id")
+      .select("id, title, poster_id, payment_coin")
       .eq("id", gigId)
       .single();
 
@@ -113,24 +137,57 @@ export async function POST(
       );
     }
 
-    // Create invoice on CoinPayPortal
-    const invoiceResult = await createInvoice({
-      amount,
-      currency,
-      notes: notes || `Invoice for gig: ${gig.title}`,
-      due_date,
+    const paymentCurrency = getPaymentCurrency((gig as any).payment_coin);
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    const regularBusinessId =
+      process.env.COINPAY_UGIG_BUSINESS_ID ||
+      process.env.COINPAY_MERCHANT_ID;
+
+    // Create a direct CoinPay payment request instead of a hosted invoice. The
+    // poster should see payment details inside uGig, not be redirected away.
+    const paymentResult = await createPayment({
+      amount_usd: amount,
+      currency: paymentCurrency,
+      description: notes || `Invoice for gig: ${gig.title}`,
+      business_id: regularBusinessId,
+      redirect_url: `${appUrl}/gigs/${gigId}?invoice=paid`,
       metadata: {
+        type: "gig_invoice",
         gig_id: gigId,
         application_id,
         worker_id: user.id,
         poster_id: gig.poster_id,
+        invoice_currency: currency,
+        payment_currency: paymentCurrency,
         platform: "ugig.net",
       },
     });
 
-    // Send the invoice to generate a payment link
-    const sendResult = await sendInvoice(invoiceResult.invoice.id);
-    const payUrl = sendResult.invoice.pay_url || invoiceResult.invoice.pay_url;
+    const cpPayment = paymentResult.payment || paymentResult;
+    const paymentId = paymentResult.payment_id || (cpPayment as any).id;
+    const paymentAddress = (cpPayment as any).payment_address || paymentResult.address || null;
+    const checkoutUrl = paymentResult.checkout_url || (cpPayment as any).checkout_url || null;
+    const amountCrypto =
+      paymentResult.amount_crypto ||
+      (cpPayment as any).amount_crypto ||
+      (cpPayment as any).crypto_amount ||
+      null;
+    const expiresAt = paymentResult.expires_at || (cpPayment as any).expires_at || null;
+    const responseCurrency = paymentResult.currency || (cpPayment as any).currency || paymentCurrency;
+
+    if (!paymentId) {
+      return NextResponse.json(
+        { error: "CoinPay did not return a payment id" },
+        { status: 502 }
+      );
+    }
+
+    if (!paymentAddress) {
+      return NextResponse.json(
+        { error: "CoinPay did not return an in-app payment address" },
+        { status: 502 }
+      );
+    }
 
     // Create local invoice record
     const { data: invoice, error } = await (supabase as any)
@@ -140,13 +197,20 @@ export async function POST(
         application_id,
         worker_id: user.id,
         poster_id: gig.poster_id,
-        coinpay_invoice_id: invoiceResult.invoice.id,
+        coinpay_invoice_id: paymentId,
         amount_usd: amount,
         currency,
         status: "sent",
-        pay_url: payUrl,
+        pay_url: null,
         notes,
         due_date: due_date || null,
+        metadata: {
+          payment_address: paymentAddress,
+          amount_crypto: amountCrypto,
+          payment_currency: responseCurrency,
+          checkout_url: checkoutUrl,
+          expires_at: expiresAt,
+        },
       })
       .select()
       .single();
@@ -180,8 +244,13 @@ export async function POST(
     return NextResponse.json({
       data: {
         invoice_id: invoice.id,
-        coinpay_invoice_id: invoiceResult.invoice.id,
-        pay_url: payUrl,
+        coinpay_invoice_id: paymentId,
+        pay_url: null,
+        payment_address: paymentAddress,
+        amount_crypto: amountCrypto,
+        payment_currency: responseCurrency,
+        expires_at: expiresAt,
+        metadata: invoice.metadata,
       },
     }, { status: 201 });
   } catch (error) {

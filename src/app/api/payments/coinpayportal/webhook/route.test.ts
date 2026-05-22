@@ -132,6 +132,51 @@ describe("POST /api/payments/coinpayportal/webhook", () => {
     expect(json.received).toBe(true);
   });
 
+  it("marks gig invoices paid when webhook payment is not in payments", async () => {
+    const payload = makeWebhookPayload("payment.confirmed", {
+      payment_id: "cp-pay-invoice-1",
+      amount_usd: 3,
+      amount_crypto: 0.02,
+      currency: "SOL",
+      status: "confirmed",
+    });
+
+    const missingPaymentChain = chainResult({
+      data: null,
+      error: { code: "PGRST116", message: "No rows" },
+    });
+    const invoiceChain = chainResult({
+      data: {
+        id: "local-inv-1",
+        gig_id: "gig-1",
+        application_id: "app-1",
+        worker_id: "worker-1",
+        poster_id: "poster-1",
+        amount_usd: 3,
+        metadata: { payment_address: "SolAddress" },
+      },
+      error: null,
+    });
+    const gigChain = chainResult({ data: { title: "Invoice fix" }, error: null });
+    const okChain = chainResult({ data: null, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "payments") return missingPaymentChain;
+      if (table === "gig_invoices") return invoiceChain;
+      if (table === "gigs") return gigChain;
+      return okChain;
+    });
+
+    const req = makeRequest(payload, WEBHOOK_SECRET);
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(mockFrom).toHaveBeenCalledWith("gig_invoices");
+    expect(invoiceChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "paid" })
+    );
+  });
+
   it("processes payment.forwarded webhook", async () => {
     const payload = makeWebhookPayload("payment.forwarded", {
       payment_id: "pay_456",

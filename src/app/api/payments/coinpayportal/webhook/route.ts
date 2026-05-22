@@ -105,11 +105,15 @@ async function handlePaymentConfirmed(
     .single();
 
   if (paymentError) {
+    const handledInvoice = await handleGigInvoicePaymentConfirmed(supabase, payload);
+    if (handledInvoice) return;
     console.error("Failed to update payment:", paymentError);
     return;
   }
 
   if (!payment) {
+    const handledInvoice = await handleGigInvoicePaymentConfirmed(supabase, payload);
+    if (handledInvoice) return;
     console.error("Payment not found:", paymentData.payment_id);
     return;
   }
@@ -238,6 +242,8 @@ async function handlePaymentForwarded(
       updated_at: new Date().toISOString(),
     })
     .eq("coinpay_payment_id", paymentData.payment_id);
+
+  await updateGigInvoicePaymentMetadata(supabase, payload, "sent");
 }
 
 async function handlePaymentExpired(
@@ -257,6 +263,11 @@ async function handlePaymentExpired(
     .select()
     .single();
 
+  if (!payment) {
+    const handledInvoice = await updateGigInvoicePaymentMetadata(supabase, payload, "expired");
+    if (handledInvoice) return;
+  }
+
   if (payment) {
     // Notify user
     await supabase.from("notifications").insert({
@@ -269,6 +280,132 @@ async function handlePaymentExpired(
       },
     });
   }
+}
+
+async function handleGigInvoicePaymentConfirmed(
+  supabase: ReturnType<typeof createServiceClient>,
+  payload: CoinPayWebhookPayload
+): Promise<boolean> {
+  const { data: paymentData } = payload;
+  const now = new Date().toISOString();
+  const { data: existingInvoice } = await (supabase as any)
+    .from("gig_invoices")
+    .select("*")
+    .eq("coinpay_invoice_id", paymentData.payment_id)
+    .single();
+
+  if (!existingInvoice) return false;
+
+  const { data: invoice } = await (supabase as any)
+    .from("gig_invoices")
+    .update({
+      status: "paid",
+      updated_at: now,
+      metadata: {
+        ...((existingInvoice.metadata || {}) as Record<string, unknown>),
+        tx_hash: paymentData.tx_hash,
+        merchant_tx_hash: paymentData.merchant_tx_hash,
+        paid_at: now,
+        payment_currency: paymentData.currency,
+        amount_crypto: paymentData.amount_crypto,
+      },
+    })
+    .eq("id", existingInvoice.id)
+    .select()
+    .single();
+
+  if (!invoice) return false;
+
+  await supabase
+    .from("applications")
+    .update({
+      status: "completed" as any,
+      updated_at: now,
+    })
+    .eq("id", invoice.application_id);
+
+  const { data: gig } = await supabase
+    .from("gigs")
+    .select("title")
+    .eq("id", invoice.gig_id)
+    .single();
+
+  await supabase.from("notifications").insert([
+    {
+      user_id: invoice.worker_id,
+      type: "payment_received",
+      title: "Invoice paid",
+      body: `$${invoice.amount_usd} invoice for "${gig?.title || "your gig"}" has been paid.`,
+      data: {
+        gig_id: invoice.gig_id,
+        invoice_id: invoice.id,
+      },
+    },
+    {
+      user_id: invoice.poster_id,
+      type: "payment_received",
+      title: "Invoice paid",
+      body: `Your $${invoice.amount_usd} invoice payment for "${gig?.title || "your gig"}" was confirmed.`,
+      data: {
+        gig_id: invoice.gig_id,
+        invoice_id: invoice.id,
+      },
+    },
+  ]);
+
+  return true;
+}
+
+async function updateGigInvoicePaymentMetadata(
+  supabase: ReturnType<typeof createServiceClient>,
+  payload: CoinPayWebhookPayload,
+  status: "sent" | "expired"
+): Promise<boolean> {
+  const { data: paymentData } = payload;
+  const { data: existingInvoice } = await (supabase as any)
+    .from("gig_invoices")
+    .select("*")
+    .eq("coinpay_invoice_id", paymentData.payment_id)
+    .single();
+
+  if (!existingInvoice) return false;
+
+  const metadata: Record<string, unknown> = {
+    ...((existingInvoice.metadata || {}) as Record<string, unknown>),
+    tx_hash: paymentData.tx_hash,
+    merchant_tx_hash: paymentData.merchant_tx_hash,
+    payment_currency: paymentData.currency,
+    amount_crypto: paymentData.amount_crypto,
+  };
+  if (status === "expired") metadata.expired_at = new Date().toISOString();
+
+  const { data: invoice } = await (supabase as any)
+    .from("gig_invoices")
+    .update({
+      status,
+      metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existingInvoice.id)
+    .select()
+    .single();
+
+  if (!invoice) return false;
+
+  if (status === "expired") {
+    await supabase.from("notifications").insert({
+      user_id: invoice.worker_id,
+      type: "payment_received",
+      title: "Invoice payment expired",
+      body: `The $${invoice.amount_usd} invoice payment request expired.`,
+      data: {
+        gig_id: invoice.gig_id,
+        invoice_id: invoice.id,
+      },
+    });
+  }
+
+  return true;
 }
 
 // ─── Escrow webhook handlers ───────────────────────────────────────────────

@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   Loader2,
-  ExternalLink,
   CheckCircle2,
   Clock,
+  Copy,
   DollarSign,
   Send,
 } from "lucide-react";
@@ -22,6 +22,12 @@ interface GigInvoice {
   notes: string | null;
   due_date: string | null;
   created_at: string;
+  metadata?: {
+    payment_address?: string | null;
+    amount_crypto?: number | string | null;
+    payment_currency?: string | null;
+    expires_at?: string | null;
+  } | null;
   worker?: { id: string; username: string; full_name?: string };
   poster?: { id: string; username: string; full_name?: string };
 }
@@ -110,6 +116,12 @@ export function InvoiceButton({
           notes: notes || null,
           due_date: dueDate || null,
           created_at: new Date().toISOString(),
+          metadata: result.data.metadata || {
+            payment_address: result.data.payment_address,
+            amount_crypto: result.data.amount_crypto,
+            payment_currency: result.data.payment_currency,
+            expires_at: result.data.expires_at,
+          },
         },
         ...prev,
       ]);
@@ -193,17 +205,45 @@ export function InvoiceButton({
               <p className="text-sm text-muted-foreground">{inv.notes}</p>
             )}
 
-            {/* Poster: show pay link */}
-            {isPoster && inv.pay_url && inv.status === "sent" && (
-              <a
-                href={inv.pay_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Pay Invoice
-              </a>
+            {/* Poster: keep payment UX inside uGig. */}
+            {isPoster && inv.status === "sent" && inv.metadata?.payment_address && (
+              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Payment address
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    onClick={() =>
+                      navigator.clipboard?.writeText(
+                        inv.metadata?.payment_address || ""
+                      )
+                    }
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </Button>
+                </div>
+                <code className="block break-all rounded bg-background px-2 py-1.5 text-xs">
+                  {inv.metadata.payment_address}
+                </code>
+                <p className="text-xs text-muted-foreground">
+                  Send{" "}
+                  {inv.metadata.amount_crypto
+                    ? `${inv.metadata.amount_crypto} ${inv.metadata.payment_currency || ""}`.trim()
+                    : inv.metadata.payment_currency || "the selected coin"}{" "}
+                  to this address.
+                </p>
+              </div>
+            )}
+
+            {isPoster && inv.status === "sent" && !inv.metadata?.payment_address && (
+              <p className="text-sm text-muted-foreground">
+                Payment details are not available. Ask the worker to resend the invoice.
+              </p>
             )}
 
             {/* Worker: show pay link status */}

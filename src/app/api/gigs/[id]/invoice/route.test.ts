@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/coinpayportal", () => ({
-  createInvoice: vi.fn(),
-  sendInvoice: vi.fn(),
+  createPayment: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/get-user", () => ({
@@ -11,7 +10,7 @@ vi.mock("@/lib/auth/get-user", () => ({
 
 import { GET, POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createInvoice, sendInvoice } from "@/lib/coinpayportal";
+import { createPayment } from "@/lib/coinpayportal";
 
 const GIG_ID = "8489a861-0999-4107-afca-2592021ac338";
 const APP_ID = "d2317730-c56a-49e9-a6e4-dc469b7605f7";
@@ -156,9 +155,17 @@ describe("POST /api/gigs/[id]/invoice", () => {
   });
 
   it("creates invoice successfully", async () => {
-    const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID };
+    const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID, payment_coin: "SOL" };
     const application = { id: APP_ID, applicant_id: WORKER_ID, status: "accepted", proposed_rate: 150 };
-    const invoiceRecord = { id: "local-inv-1" };
+    const invoiceRecord = {
+      id: "local-inv-1",
+      metadata: {
+        payment_address: "So11111111111111111111111111111111111111112",
+        amount_crypto: 0.75,
+        payment_currency: "sol",
+        expires_at: "2026-05-22T12:00:00Z",
+      },
+    };
 
     const sb = mockSupabase({
       gigs: {
@@ -189,24 +196,16 @@ describe("POST /api/gigs/[id]/invoice", () => {
     });
 
     (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
-    (createInvoice as any).mockResolvedValue({
+    (createPayment as any).mockResolvedValue({
       success: true,
-      invoice: {
-        id: "cp-inv-1",
-        status: "created",
-        amount: 150,
-        currency: "USD",
-        pay_url: null,
-      },
-    });
-    (sendInvoice as any).mockResolvedValue({
-      success: true,
-      invoice: {
-        id: "cp-inv-1",
-        status: "sent",
-        amount: 150,
-        currency: "USD",
-        pay_url: "https://coinpayportal.com/pay/cp-inv-1",
+      payment_id: "cp-pay-1",
+      address: "So11111111111111111111111111111111111111112",
+      amount_crypto: 0.75,
+      currency: "sol",
+      expires_at: "2026-05-22T12:00:00Z",
+      payment: {
+        id: "cp-pay-1",
+        payment_address: "So11111111111111111111111111111111111111112",
       },
     });
 
@@ -218,16 +217,17 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.data.invoice_id).toBe("local-inv-1");
-    expect(body.data.coinpay_invoice_id).toBe("cp-inv-1");
-    expect(body.data.pay_url).toBe("https://coinpayportal.com/pay/cp-inv-1");
+    expect(body.data.coinpay_invoice_id).toBe("cp-pay-1");
+    expect(body.data.pay_url).toBeNull();
+    expect(body.data.payment_address).toBe("So11111111111111111111111111111111111111112");
+    expect(body.data.payment_currency).toBe("sol");
 
-    expect(createInvoice).toHaveBeenCalledWith(
+    expect(createPayment).toHaveBeenCalledWith(
       expect.objectContaining({
-        amount: 150,
-        currency: "USD",
-        notes: "Work completed",
+        amount_usd: 150,
+        currency: "sol",
+        description: "Work completed",
       })
     );
-    expect(sendInvoice).toHaveBeenCalledWith("cp-inv-1");
   });
 });
