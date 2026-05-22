@@ -49,6 +49,27 @@ export interface CreatePaymentResponse {
   };
 }
 
+export interface SupportedCoin {
+  symbol?: string;
+  code?: string;
+  currency?: string;
+  id?: string;
+  name?: string;
+  chain?: string;
+  network?: string;
+  blockchain?: string;
+  is_active?: boolean;
+  has_wallet?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SupportedCoinsResponse {
+  success: boolean;
+  coins: SupportedCoin[];
+  business_id?: string;
+  total?: number;
+}
+
 /**
  * Verify CoinPayPortal webhook signature
  * Format: X-CoinPay-Signature: t=timestamp,v1=signature
@@ -150,6 +171,131 @@ export const SUPPORTED_CURRENCIES = {
 } as const;
 
 export type SupportedCurrency = keyof typeof SUPPORTED_CURRENCIES;
+
+const SUPPORTED_CURRENCY_KEYS = Object.keys(SUPPORTED_CURRENCIES) as SupportedCurrency[];
+
+function isSupportedCurrency(value: string): value is SupportedCurrency {
+  return SUPPORTED_CURRENCY_KEYS.includes(value as SupportedCurrency);
+}
+
+function normalizeCurrencyKey(value?: string | null): string {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function normalizeCoinSymbol(value?: string | null): string {
+  return (value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | null {
+  const directCurrency =
+    normalizeCurrencyKey(coin.currency) ||
+    normalizeCurrencyKey(coin.id) ||
+    normalizeCurrencyKey(coin.code);
+  if (isSupportedCurrency(directCurrency)) return directCurrency;
+
+  const symbol =
+    normalizeCoinSymbol(coin.symbol) ||
+    normalizeCoinSymbol(coin.code) ||
+    normalizeCoinSymbol(coin.currency) ||
+    normalizeCoinSymbol(coin.id);
+  const chain =
+    normalizeCoinSymbol(coin.chain) ||
+    normalizeCoinSymbol(coin.network) ||
+    normalizeCoinSymbol(coin.blockchain);
+
+  if (symbol === "BTC") return "btc";
+  if (symbol === "ETH") return "eth";
+  if (symbol === "POL" || symbol === "MATIC") return "pol";
+  if (symbol === "SOL") return "sol";
+  if (symbol === "USDT") return "usdt";
+  if (symbol === "USDC") {
+    if (chain === "POL" || chain === "POLYGON" || chain === "MATIC") return "usdc_pol";
+    if (chain === "ETH" || chain === "ETHEREUM") return "usdc_eth";
+    return "usdc_sol";
+  }
+
+  return null;
+}
+
+function coinMatchesPreference(coin: SupportedCoin, preferredCoin: string): boolean {
+  const preferred = normalizeCoinSymbol(preferredCoin);
+  const candidates = [
+    coin.symbol,
+    coin.code,
+    coin.currency,
+    coin.id,
+    coin.name,
+  ].map(normalizeCoinSymbol);
+
+  return candidates.includes(preferred);
+}
+
+/**
+ * Fetch the business-specific active wallet coins from CoinPayPortal. This keeps
+ * invoice payment options aligned with the merchant's configured wallets.
+ */
+export async function getSupportedCoins(options: {
+  business_id?: string;
+  active_only?: boolean;
+} = {}): Promise<SupportedCoinsResponse> {
+  const apiKey = process.env.COINPAY_API_KEY;
+  const businessId = options.business_id || process.env.COINPAY_MERCHANT_ID;
+
+  if (!apiKey) {
+    throw new Error("CoinPayPortal credentials not configured");
+  }
+
+  const url = new URL(`${COINPAY_API_URL}/supported-coins`);
+  if (businessId) url.searchParams.set("business_id", businessId);
+  if (options.active_only !== false) url.searchParams.set("active_only", "true");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Unknown error" }));
+    throw new Error(error.message || `Supported coins fetch failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function resolveSupportedPaymentCurrency(
+  preferredCoin?: string | null,
+  options: { business_id?: string } = {}
+): Promise<SupportedCurrency> {
+  const supported = await getSupportedCoins({
+    business_id: options.business_id,
+    active_only: true,
+  });
+  const coins = (supported.coins || []).filter(
+    (coin) => coin.is_active !== false && coin.has_wallet !== false
+  );
+
+  if (preferredCoin) {
+    const preferred = coins.find((coin) => coinMatchesPreference(coin, preferredCoin));
+    const currency = preferred ? coinToPaymentCurrency(preferred) : null;
+    if (currency) return currency;
+
+    throw new Error(
+      `CoinPayPortal does not have an active ${preferredCoin} wallet configured`
+    );
+  }
+
+  const firstSupported = coins.map(coinToPaymentCurrency).find(Boolean);
+  if (firstSupported) return firstSupported;
+
+  throw new Error("CoinPayPortal has no active wallet currencies configured");
+}
 
 // ─── Payment Status API ────────────────────────────────────────────────────
 

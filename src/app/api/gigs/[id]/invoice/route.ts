@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createPayment, type SupportedCurrency } from "@/lib/coinpayportal";
+import { createPayment, resolveSupportedPaymentCurrency } from "@/lib/coinpayportal";
 import { z } from "zod";
 
 const createInvoiceSchema = z.object({
@@ -10,30 +10,6 @@ const createInvoiceSchema = z.object({
   notes: z.string().optional(),
   due_date: z.string().optional(),
 });
-
-const COINPAY_CURRENCY_BY_COIN: Record<string, SupportedCurrency> = {
-  BTC: "btc",
-  ETH: "eth",
-  POL: "pol",
-  MATIC: "pol",
-  SOL: "sol",
-  USDC: "usdc_sol",
-  USDC_POL: "usdc_pol",
-  USDC_POLYGON: "usdc_pol",
-  USDC_SOL: "usdc_sol",
-  USDC_SOLANA: "usdc_sol",
-  USDC_ETH: "usdc_eth",
-  USDC_ETHEREUM: "usdc_eth",
-  USDT: "usdt",
-};
-
-function getPaymentCurrency(paymentCoin?: string | null): SupportedCurrency {
-  const key = (paymentCoin || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[\s-]+/g, "_");
-  return COINPAY_CURRENCY_BY_COIN[key] || "usdc_sol";
-}
 
 // GET /api/gigs/[id]/invoice - Get invoices for a gig
 export async function GET(
@@ -137,11 +113,14 @@ export async function POST(
       );
     }
 
-    const paymentCurrency = getPaymentCurrency((gig as any).payment_coin);
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const regularBusinessId =
       process.env.COINPAY_UGIG_BUSINESS_ID ||
       process.env.COINPAY_MERCHANT_ID;
+    const paymentCurrency = await resolveSupportedPaymentCurrency(
+      (gig as any).payment_coin,
+      { business_id: regularBusinessId }
+    );
 
     // Create a direct CoinPay payment request instead of a hosted invoice. The
     // poster should see payment details inside uGig, not be redirected away.

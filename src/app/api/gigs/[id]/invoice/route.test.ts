@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/coinpayportal", () => ({
   createPayment: vi.fn(),
+  resolveSupportedPaymentCurrency: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/get-user", () => ({
@@ -10,7 +11,7 @@ vi.mock("@/lib/auth/get-user", () => ({
 
 import { GET, POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createPayment } from "@/lib/coinpayportal";
+import { createPayment, resolveSupportedPaymentCurrency } from "@/lib/coinpayportal";
 
 const GIG_ID = "8489a861-0999-4107-afca-2592021ac338";
 const APP_ID = "d2317730-c56a-49e9-a6e4-dc469b7605f7";
@@ -196,6 +197,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
     });
 
     (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+    (resolveSupportedPaymentCurrency as any).mockResolvedValue("sol");
     (createPayment as any).mockResolvedValue({
       success: true,
       payment_id: "cp-pay-1",
@@ -228,6 +230,10 @@ describe("POST /api/gigs/[id]/invoice", () => {
         currency: "sol",
         description: "Work completed",
       })
+    );
+    expect(resolveSupportedPaymentCurrency).toHaveBeenCalledWith(
+      "SOL",
+      expect.any(Object)
     );
   });
 });

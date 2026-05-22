@@ -3,6 +3,8 @@ import crypto from "crypto";
 import {
   createInvoice,
   sendInvoice,
+  getSupportedCoins,
+  resolveSupportedPaymentCurrency,
   verifyWebhookSignature,
   SUPPORTED_CURRENCIES,
 } from "./coinpayportal";
@@ -104,6 +106,68 @@ describe("SUPPORTED_CURRENCIES", () => {
     expect(SUPPORTED_CURRENCIES.btc.symbol).toBe("BTC");
     expect(SUPPORTED_CURRENCIES.eth.name).toBe("Ethereum");
     expect(SUPPORTED_CURRENCIES.eth.symbol).toBe("ETH");
+  });
+});
+
+describe("CoinPayPortal supported coins API", () => {
+  const originalApiKey = process.env.COINPAY_API_KEY;
+  const originalMerchantId = process.env.COINPAY_MERCHANT_ID;
+
+  beforeEach(() => {
+    process.env.COINPAY_API_KEY = "cp_live_" + "a".repeat(32);
+    process.env.COINPAY_MERCHANT_ID = "biz_123";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          success: true,
+          coins: [
+            { symbol: "SOL", name: "Solana", is_active: true, has_wallet: true },
+            { symbol: "BTC", name: "Bitcoin", is_active: true, has_wallet: true },
+          ],
+        }),
+      })
+    );
+  });
+
+  afterEach(() => {
+    if (originalApiKey === undefined) {
+      delete process.env.COINPAY_API_KEY;
+    } else {
+      process.env.COINPAY_API_KEY = originalApiKey;
+    }
+
+    if (originalMerchantId === undefined) {
+      delete process.env.COINPAY_MERCHANT_ID;
+    } else {
+      process.env.COINPAY_MERCHANT_ID = originalMerchantId;
+    }
+
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches active business wallet coins from CoinPayPortal", async () => {
+    await getSupportedCoins();
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://coinpayportal.com/api/supported-coins?business_id=biz_123&active_only=true",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${process.env.COINPAY_API_KEY}`,
+        }),
+      })
+    );
+  });
+
+  it("resolves a preferred gig coin from active CoinPay wallets", async () => {
+    await expect(resolveSupportedPaymentCurrency("SOL")).resolves.toBe("sol");
+  });
+
+  it("rejects preferred gig coins not configured in CoinPay", async () => {
+    await expect(resolveSupportedPaymentCurrency("ETH")).rejects.toThrow(
+      "CoinPayPortal does not have an active ETH wallet configured"
+    );
   });
 });
 
