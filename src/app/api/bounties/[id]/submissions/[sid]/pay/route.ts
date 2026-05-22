@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createInvoice, sendInvoice } from "@/lib/coinpayportal";
+import { createPayment, resolveSupportedPaymentCurrency } from "@/lib/coinpayportal";
 
 // POST /api/bounties/[id]/submissions/[sid]/pay
-// Creator generates a CoinPay payment link for an approved submission.
+// Creator generates a CoinPay in-app payment for an approved submission,
+// matching the post-#224 gig invoice flow (in-app payment address, not a
+// redirect to a hosted invoice page).
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; sid: string }> }
@@ -18,7 +20,7 @@ export async function POST(
 
     const { data: bounty } = await (supabase as any)
       .from("bounties")
-      .select("id, creator_id, title, payout_usd")
+      .select("id, creator_id, title, payout_usd, payment_coin")
       .eq("id", bountyId)
       .single();
     if (!bounty) {
@@ -44,8 +46,8 @@ export async function POST(
       );
     }
 
-    // Already has a pay link — return it
-    if (submission.pay_url) {
+    // Already invoiced — return existing details
+    if (submission.coinpay_invoice_id) {
       return NextResponse.json({
         data: {
           submission_id: sid,
@@ -55,29 +57,56 @@ export async function POST(
       });
     }
 
-    // Create CoinPay invoice
-    const invoiceResult = await createInvoice({
-      amount: Number(bounty.payout_usd),
-      currency: "USD",
-      notes: `Bounty payout: ${bounty.title}`,
+    const appUrl =
+      process.env.APP_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://ugig.net";
+    const businessId =
+      process.env.COINPAY_UGIG_BUSINESS_ID ||
+      process.env.COINPAY_MERCHANT_ID;
+    const paymentCurrency = await resolveSupportedPaymentCurrency(
+      bounty.payment_coin,
+      { business_id: businessId }
+    );
+
+    const paymentResult = await createPayment({
+      amount_usd: Number(bounty.payout_usd),
+      currency: paymentCurrency,
+      description: `Bounty payout: ${bounty.title}`,
+      business_id: businessId,
+      redirect_url: `${appUrl}/bounties/${bountyId}?paid=${sid}`,
       metadata: {
+        type: "bounty_payout",
         bounty_id: bountyId,
         submission_id: sid,
         creator_id: user.id,
         submitter_id: submission.submitter_id,
-        kind: "bounty",
+        payment_currency: paymentCurrency,
         platform: "ugig.net",
       },
     });
-    const sendResult = await sendInvoice(invoiceResult.invoice.id);
-    const payUrl = sendResult.invoice.pay_url || invoiceResult.invoice.pay_url;
+
+    const cpPayment = (paymentResult.payment || paymentResult) as Record<string, unknown>;
+    const paymentId =
+      paymentResult.payment_id || (cpPayment.id as string | undefined);
+    const paymentAddress =
+      (cpPayment.payment_address as string | undefined) ||
+      paymentResult.address ||
+      null;
+
+    if (!paymentId || !paymentAddress) {
+      return NextResponse.json(
+        { error: "CoinPay did not return a usable payment" },
+        { status: 502 }
+      );
+    }
 
     const { error: updateError } = await (supabase as any)
       .from("bounty_submissions")
       .update({
         payout_status: "invoiced",
-        coinpay_invoice_id: invoiceResult.invoice.id,
-        pay_url: payUrl,
+        coinpay_invoice_id: paymentId,
+        pay_url: paymentResult.checkout_url || (cpPayment.checkout_url as string | undefined) || null,
       })
       .eq("id", sid);
 
@@ -88,8 +117,22 @@ export async function POST(
     return NextResponse.json({
       data: {
         submission_id: sid,
-        coinpay_invoice_id: invoiceResult.invoice.id,
-        pay_url: payUrl,
+        coinpay_invoice_id: paymentId,
+        payment_address: paymentAddress,
+        payment_currency: paymentResult.currency || paymentCurrency,
+        amount_crypto:
+          paymentResult.amount_crypto ||
+          (cpPayment.amount_crypto as number | undefined) ||
+          (cpPayment.crypto_amount as number | undefined) ||
+          null,
+        expires_at:
+          paymentResult.expires_at ||
+          (cpPayment.expires_at as string | undefined) ||
+          null,
+        pay_url:
+          paymentResult.checkout_url ||
+          (cpPayment.checkout_url as string | undefined) ||
+          null,
       },
     });
   } catch (err) {

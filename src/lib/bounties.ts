@@ -13,6 +13,7 @@ export const createBountySchema = z.object({
   description: z.string().min(10).max(10000),
   payout_usd: z.number().positive().max(100000),
   payout_currency: z.string().default("USD"),
+  payment_coin: z.string().max(16).nullable().optional(),
   max_submissions: z.number().int().positive().max(100000).nullable().optional(),
   closes_at: z.string().datetime().optional(),
   questions: z.array(questionSchema).min(1).max(20),

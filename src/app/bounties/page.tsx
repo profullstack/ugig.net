@@ -19,6 +19,7 @@ interface BountyListItem {
   description: string;
   payout_usd: number;
   payout_currency: string;
+  payment_coin: string | null;
   max_submissions: number | null;
   status: string;
   created_at: string;
@@ -36,7 +37,7 @@ export default async function BountiesPage() {
     .from("bounties" as any)
     .select(
       `
-      id, title, description, payout_usd, payout_currency, max_submissions,
+      id, title, description, payout_usd, payout_currency, payment_coin, max_submissions,
       status, created_at,
       creator:profiles!creator_id (id, username, full_name, avatar_url)
     `
@@ -94,10 +95,17 @@ export default async function BountiesPage() {
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <h2 className="font-semibold line-clamp-2">{b.title}</h2>
-                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">
-                      <DollarSign className="h-3 w-3 mr-0.5" />
-                      {Number(b.payout_usd).toFixed(2)}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">
+                        <DollarSign className="h-3 w-3 mr-0.5" />
+                        {Number(b.payout_usd).toFixed(2)}
+                      </Badge>
+                      {b.payment_coin && (
+                        <Badge variant="secondary" className="text-xs">
+                          {b.payment_coin}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
                     {b.description}

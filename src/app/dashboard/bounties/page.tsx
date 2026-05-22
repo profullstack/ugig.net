@@ -39,13 +39,14 @@ export default async function DashboardBountiesPage({
   // Bounties I've created
   const { data: createdData } = await (supabase as any)
     .from("bounties")
-    .select("id, title, payout_usd, max_submissions, status, created_at")
+    .select("id, title, payout_usd, payment_coin, max_submissions, status, created_at")
     .eq("creator_id", user.id)
     .order("created_at", { ascending: false });
   const created = (createdData || []) as Array<{
     id: string;
     title: string;
     payout_usd: number;
+    payment_coin: string | null;
     max_submissions: number | null;
     status: string;
     created_at: string;
@@ -184,6 +185,11 @@ export default async function DashboardBountiesPage({
                           <DollarSign className="h-3 w-3 mr-0.5" />
                           {Number(b.payout_usd).toFixed(2)}
                         </Badge>
+                        {b.payment_coin && (
+                          <Badge variant="secondary" className="text-xs">
+                            {b.payment_coin}
+                          </Badge>
+                        )}
                         <Badge
                           variant="secondary"
                           className="capitalize"

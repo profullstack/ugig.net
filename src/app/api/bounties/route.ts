@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
         description: parsed.data.description,
         payout_usd: parsed.data.payout_usd,
         payout_currency: parsed.data.payout_currency || "USD",
+        payment_coin: parsed.data.payment_coin || null,
         max_submissions: parsed.data.max_submissions ?? null,
         closes_at: parsed.data.closes_at || null,
         questions,

@@ -10,7 +10,9 @@ import {
   Users,
   Clock,
   Lock,
+  Pencil,
 } from "lucide-react";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { SubmitForm } from "./SubmitForm";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -21,6 +23,7 @@ interface BountyDetail {
   description: string;
   payout_usd: number;
   payout_currency: string;
+  payment_coin: string | null;
   max_submissions: number | null;
   status: "open" | "paused" | "closed";
   questions: {
@@ -137,10 +140,23 @@ export default async function BountyDetailPage({
                   )}
                 </p>
               </div>
-              <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-base">
-                <DollarSign className="h-4 w-4 mr-0.5" />
-                {Number(bounty.payout_usd).toFixed(2)}
-              </Badge>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-base">
+                  <DollarSign className="h-4 w-4 mr-0.5" />
+                  {Number(bounty.payout_usd).toFixed(2)}
+                </Badge>
+                {bounty.payment_coin && (
+                  <Badge variant="secondary">{bounty.payment_coin}</Badge>
+                )}
+                {isCreator && (
+                  <Link href={`/bounties/${bounty.id}/edit`}>
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
@@ -161,9 +177,8 @@ export default async function BountyDetailPage({
               )}
             </div>
 
-            <div className="prose dark:prose-invert max-w-none text-sm whitespace-pre-wrap">
-              {bounty.description}
-            </div>
+            <MarkdownContent content={bounty.description || ""} />
+
           </div>
 
           {/* Creator view: review panel */}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { PaymentInput } from "@/components/ui/PaymentInputs";
 import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
 
 type QuestionType = "short_text" | "long_text" | "multiple_choice";
@@ -15,6 +16,26 @@ interface DraftQuestion {
   options: string[];
 }
 
+interface BountyInitialData {
+  title?: string;
+  description?: string;
+  payout_usd?: number;
+  payment_coin?: string | null;
+  max_submissions?: number | null;
+  questions?: Array<{
+    id: string;
+    type: QuestionType;
+    label: string;
+    required: boolean;
+    options?: string[];
+  }>;
+}
+
+interface BountyFormProps {
+  initialData?: BountyInitialData;
+  bountyId?: string;
+}
+
 function newQuestion(): DraftQuestion {
   return {
     id: crypto.randomUUID(),
@@ -25,21 +46,37 @@ function newQuestion(): DraftQuestion {
   };
 }
 
-export function BountyForm() {
+export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [payout, setPayout] = useState("5");
-  const [maxSubmissions, setMaxSubmissions] = useState("");
-  const [questions, setQuestions] = useState<DraftQuestion[]>([
-    {
-      id: crypto.randomUUID(),
-      type: "long_text",
-      label: "Share your feedback",
-      required: true,
-      options: [],
-    },
-  ]);
+  const isEdit = !!bountyId;
+  const [title, setTitle] = useState(initialData?.title ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [payout, setPayout] = useState(
+    initialData?.payout_usd != null ? String(initialData.payout_usd) : "5"
+  );
+  const [coin, setCoin] = useState(initialData?.payment_coin ?? "");
+  const [maxSubmissions, setMaxSubmissions] = useState(
+    initialData?.max_submissions != null ? String(initialData.max_submissions) : ""
+  );
+  const [questions, setQuestions] = useState<DraftQuestion[]>(
+    initialData?.questions && initialData.questions.length > 0
+      ? initialData.questions.map((q) => ({
+          id: q.id,
+          type: q.type,
+          label: q.label,
+          required: q.required,
+          options: q.options ?? [],
+        }))
+      : [
+          {
+            id: crypto.randomUUID(),
+            type: "long_text",
+            label: "Share your feedback",
+            required: true,
+            options: [],
+          },
+        ]
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +105,16 @@ export function BountyForm() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/bounties", {
-        method: "POST",
+      const url = isEdit ? `/api/bounties/${bountyId}` : "/api/bounties";
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
           payout_usd: payoutNum,
+          payment_coin: coin || null,
           max_submissions: max,
           questions: questions.map((q) => ({
             id: q.id,
@@ -90,10 +130,10 @@ export function BountyForm() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Failed to create bounty");
+        setError(json.error || (isEdit ? "Failed to save bounty" : "Failed to create bounty"));
         return;
       }
-      router.push(`/bounties/${json.data.id}`);
+      router.push(`/bounties/${isEdit ? bountyId : json.data.id}`);
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -127,32 +167,28 @@ export function BountyForm() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Payout per approval (USD)</label>
-          <input
-            type="number"
-            value={payout}
-            onChange={(e) => setPayout(e.target.value)}
-            min="0.01"
-            step="0.01"
-            className="w-full border rounded-md px-3 py-2 bg-background"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Max submissions <span className="text-muted-foreground">(optional)</span>
-          </label>
-          <input
-            type="number"
-            value={maxSubmissions}
-            onChange={(e) => setMaxSubmissions(e.target.value)}
-            placeholder="Leave blank for no cap"
-            min="1"
-            step="1"
-            className="w-full border rounded-md px-3 py-2 bg-background"
-          />
-        </div>
+      <PaymentInput
+        coin={coin}
+        onCoinChange={setCoin}
+        amount={payout}
+        onAmountChange={setPayout}
+        amountLabel="Payout per approval (USD)"
+        disabled={submitting}
+      />
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">
+          Max submissions <span className="text-muted-foreground">(optional)</span>
+        </label>
+        <input
+          type="number"
+          value={maxSubmissions}
+          onChange={(e) => setMaxSubmissions(e.target.value)}
+          placeholder="Leave blank for no cap"
+          min="1"
+          step="1"
+          className="w-full border rounded-md px-3 py-2 bg-background"
+        />
       </div>
 
       <div>
@@ -298,7 +334,7 @@ export function BountyForm() {
         </Button>
         <Button onClick={submit} disabled={submitting} className="gap-2">
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          Post bounty
+          {isEdit ? "Save changes" : "Post bounty"}
         </Button>
       </div>
     </div>
