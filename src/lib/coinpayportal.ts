@@ -329,7 +329,7 @@ export async function getBusinessWalletCurrencies(options: {
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/businesses`, {
+  const response = await fetch(`${COINPAY_API_URL}/businesses/${businessId}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -340,12 +340,14 @@ export async function getBusinessWalletCurrencies(options: {
     throw new Error(error.message || `Business wallets fetch failed: ${response.status}`);
   }
 
-  const data = (await response.json()) as {
-    businesses?: Array<Record<string, unknown>>;
+  const data = (await response.json()) as Record<string, unknown> & {
     business?: Record<string, unknown>;
+    data?: Record<string, unknown>;
   };
-  const businesses = data.businesses || (data.business ? [data.business] : []);
-  const business = businesses.find((entry) => entry.id === businessId);
+  const business =
+    data.business ||
+    data.data ||
+    (data.id === businessId ? data : null);
 
   if (!business) {
     throw new Error(`CoinPayPortal business not found: ${businessId}`);

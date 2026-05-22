@@ -127,16 +127,14 @@ describe("CoinPayPortal supported coins API", () => {
             { symbol: "SOL", name: "Solana", is_active: true, has_wallet: true },
             { symbol: "BTC", name: "Bitcoin", is_active: true, has_wallet: true },
           ],
-          businesses: [
-            {
-              id: "biz_123",
-              name: "uGig",
-              walletAddresses: {
-                SOL: "SolAddress1234567890",
-                BTC: "bc1qaddress1234567890",
-              },
+          business: {
+            id: "biz_123",
+            name: "uGig",
+            walletAddresses: {
+              SOL: "SolAddress1234567890",
+              BTC: "bc1qaddress1234567890",
             },
-          ],
+          },
         }),
       })
     );
@@ -175,7 +173,7 @@ describe("CoinPayPortal supported coins API", () => {
     const wallets = await getBusinessWalletCurrencies();
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://coinpayportal.com/api/businesses",
+      "https://coinpayportal.com/api/businesses/biz_123",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: `Bearer ${process.env.COINPAY_API_KEY}`,
