@@ -70,6 +70,13 @@ export interface SupportedCoinsResponse {
   total?: number;
 }
 
+export interface BusinessWalletCurrency {
+  currency: string;
+  address: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
 /**
  * Verify CoinPayPortal webhook signature
  * Format: X-CoinPay-Signature: t=timestamp,v1=signature
@@ -223,17 +230,133 @@ export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | 
   return null;
 }
 
-function coinMatchesPreference(coin: SupportedCoin, preferredCoin: string): boolean {
+function coinMatchesPreference(
+  coin: SupportedCoin | BusinessWalletCurrency,
+  preferredCoin: string
+): boolean {
   const preferred = normalizeCoinSymbol(preferredCoin);
+  const record = coin as Record<string, unknown>;
   const candidates = [
-    coin.symbol,
-    coin.code,
-    coin.currency,
-    coin.id,
-    coin.name,
-  ].map(normalizeCoinSymbol);
+    record.symbol,
+    record.code,
+    record.currency,
+    record.id,
+    record.name,
+  ].map((value) => (typeof value === "string" ? normalizeCoinSymbol(value) : ""));
 
   return candidates.includes(preferred);
+}
+
+function getStringValue(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function extractWalletCurrenciesFromBusiness(
+  business: Record<string, unknown>
+): BusinessWalletCurrency[] {
+  const candidates = [
+    business.deposit_addresses,
+    business.depositAddresses,
+    business.wallet_addresses,
+    business.walletAddresses,
+    business.addresses,
+    business.wallets,
+    business.coins,
+  ];
+  const wallets = new Map<string, BusinessWalletCurrency>();
+
+  const addWallet = (currency: string | null, address: string | null, source?: Record<string, unknown>) => {
+    if (!currency || !address) return;
+    const key = normalizeCoinSymbol(currency);
+    if (!key || wallets.has(key)) return;
+    wallets.set(key, {
+      ...(source || {}),
+      currency: key,
+      address,
+      is_active:
+        source?.is_active === false ||
+        source?.active === false ||
+        source?.enabled === false
+          ? false
+          : true,
+    });
+  };
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) {
+        if (!item || typeof item !== "object") continue;
+        const record = item as Record<string, unknown>;
+        addWallet(
+          getStringValue(record, ["currency", "symbol", "coin", "chain", "network", "id"]),
+          getStringValue(record, ["address", "wallet_address", "walletAddress", "deposit_address", "depositAddress"]),
+          record
+        );
+      }
+      continue;
+    }
+
+    for (const [currency, value] of Object.entries(candidate as Record<string, unknown>)) {
+      if (typeof value === "string") {
+        addWallet(currency, value);
+      } else if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        addWallet(
+          getStringValue(record, ["currency", "symbol", "coin", "chain", "network", "id"]) || currency,
+          getStringValue(record, ["address", "wallet_address", "walletAddress", "deposit_address", "depositAddress"]),
+          record
+        );
+      }
+    }
+  }
+
+  return [...wallets.values()].filter((wallet) => wallet.is_active !== false);
+}
+
+export async function getBusinessWalletCurrencies(options: {
+  business_id?: string;
+} = {}): Promise<BusinessWalletCurrency[]> {
+  const apiKey = process.env.COINPAY_API_KEY;
+  const businessId = options.business_id || process.env.COINPAY_MERCHANT_ID;
+
+  if (!apiKey || !businessId) {
+    throw new Error("CoinPayPortal credentials not configured");
+  }
+
+  const response = await fetch(`${COINPAY_API_URL}/businesses`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Unknown error" }));
+    throw new Error(error.message || `Business wallets fetch failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    businesses?: Array<Record<string, unknown>>;
+    business?: Record<string, unknown>;
+  };
+  const businesses = data.businesses || (data.business ? [data.business] : []);
+  const business = businesses.find((entry) => entry.id === businessId);
+
+  if (!business) {
+    throw new Error(`CoinPayPortal business not found: ${businessId}`);
+  }
+
+  const wallets = extractWalletCurrenciesFromBusiness(business);
+  if (wallets.length === 0) {
+    throw new Error(`CoinPayPortal business ${businessId} has no wallet addresses configured`);
+  }
+
+  return wallets;
 }
 
 /**
@@ -273,13 +396,9 @@ export async function resolveSupportedPaymentCurrency(
   preferredCoin?: string | null,
   options: { business_id?: string } = {}
 ): Promise<SupportedCurrency> {
-  const supported = await getSupportedCoins({
+  const coins = await getBusinessWalletCurrencies({
     business_id: options.business_id,
-    active_only: true,
   });
-  const coins = (supported.coins || []).filter(
-    (coin) => coin.is_active !== false && coin.has_wallet !== false
-  );
 
   if (preferredCoin) {
     const preferred = coins.find((coin) => coinMatchesPreference(coin, preferredCoin));

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import {
   createInvoice,
   sendInvoice,
+  getBusinessWalletCurrencies,
   getSupportedCoins,
   resolveSupportedPaymentCurrency,
   verifyWebhookSignature,
@@ -126,6 +127,16 @@ describe("CoinPayPortal supported coins API", () => {
             { symbol: "SOL", name: "Solana", is_active: true, has_wallet: true },
             { symbol: "BTC", name: "Bitcoin", is_active: true, has_wallet: true },
           ],
+          businesses: [
+            {
+              id: "biz_123",
+              name: "uGig",
+              walletAddresses: {
+                SOL: "SolAddress1234567890",
+                BTC: "bc1qaddress1234567890",
+              },
+            },
+          ],
         }),
       })
     );
@@ -158,6 +169,23 @@ describe("CoinPayPortal supported coins API", () => {
         }),
       })
     );
+  });
+
+  it("fetches configured business wallet addresses from CoinPayPortal", async () => {
+    const wallets = await getBusinessWalletCurrencies();
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://coinpayportal.com/api/businesses",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${process.env.COINPAY_API_KEY}`,
+        }),
+      })
+    );
+    expect(wallets).toEqual([
+      expect.objectContaining({ currency: "SOL", address: "SolAddress1234567890" }),
+      expect.objectContaining({ currency: "BTC", address: "bc1qaddress1234567890" }),
+    ]);
   });
 
   it("resolves a preferred gig coin from active CoinPay wallets", async () => {
