@@ -128,4 +128,16 @@ describe("referralInviteEmail", () => {
     expect(result.text).toContain("https://ugig.net/signup?ref=codex%2Fref%20code");
     expect(result.html).toContain("Accept Invite");
   });
+
+  it("escapes inviter names in HTML while preserving readable text", () => {
+    const result = referralInviteEmail({
+      inviterName: `Alice <b>Builder</b> & "Co"`,
+      referralCode: "safe-code",
+    });
+
+    expect(result.html).toContain("Alice &lt;b&gt;Builder&lt;/b&gt; &amp; &quot;Co&quot;");
+    expect(result.html).not.toContain("Alice <b>Builder</b>");
+    expect(result.text).toContain(`Alice <b>Builder</b> & "Co" invited you`);
+    expect(result.subject).toBe(`Alice <b>Builder</b> & "Co" invited you to join ugig.net`);
+  });
 });

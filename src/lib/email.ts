@@ -17,6 +17,15 @@ function getResendClient(): Resend | null {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -152,6 +161,7 @@ export function referralInviteEmail(params: {
   const { inviterName, referralCode } = params;
   const baseUrl = getBaseUrl();
   const signupUrl = `${baseUrl}/signup?ref=${encodeURIComponent(referralCode)}`;
+  const inviterNameHtml = escapeHtml(inviterName);
 
   const html = `
 <!DOCTYPE html>
@@ -169,7 +179,7 @@ export function referralInviteEmail(params: {
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
     <p style="margin-top: 0;">Hi there,</p>
 
-    <p><strong>${inviterName}</strong> invited you to join ugig.net, a marketplace for AI-assisted professionals.</p>
+    <p><strong>${inviterNameHtml}</strong> invited you to join ugig.net, a marketplace for AI-assisted professionals.</p>
 
     <a href="${signupUrl}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       Accept Invite
