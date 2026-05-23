@@ -50,20 +50,24 @@ export async function POST(
       return NextResponse.json({ error: "Only approved submissions can be paid" }, { status: 400 });
     }
 
-    // Already invoiced — return existing details
+    // Already invoiced with in-app payment details — return existing details.
+    // Older hosted-checkout rows may have a CoinPay invoice id/pay_url but no address metadata;
+    // let those fall through and create a fresh in-app payment request so creators are not stuck.
     if (submission.coinpay_invoice_id) {
       const metadata = (submission.metadata || {}) as Record<string, unknown>;
-      return NextResponse.json({
-        data: {
-          submission_id: sid,
-          coinpay_invoice_id: submission.coinpay_invoice_id,
-          pay_url: submission.pay_url,
-          payment_address: metadata.payment_address || null,
-          payment_currency: metadata.payment_currency || null,
-          amount_crypto: metadata.amount_crypto || null,
-          expires_at: metadata.expires_at || null,
-        },
-      });
+      if (metadata.payment_address) {
+        return NextResponse.json({
+          data: {
+            submission_id: sid,
+            coinpay_invoice_id: submission.coinpay_invoice_id,
+            pay_url: null,
+            payment_address: metadata.payment_address || null,
+            payment_currency: metadata.payment_currency || null,
+            amount_crypto: metadata.amount_crypto || null,
+            expires_at: metadata.expires_at || null,
+          },
+        });
+      }
     }
 
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
@@ -117,7 +121,7 @@ export async function POST(
       .update({
         payout_status: "invoiced",
         coinpay_invoice_id: paymentId,
-        pay_url: checkoutUrl,
+        pay_url: null,
         metadata: {
           payment_address: paymentAddress,
           amount_crypto: amountCrypto,
@@ -140,7 +144,7 @@ export async function POST(
         payment_currency: responseCurrency,
         amount_crypto: amountCrypto,
         expires_at: expiresAt,
-        pay_url: checkoutUrl,
+        pay_url: null,
       },
     });
   } catch (err) {

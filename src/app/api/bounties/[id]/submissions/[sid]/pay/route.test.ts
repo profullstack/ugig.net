@@ -97,7 +97,7 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
     expect(updatePayload).toMatchObject({
       payout_status: "invoiced",
       coinpay_invoice_id: "cp-pay-bounty-1",
-      pay_url: "https://coinpayportal.com/pay/cp-pay-bounty-1",
+      pay_url: null,
       metadata: expect.objectContaining({
         payment_address: "So11111111111111111111111111111111111111112",
         amount_crypto: 0.5,
@@ -153,7 +153,69 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
     const body = await res.json();
     expect(body.data.coinpay_invoice_id).toBe("cp-pay-bounty-1");
     expect(body.data.payment_address).toBe("So11111111111111111111111111111111111111112");
+    expect(body.data.pay_url).toBeNull();
     expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh in-app payment when an old invoice has no address metadata", async () => {
+    const bountyChain = chain({
+      data: {
+        id: BOUNTY_ID,
+        creator_id: CREATOR_ID,
+        title: "Test bounty",
+        payout_usd: 25,
+        payment_coin: "SOL",
+      },
+    });
+    const submissionChain = chain({
+      data: {
+        id: SUBMISSION_ID,
+        submitter_id: SUBMITTER_ID,
+        status: "approved",
+        payout_status: "invoiced",
+        pay_url: "https://coinpayportal.com/pay/old-hosted-checkout",
+        coinpay_invoice_id: "old-cp-pay-bounty-1",
+        metadata: {},
+      },
+    });
+    let updatePayload: Record<string, unknown> | null = null;
+    submissionChain.update.mockImplementation((payload: Record<string, unknown>) => {
+      updatePayload = payload;
+      return submissionChain;
+    });
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "bounties") return bountyChain;
+        if (table === "bounty_submissions") return submissionChain;
+        return chain({ data: null });
+      }),
+    };
+
+    (getAuthContext as any).mockResolvedValue({ user: { id: CREATOR_ID }, supabase });
+    (resolveSupportedPaymentCurrency as any).mockResolvedValue("sol");
+    (createPayment as any).mockResolvedValue({
+      success: true,
+      payment_id: "cp-pay-bounty-fresh",
+      address: "SoFresh1111111111111111111111111111111111111",
+      amount_crypto: 0.4,
+      currency: "sol",
+      expires_at: "2026-05-23T13:00:00Z",
+      checkout_url: "https://coinpayportal.com/pay/cp-pay-bounty-fresh",
+    });
+
+    const res = await POST(req(), params);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.coinpay_invoice_id).toBe("cp-pay-bounty-fresh");
+    expect(body.data.payment_address).toBe("SoFresh1111111111111111111111111111111111111");
+    expect(updatePayload).toMatchObject({
+      coinpay_invoice_id: "cp-pay-bounty-fresh",
+      pay_url: null,
+      metadata: expect.objectContaining({
+        payment_address: "SoFresh1111111111111111111111111111111111111",
+      }),
+    });
   });
 
   it("returns the database error when loading the submission fails", async () => {
