@@ -40,6 +40,12 @@ interface InvoiceRow {
   pay_url: string | null;
   notes: string | null;
   due_date: string | null;
+  metadata: {
+    payment_address?: string | null;
+    amount_crypto?: number | string | null;
+    payment_currency?: string | null;
+    expires_at?: string | null;
+  } | null;
   created_at: string;
   gig: { id: string; title: string } | null;
   worker: Counterparty | null;
@@ -91,6 +97,33 @@ function statusBadge(status: InvoiceRow["status"]) {
 function counterpartyName(c: Counterparty | null): string {
   if (!c) return "Unknown";
   return c.full_name || c.username || "Unknown";
+}
+
+function paymentAmount(inv: InvoiceRow): string {
+  if (inv.metadata?.amount_crypto) {
+    return `${inv.metadata.amount_crypto} ${
+      inv.metadata.payment_currency || ""
+    }`.trim();
+  }
+  return inv.metadata?.payment_currency || "the selected coin";
+}
+
+function paymentDetails(inv: InvoiceRow, label: string) {
+  if (!inv.metadata?.payment_address) return null;
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 mb-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <code className="block break-all rounded bg-background px-2 py-1.5 text-xs">
+        {inv.metadata.payment_address}
+      </code>
+      <p className="text-xs text-muted-foreground">
+        Send {paymentAmount(inv)} to this address.
+        {inv.metadata.expires_at
+          ? ` Expires ${new Date(inv.metadata.expires_at).toLocaleString()}.`
+          : ""}
+      </p>
+    </div>
+  );
 }
 
 export default async function InvoicesDashboardPage({
@@ -232,8 +265,8 @@ export default async function InvoicesDashboardPage({
               Accepted applicants awaiting payment
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              These workers were accepted but no invoice exists yet. Generate a payment link
-              now and they&apos;ll be notified.
+              These workers were accepted but no invoice exists yet. Prepare in-app
+              payment details now and they&apos;ll be notified.
             </p>
             <div className="space-y-3">
               {acceptedNeedingInvoice.map((app) => {
@@ -342,6 +375,14 @@ export default async function InvoicesDashboardPage({
                       <p className="text-sm text-muted-foreground mb-3">{inv.notes}</p>
                     )}
 
+                    {tab === "received" &&
+                      inv.status === "sent" &&
+                      paymentDetails(inv, "In-app payment details")}
+
+                    {tab === "sent" &&
+                      inv.status === "sent" &&
+                      paymentDetails(inv, "Payment details shared with client")}
+
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>
                         Created {new Date(inv.created_at).toLocaleDateString()}
@@ -349,28 +390,34 @@ export default async function InvoicesDashboardPage({
                           <> · Due {new Date(inv.due_date).toLocaleDateString()}</>
                         )}
                       </span>
-                      {tab === "received" && inv.status === "sent" && inv.pay_url && (
-                        <a
-                          href={inv.pay_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Pay now
-                        </a>
-                      )}
-                      {tab === "sent" && inv.status === "sent" && inv.pay_url && (
-                        <a
-                          href={inv.pay_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View payment link
-                        </a>
-                      )}
+                      {tab === "received" &&
+                        inv.status === "sent" &&
+                        !inv.metadata?.payment_address &&
+                        inv.pay_url && (
+                          <a
+                            href={inv.pay_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Pay now
+                          </a>
+                        )}
+                      {tab === "sent" &&
+                        inv.status === "sent" &&
+                        !inv.metadata?.payment_address &&
+                        inv.pay_url && (
+                          <a
+                            href={inv.pay_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View payment link
+                          </a>
+                        )}
                     </div>
                   </div>
                 );
