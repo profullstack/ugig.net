@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateOfferInput, stripHtmlTags, isValidUrl } from "./validation";
+import { validateOfferInput, validateOfferUpdateInput, stripHtmlTags, isValidUrl } from "./validation";
 
 describe("stripHtmlTags", () => {
   it("removes HTML tags from strings", () => {
@@ -252,5 +252,32 @@ describe("validateOfferInput", () => {
   it("rejects description shorter than 10 characters", () => {
     const result = validateOfferInput({ ...validInput, description: "Short" });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("validateOfferUpdateInput", () => {
+  it("allows switching an offer to flat commission with a zero percentage rate", () => {
+    const result = validateOfferUpdateInput({
+      commission_type: "flat",
+      commission_rate: 0,
+      commission_flat_sats: 500,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.sanitized).toMatchObject({
+      commission_type: "flat",
+      commission_rate: 0,
+      commission_flat_sats: 500,
+    });
+  });
+
+  it("continues to reject zero percentage commission rates", () => {
+    const result = validateOfferUpdateInput({
+      commission_type: "percentage",
+      commission_rate: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("Commission rate must be between 1% and 90%");
   });
 });

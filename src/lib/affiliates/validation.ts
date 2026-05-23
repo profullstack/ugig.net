@@ -309,8 +309,13 @@ export function validateOfferUpdateInput(
       !Number.isFinite(input.commission_rate)
     ) {
       errors.push("commission_rate must be a number");
-    } else if (input.commission_rate < 0.01 || input.commission_rate > 0.90) {
+    } else if (
+      input.commission_type !== "flat" &&
+      (input.commission_rate < 0.01 || input.commission_rate > 0.90)
+    ) {
       errors.push("Commission rate must be between 1% and 90%");
+    } else if (input.commission_type === "flat" && input.commission_rate !== 0) {
+      errors.push("commission_rate must be 0 for flat commissions");
     } else {
       sanitized.commission_rate = input.commission_rate;
     }
