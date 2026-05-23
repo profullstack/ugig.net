@@ -280,4 +280,22 @@ describe("validateOfferUpdateInput", () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain("Commission rate must be between 1% and 90%");
   });
+
+  it("keeps product_url null in sanitized updates so the column can be cleared", () => {
+    const result = validateOfferUpdateInput({
+      product_url: null,
+    } as any);
+
+    expect(result.ok).toBe(true);
+    expect(result.sanitized).toEqual({ product_url: null });
+  });
+
+  it("converts blank product_url updates to null", () => {
+    const result = validateOfferUpdateInput({
+      product_url: "   ",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.sanitized).toEqual({ product_url: null });
+  });
 });

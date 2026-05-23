@@ -209,4 +209,22 @@ describe("PATCH /api/affiliates/offers/[id]", () => {
       auto_pay: false,
     });
   });
+
+  it("sends null when clearing product_url", async () => {
+    const getUpdatePayload = mockExistingOffer();
+
+    const res = await PATCH(
+      makePatchRequest("offer1", {
+        product_url: null,
+      }),
+      makeParams("offer1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.product_url).toBeNull();
+    expect(getUpdatePayload()).toMatchObject({
+      product_url: null,
+    });
+  });
 });

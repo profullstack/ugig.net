@@ -27,7 +27,7 @@ export interface ValidationResult {
 export interface UpdateValidationResult {
   ok: boolean;
   errors: string[];
-  sanitized?: Partial<OfferInput>;
+  sanitized?: Partial<Omit<OfferInput, "product_url">> & { product_url?: string | null };
 }
 
 export function stripHtmlTags(str: string): string {
@@ -257,11 +257,11 @@ export function validateOfferUpdateInput(
     if (input.product_url !== null && typeof input.product_url !== "string") {
       errors.push("product_url must be a string");
     } else if (input.product_url === null) {
-      sanitized.product_url = undefined;
+      sanitized.product_url = null;
     } else {
       const productUrl = input.product_url.trim();
       if (productUrl.length === 0) {
-        sanitized.product_url = undefined;
+        sanitized.product_url = null;
       } else if (!isValidUrl(productUrl)) {
         errors.push("product_url must use http:// or https:// scheme");
       } else {
