@@ -75,4 +75,29 @@ describe("POST /api/affiliates/offers/[id]/conversions/pay", () => {
     expect(mockGetUserLnWallet).not.toHaveBeenCalled();
     expect(mockInternalTransfer).not.toHaveBeenCalled();
   });
+
+  it("returns 400 for non-string conversion IDs before querying conversions", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller-1", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return makeOfferQuery("seller-1");
+      }
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+
+    const res = await POST(
+      makeRawPostRequest("offer-1", JSON.stringify({ conversion_id: { id: "conv-1" } })),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("conversion_id is required");
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
+    expect(mockInternalTransfer).not.toHaveBeenCalled();
+  });
 });

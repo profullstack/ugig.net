@@ -39,7 +39,7 @@ export async function POST(
     const body = await safeParseBody<{ conversion_id?: unknown }>(request);
     const conversion_id = body?.conversion_id;
 
-    if (!conversion_id) {
+    if (typeof conversion_id !== "string" || !conversion_id.trim()) {
       return NextResponse.json({ error: "conversion_id is required" }, { status: 400 });
     }
 
@@ -47,7 +47,7 @@ export async function POST(
     const { data: conv } = await (admin as AnySupabase)
       .from("affiliate_conversions")
       .select("id, affiliate_id, commission_sats, status")
-      .eq("id", conversion_id)
+      .eq("id", conversion_id.trim())
       .eq("offer_id", id)
       .single();
 
