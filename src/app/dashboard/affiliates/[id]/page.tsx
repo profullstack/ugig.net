@@ -408,7 +408,7 @@ export default function SellerOfferDetailPage() {
                         )}
                         {aff.username ? (
                           <Link
-                            href={`/@${aff.username}`}
+                            href={`/u/${encodeURIComponent(aff.username)}`}
                             className="font-medium hover:underline"
                           >
                             @{aff.username}
@@ -585,7 +585,7 @@ export default function SellerOfferDetailPage() {
                     <td className="p-3">
                       {conv.username ? (
                         <Link
-                          href={`/@${conv.username}`}
+                          href={`/u/${encodeURIComponent(conv.username)}`}
                           className="font-medium hover:underline"
                         >
                           @{conv.username}
