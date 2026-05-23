@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 
+function getReferralBaseUrl(request: NextRequest) {
+  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
+}
+
 // GET /api/referrals/code - Get my referral link/code
 export async function GET(request: NextRequest) {
   try {
@@ -22,15 +26,13 @@ export async function GET(request: NextRequest) {
     }
 
     const code = profile.referral_code || profile.username;
+    const baseUrl = getReferralBaseUrl(request);
 
     return NextResponse.json({
       code,
-      link: `https://ugig.net/?ref=${code}`,
+      link: `${baseUrl}/?ref=${encodeURIComponent(code)}`,
     });
   } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
