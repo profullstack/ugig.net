@@ -125,7 +125,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ offer });
+    return NextResponse.json({ offer: withCommissionEstimate(offer) });
   } catch {
     return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }

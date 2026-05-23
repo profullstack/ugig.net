@@ -19,10 +19,18 @@ vi.mock("@/lib/affiliates/validation", () => ({
   validateOfferInput: vi.fn(),
 }));
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 function makeRequest(id: string) {
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}`);
+}
+
+function makePatchRequest(id: string, body: unknown) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 function makeParams(id: string) {
@@ -141,5 +149,58 @@ describe("GET /api/affiliates/offers/[id]", () => {
 
     const res = await GET(makeRequest("nonexistent"), makeParams("nonexistent"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/affiliates/offers/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller1", authMethod: "session" },
+    });
+  });
+
+  it("includes commission estimate fields in the updated offer response (#90)", async () => {
+    const updatedOffer = {
+      id: "offer-1",
+      seller_id: "seller1",
+      title: "Updated",
+      commission_type: "percentage",
+      commission_rate: 0.25,
+      commission_flat_sats: 0,
+      price_sats: 1000,
+    };
+
+    mockFrom.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({
+              data: { id: "offer-1", seller_id: "seller1" },
+              error: null,
+            }),
+        }),
+      }),
+    });
+
+    mockFrom.mockReturnValueOnce({
+      update: () => ({
+        eq: () => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: updatedOffer, error: null }),
+          }),
+        }),
+      }),
+    });
+
+    const res = await PATCH(
+      makePatchRequest("offer-1", { title: "Updated" }),
+      makeParams("offer-1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.offer.estimated_commission_sats).toBe(250);
+    expect(body.offer.commission_basis).toBe("listed_price");
   });
 });
