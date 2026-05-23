@@ -4,14 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ExternalLink,
-  DollarSign,
-} from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, DollarSign, Copy } from "lucide-react";
 
 interface Question {
   id: string;
@@ -30,6 +23,7 @@ interface Submission {
   review_notes: string | null;
   reviewed_at: string | null;
   pay_url: string | null;
+  payment_metadata?: PaymentDetails | null;
   created_at: string;
   submitter: {
     id: string;
@@ -39,6 +33,13 @@ interface Submission {
   } | null;
 }
 
+interface PaymentDetails {
+  payment_address?: string | null;
+  amount_crypto?: number | string | null;
+  payment_currency?: string | null;
+  expires_at?: string | null;
+}
+
 interface ReviewPanelProps {
   bountyId: string;
   payoutUsd: number;
@@ -46,31 +47,23 @@ interface ReviewPanelProps {
   submissions: Submission[];
 }
 
-export function ReviewPanel({
-  bountyId,
-  payoutUsd,
-  questions,
-  submissions,
-}: ReviewPanelProps) {
+export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: ReviewPanelProps) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentDetailsById, setPaymentDetailsById] = useState<Record<string, PaymentDetails>>({});
 
-  const questionLabel = (qid: string) =>
-    questions.find((q) => q.id === qid)?.label || qid;
+  const questionLabel = (qid: string) => questions.find((q) => q.id === qid)?.label || qid;
 
   const review = async (sid: string, status: "approved" | "rejected") => {
     setError(null);
     setBusyId(sid);
     try {
-      const res = await fetch(
-        `/api/bounties/${bountyId}/submissions/${sid}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        }
-      );
+      const res = await fetch(`/api/bounties/${bountyId}/submissions/${sid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error || "Failed");
@@ -86,18 +79,23 @@ export function ReviewPanel({
     setError(null);
     setBusyId(sid);
     try {
-      const res = await fetch(
-        `/api/bounties/${bountyId}/submissions/${sid}/pay`,
-        { method: "POST" }
-      );
+      const res = await fetch(`/api/bounties/${bountyId}/submissions/${sid}/pay`, {
+        method: "POST",
+      });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error || "Failed to create payment link");
         return;
       }
-      if (json.data?.pay_url) {
-        window.open(json.data.pay_url, "_blank", "noopener,noreferrer");
-      }
+      setPaymentDetailsById((cur) => ({
+        ...cur,
+        [sid]: {
+          payment_address: json.data?.payment_address || null,
+          amount_crypto: json.data?.amount_crypto || null,
+          payment_currency: json.data?.payment_currency || null,
+          expires_at: json.data?.expires_at || null,
+        },
+      }));
       router.refresh();
     } finally {
       setBusyId(null);
@@ -117,11 +115,9 @@ export function ReviewPanel({
 
   const renderCard = (s: Submission) => {
     const name = s.submitter?.full_name || s.submitter?.username || "Unknown";
+    const paymentDetails = paymentDetailsById[s.id] || s.payment_metadata || null;
     return (
-      <div
-        key={s.id}
-        className="p-4 bg-card border border-border rounded-lg space-y-3"
-      >
+      <div key={s.id} className="p-4 bg-card border border-border rounded-lg space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-medium">{name}</p>
@@ -208,16 +204,50 @@ export function ReviewPanel({
 
           {s.status === "approved" &&
             s.payout_status === "invoiced" &&
-            s.pay_url && (
-              <a
-                href={s.pay_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Open payment link
-              </a>
+            paymentDetails?.payment_address && (
+              <div className="w-full rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Payment address</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    onClick={() =>
+                      navigator.clipboard?.writeText(paymentDetails.payment_address || "")
+                    }
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </Button>
+                </div>
+                <code className="block break-all rounded bg-background px-2 py-1.5 text-xs">
+                  {paymentDetails.payment_address}
+                </code>
+                <p className="text-xs text-muted-foreground">
+                  Send{" "}
+                  {paymentDetails.amount_crypto
+                    ? `${paymentDetails.amount_crypto} ${
+                        paymentDetails.payment_currency || ""
+                      }`.trim()
+                    : paymentDetails.payment_currency || "the selected coin"}{" "}
+                  to this address.
+                </p>
+                {paymentDetails.expires_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Expires {new Date(paymentDetails.expires_at).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+          {s.status === "approved" &&
+            s.payout_status === "invoiced" &&
+            !paymentDetails?.payment_address && (
+              <p className="text-sm text-muted-foreground">
+                Payment was prepared, but in-app payment details are not available. Create a new
+                payment request if this one expired.
+              </p>
             )}
 
           {s.payout_status === "paid" && (
