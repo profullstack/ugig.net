@@ -9,7 +9,12 @@ describe("getAppUrl", () => {
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
+    vi.unstubAllEnvs();
+    if (originalAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
+    }
   });
 
   it("returns NEXT_PUBLIC_APP_URL when set", () => {
@@ -32,6 +37,19 @@ describe("getAppUrl", () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     const req = new Request("http://localhost:3000/api/test");
     expect(getAppUrl(req)).toBe("http://localhost:3000");
+  });
+
+  it("does not use a non-local request origin in trusted-only mode", () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const req = new Request("http://staging.ugig.net/api/test");
+    expect(getAppUrl(req, { trustedOnly: true })).toBe("https://ugig.net");
+  });
+
+  it("uses VERCEL_URL in trusted-only mode when app url is not set", () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    vi.stubEnv("VERCEL_URL", "preview-ugig.vercel.app");
+    const req = new Request("http://staging.ugig.net/api/test");
+    expect(getAppUrl(req, { trustedOnly: true })).toBe("https://preview-ugig.vercel.app");
   });
 
   it("prefers NEXT_PUBLIC_APP_URL over request origin", () => {

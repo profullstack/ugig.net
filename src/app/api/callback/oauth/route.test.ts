@@ -11,14 +11,24 @@ describe("GET /api/callback/oauth", () => {
     vi.unstubAllEnvs();
   });
 
-  it("redirects OAuth errors back to the current request origin when app url is not configured", async () => {
+  it("redirects OAuth errors to the Vercel deployment URL when app url is not configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("VERCEL_URL", "preview-ugig.vercel.app");
 
     const res = await GET(req("/api/callback/oauth?error=access_denied"));
 
     expect(res.headers.get("location")).toBe(
-      "https://preview.ugig.example/login?error=coinpay_denied"
+      "https://preview-ugig.vercel.app/login?error=coinpay_denied"
     );
+  });
+
+  it("does not redirect OAuth errors to an untrusted request host", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("VERCEL_URL", "");
+
+    const res = await GET(req("/api/callback/oauth?error=access_denied"));
+
+    expect(res.headers.get("location")).toBe("https://ugig.net/login?error=coinpay_denied");
   });
 
   it("normalizes a configured app url for OAuth error redirects", async () => {

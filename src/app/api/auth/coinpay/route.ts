@@ -4,15 +4,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 const COINPAY_AUTH_URL = "https://coinpayportal.com/api/oauth/authorize";
 
 function base64url(buffer: Buffer): string {
   return buffer.toString("base64url");
-}
-
-function getAppUrl(request: NextRequest): string {
-  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
 }
 
 export async function GET(request: NextRequest) {
@@ -21,7 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "CoinPay OAuth not configured" }, { status: 500 });
   }
 
-  const appUrl = getAppUrl(request);
+  const appUrl = getAppUrl(request, { trustedOnly: true });
   const redirectUri = `${appUrl}/api/callback/oauth`;
 
   // Generate state and PKCE
