@@ -188,13 +188,18 @@ describe("CoinPayPortal supported coins API", () => {
     ]);
   });
 
-  it("resolves a preferred gig coin from active CoinPay wallets", async () => {
+  it("resolves a preferred gig coin without requiring business wallet enumeration", async () => {
     await expect(resolveSupportedPaymentCurrency("SOL")).resolves.toBe("sol");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("rejects preferred gig coins not configured in CoinPay", async () => {
-    await expect(resolveSupportedPaymentCurrency("ETH")).rejects.toThrow(
-      "CoinPayPortal does not have an active ETH wallet configured"
+  it("falls back to active business wallets when no preferred coin is set", async () => {
+    await expect(resolveSupportedPaymentCurrency()).resolves.toBe("sol");
+  });
+
+  it("rejects unsupported preferred gig coins after checking CoinPay wallets", async () => {
+    await expect(resolveSupportedPaymentCurrency("SATS")).rejects.toThrow(
+      "CoinPayPortal does not have an active SATS wallet configured"
     );
   });
 });

@@ -199,6 +199,21 @@ function normalizeCoinSymbol(value?: string | null): string {
     .replace(/[\s-]+/g, "_");
 }
 
+function preferredCoinToSupportedCurrency(value?: string | null): SupportedCurrency | null {
+  const directCurrency = normalizeCurrencyKey(value);
+  if (isSupportedCurrency(directCurrency)) return directCurrency;
+
+  const symbol = normalizeCoinSymbol(value);
+  if (symbol === "BTC") return "btc";
+  if (symbol === "ETH") return "eth";
+  if (symbol === "POL" || symbol === "MATIC") return "pol";
+  if (symbol === "SOL") return "sol";
+  if (symbol === "USDT") return "usdt";
+  if (symbol === "USDC") return "usdc_sol";
+
+  return null;
+}
+
 export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | null {
   const directCurrency =
     normalizeCurrencyKey(coin.currency) ||
@@ -396,6 +411,11 @@ export async function resolveSupportedPaymentCurrency(
   preferredCoin?: string | null,
   options: { business_id?: string } = {}
 ): Promise<SupportedCurrency> {
+  if (preferredCoin) {
+    const directCurrency = preferredCoinToSupportedCurrency(preferredCoin);
+    if (directCurrency) return directCurrency;
+  }
+
   const coins = await getBusinessWalletCurrencies({
     business_id: options.business_id,
   });
