@@ -11,24 +11,23 @@ function base64url(buffer: Buffer): string {
   return buffer.toString("base64url");
 }
 
+function getAppUrl(request: NextRequest): string {
+  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
+}
+
 export async function GET(request: NextRequest) {
   const clientId = process.env.COINPAY_OAUTH_CLIENT_ID;
   if (!clientId) {
-    return NextResponse.json(
-      { error: "CoinPay OAuth not configured" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "CoinPay OAuth not configured" }, { status: 500 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+  const appUrl = getAppUrl(request);
   const redirectUri = `${appUrl}/api/callback/oauth`;
 
   // Generate state and PKCE
   const state = base64url(randomBytes(32));
   const codeVerifier = base64url(randomBytes(32));
-  const codeChallenge = base64url(
-    createHash("sha256").update(codeVerifier).digest()
-  );
+  const codeChallenge = base64url(createHash("sha256").update(codeVerifier).digest());
 
   // Build authorization URL
   const params = new URLSearchParams({

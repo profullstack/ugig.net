@@ -21,8 +21,12 @@ function getAdminSupabase() {
   );
 }
 
+function getAppUrl(request: NextRequest): string {
+  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
+}
+
 export async function GET(request: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+  const appUrl = getAppUrl(request);
   const loginUrl = `${appUrl}/login`;
 
   try {
@@ -123,24 +127,33 @@ export async function GET(request: NextRequest) {
       });
 
       if (createErr) {
-        if ((createErr as any).code === "email_exists" || createErr.message?.includes("already been registered")) {
+        if (
+          (createErr as any).code === "email_exists" ||
+          createErr.message?.includes("already been registered")
+        ) {
           // User exists — find them via listUsers with page iteration
           let existingUser: any = null;
           let page = 1;
           while (!existingUser) {
-            const { data: { users } } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+            const {
+              data: { users },
+            } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
             if (!users || users.length === 0) break;
             existingUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
             page++;
           }
           if (!existingUser) {
             console.error("[CoinPay OAuth] User exists but couldn't find by email:", email);
-            return NextResponse.redirect(`${loginUrl}?error=coinpay_create_failed&detail=user_lookup_failed`);
+            return NextResponse.redirect(
+              `${loginUrl}?error=coinpay_create_failed&detail=user_lookup_failed`
+            );
           }
           userId = existingUser.id;
         } else {
           console.error("[CoinPay OAuth] Failed to create user:", createErr?.message);
-          return NextResponse.redirect(`${loginUrl}?error=coinpay_create_failed&detail=${encodeURIComponent(createErr?.message || 'unknown')}`);
+          return NextResponse.redirect(
+            `${loginUrl}?error=coinpay_create_failed&detail=${encodeURIComponent(createErr?.message || "unknown")}`
+          );
         }
       } else {
         userId = newUser.user!.id;
@@ -169,7 +182,7 @@ export async function GET(request: NextRequest) {
             subject: "Welcome to ugig.net — Set your password",
             html: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #667eea;">Welcome to ugig.net${name ? `, ${name}` : ''}! 🎉</h2>
+                <h2 style="color: #667eea;">Welcome to ugig.net${name ? `, ${name}` : ""}! 🎉</h2>
                 <p>Your account has been created via CoinPay. You can always log in using CoinPay, but if you'd like to set a password for direct login, click below:</p>
                 <p style="margin: 25px 0;">
                   <a href="${resetUrl}" style="background: #667eea; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Set Your Password</a>
