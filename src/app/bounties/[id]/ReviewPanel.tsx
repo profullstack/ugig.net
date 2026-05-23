@@ -186,21 +186,23 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
             </>
           )}
 
-          {s.status === "approved" && s.payout_status === "unpaid" && (
-            <Button
-              size="sm"
-              disabled={busyId === s.id}
-              onClick={() => pay(s.id)}
-              className="gap-1"
-            >
-              {busyId === s.id ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <DollarSign className="h-3 w-3" />
-              )}
-              Pay ${payoutUsd}
-            </Button>
-          )}
+          {s.status === "approved" &&
+            (s.payout_status === "unpaid" ||
+              (s.payout_status === "invoiced" && !paymentDetails?.payment_address)) && (
+              <Button
+                size="sm"
+                disabled={busyId === s.id}
+                onClick={() => pay(s.id)}
+                className="gap-1"
+              >
+                {busyId === s.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <DollarSign className="h-3 w-3" />
+                )}
+                {s.payout_status === "invoiced" ? "Create new payment request" : `Pay $${payoutUsd}`}
+              </Button>
+            )}
 
           {s.status === "approved" &&
             s.payout_status === "invoiced" &&
@@ -245,8 +247,8 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
             s.payout_status === "invoiced" &&
             !paymentDetails?.payment_address && (
               <p className="text-sm text-muted-foreground">
-                Payment was prepared, but in-app payment details are not available. Create a new
-                payment request if this one expired.
+                Payment was prepared before in-app payment details were available. Create a new
+                payment request to show a fresh payment address here.
               </p>
             )}
 

@@ -45,13 +45,16 @@ export async function POST(
       return NextResponse.json({ error: "Only approved submissions can be paid" }, { status: 400 });
     }
 
-    // Already invoiced — return existing details
-    if (submission.coinpay_invoice_id) {
+    // Already invoiced with in-app payment details — return existing details.
+    // Older rows may have a CoinPay invoice id/pay_url from the previous hosted-checkout flow
+    // but no in-app address metadata. In that case, intentionally fall through and create a
+    // fresh in-app payment request so creators are not stuck after the migration.
+    if (submission.coinpay_invoice_id && submission.payment_metadata?.payment_address) {
       return NextResponse.json({
         data: {
           submission_id: sid,
           coinpay_invoice_id: submission.coinpay_invoice_id,
-          payment_address: submission.payment_metadata?.payment_address || null,
+          payment_address: submission.payment_metadata.payment_address,
           payment_currency: submission.payment_metadata?.payment_currency || null,
           amount_crypto: submission.payment_metadata?.amount_crypto || null,
           expires_at: submission.payment_metadata?.expires_at || null,
