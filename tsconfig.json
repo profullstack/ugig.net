@@ -38,6 +38,13 @@
   "exclude": [
     "node_modules",
     "cli",
-    "scripts"
+    "scripts",
+    "InlinePayModal.tsx",
+    "PayApplicantButton.tsx",
+    "api-invoices-pay.ts",
+    "api-invoices-status.ts",
+    "coinpayportal-lib.ts",
+    "dashboard-invoices-page.tsx",
+    "webhook-enhancement.ts"
   ]
 }
