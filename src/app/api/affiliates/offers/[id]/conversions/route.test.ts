@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET, POST } from "./route";
+import { DELETE, GET, POST, PUT } from "./route";
 import { NextRequest } from "next/server";
 
 // Mock auth
@@ -44,6 +44,17 @@ function makeRawPostRequest(id: string, body: string) {
     `http://localhost/api/affiliates/offers/${id}/conversions`,
     {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    }
+  );
+}
+
+function makeRawRequest(id: string, method: "PUT" | "DELETE", body: string) {
+  return new NextRequest(
+    `http://localhost/api/affiliates/offers/${id}/conversions`,
+    {
+      method,
       headers: { "Content-Type": "application/json" },
       body,
     }
@@ -357,5 +368,72 @@ describe("POST /api/affiliates/offers/[id]/conversions", () => {
     expect(res.status).toBe(400);
     expect(body.error).toBe("Invalid request body");
     expect(mockRecordConversion).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/affiliates/offers/[id]/conversions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 400 for malformed JSON request bodies", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          commission_rate: 0.2,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+        });
+      }
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+
+    const res = await PUT(
+      makeRawRequest("offer-1", "PUT", "{not valid json"),
+      makeParams("offer-1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid request body");
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
+  });
+});
+
+describe("DELETE /api/affiliates/offers/[id]/conversions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 400 for malformed JSON request bodies", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+        });
+      }
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+
+    const res = await DELETE(
+      makeRawRequest("offer-1", "DELETE", "{not valid json"),
+      makeParams("offer-1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid request body");
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
   });
 });

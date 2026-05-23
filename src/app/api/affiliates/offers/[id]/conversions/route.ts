@@ -240,7 +240,15 @@ export async function PUT(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await safeParseBody<{
+      conversion_id?: unknown;
+      sale_amount_sats?: unknown;
+      note?: unknown;
+      status?: unknown;
+    }>(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
     const { conversion_id, sale_amount_sats, note, status } = body;
 
     if (!conversion_id) {
@@ -305,7 +313,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await safeParseBody<{ conversion_id?: unknown }>(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
     const { conversion_id } = body;
 
     if (!conversion_id) {
