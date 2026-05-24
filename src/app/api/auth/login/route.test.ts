@@ -60,7 +60,7 @@ describe("POST /api/auth/login", () => {
     mockSignInWithPassword.mockResolvedValue({
       data: {
         user: { id: "u1", email: "test@x.com", email_confirmed_at: "2026-01-01T00:00:00Z" },
-        session: { access_token: "tok" },
+        session: { access_token: "tok", refresh_token: "refresh" },
       },
       error: null,
     });
@@ -69,6 +69,9 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.message).toBe("Login successful");
+    expect(body.access_token).toBe("tok");
+    expect(body.refresh_token).toBe("refresh");
+    expect(body.session).toBeUndefined();
   });
 
   it("should return 403 for unconfirmed user", async () => {

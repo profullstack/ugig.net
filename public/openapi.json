@@ -823,17 +823,17 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": ["message", "user", "access_token", "refresh_token"],
                   "properties": {
                     "message": { "type": "string" },
                     "user": { "type": "object" },
-                    "session": {
-                      "type": "object",
-                      "properties": {
-                        "access_token": { "type": "string" },
-                        "refresh_token": { "type": "string" },
-                        "expires_in": { "type": "integer" },
-                        "token_type": { "type": "string" }
-                      }
+                    "access_token": {
+                      "type": "string",
+                      "description": "Bearer token for authenticated API requests. Avoid logging or storing it in insecure client-side storage."
+                    },
+                    "refresh_token": {
+                      "type": "string",
+                      "description": "Refresh token returned by Supabase auth. Avoid logging or storing it in insecure client-side storage."
                     }
                   }
                 }
@@ -944,20 +944,20 @@
     "/api/auth/session": {
       "get": {
         "tags": ["Auth"],
-        "summary": "Get current session",
-        "description": "Returns the current authenticated user and session info.",
-        "operationId": "getSession",
+        "summary": "Get current user profile",
+        "description": "Returns the current authenticated user and profile.",
+        "operationId": "getCurrentUserProfile",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "responses": {
           "200": {
-            "description": "Session info",
+            "description": "Current user and profile info",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "user": { "type": "object" },
-                    "session": { "type": "object" }
+                    "profile": { "$ref": "#/components/schemas/Profile" }
                   }
                 }
               }

@@ -48,7 +48,8 @@ const SECTIONS: Section[] = [
       {
         method: "POST",
         path: "/api/auth/login",
-        description: "Authenticate with email and password to get a Bearer token.",
+        description:
+          "Authenticate with email and password to get a Bearer token. Keep returned tokens out of logs and insecure browser storage.",
         curl: `curl -X POST ${BASE}/api/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -58,23 +59,19 @@ const SECTIONS: Section[] = [
         response: `{
   "message": "Login successful",
   "user": { "id": "uuid", "email": "you@example.com" },
-  "session": {
-    "access_token": "eyJhbGciOi...",
-    "refresh_token": "abc123...",
-    "expires_in": 3600,
-    "token_type": "bearer"
-  }
+  "access_token": "eyJhbGciOi...",
+  "refresh_token": "abc123..."
 }`,
       },
       {
         method: "GET",
         path: "/api/auth/session",
-        description: "Get the current authenticated user and session info.",
+        description: "Get the current authenticated user and profile.",
         curl: `curl ${BASE}/api/auth/session \\
   -H "X-API-Key: $API_KEY"`,
         response: `{
   "user": { "id": "uuid", "email": "you@example.com" },
-  "session": { ... }
+  "profile": { "username": "you" }
 }`,
       },
     ],
