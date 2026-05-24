@@ -50,24 +50,33 @@ export async function POST(
       return NextResponse.json({ error: "Only approved submissions can be paid" }, { status: 400 });
     }
 
+    const metadata = (submission.metadata || {}) as Record<string, unknown>;
+    // Never reopen a completed payout. Old hosted-checkout rows can lack address metadata,
+    // but paid rows must stay terminal even if this endpoint is called directly.
+    if (submission.payout_status === "paid") {
+      return NextResponse.json(
+        { error: "Submission has already been paid" },
+        { status: 400 }
+      );
+    }
+
     // Already invoiced with in-app payment details — return existing details.
-    // Older hosted-checkout rows may have a CoinPay invoice id/pay_url but no address metadata;
-    // let those fall through and create a fresh in-app payment request so creators are not stuck.
-    if (submission.coinpay_invoice_id) {
-      const metadata = (submission.metadata || {}) as Record<string, unknown>;
-      if (metadata.payment_address) {
-        return NextResponse.json({
-          data: {
-            submission_id: sid,
-            coinpay_invoice_id: submission.coinpay_invoice_id,
-            pay_url: null,
-            payment_address: metadata.payment_address || null,
-            payment_currency: metadata.payment_currency || null,
-            amount_crypto: metadata.amount_crypto || null,
-            expires_at: metadata.expires_at || null,
-          },
-        });
-      }
+    // Older hosted-checkout invoice rows may have a CoinPay invoice id/pay_url but no address
+    // metadata; let those fall through and create a fresh in-app payment request so creators
+    // are not stuck.
+    if (submission.coinpay_invoice_id && metadata.payment_address) {
+      return NextResponse.json({
+        data: {
+          submission_id: sid,
+          coinpay_invoice_id: submission.coinpay_invoice_id,
+          pay_url: null,
+          checkout_url: metadata.checkout_url || null,
+          payment_address: metadata.payment_address || null,
+          payment_currency: metadata.payment_currency || null,
+          amount_crypto: metadata.amount_crypto || null,
+          expires_at: metadata.expires_at || null,
+        },
+      });
     }
 
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
@@ -145,6 +154,7 @@ export async function POST(
         amount_crypto: amountCrypto,
         expires_at: expiresAt,
         pay_url: null,
+        checkout_url: checkoutUrl,
       },
     });
   } catch (err) {

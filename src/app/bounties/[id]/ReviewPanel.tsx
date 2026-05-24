@@ -143,7 +143,7 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
             payment_address: json.data.payment_address,
             amount_crypto: json.data.amount_crypto,
             payment_currency: json.data.payment_currency,
-            checkout_url: json.data.pay_url,
+            checkout_url: json.data.checkout_url ?? json.data.pay_url ?? null,
             expires_at: json.data.expires_at,
           },
         }));

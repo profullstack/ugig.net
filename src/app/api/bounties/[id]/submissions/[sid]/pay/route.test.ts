@@ -218,6 +218,46 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
     });
   });
 
+  it("does not recreate a payment for an already-paid old checkout submission", async () => {
+    const bountyChain = chain({
+      data: {
+        id: BOUNTY_ID,
+        creator_id: CREATOR_ID,
+        title: "Test bounty",
+        payout_usd: 25,
+        payment_coin: "SOL",
+      },
+    });
+    const submissionChain = chain({
+      data: {
+        id: SUBMISSION_ID,
+        submitter_id: SUBMITTER_ID,
+        status: "approved",
+        payout_status: "paid",
+        pay_url: "https://coinpayportal.com/pay/old-hosted-checkout",
+        coinpay_invoice_id: "old-cp-pay-bounty-paid",
+        metadata: {},
+      },
+    });
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "bounties") return bountyChain;
+        if (table === "bounty_submissions") return submissionChain;
+        return chain({ data: null });
+      }),
+    };
+
+    (getAuthContext as any).mockResolvedValue({ user: { id: CREATOR_ID }, supabase });
+
+    const res = await POST(req(), params);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Submission has already been paid");
+    expect(createPayment).not.toHaveBeenCalled();
+    expect(submissionChain.update).not.toHaveBeenCalled();
+  });
+
   it("returns the database error when loading the submission fails", async () => {
     const bountyChain = chain({
       data: {
