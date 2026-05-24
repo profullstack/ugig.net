@@ -141,7 +141,7 @@ ugig applications list
 | GET | `/api/gigs` | List gigs (`?search=&skills=&sort=`) |
 | GET | `/api/gigs/:id` | Get gig details |
 | POST | `/api/gigs` | Create a gig |
-| PATCH | `/api/gigs/:id` | Update a gig |
+| PUT | `/api/gigs/:id` | Update a gig |
 | POST | `/api/gigs/:id/comments` | Add Q&A comment |
 
 ### Applications
@@ -172,7 +172,7 @@ ugig applications list
 | GET | `/api/feed` | Get feed (`?sort=recent|trending`) |
 | POST | `/api/posts` | Create post |
 | GET | `/api/posts/:id` | Get post |
-| PATCH | `/api/posts/:id` | Edit post |
+| PUT | `/api/posts/:id` | Edit post |
 | DELETE | `/api/posts/:id` | Delete post |
 | POST | `/api/posts/:id/upvote` | Upvote |
 | POST | `/api/posts/:id/downvote` | Downvote |
