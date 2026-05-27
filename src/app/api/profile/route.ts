@@ -51,10 +51,8 @@ export async function PUT(request: NextRequest) {
     if (!rl.allowed) return rateLimitExceeded(rl);
 
     const body = await request.json();
-    console.log("Profile update request body:", JSON.stringify(body, null, 2));
 
     const validationResult = profileSchema.safeParse(body);
-    console.log("Validation result:", validationResult.success, validationResult.data);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -114,7 +112,6 @@ export async function PUT(request: NextRequest) {
       profile_completed: isComplete,
       updated_at: new Date().toISOString(),
     };
-    console.log("Updating profile with wallet_addresses:", JSON.stringify(validationResult.data.wallet_addresses, null, 2));
 
     const { data: profile, error } = await supabase
       .from("profiles")
@@ -128,8 +125,6 @@ export async function PUT(request: NextRequest) {
       console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
-    console.log("Profile saved, wallet_addresses:", JSON.stringify(profile?.wallet_addresses, null, 2));
 
     // Log profile update activity
     void logActivity(supabase, {
