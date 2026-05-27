@@ -61,6 +61,7 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaProps>(
       } catch {
         if (requestSeqRef.current === seq) {
           setSuggestions([]);
+          setShowDropdown(false);
         }
       }
     }, []);

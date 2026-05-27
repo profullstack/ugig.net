@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
+import { fireEvent, render, screen, act } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MentionTextarea } from "./mention-textarea";
@@ -32,6 +32,7 @@ describe("MentionTextarea", () => {
   });
 
   it("ignores stale mention search responses after a newer query resolves", async () => {
+    vi.useFakeTimers();
     const oldQuery = deferredResponse([{ id: "1", username: "alice", avatar_url: null }]);
     const newQuery = deferredResponse([{ id: "2", username: "adliebe", avatar_url: null }]);
     const fetchMock = vi
@@ -45,11 +46,17 @@ describe("MentionTextarea", () => {
 
     fireEvent.change(textarea, { target: { value: "@a" } });
     textarea.setSelectionRange(2, 2);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fireEvent.change(textarea, { target: { value: "@ad" } });
     textarea.setSelectionRange(3, 3);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toContain("q=a");
     expect(fetchMock.mock.calls[1][0]).toContain("q=ad");
 
@@ -57,7 +64,7 @@ describe("MentionTextarea", () => {
       newQuery.resolve();
       await newQuery.promise;
     });
-    expect(await screen.findByText("@adliebe")).toBeInTheDocument();
+    expect(screen.getByText("@adliebe")).toBeInTheDocument();
 
     await act(async () => {
       oldQuery.resolve();
