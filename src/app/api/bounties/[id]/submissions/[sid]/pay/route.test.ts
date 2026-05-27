@@ -56,7 +56,11 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
         payout_status: "unpaid",
         pay_url: null,
         coinpay_invoice_id: null,
-        metadata: {},
+        metadata: {
+          expired_coinpay_invoice_id: "cp-pay-expired-1",
+          expired_at: "2026-05-22T12:00:00Z",
+          reviewer_note_id: "review-note-1",
+        },
       },
     });
 
@@ -99,6 +103,9 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
       coinpay_invoice_id: "cp-pay-bounty-1",
       pay_url: "https://coinpayportal.com/pay/cp-pay-bounty-1",
       metadata: expect.objectContaining({
+        expired_coinpay_invoice_id: "cp-pay-expired-1",
+        expired_at: "2026-05-22T12:00:00Z",
+        reviewer_note_id: "review-note-1",
         payment_address: "So11111111111111111111111111111111111111112",
         amount_crypto: 0.5,
         payment_currency: "sol",

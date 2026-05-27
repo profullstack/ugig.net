@@ -104,6 +104,10 @@ export async function POST(
       paymentResult.expires_at || (cpPayment.expires_at as string | undefined) || null;
     const responseCurrency =
       paymentResult.currency || (cpPayment.currency as string | undefined) || paymentCurrency;
+    const existingMetadata =
+      submission.metadata && typeof submission.metadata === "object" && !Array.isArray(submission.metadata)
+        ? (submission.metadata as Record<string, unknown>)
+        : {};
 
     if (!paymentId || !paymentAddress) {
       return NextResponse.json(
@@ -119,6 +123,7 @@ export async function POST(
         coinpay_invoice_id: paymentId,
         pay_url: checkoutUrl,
         metadata: {
+          ...existingMetadata,
           payment_address: paymentAddress,
           amount_crypto: amountCrypto,
           payment_currency: responseCurrency,
