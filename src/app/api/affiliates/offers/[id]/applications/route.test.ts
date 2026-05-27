@@ -31,6 +31,42 @@ function makePatchRequest(body: BodyInit, contentType = "application/json") {
   );
 }
 
+function mockOwnedOffer() {
+  return {
+    select: () => ({
+      eq: () => ({
+        single: () =>
+          Promise.resolve({
+            data: { id: "offer-1", seller_id: "seller-1" },
+            error: null,
+          }),
+      }),
+    }),
+  };
+}
+
+function mockUpdatedApplication(status: "approved" | "rejected") {
+  return {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({
+              data: {
+                id: "app-1",
+                offer_id: "offer-1",
+                affiliate_id: "affiliate-1",
+                status,
+                profiles: { username: "alice" },
+              },
+              error: null,
+            }),
+        }),
+      }),
+    }),
+  };
+}
+
 describe("PATCH /api/affiliates/offers/[id]/applications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,6 +83,7 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     expect(res.status).toBe(400);
     expect(body.error).toBe("Invalid request body");
     expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it("returns 400 for non-object JSON bodies", async () => {
@@ -56,66 +93,15 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     expect(res.status).toBe(400);
     expect(body.error).toBe("Invalid request body");
     expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("approves an application and sends an approval notification", async () => {
-    const updatedApplication = {
-      id: "app-1",
-      offer_id: "offer-1",
-      affiliate_id: "affiliate-1",
-      status: "approved",
-      profiles: { username: "alice" },
-    };
-    let updatePayload: Record<string, unknown> | undefined;
+  it("approves an application through the atomic status RPC and sends a notification", async () => {
     let notificationPayload: Record<string, unknown> | undefined;
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: { id: "app-1", status: "pending" },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-          update: (payload: Record<string, unknown>) => {
-            updatePayload = payload;
-            return {
-              eq: () => ({
-                eq: () => ({
-                  select: () => ({
-                    single: () =>
-                      Promise.resolve({
-                        data: updatedApplication,
-                        error: null,
-                      }),
-                  }),
-                }),
-              }),
-            };
-          },
-        };
-      }
-
+      if (table === "affiliate_offers") return mockOwnedOffer();
+      if (table === "affiliate_applications") return mockUpdatedApplication("approved");
       if (table === "notifications") {
         return {
           insert: (payload: Record<string, unknown>) => {
@@ -124,7 +110,6 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
           },
         };
       }
-
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -137,78 +122,28 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.application).toEqual(updatedApplication);
-    expect(updatePayload).toMatchObject({ status: "approved" });
-    expect(updatePayload?.approved_at).toEqual(expect.any(String));
+    expect(body.application).toMatchObject({ id: "app-1", status: "approved" });
+    expect(mockRpc).toHaveBeenCalledWith("update_affiliate_application_status", {
+      p_application_id: "app-1",
+      p_offer_id: "offer-1",
+      p_status: "approved",
+    });
     expect(notificationPayload).toMatchObject({
       user_id: "affiliate-1",
       type: "affiliate_approved",
       data: { offer_id: "offer-1", application_id: "app-1" },
     });
-    expect(mockRpc).toHaveBeenCalledWith("increment_affiliate_offer_total_affiliates", {
-      p_offer_id: "offer-1",
-    });
   });
 
-  it("decrements the affiliate count when rejecting a previously approved application", async () => {
-    const updatedApplication = {
-      id: "app-1",
-      offer_id: "offer-1",
-      affiliate_id: "affiliate-1",
-      status: "rejected",
-      profiles: { username: "alice" },
-    };
-
+  it("rejects an application through the atomic status RPC", async () => {
     mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: { id: "app-1", status: "approved" },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-          update: () => ({
-            eq: () => ({
-              eq: () => ({
-                select: () => ({
-                  single: () =>
-                    Promise.resolve({
-                      data: updatedApplication,
-                      error: null,
-                    }),
-                }),
-              }),
-            }),
-          }),
-        };
-      }
-
+      if (table === "affiliate_offers") return mockOwnedOffer();
+      if (table === "affiliate_applications") return mockUpdatedApplication("rejected");
       if (table === "notifications") {
         return {
           insert: () => Promise.resolve({ data: null, error: null }),
         };
       }
-
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -221,147 +156,27 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.application).toEqual(updatedApplication);
-    expect(mockRpc).toHaveBeenCalledWith("decrement_affiliate_offer_total_affiliates", {
+    expect(body.application).toMatchObject({ id: "app-1", status: "rejected" });
+    expect(mockRpc).toHaveBeenCalledWith("update_affiliate_application_status", {
+      p_application_id: "app-1",
       p_offer_id: "offer-1",
+      p_status: "rejected",
     });
   });
 
-  it("does not double count when approving an already approved application", async () => {
-    const updatedApplication = {
-      id: "app-1",
-      offer_id: "offer-1",
-      affiliate_id: "affiliate-1",
-      status: "approved",
-      profiles: { username: "alice" },
-    };
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: { id: "app-1", status: "approved" },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-          update: () => ({
-            eq: () => ({
-              eq: () => ({
-                select: () => ({
-                  single: () =>
-                    Promise.resolve({
-                      data: updatedApplication,
-                      error: null,
-                    }),
-                }),
-              }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "notifications") {
-        return {
-          insert: () => Promise.resolve({ data: null, error: null }),
-        };
-      }
-
-      throw new Error(`Unexpected table: ${table}`);
-    });
-
-    const res = await PATCH(
-      makePatchRequest(
-        JSON.stringify({ application_id: "app-1", action: "approve" })
-      ),
-      makeParams("offer-1")
-    );
-
-    expect(res.status).toBe(200);
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it("returns an error when the affiliate count update fails", async () => {
+  it("returns an error and does not notify when the atomic status RPC fails", async () => {
     mockRpc.mockResolvedValueOnce({
       data: null,
-      error: { message: "missing increment function" },
+      error: { message: "Application not found" },
     });
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: { id: "app-1", status: "pending" },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-          update: () => ({
-            eq: () => ({
-              eq: () => ({
-                select: () => ({
-                  single: () =>
-                    Promise.resolve({
-                      data: {
-                        id: "app-1",
-                        offer_id: "offer-1",
-                        affiliate_id: "affiliate-1",
-                        status: "approved",
-                        profiles: { username: "alice" },
-                      },
-                      error: null,
-                    }),
-                }),
-              }),
-            }),
-          }),
-        };
-      }
-
+      if (table === "affiliate_offers") return mockOwnedOffer();
       if (table === "notifications") {
         return {
-          insert: () => Promise.resolve({ data: null, error: null }),
+          insert: vi.fn(),
         };
       }
-
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -374,6 +189,7 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toBe("missing increment function");
+    expect(body.error).toBe("Application not found");
+    expect(mockFrom).not.toHaveBeenCalledWith("notifications");
   });
 });

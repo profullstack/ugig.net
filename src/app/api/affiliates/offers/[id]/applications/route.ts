@@ -101,53 +101,30 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
     }
 
-    const { data: existingApplication, error: existingApplicationError } = await (admin as AnySupabase)
-      .from("affiliate_applications")
-      .select("id, status")
-      .eq("id", application_id)
-      .eq("offer_id", id)
-      .single();
-
-    if (existingApplicationError || !existingApplication) {
-      return NextResponse.json({ error: "Application not found" }, { status: 404 });
-    }
-
     const status = action === "approve" ? "approved" : "rejected";
-    const wasApproved = existingApplication.status === "approved";
-    const updateData: Record<string, unknown> = {
-      status,
-      updated_at: new Date().toISOString(),
-    };
-    if (status === "approved") {
-      updateData.approved_at = new Date().toISOString();
+
+    const { error: statusError } = await (admin as AnySupabase).rpc(
+      "update_affiliate_application_status",
+      {
+        p_application_id: application_id,
+        p_offer_id: id,
+        p_status: status,
+      }
+    );
+
+    if (statusError) {
+      return NextResponse.json({ error: statusError.message }, { status: 400 });
     }
 
     const { data: application, error } = await (admin as AnySupabase)
       .from("affiliate_applications")
-      .update(updateData)
+      .select(`*, profiles!affiliate_applications_affiliate_id_fkey(username)`)
       .eq("id", application_id)
       .eq("offer_id", id)
-      .select(`*, profiles!affiliate_applications_affiliate_id_fkey(username)`)
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    if (status === "approved" && !wasApproved) {
-      const { error: countError } = await (admin as AnySupabase).rpc("increment_affiliate_offer_total_affiliates", {
-        p_offer_id: id,
-      });
-      if (countError) {
-        return NextResponse.json({ error: countError.message }, { status: 400 });
-      }
-    } else if (status === "rejected" && wasApproved) {
-      const { error: countError } = await (admin as AnySupabase).rpc("decrement_affiliate_offer_total_affiliates", {
-        p_offer_id: id,
-      });
-      if (countError) {
-        return NextResponse.json({ error: countError.message }, { status: 400 });
-      }
+    if (error || !application) {
+      return NextResponse.json({ error: error?.message || "Application not found" }, { status: 404 });
     }
 
     // Notify affiliate
