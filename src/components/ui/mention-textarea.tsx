@@ -51,13 +51,18 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaProps>(
       }
       try {
         const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}&limit=8`);
-        if (res.ok) {
-          const data = await res.json();
-          if (requestSeqRef.current !== seq) return;
-          setSuggestions(data.users || []);
-          setShowDropdown((data.users || []).length > 0);
-          setSelectedIndex(0);
+        if (!res.ok) {
+          if (requestSeqRef.current === seq) {
+            setSuggestions([]);
+            setShowDropdown(false);
+          }
+          return;
         }
+        const data = await res.json();
+        if (requestSeqRef.current !== seq) return;
+        setSuggestions(data.users || []);
+        setShowDropdown((data.users || []).length > 0);
+        setSelectedIndex(0);
       } catch {
         if (requestSeqRef.current === seq) {
           setSuggestions([]);

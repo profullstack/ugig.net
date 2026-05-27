@@ -25,6 +25,17 @@ function deferredResponse(
   };
 }
 
+function deferredHttpError() {
+  let resolve!: (value: Response) => void;
+  const promise = new Promise<Response>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve: () => resolve({ ok: false } as Response),
+  };
+}
+
 describe("MentionTextarea", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -93,5 +104,42 @@ describe("MentionTextarea", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clears stale suggestions when the active mention search returns an HTTP error", async () => {
+    vi.useFakeTimers();
+    const goodQuery = deferredResponse([{ id: "1", username: "alice", avatar_url: null }]);
+    const failedQuery = deferredHttpError();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(goodQuery.promise)
+      .mockReturnValueOnce(failedQuery.promise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ControlledMentionTextarea />);
+    const textarea = screen.getByLabelText("comment") as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: "@a" } });
+    textarea.setSelectionRange(2, 2);
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    await act(async () => {
+      goodQuery.resolve();
+      await goodQuery.promise;
+    });
+    expect(screen.getByText("@alice")).toBeInTheDocument();
+
+    fireEvent.change(textarea, { target: { value: "@ad" } });
+    textarea.setSelectionRange(3, 3);
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    await act(async () => {
+      failedQuery.resolve();
+      await failedQuery.promise;
+    });
+
+    expect(screen.queryByText("@alice")).not.toBeInTheDocument();
   });
 });
