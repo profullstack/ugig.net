@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Zap, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -58,26 +58,48 @@ export default function ZapsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
+  const requestSeq = useRef(0);
   const limit = 25;
 
-  async function fetchZaps(off: number) {
+  const fetchZaps = useCallback(async (off: number, reset = false) => {
+    const seq = ++requestSeq.current;
+    if (reset) {
+      setOffset(0);
+      setZaps([]);
+      setTotal(0);
+    }
+    setLoading(true);
     try {
       const res = await fetch(`/api/zaps/history?direction=${direction}&limit=${limit}&offset=${off}`);
       const data = await res.json();
+      if (seq !== requestSeq.current) return;
       if (data.zaps) {
         setZaps((current) => (off === 0 ? data.zaps : [...current, ...data.zaps]));
         setTotal(data.total);
       }
     } catch {
-      // ignore
+      if (seq === requestSeq.current && off === 0) {
+        setZaps([]);
+        setTotal(0);
+      }
     }
-    setLoading(false);
-  }
+    if (seq === requestSeq.current) setLoading(false);
+  }, [direction, limit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchZaps(0);
-  }, [direction]);
+    fetchZaps(0, true);
+  }, [fetchZaps]);
+
+  function selectDirection(nextDirection: "received" | "sent") {
+    if (nextDirection === direction) return;
+    requestSeq.current += 1;
+    setLoading(true);
+    setOffset(0);
+    setZaps([]);
+    setTotal(0);
+    setDirection(nextDirection);
+  }
 
   function loadMore() {
     const newOffset = offset + limit;
@@ -98,11 +120,7 @@ export default function ZapsPage() {
       {/* Tabs */}
       <div className="flex border-b border-border mb-6">
         <button
-          onClick={() => {
-            setLoading(true);
-            setOffset(0);
-            setDirection("received");
-          }}
+          onClick={() => selectDirection("received")}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             direction === "received"
               ? "border-amber-500 text-amber-500"
@@ -112,11 +130,7 @@ export default function ZapsPage() {
           <ArrowDownLeft className="h-4 w-4" /> Received
         </button>
         <button
-          onClick={() => {
-            setLoading(true);
-            setOffset(0);
-            setDirection("sent");
-          }}
+          onClick={() => selectDirection("sent")}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             direction === "sent"
               ? "border-amber-500 text-amber-500"
