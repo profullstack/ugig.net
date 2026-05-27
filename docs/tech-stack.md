@@ -497,13 +497,14 @@ ugig.net/
 ├── types/            # TypeScript types
 ├── contexts/         # React contexts
 ├── docs/             # Documentation
+│   └── legacy-project-todo.md
 ├── public/
 ├── .env.example
 ├── .env.local
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
-├── todo.md
+├── TODO.md
 └── package.json
 ```
 
