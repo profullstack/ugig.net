@@ -20,19 +20,22 @@ export function useMessageStream(
   conversationId: string | null,
   options: UseMessageStreamOptions = {}
 ): UseMessageStreamReturn {
-  const [connectedConversationId, setConnectedConversationId] = useState<
-    string | null
-  >(null);
+  const [connectedStreamId, setConnectedStreamId] = useState<number | null>(
+    null
+  );
   const [connectionError, setConnectionError] = useState<{
+    streamId: number;
     conversationId: string;
     error: Error;
   } | null>(null);
   const [reconnectTrigger, setReconnectTrigger] = useState(0);
   const [otherTypingState, setOtherTypingState] = useState({
     conversationId: null as string | null,
+    streamId: null as number | null,
     isTyping: false,
   });
   const eventSourceRef = useRef<EventSource | null>(null);
+  const streamIdRef = useRef(0);
   const lastTypingSentRef = useRef<number>(0);
 
   const { onMessage, onTypingChange } = options;
@@ -48,32 +51,36 @@ export function useMessageStream(
   }, [onTypingChange]);
 
   const isConnected =
-    conversationId !== null && connectedConversationId === conversationId;
+    conversationId !== null && connectedStreamId === streamIdRef.current;
   const error =
-    connectionError?.conversationId === conversationId
+    connectionError?.conversationId === conversationId &&
+    connectionError.streamId === streamIdRef.current
       ? connectionError.error
       : null;
   const isOtherTyping =
     conversationId !== null &&
     otherTypingState.conversationId === conversationId &&
+    otherTypingState.streamId === streamIdRef.current &&
     otherTypingState.isTyping;
 
   // Poll for typing status
   useEffect(() => {
-    if (!conversationId || !isConnected) return;
+    if (!conversationId || !isConnected || connectedStreamId === null) return;
 
     let cancelled = false;
+    const streamId = connectedStreamId;
 
     const pollTyping = async () => {
       try {
         const response = await fetch(`/api/conversations/${conversationId}/typing`);
         if (response.ok) {
           const data = await response.json();
-          if (cancelled) return;
+          if (cancelled || streamIdRef.current !== streamId) return;
 
           const hasTyping = Boolean(data.typing?.length);
           setOtherTypingState({
             conversationId,
+            streamId,
             isTyping: hasTyping,
           });
           onTypingChangeRef.current?.(hasTyping, data.typing?.[0]);
@@ -91,13 +98,23 @@ export function useMessageStream(
       cancelled = true;
       clearInterval(interval);
     };
-  }, [conversationId, isConnected]);
+  }, [conversationId, connectedStreamId, isConnected]);
 
   useEffect(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+
+    const streamId = streamIdRef.current + 1;
+    streamIdRef.current = streamId;
+    setConnectedStreamId(null);
+    setConnectionError(null);
+    setOtherTypingState({
+      conversationId: null,
+      streamId: null,
+      isTyping: false,
+    });
 
     if (!conversationId) {
       return;
@@ -109,17 +126,22 @@ export function useMessageStream(
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
-      setConnectedConversationId(conversationId);
+      if (streamIdRef.current !== streamId) return;
+
+      setConnectedStreamId(streamId);
       setConnectionError(null);
     };
 
     eventSource.onmessage = (event) => {
+      if (streamIdRef.current !== streamId) return;
+
       try {
         const message = JSON.parse(event.data) as MessageWithSender;
         onMessageRef.current?.(message);
         // Clear typing indicator when a message is received
         setOtherTypingState({
           conversationId,
+          streamId,
           isTyping: false,
         });
       } catch (e) {
@@ -128,8 +150,11 @@ export function useMessageStream(
     };
 
     eventSource.onerror = () => {
-      setConnectedConversationId(null);
+      if (streamIdRef.current !== streamId) return;
+
+      setConnectedStreamId(null);
       setConnectionError({
+        streamId,
         conversationId,
         error: new Error("Connection lost"),
       });
@@ -140,6 +165,9 @@ export function useMessageStream(
       eventSource.close();
       if (eventSourceRef.current === eventSource) {
         eventSourceRef.current = null;
+      }
+      if (streamIdRef.current === streamId) {
+        streamIdRef.current += 1;
       }
     };
   }, [conversationId, reconnectTrigger]);

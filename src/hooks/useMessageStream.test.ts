@@ -260,6 +260,81 @@ describe("useMessageStream", () => {
     });
   });
 
+  it("waits for onopen when the same conversation reconnects after being cleared", async () => {
+    const { result, rerender } = renderHook(
+      ({ conversationId }) => useMessageStream(conversationId),
+      { initialProps: { conversationId: "conv-123" as string | null } }
+    );
+
+    act(() => {
+      MockEventSource.instances[0].simulateOpen();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const firstInstance = MockEventSource.instances[0];
+
+    rerender({ conversationId: null });
+
+    await waitFor(() => {
+      expect(firstInstance.closed).toBe(true);
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    rerender({ conversationId: "conv-123" });
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.error).toBeNull();
+
+    act(() => {
+      MockEventSource.instances[1].simulateOpen();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+  });
+
+  it("does not expose stale errors before same conversation reconnect opens", async () => {
+    const { result, rerender } = renderHook(
+      ({ conversationId }) => useMessageStream(conversationId),
+      { initialProps: { conversationId: "conv-123" as string | null } }
+    );
+
+    act(() => {
+      MockEventSource.instances[0].simulateError();
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    rerender({ conversationId: null });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeNull();
+    });
+
+    rerender({ conversationId: "conv-123" });
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(result.current.error).toBeNull();
+    expect(result.current.isConnected).toBe(false);
+
+    act(() => {
+      MockEventSource.instances[1].simulateOpen();
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeNull();
+      expect(result.current.isConnected).toBe(true);
+    });
+  });
+
   it("clears error on successful reconnect", async () => {
     const { result } = renderHook(() => useMessageStream("conv-123"));
 
