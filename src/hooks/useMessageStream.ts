@@ -20,12 +20,19 @@ export function useMessageStream(
   conversationId: string | null,
   options: UseMessageStreamOptions = {}
 ): UseMessageStreamReturn {
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [connectedConversationId, setConnectedConversationId] = useState<
+    string | null
+  >(null);
+  const [connectionError, setConnectionError] = useState<{
+    conversationId: string;
+    error: Error;
+  } | null>(null);
   const [reconnectTrigger, setReconnectTrigger] = useState(0);
-  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [otherTypingState, setOtherTypingState] = useState({
+    conversationId: null as string | null,
+    isTyping: false,
+  });
   const eventSourceRef = useRef<EventSource | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingSentRef = useRef<number>(0);
 
   const { onMessage, onTypingChange } = options;
@@ -40,17 +47,35 @@ export function useMessageStream(
     onTypingChangeRef.current = onTypingChange;
   }, [onTypingChange]);
 
+  const isConnected =
+    conversationId !== null && connectedConversationId === conversationId;
+  const error =
+    connectionError?.conversationId === conversationId
+      ? connectionError.error
+      : null;
+  const isOtherTyping =
+    conversationId !== null &&
+    otherTypingState.conversationId === conversationId &&
+    otherTypingState.isTyping;
+
   // Poll for typing status
   useEffect(() => {
     if (!conversationId || !isConnected) return;
+
+    let cancelled = false;
 
     const pollTyping = async () => {
       try {
         const response = await fetch(`/api/conversations/${conversationId}/typing`);
         if (response.ok) {
           const data = await response.json();
-          const hasTyping = data.typing && data.typing.length > 0;
-          setIsOtherTyping(hasTyping);
+          if (cancelled) return;
+
+          const hasTyping = Boolean(data.typing?.length);
+          setOtherTypingState({
+            conversationId,
+            isTyping: hasTyping,
+          });
           onTypingChangeRef.current?.(hasTyping, data.typing?.[0]);
         }
       } catch {
@@ -62,15 +87,20 @@ export function useMessageStream(
     const interval = setInterval(pollTyping, 2000);
     pollTyping(); // Initial poll
 
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [conversationId, isConnected]);
 
   useEffect(() => {
-    if (!conversationId) return;
-
-    // Clean up existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    if (!conversationId) {
+      return;
     }
 
     const eventSource = new EventSource(
@@ -79,8 +109,8 @@ export function useMessageStream(
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
-      setIsConnected(true);
-      setError(null);
+      setConnectedConversationId(conversationId);
+      setConnectionError(null);
     };
 
     eventSource.onmessage = (event) => {
@@ -88,22 +118,28 @@ export function useMessageStream(
         const message = JSON.parse(event.data) as MessageWithSender;
         onMessageRef.current?.(message);
         // Clear typing indicator when a message is received
-        setIsOtherTyping(false);
+        setOtherTypingState({
+          conversationId,
+          isTyping: false,
+        });
       } catch (e) {
         console.error("Failed to parse message:", e);
       }
     };
 
     eventSource.onerror = () => {
-      setIsConnected(false);
-      setError(new Error("Connection lost"));
+      setConnectedConversationId(null);
+      setConnectionError({
+        conversationId,
+        error: new Error("Connection lost"),
+      });
       eventSource.close();
     };
 
     return () => {
       eventSource.close();
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
+      if (eventSourceRef.current === eventSource) {
+        eventSourceRef.current = null;
       }
     };
   }, [conversationId, reconnectTrigger]);

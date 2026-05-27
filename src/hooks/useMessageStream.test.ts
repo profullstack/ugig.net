@@ -234,6 +234,32 @@ describe("useMessageStream", () => {
     });
   });
 
+  it("resets connection state when conversationId is cleared", async () => {
+    const { result, rerender } = renderHook(
+      ({ conversationId }) => useMessageStream(conversationId),
+      { initialProps: { conversationId: "conv-123" as string | null } }
+    );
+
+    act(() => {
+      MockEventSource.instances[0].simulateOpen();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const firstInstance = MockEventSource.instances[0];
+
+    rerender({ conversationId: null });
+
+    await waitFor(() => {
+      expect(firstInstance.closed).toBe(true);
+      expect(result.current.isConnected).toBe(false);
+      expect(result.current.error).toBeNull();
+      expect(MockEventSource.instances).toHaveLength(1);
+    });
+  });
+
   it("clears error on successful reconnect", async () => {
     const { result } = renderHook(() => useMessageStream("conv-123"));
 
