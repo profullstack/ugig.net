@@ -135,13 +135,18 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     });
   });
 
-  it("rejects an application through the atomic status RPC", async () => {
+  it("rejects an application through the atomic status RPC and sends a notification", async () => {
+    let notificationPayload: Record<string, unknown> | undefined;
+
     mockFrom.mockImplementation((table: string) => {
       if (table === "affiliate_offers") return mockOwnedOffer();
       if (table === "affiliate_applications") return mockUpdatedApplication("rejected");
       if (table === "notifications") {
         return {
-          insert: () => Promise.resolve({ data: null, error: null }),
+          insert: (payload: Record<string, unknown>) => {
+            notificationPayload = payload;
+            return Promise.resolve({ data: null, error: null });
+          },
         };
       }
       throw new Error(`Unexpected table: ${table}`);
@@ -161,6 +166,13 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
       p_application_id: "app-1",
       p_offer_id: "offer-1",
       p_status: "rejected",
+    });
+    expect(notificationPayload).toMatchObject({
+      user_id: "affiliate-1",
+      type: "affiliate_rejected",
+      title: "Affiliate application declined",
+      body: "Your affiliate application was not approved.",
+      data: { offer_id: "offer-1", application_id: "app-1" },
     });
   });
 
