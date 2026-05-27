@@ -30,7 +30,6 @@ export interface ParsedResumeProfile {
   contact: ParsedContact;
   _debug?: {
     text_length: number;
-    text_preview: string;
     has_experience_section: boolean;
   };
 }
@@ -106,7 +105,7 @@ ${text}`;
 
     const parsed = JSON.parse(content);
     console.log("OpenAI parsed resume:", {
-      full_name: parsed.full_name,
+      has_full_name: Boolean(parsed.full_name),
       skills_count: parsed.skills?.length || 0,
       work_history_count: parsed.work_history?.length || 0,
     });
@@ -177,7 +176,6 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
     ...parsed,
     _debug: {
       text_length: text.length,
-      text_preview: text.slice(0, 1500),
       has_experience_section: hasExperienceSection,
     },
   };

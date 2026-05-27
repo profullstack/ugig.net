@@ -53,17 +53,17 @@ export async function POST(request: NextRequest) {
 
     // Log what was parsed for debugging
     console.log("Resume parsed:", {
-      full_name: parsed.full_name,
-      bio: parsed.bio ? `${parsed.bio.slice(0, 100)}...` : null,
+      has_full_name: Boolean(parsed.full_name),
+      has_bio: Boolean(parsed.bio),
       skills_count: parsed.skills?.length || 0,
-      skills_sample: parsed.skills?.slice(0, 5),
       work_history_count: parsed.work_history?.length || 0,
-      work_history_sample: parsed.work_history?.slice(0, 2).map(w => ({
-        company: w.company,
-        position: w.position,
-        start_date: w.start_date,
-      })),
-      location: parsed.location,
+      has_location: Boolean(parsed.location),
+      has_contact: Boolean(
+        parsed.contact?.website ||
+          parsed.contact?.linkedin_url ||
+          parsed.contact?.github_url ||
+          parsed.contact?.twitter_url
+      ),
     });
 
     // Also log if no work history was found to help debug
@@ -174,7 +174,6 @@ export async function POST(request: NextRequest) {
           work_history_entries: parsed.work_history?.length || 0,
           work_history_sample: parsed.work_history?.slice(0, 2) || [],
           text_length: parsed._debug?.text_length || 0,
-          text_preview: parsed._debug?.text_preview || "",
           has_experience_section: parsed._debug?.has_experience_section || false,
         },
       }),
