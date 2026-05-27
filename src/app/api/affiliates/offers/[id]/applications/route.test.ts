@@ -299,4 +299,81 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     expect(res.status).toBe(200);
     expect(mockRpc).not.toHaveBeenCalled();
   });
+
+  it("returns an error when the affiliate count update fails", async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: "missing increment function" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: { id: "offer-1", seller_id: "seller-1" },
+                  error: null,
+                }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "affiliate_applications") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: { id: "app-1", status: "pending" },
+                    error: null,
+                  }),
+              }),
+            }),
+          }),
+          update: () => ({
+            eq: () => ({
+              eq: () => ({
+                select: () => ({
+                  single: () =>
+                    Promise.resolve({
+                      data: {
+                        id: "app-1",
+                        offer_id: "offer-1",
+                        affiliate_id: "affiliate-1",
+                        status: "approved",
+                        profiles: { username: "alice" },
+                      },
+                      error: null,
+                    }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "notifications") {
+        return {
+          insert: () => Promise.resolve({ data: null, error: null }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const res = await PATCH(
+      makePatchRequest(
+        JSON.stringify({ application_id: "app-1", action: "approve" })
+      ),
+      makeParams("offer-1")
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("missing increment function");
+  });
 });

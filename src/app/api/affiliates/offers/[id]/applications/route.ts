@@ -135,13 +135,19 @@ export async function PATCH(
     }
 
     if (status === "approved" && !wasApproved) {
-      await (admin as AnySupabase).rpc("increment_affiliate_offer_total_affiliates", {
+      const { error: countError } = await (admin as AnySupabase).rpc("increment_affiliate_offer_total_affiliates", {
         p_offer_id: id,
       });
+      if (countError) {
+        return NextResponse.json({ error: countError.message }, { status: 400 });
+      }
     } else if (status === "rejected" && wasApproved) {
-      await (admin as AnySupabase).rpc("decrement_affiliate_offer_total_affiliates", {
+      const { error: countError } = await (admin as AnySupabase).rpc("decrement_affiliate_offer_total_affiliates", {
         p_offer_id: id,
       });
+      if (countError) {
+        return NextResponse.json({ error: countError.message }, { status: 400 });
+      }
     }
 
     // Notify affiliate
