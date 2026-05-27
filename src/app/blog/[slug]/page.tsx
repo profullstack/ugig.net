@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -18,19 +19,13 @@ async function fetchPost(slug: string): Promise<Row | null> {
   const sb = createServiceClient();
   const { data } = await (sb as any)
     .from("blog_posts")
-    .select(
-      "slug, title, meta_description, content_html, image_url, published_at",
-    )
+    .select("slug, title, meta_description, content_html, image_url, published_at")
     .eq("slug", slug)
     .maybeSingle();
   return (data as Row | null) ?? null;
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = await fetchPost(slug);
   if (!post) {
@@ -53,11 +48,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function BlogPost({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = await fetchPost(slug);
   if (!post) notFound();
@@ -66,23 +57,17 @@ export default async function BlogPost({
     <>
       <Header />
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-12 text-foreground">
-        <a
+        <Link
           href="/blog"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary"
         >
           ← Back to posts
-        </a>
-        <p className="mt-4 text-sm text-muted-foreground">
-          {post.published_at.slice(0, 10)}
-        </p>
+        </Link>
+        <p className="mt-4 text-sm text-muted-foreground">{post.published_at.slice(0, 10)}</p>
         <h1 className="mt-2 text-4xl font-extrabold">{post.title}</h1>
         {post.image_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.image_url}
-            alt=""
-            className="mt-6 w-full rounded-lg border"
-          />
+          <img src={post.image_url} alt="" className="mt-6 w-full rounded-lg border" />
         )}
         {post.content_html ? (
           // prose handles paragraph color; explicit `prose-a:text-primary`
@@ -93,9 +78,7 @@ export default async function BlogPost({
             dangerouslySetInnerHTML={{ __html: post.content_html }}
           />
         ) : (
-          <p className="mt-6 text-muted-foreground">
-            This post has no body content.
-          </p>
+          <p className="mt-6 text-muted-foreground">This post has no body content.</p>
         )}
       </main>
     </>
