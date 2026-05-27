@@ -17,8 +17,10 @@ interface UserSuggestion {
   avatar_url: string | null;
 }
 
-export interface MentionTextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange"> {
+export interface MentionTextareaProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  "onChange"
+> {
   value: string;
   onChange: (value: string) => void;
 }
@@ -35,25 +37,31 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaProps>(
     const [query, setQuery] = useState("");
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const requestSeqRef = useRef(0);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Fetch user suggestions
-    const fetchSuggestions = useCallback(async (q: string) => {
+    const fetchSuggestions = useCallback(async (q: string, seq: number) => {
       if (q.length < 1) {
-        setSuggestions([]);
-        setShowDropdown(false);
+        if (requestSeqRef.current === seq) {
+          setSuggestions([]);
+          setShowDropdown(false);
+        }
         return;
       }
       try {
         const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}&limit=8`);
         if (res.ok) {
           const data = await res.json();
+          if (requestSeqRef.current !== seq) return;
           setSuggestions(data.users || []);
           setShowDropdown((data.users || []).length > 0);
           setSelectedIndex(0);
         }
       } catch {
-        setSuggestions([]);
+        if (requestSeqRef.current === seq) {
+          setSuggestions([]);
+        }
       }
     }, []);
 
@@ -83,8 +91,12 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, MentionTextareaProps>(
         });
 
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => fetchSuggestions(q), 300);
+        const seq = ++requestSeqRef.current;
+        debounceRef.current = setTimeout(() => fetchSuggestions(q, seq), 300);
       } else {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        requestSeqRef.current++;
+        setSuggestions([]);
         setShowDropdown(false);
         setMentionStart(null);
         setQuery("");
