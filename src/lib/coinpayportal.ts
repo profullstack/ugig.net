@@ -561,7 +561,7 @@ export async function getCoinpayGlobalWalletTokens(
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       errors.push(`${url.pathname}: ${response.status}${text ? ` ${text.slice(0, 120)}` : ""}`);
-      if ([401, 403, 404].includes(response.status)) continue;
+      if ([400, 401, 403, 404].includes(response.status)) continue;
       throw new Error(`CoinPay get-tokens failed: ${response.status}`);
     }
 
