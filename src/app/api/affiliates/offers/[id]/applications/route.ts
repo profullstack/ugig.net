@@ -101,7 +101,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
     }
 
+    const { data: existingApplication, error: existingApplicationError } = await (admin as AnySupabase)
+      .from("affiliate_applications")
+      .select("id, status")
+      .eq("id", application_id)
+      .eq("offer_id", id)
+      .single();
+
+    if (existingApplicationError || !existingApplication) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    }
+
     const status = action === "approve" ? "approved" : "rejected";
+    const wasApproved = existingApplication.status === "approved";
     const updateData: Record<string, unknown> = {
       status,
       updated_at: new Date().toISOString(),
@@ -120,6 +132,16 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (status === "approved" && !wasApproved) {
+      await (admin as AnySupabase).rpc("increment_affiliate_offer_total_affiliates", {
+        p_offer_id: id,
+      });
+    } else if (status === "rejected" && wasApproved) {
+      await (admin as AnySupabase).rpc("decrement_affiliate_offer_total_affiliates", {
+        p_offer_id: id,
+      });
     }
 
     // Notify affiliate
