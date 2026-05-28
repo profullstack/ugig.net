@@ -43,15 +43,33 @@ function makeReviewsChain() {
   return { select, eq, order, range };
 }
 
+function makeRatingsChain(ratings = [{ rating: 5 }]) {
+  const eq = vi.fn().mockResolvedValue({
+    data: ratings,
+    error: null,
+  });
+  const select = vi.fn().mockReturnValue({ eq });
+
+  return { select, eq };
+}
+
 function mockReviewsRequest(profile = { id: "user-1" }) {
   const profileChain = makeProfileChain(profile);
+  const ratingsChain = makeRatingsChain([
+    { rating: 5 },
+    { rating: 3 },
+  ]);
   const reviewsChain = makeReviewsChain();
 
-  mockFrom.mockImplementation((table: string) =>
-    table === "profiles" ? profileChain : reviewsChain
-  );
+  let reviewsCallCount = 0;
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "profiles") return profileChain;
 
-  return { profileChain, reviewsChain };
+    reviewsCallCount++;
+    return reviewsCallCount === 1 ? ratingsChain : reviewsChain;
+  });
+
+  return { profileChain, ratingsChain, reviewsChain };
 }
 
 describe("GET /api/users/[username]/reviews", () => {
@@ -80,6 +98,7 @@ describe("GET /api/users/[username]/reviews", () => {
       limit: 10,
       offset: 0,
     });
+    expect(body.summary.average_rating).toBe(4);
   });
 
   it("caps large limits at 50", async () => {
