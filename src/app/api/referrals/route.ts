@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 
     const referralRows = newValidEmails.map((email: string) => ({
       referrer_id: user.id,
-      referred_email: email.trim().toLowerCase(),
+      referred_email: email,
       referral_code: referralCode,
       status: "pending" as const,
     }));
