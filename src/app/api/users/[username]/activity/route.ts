@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 // GET /api/users/:username/activity - Public activity feed for a user
 export async function GET(
   request: NextRequest,
@@ -9,8 +19,8 @@ export async function GET(
   try {
     const { username } = await params;
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = Math.min(parsePositiveInt(searchParams.get("limit"), 20), 50);
+    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
 
     const supabase = await createClient();
 
