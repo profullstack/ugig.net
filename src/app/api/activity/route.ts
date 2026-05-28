@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 // GET /api/activity - User's own activity feed (includes private activities)
 // When authenticated, returns the user's own activities including private ones
 export async function GET(request: NextRequest) {
@@ -12,8 +22,8 @@ export async function GET(request: NextRequest) {
     const { user, supabase } = auth;
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = Math.min(parsePositiveInt(searchParams.get("limit"), 20), 50);
+    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
 
     // Fetch all activities for the authenticated user (including private)
     const { data: activities, error, count } = await supabase
