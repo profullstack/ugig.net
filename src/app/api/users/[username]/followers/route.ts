@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// GET /api/users/[username]/followers — list a user's followers
+function parsePositiveInt(value: string | null, fallback: number, max: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(parsed, max);
+}
+
+function parseNonNegativeInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+// GET /api/users/[username]/followers - list a user's followers
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ username: string }> }
@@ -10,8 +26,8 @@ export async function GET(
     const { username } = await params;
     const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(Number(searchParams.get("limit")) || 20, 100);
-    const offset = Number(searchParams.get("offset")) || 0;
+    const limit = parsePositiveInt(searchParams.get("limit"), 20, 100);
+    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
 
     // Look up target user
     const { data: targetProfile, error: profileError } = await supabase
