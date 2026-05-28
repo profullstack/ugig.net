@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100)
       : 50;
     const page = Number.isFinite(rawPage)
-      ? Math.max(Math.trunc(rawPage), 1)
+      ? Math.min(Math.max(Math.trunc(rawPage), 1), 1000)
       : 1;
     const offset = (page - 1) * limit;
 
