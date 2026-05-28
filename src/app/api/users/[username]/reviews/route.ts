@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 // GET /api/users/[username]/reviews - Get reviews for a user
 export async function GET(
   request: NextRequest,
@@ -10,8 +20,8 @@ export async function GET(
     const { username } = await params;
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = Math.min(parsePositiveInt(searchParams.get("limit"), 10), 50);
+    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
 
     // Get user ID from username
     const { data: profile } = await supabase
