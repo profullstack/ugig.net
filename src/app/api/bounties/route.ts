@@ -4,13 +4,24 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createBountySchema } from "@/lib/bounties";
 
-// GET /api/bounties — public list of open bounties
+function parsePositiveInt(value: string | null, fallback: number, max?: number): number {
+  if (!value || !/^\d+$/.test(value)) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return max === undefined ? parsed : Math.min(parsed, max);
+}
+
+// GET /api/bounties - public list of open bounties
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
     const status = params.get("status") || "open";
-    const limit = Math.min(Number(params.get("limit") || 50), 100);
-    const page = Math.max(Number(params.get("page") || 1), 1);
+    const limit = parsePositiveInt(params.get("limit"), 50, 100);
+    const page = parsePositiveInt(params.get("page"), 1);
     const offset = (page - 1) * limit;
 
     const supabase = await createClient();
@@ -37,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/bounties — create a bounty
+// POST /api/bounties - create a bounty
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
