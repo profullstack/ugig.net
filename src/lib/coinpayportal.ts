@@ -281,7 +281,8 @@ export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | 
     normalizeCoinSymbol(coin.symbol) ||
     normalizeCoinSymbol(coin.code) ||
     normalizeCoinSymbol(coin.currency) ||
-    normalizeCoinSymbol(coin.id);
+    normalizeCoinSymbol(coin.id) ||
+    normalizeCoinSymbol(coin.chain);
   const chain =
     normalizeCoinSymbol(coin.chain) ||
     normalizeCoinSymbol(coin.network) ||
