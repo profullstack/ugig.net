@@ -34,6 +34,15 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { data: allRatings, error: ratingsError } = await supabase
+      .from("reviews")
+      .select("rating")
+      .eq("reviewee_id", profile.id);
+
+    if (ratingsError) {
+      return NextResponse.json({ error: ratingsError.message }, { status: 400 });
+    }
+
     // Fetch reviews where this user is the reviewee
     const { data: reviews, error, count } = await supabase
       .from("reviews")
@@ -64,9 +73,9 @@ export async function GET(
     // Calculate average rating from all reviews
     const totalReviews = count || 0;
     let averageRating = 0;
-    if (reviews && reviews.length > 0) {
-      const sumRatings = reviews.reduce((sum, r) => sum + r.rating, 0);
-      averageRating = totalReviews > 0 ? sumRatings / reviews.length : 0;
+    if (allRatings && allRatings.length > 0) {
+      const sumRatings = allRatings.reduce((sum, r) => sum + r.rating, 0);
+      averageRating = sumRatings / allRatings.length;
     }
 
     return NextResponse.json({
