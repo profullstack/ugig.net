@@ -73,4 +73,23 @@ describe("GET /api/activity", () => {
     expect(body.pagination.limit).toBe(50);
     expect(body.pagination.offset).toBe(10);
   });
+
+  it("uses valid pagination values as provided", async () => {
+    const { supabase, range } = makeSupabase();
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1" },
+      supabase,
+    });
+
+    const res = await GET(makeRequest("?limit=12&offset=24"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(range).toHaveBeenCalledWith(24, 35);
+    expect(body.pagination).toEqual({
+      total: 1,
+      limit: 12,
+      offset: 24,
+    });
+  });
 });
