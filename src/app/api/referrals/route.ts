@@ -79,7 +79,13 @@ export async function POST(request: NextRequest) {
     // Validate email syntax BEFORE rate-limit checks (#143)
     // Only valid emails should count toward throttle limits
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validEmails = emails.filter((e: string) => typeof e === "string" && emailRegex.test(e.trim().toLowerCase()));
+    const validEmails = Array.from(
+      new Set(
+        emails
+          .map((e: string) => e.trim().toLowerCase())
+          .filter((email: string) => emailRegex.test(email))
+      )
+    );
 
     if (validEmails.length === 0) {
       return NextResponse.json(
@@ -121,14 +127,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Prevent duplicate invites to same email
-    const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase());
     const { data: existingInvites } = await (svc as AnySupabase)
       .from("referrals")
       .select("referred_email")
       .eq("referrer_id", user.id)
-      .in("referred_email", normalizedEmails);
+      .in("referred_email", validEmails);
 
-    const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
+    const alreadyInvited = new Set(
+      (existingInvites || []).map((r: any) => String(r.referred_email).trim().toLowerCase())
+    );
 
     // Get user's referral code
     const { data: profile } = await (supabase as any)
@@ -145,7 +152,7 @@ export async function POST(request: NextRequest) {
     const inviterName = profile.full_name || profile.username || "Someone";
 
     // Filter valid emails that aren't already invited (#143)
-    const newValidEmails = validEmails.filter((e: string) => !alreadyInvited.has(e));
+    const newValidEmails = validEmails.filter((email: string) => !alreadyInvited.has(email));
 
     if (newValidEmails.length === 0) {
       return NextResponse.json(

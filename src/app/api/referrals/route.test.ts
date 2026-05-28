@@ -34,7 +34,7 @@ const mockSupabase = {
   })),
 };
 
-function makeServiceClientWithNoExistingReferrals() {
+function makeServiceClientWithNoExistingReferrals(existingInvites: { referred_email: string }[] = []) {
   let referralsQueryCount = 0;
 
   return {
@@ -46,9 +46,9 @@ function makeServiceClientWithNoExistingReferrals() {
             if (referralsQueryCount <= 2) {
               return Promise.resolve({ count: 0, error: null });
             }
-            return Promise.resolve({ data: [], error: null });
+            return Promise.resolve({ data: existingInvites, error: null });
           }),
-          in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          in: vi.fn().mockResolvedValue({ data: existingInvites, error: null }),
         }),
       }),
     })),
@@ -114,6 +114,12 @@ describe("POST /api/referrals", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateServiceClient.mockReturnValue(makeServiceClientWithNoExistingReferrals());
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    mockSendEmail.mockResolvedValue({ success: true });
   });
 
   it("should return 401 when not authenticated", async () => {
@@ -185,6 +191,64 @@ describe("POST /api/referrals", () => {
     });
     expect(mockSendEmail).toHaveBeenCalledWith({
       to: "friend@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+  });
+
+  it("normalizes invite emails before duplicate checks, inserts, and sends", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+    mockCreateServiceClient.mockReturnValue(
+      makeServiceClientWithNoExistingReferrals([
+        { referred_email: "existing@test.com" },
+      ])
+    );
+
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "ref1", referred_email: "new@test.com", status: "pending" }],
+        error: null,
+      }),
+    });
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: mockInsert };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({
+      emails: [
+        " Existing@Test.com ",
+        "NEW@Test.com",
+        " new@test.com ",
+      ],
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockInsert).toHaveBeenCalledWith([
+      {
+        referrer_id: "user1",
+        referred_email: "new@test.com",
+        referral_code: "testuser",
+        status: "pending",
+      },
+    ]);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith({
+      to: "new@test.com",
       subject: "Join ugig.net",
       html: "<p>Join</p>",
       text: "Join",
