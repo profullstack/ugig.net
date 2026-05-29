@@ -4,6 +4,7 @@ import {
   createPayment,
   createInvoice,
   sendInvoice,
+  coinToPaymentCurrency,
   getBusinessWalletCurrencies,
   getSupportedCoins,
   preferredCoinToPaymentCurrency,
@@ -194,6 +195,12 @@ describe("CoinPayPortal supported coins API", () => {
     expect(preferredCoinToPaymentCurrency("POL")).toBe("pol");
     expect(preferredCoinToPaymentCurrency("USDT")).toBe("usdt");
     expect(preferredCoinToPaymentCurrency("USDC")).toBe("usdc_sol");
+  });
+
+  it("maps CoinPay OAuth wallet cryptocurrency and chain fields", () => {
+    expect(coinToPaymentCurrency({ cryptocurrency: "USDC", chain: "POL" })).toBe("usdc_pol");
+    expect(coinToPaymentCurrency({ cryptocurrency: "USDT", chain: "ETH" })).toBe("usdt_eth");
+    expect(coinToPaymentCurrency({ cryptocurrency: "SOL", chain: "SOL" })).toBe("sol");
   });
 
   it("rejects preferred coins CoinPayPortal payment creation cannot represent", async () => {
