@@ -55,6 +55,30 @@ function makeServiceClientWithNoExistingReferrals() {
   };
 }
 
+function makeServiceClientWithExistingReferrals(existingEmails: string[]) {
+  let referralsQueryCount = 0;
+
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          gte: vi.fn().mockImplementation(() => {
+            referralsQueryCount += 1;
+            if (referralsQueryCount <= 2) {
+              return Promise.resolve({ count: 0, error: null });
+            }
+            return Promise.resolve({ data: [], error: null });
+          }),
+          in: vi.fn().mockResolvedValue({
+            data: existingEmails.map((referred_email) => ({ referred_email })),
+            error: null,
+          }),
+        }),
+      }),
+    })),
+  };
+}
+
 function makeGetRequest() {
   return new NextRequest("http://localhost/api/referrals", { method: "GET" });
 }
@@ -240,6 +264,36 @@ describe("POST /api/referrals", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("No valid email");
+  });
+
+  it("normalizes duplicate invite checks before inserting or sending", async () => {
+    mockCreateServiceClient.mockReturnValue(makeServiceClientWithExistingReferrals(["friend@test.com"]));
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: mockInsert };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({ emails: [" Friend@Test.com "] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("already been invited");
+    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   // Regression test for #143: Invalid emails should return 400 before rate-limit check
