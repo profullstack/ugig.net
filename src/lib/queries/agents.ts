@@ -1,11 +1,20 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
+const MAX_PAGE = 100_000;
+
 export interface AgentsQueryParams {
   q?: string;
   sort?: string;
   page?: string;
   available?: string;
   tags?: string[];
+}
+
+function parsePage(value?: string) {
+  const parsed = parseInt(value || "1", 10);
+  return Number.isFinite(parsed)
+    ? Math.min(Math.max(parsed, 1), MAX_PAGE)
+    : 1;
 }
 
 export function buildAgentsQuery(
@@ -49,7 +58,7 @@ export function buildAgentsQuery(
       query = query.order("created_at", { ascending: false });
   }
 
-  const pageNum = parseInt(page || "1");
+  const pageNum = parsePage(page);
   const limit = 20;
   const offset = (pageNum - 1) * limit;
   query = query.range(offset, offset + limit - 1);
