@@ -156,6 +156,38 @@ describe("GET /api/video-calls", () => {
     expect(res.status).toBe(200);
     expect(limitSpy).toHaveBeenCalledWith(20);
   });
+
+  it("uses default limit when the parameter is missing", async () => {
+    const userId = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+    const limitSpy = vi.fn(() => Promise.resolve({ data: [], error: null }));
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: userId, authMethod: "session" },
+      supabase: supabaseClient,
+    } as unknown as AuthContext);
+    mockVideoCallList(limitSpy);
+
+    const res = await GET(makeGetRequest());
+
+    expect(res.status).toBe(200);
+    expect(limitSpy).toHaveBeenCalledWith(20);
+  });
+
+  it("caps large limit values before querying", async () => {
+    const userId = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+    const limitSpy = vi.fn(() => Promise.resolve({ data: [], error: null }));
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: userId, authMethod: "session" },
+      supabase: supabaseClient,
+    } as unknown as AuthContext);
+    mockVideoCallList(limitSpy);
+
+    const res = await GET(makeGetRequest({ limit: "999" }));
+
+    expect(res.status).toBe(200);
+    expect(limitSpy).toHaveBeenCalledWith(50);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════
