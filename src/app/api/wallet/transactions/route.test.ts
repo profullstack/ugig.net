@@ -28,6 +28,7 @@ function makeRequest(params: Record<string, string> = {}) {
 }
 
 async function expectLnbitsLimit(input: Record<string, string>, expected: number) {
+  const expectedBase = process.env.LNBITS_URL || "https://ln.coinpayportal.com";
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
     json: () => Promise.resolve([]),
@@ -46,7 +47,7 @@ async function expectLnbitsLimit(input: Record<string, string>, expected: number
 
   expect(res.status).toBe(200);
   expect(fetchMock).toHaveBeenCalledWith(
-    `https://ln.coinpayportal.com/api/v1/payments?limit=${expected}`,
+    `${expectedBase}/api/v1/payments?limit=${expected}`,
     { headers: { "X-Api-Key": "invoice-key" } }
   );
 }
@@ -75,6 +76,10 @@ describe("GET /api/wallet/transactions", () => {
 
   it("uses the default limit when the parameter is missing", async () => {
     await expectLnbitsLimit({}, 50);
+  });
+
+  it("passes through valid in-range limit values", async () => {
+    await expectLnbitsLimit({ limit: "25" }, 25);
   });
 
   it("caps large limit values before calling LNbits", async () => {
