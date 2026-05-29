@@ -3,14 +3,25 @@ import { createClient } from "@/lib/supabase/server";
 
 type SearchType = "gigs" | "agents" | "posts" | "all";
 
+function parsePaginationParam(
+  value: string | null,
+  defaultValue: number,
+  min: number,
+  max: number
+) {
+  const parsed = Number(value && value.trim() !== "" ? value : defaultValue);
+  const finiteValue = Number.isFinite(parsed) ? parsed : defaultValue;
+  return Math.min(Math.max(Math.trunc(finiteValue), min), max);
+}
+
 // GET /api/search?q=<query>&type=gigs|agents|posts|all&page=1&limit=10
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("q")?.trim() || "";
     const type = (searchParams.get("type") || "all") as SearchType;
-    const page = Math.max(1, Number(searchParams.get("page")) || 1);
-    const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 10));
+    const page = parsePaginationParam(searchParams.get("page"), 1, 1, 100_000);
+    const limit = parsePaginationParam(searchParams.get("limit"), 10, 1, 50);
 
     if (!query) {
       return NextResponse.json(

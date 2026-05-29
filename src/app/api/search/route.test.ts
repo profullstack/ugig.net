@@ -272,6 +272,35 @@ describe("GET /api/search", () => {
     expect(chain.range).toHaveBeenCalledWith(0, 9);
   });
 
+  it("truncates fractional page values before calculating ranges", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(
+      makeRequest({ q: "test", type: "gigs", page: "2.9", limit: "5" })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(5, 9);
+    expect(json.results.gigs.page).toBe(2);
+  });
+
+  it("caps huge page values before calculating ranges", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(
+      makeRequest({ q: "test", type: "gigs", page: "1e308", limit: "999" })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(4999950, 4999999);
+    expect(json.results.gigs.page).toBe(100000);
+    expect(json.results.gigs.limit).toBe(50);
+  });
+
   // ── SQL character escaping ────────────────────────────────────
 
   it("escapes % in search query", async () => {
