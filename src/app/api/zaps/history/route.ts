@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 /**
  * GET /api/zaps/history?direction=sent|received&limit=50&offset=0
  */
@@ -14,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const direction = url.searchParams.get("direction") || "received";
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const limit = Math.min(parsePositiveInt(url.searchParams.get("limit"), 50), 100);
+    const offset = parseNonNegativeInt(url.searchParams.get("offset"), 0);
 
     const admin = createServiceClient();
     const userId = auth.user.id;
@@ -30,7 +40,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1) as any;
 
-    if (!zaps) {
+    if (!zaps || zaps.length === 0) {
       return NextResponse.json({ zaps: [], total: 0 });
     }
 
