@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Megaphone, Users, TrendingUp, Zap } from "lucide-react";
 import { SKILL_CATEGORIES } from "@/lib/constants";
+import { parsePageParam } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Affiliate Marketplace | ugig.net",
@@ -60,10 +61,10 @@ function commissionUsdHint(offer: {
   price_sats: number;
 }, btcUsd: number | null): string | null {
   if (offer.commission_type === "percentage" && offer.price_sats > 0) {
-    return `≈ $${(offer.price_sats * offer.commission_rate).toFixed(2)} USD`;
+    return `â‰ˆ $${(offer.price_sats * offer.commission_rate).toFixed(2)} USD`;
   }
   if (offer.commission_type === "flat" && offer.commission_flat_sats > 0 && btcUsd) {
-    return `≈ $${((offer.commission_flat_sats / 1e8) * btcUsd).toFixed(2)} USD`;
+    return `â‰ˆ $${((offer.commission_flat_sats / 1e8) * btcUsd).toFixed(2)} USD`;
   }
   return null;
 }
@@ -141,7 +142,7 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
       query = query.order("created_at", { ascending: false });
   }
 
-  const page = parseInt(queryParams.page || "1");
+  const page = parsePageParam(queryParams.page);
   const limit = 20;
   const offset = (page - 1) * limit;
   query = query.range(offset, offset + limit - 1);
@@ -240,7 +241,7 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
                 </div>
               )}
 
-              {/* product_url domain hint removed — URL is hidden from public listing (#20) */}
+              {/* product_url domain hint removed â€” URL is hidden from public listing (#20) */}
 
               <div className="flex flex-wrap items-center justify-between gap-y-1 text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
