@@ -154,7 +154,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const referralRows = newValidEmails.map((email: string) => ({
+    // Send emails BEFORE inserting into DB to avoid partial-state issues
+    const emailContent = referralInviteEmail({ inviterName, referralCode });
+    const emailResults = await Promise.all(
+      newValidEmails.map((email: string) =>
+        sendEmail({ to: email, ...emailContent })
+      )
+    );
+
+    const successfulEmails = newValidEmails.filter((_, i) => emailResults[i]?.success);
+    const failedEmailCount = emailResults.filter((r) => !r.success).length;
+
+    if (successfulEmails.length === 0) {
+      return NextResponse.json(
+        { error: "Failed to send invitation emails. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    // Only insert DB records for successfully delivered emails
+    const referralRows = successfulEmails.map((email: string) => ({
       referrer_id: user.id,
       referred_email: email.trim().toLowerCase(),
       referral_code: referralCode,
@@ -170,18 +189,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const emailContent = referralInviteEmail({ inviterName, referralCode });
-    const emailResults = await Promise.all(
-      newValidEmails.map((email: string) =>
-        sendEmail({ to: email, ...emailContent })
-      )
-    );
-    const failedEmailCount = emailResults.filter((result) => !result.success).length;
-
     return NextResponse.json({
       message: failedEmailCount > 0
-        ? `${newValidEmails.length} invite(s) created; ${failedEmailCount} email(s) failed to send`
-        : `${newValidEmails.length} invite(s) created and sent`,
+        ? `${successfulEmails.length} invite(s) sent successfully; ${failedEmailCount} email(s) failed`
+        : `${successfulEmails.length} invite(s) sent successfully`,
       data: referrals,
       email_delivery_failed: failedEmailCount,
     });
