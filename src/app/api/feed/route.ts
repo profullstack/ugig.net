@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const filters = feedFiltersSchema.safeParse({
       sort: searchParams.get("sort") || "hot",
       tag: searchParams.get("tag") || undefined,
-      page: Number(searchParams.get("page")) || 1,
+      page: Math.max(1, Number(searchParams.get("page")) || 1),
       limit: Number(searchParams.get("limit")) || 20,
     });
 

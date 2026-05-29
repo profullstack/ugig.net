@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       account_type: searchParams.get("account_type") || undefined,
       listing_type: searchParams.get("listing_type") || undefined,
       sort: searchParams.get("sort") || "newest",
-      page: Number(searchParams.get("page")) || 1,
+      page: Math.max(1, Number(searchParams.get("page")) || 1),
       limit: Number(searchParams.get("limit")) || 20,
     });
 
