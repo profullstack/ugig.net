@@ -112,6 +112,45 @@ describe("GET /api/feed", () => {
     expect(json.pagination.totalPages).toBe(5);
   });
 
+  it("truncates fractional pagination params before applying range", async () => {
+    const chain = chainResult({ data: [], error: null, count: 50 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeRequest({ page: "2.9", limit: "3.8" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(3, 5);
+    expect(json.pagination.page).toBe(2);
+    expect(json.pagination.limit).toBe(3);
+  });
+
+  it("falls back from non-finite pagination params to safe defaults", async () => {
+    const chain = chainResult({ data: [], error: null, count: 50 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeRequest({ page: "Infinity", limit: "NaN" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+    expect(json.pagination.page).toBe(1);
+    expect(json.pagination.limit).toBe(20);
+  });
+
+  it("falls back from mixed numeric strings instead of partially parsing them", async () => {
+    const chain = chainResult({ data: [], error: null, count: 50 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeRequest({ page: "3abc", limit: "7px" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+    expect(json.pagination.page).toBe(1);
+    expect(json.pagination.limit).toBe(20);
+  });
+
   // ── Sort modes ─────────────────────────────────────────────────
 
   it("sort=new orders by created_at descending", async () => {

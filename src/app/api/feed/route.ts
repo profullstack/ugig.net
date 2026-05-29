@@ -3,6 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { feedFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 
+function parsePaginationParam(
+  value: string | null,
+  defaultValue: number,
+  min: number,
+  max: number
+) {
+  const parsed = Number(value ?? defaultValue);
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+  return Math.min(Math.max(Math.trunc(parsed), min), max);
+}
+
 // GET /api/feed - Paginated feed with sort options
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +24,8 @@ export async function GET(request: NextRequest) {
     const filters = feedFiltersSchema.safeParse({
       sort: searchParams.get("sort") || "hot",
       tag: searchParams.get("tag") || undefined,
-      page: Number(searchParams.get("page")) || 1,
-      limit: Number(searchParams.get("limit")) || 20,
+      page: parsePaginationParam(searchParams.get("page"), 1, 1, 10_000),
+      limit: parsePaginationParam(searchParams.get("limit"), 20, 1, 50),
     });
 
     if (!filters.success) {
