@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { FolderOpen, ExternalLink, Zap, ThumbsUp, MessageSquare } from "lucide-react";
+import { parsePageParam } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Project Directory | ugig.net",
@@ -39,7 +40,7 @@ async function DirectoryList({
   const queryParams = await searchParams;
   const supabase = await createClient();
 
-  const page = parseInt(queryParams.page || "1");
+  const page = parsePageParam(queryParams.page);
   const limit = 21;
   const offset = (page - 1) * limit;
 
@@ -84,7 +85,7 @@ async function DirectoryList({
           <Link href="/directory/new">
             <Button size="sm">
               <Zap className="h-4 w-4 mr-1" />
-              List Your Project — 50 ⚡
+              List Your Project â€” 50 âš¡
             </Button>
           </Link>
         </div>
@@ -293,12 +294,12 @@ export default async function DirectoryPage({
             <Link href="/directory/new">
               <Button size="sm">
                 <Zap className="h-4 w-4 mr-1" />
-                List Your Project — 50 ⚡
+                List Your Project â€” 50 âš¡
               </Button>
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Discover projects built by the community. List yours for 50 ⚡
+            Discover projects built by the community. List yours for 50 âš¡
             sats.
           </p>
 
@@ -337,7 +338,7 @@ export default async function DirectoryPage({
                   })}`}
                   className="ml-1 hover:text-destructive"
                 >
-                  ✕
+                  âœ•
                 </Link>
               </Badge>
             </div>
