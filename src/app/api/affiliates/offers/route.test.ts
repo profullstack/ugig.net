@@ -98,6 +98,64 @@ describe("GET /api/affiliates/offers", () => {
     expect(res.status).toBe(200);
     expect(body.offers[0].product_url).toBeUndefined();
   });
+
+  it("clamps invalid pagination values before querying", async () => {
+    const rangeSpy = vi.fn();
+    const queryChain: Record<string, any> = {};
+    const chainHandler: ProxyHandler<any> = {
+      get(_target, prop) {
+        if (prop === "then") return undefined;
+        if (prop === "data") return [];
+        if (prop === "error") return null;
+        if (prop === "count") return 0;
+        if (prop === "range") {
+          return (...args: any[]) => {
+            rangeSpy(...args);
+            return new Proxy(queryChain, chainHandler);
+          };
+        }
+        return (..._args: any[]) => new Proxy(queryChain, chainHandler);
+      },
+    };
+    mockFrom.mockReturnValue(new Proxy(queryChain, chainHandler));
+
+    const res = await GET(makeRequest({ page: "abc", limit: "-5" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(rangeSpy).toHaveBeenCalledWith(0, 0);
+    expect(body.page).toBe(1);
+    expect(body.limit).toBe(1);
+  });
+
+  it("caps huge pagination values before querying", async () => {
+    const rangeSpy = vi.fn();
+    const queryChain: Record<string, any> = {};
+    const chainHandler: ProxyHandler<any> = {
+      get(_target, prop) {
+        if (prop === "then") return undefined;
+        if (prop === "data") return [];
+        if (prop === "error") return null;
+        if (prop === "count") return 0;
+        if (prop === "range") {
+          return (...args: any[]) => {
+            rangeSpy(...args);
+            return new Proxy(queryChain, chainHandler);
+          };
+        }
+        return (..._args: any[]) => new Proxy(queryChain, chainHandler);
+      },
+    };
+    mockFrom.mockReturnValue(new Proxy(queryChain, chainHandler));
+
+    const res = await GET(makeRequest({ page: "1e308", limit: "999" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(rangeSpy).toHaveBeenCalledWith(4999950, 4999999);
+    expect(body.page).toBe(100000);
+    expect(body.limit).toBe(50);
+  });
 });
 
 describe("POST /api/affiliates/offers", () => {

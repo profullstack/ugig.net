@@ -7,6 +7,16 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
 type AnySupabase = any;
 import { validateOfferInput } from "@/lib/affiliates/validation";
 
+function parsePaginationParam(
+  value: string | null,
+  defaultValue: number,
+  min: number,
+  max: number
+) {
+  const parsed = Number(value && value.trim() !== "" ? value : defaultValue);
+  const finiteValue = Number.isFinite(parsed) ? parsed : defaultValue;
+  return Math.min(Math.max(Math.trunc(finiteValue), min), max);
+}
 
 function slugify(text: string): string {
   return text
@@ -22,8 +32,8 @@ function slugify(text: string): string {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
+    const page = parsePaginationParam(searchParams.get("page"), 1, 1, 100_000);
+    const limit = parsePaginationParam(searchParams.get("limit"), 20, 1, 50);
     const category = searchParams.get("category");
     const tag = searchParams.get("tag");
     const sort = searchParams.get("sort") || "newest";
