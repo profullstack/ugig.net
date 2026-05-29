@@ -6,6 +6,12 @@ import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 
+function parseLimit(value: string | null) {
+  const parsed = Number(value && value.trim() !== "" ? value : 50);
+  const finiteValue = Number.isFinite(parsed) ? parsed : 50;
+  return Math.min(Math.max(Math.trunc(finiteValue), 1), 100);
+}
+
 // GET /api/conversations/[id]/messages - Get messages in a conversation
 export async function GET(
   request: NextRequest,
@@ -40,7 +46,7 @@ export async function GET(
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get("cursor");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const limit = parseLimit(searchParams.get("limit"));
 
     // Build query
     let query = supabase
