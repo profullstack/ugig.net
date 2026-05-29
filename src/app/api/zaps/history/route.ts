@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1) as any;
 
     if (!zaps || zaps.length === 0) {
-      return NextResponse.json({ zaps: [], total: 0 });
+      return NextResponse.json({ zaps: [], total: count || 0 });
     }
 
     // Fetch profiles for the other party
