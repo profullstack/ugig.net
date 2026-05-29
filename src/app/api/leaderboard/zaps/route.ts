@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 /**
  * GET /api/leaderboard/zaps?period=week|month|all&sort=received|sent&limit=25
- * Public endpoint â€” no auth required.
+ * Public endpoint - no auth required.
  */
 export async function GET(request: NextRequest) {
   try {
