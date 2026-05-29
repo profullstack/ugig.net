@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-function parsePositiveInt(value: string | null, fallback: number): number {
-  const parsed = Number.parseInt(value || "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function parseNonNegativeInt(value: string | null, fallback: number): number {
-  const parsed = Number.parseInt(value || "", 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-}
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 // GET /api/users/[username]/reviews - Get reviews for a user
 export async function GET(
@@ -20,8 +11,8 @@ export async function GET(
     const { username } = await params;
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parsePositiveInt(searchParams.get("limit"), 10), 50);
-    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
+    const limit = parsePaginationParam(searchParams.get("limit"), 10, 1, 50);
+    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
 
     // Get user ID from username
     const { data: profile } = await supabase
@@ -32,15 +23,6 @@ export async function GET(
 
     if (!profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const { data: allRatings, error: ratingsError } = await supabase
-      .from("reviews")
-      .select("rating")
-      .eq("reviewee_id", profile.id);
-
-    if (ratingsError) {
-      return NextResponse.json({ error: ratingsError.message }, { status: 400 });
     }
 
     // Fetch reviews where this user is the reviewee
@@ -73,9 +55,9 @@ export async function GET(
     // Calculate average rating from all reviews
     const totalReviews = count || 0;
     let averageRating = 0;
-    if (allRatings && allRatings.length > 0) {
-      const sumRatings = allRatings.reduce((sum, r) => sum + r.rating, 0);
-      averageRating = sumRatings / allRatings.length;
+    if (reviews && reviews.length > 0) {
+      const sumRatings = reviews.reduce((sum, r) => sum + r.rating, 0);
+      averageRating = totalReviews > 0 ? sumRatings / reviews.length : 0;
     }
 
     return NextResponse.json({

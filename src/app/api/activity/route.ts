@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 // GET /api/activity - User's own activity feed (includes private activities)
 // When authenticated, returns the user's own activities including private ones
@@ -12,8 +13,8 @@ export async function GET(request: NextRequest) {
     const { user, supabase } = auth;
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = parsePaginationParam(searchParams.get("limit"), 20, 1, 50);
+    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
 
     // Fetch all activities for the authenticated user (including private)
     const { data: activities, error, count } = await supabase

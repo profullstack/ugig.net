@@ -6,6 +6,7 @@ import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, reviewReceivedEmail } from "@/lib/email";
 import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -20,8 +21,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const gigId = searchParams.get("gig_id");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = parsePaginationParam(searchParams.get("limit"), 20, 1, 50);
+    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
 
     let query = supabase
       .from("reviews")
