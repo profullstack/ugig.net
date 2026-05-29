@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 
+function parsePaginationParam(
+  value: string | null,
+  defaultValue: number,
+  min: number,
+  max: number
+) {
+  const parsed = Number(value ?? defaultValue);
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+  return Math.min(Math.max(Math.trunc(parsed), min), max);
+}
+
 // GET /api/webhooks/[id]/deliveries - View delivery logs
 export async function GET(
   request: NextRequest,
@@ -34,11 +47,8 @@ export async function GET(
 
     // Parse pagination
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(
-      parseInt(searchParams.get("limit") || "50"),
-      100
-    );
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = parsePaginationParam(searchParams.get("limit"), 50, 1, 100);
+    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
 
     const {
       data: deliveries,
