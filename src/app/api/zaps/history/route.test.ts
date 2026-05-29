@@ -17,10 +17,13 @@ function makeRequest(query = "") {
   return { url: `http://localhost/api/zaps/history${query}` } as any;
 }
 
-function makeAdmin(zaps: any[] | null = [{ id: "zap-1", sender_id: "sender-1", recipient_id: "user-1" }]) {
+function makeAdmin(
+  zaps: any[] | null = [{ id: "zap-1", sender_id: "sender-1", recipient_id: "user-1" }],
+  count = zaps?.length ?? 0
+) {
   const range = vi.fn().mockResolvedValue({
     data: zaps,
-    count: zaps?.length ?? 0,
+    count,
   });
   const order = vi.fn().mockReturnValue({ range });
   const eq = vi.fn().mockReturnValue({ order });
@@ -93,7 +96,7 @@ describe("GET /api/zaps/history", () => {
   });
 
   it("does not query profiles when there are no zaps", async () => {
-    const { admin, inProfiles } = makeAdmin([]);
+    const { admin, inProfiles } = makeAdmin([], 3);
     mockCreateServiceClient.mockReturnValue(admin);
     mockGetAuthContext.mockResolvedValue({ user: { id: "user-1" } });
 
@@ -101,7 +104,7 @@ describe("GET /api/zaps/history", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ zaps: [], total: 0 });
+    expect(body).toEqual({ zaps: [], total: 3 });
     expect(inProfiles).not.toHaveBeenCalled();
   });
 });
