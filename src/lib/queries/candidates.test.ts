@@ -73,4 +73,22 @@ describe("buildCandidatesQuery", () => {
 
     expect(mock.chain.range).toHaveBeenCalledWith(20, 39);
   });
+
+  it("clamps negative page values to page 1", () => {
+    buildCandidatesQuery(mock.client, { page: "-1" });
+
+    expect(mock.chain.range).toHaveBeenCalledWith(0, 19);
+  });
+
+  it("falls back to page 1 for non-numeric values", () => {
+    buildCandidatesQuery(mock.client, { page: "abc" });
+
+    expect(mock.chain.range).toHaveBeenCalledWith(0, 19);
+  });
+
+  it("caps very large page values before calculating the range", () => {
+    buildCandidatesQuery(mock.client, { page: "999999999" });
+
+    expect(mock.chain.range).toHaveBeenCalledWith(1999980, 1999999);
+  });
 });
