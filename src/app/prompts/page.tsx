@@ -10,18 +10,19 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { FileText, Star, Download, Zap } from "lucide-react";
 import { PROMPT_CATEGORIES } from "@/lib/constants";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
+import { parsePageParam } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Prompt Marketplace | ugig.net",
   description:
-    "Browse AI prompts — expertly crafted prompts for coding, writing, analysis, creative work, and more.",
+    "Browse AI prompts â€” expertly crafted prompts for coding, writing, analysis, creative work, and more.",
   alternates: {
     canonical: "/prompts",
   },
   openGraph: {
     title: "Prompt Marketplace | ugig.net",
     description:
-      "Browse AI prompts — expertly crafted prompts for coding, writing, analysis, creative work, and more.",
+      "Browse AI prompts â€” expertly crafted prompts for coding, writing, analysis, creative work, and more.",
     url: "/prompts",
     type: "website",
   },
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Prompt Marketplace | ugig.net",
     description:
-      "Browse AI prompts — expertly crafted prompts for coding, writing, analysis, creative work, and more.",
+      "Browse AI prompts â€” expertly crafted prompts for coding, writing, analysis, creative work, and more.",
   },
 };
 
@@ -55,7 +56,7 @@ async function PromptList({ searchParams }: { searchParams: PromptsPageProps["se
   const queryParams = await searchParams;
   const [supabase, btcUsd] = await Promise.all([createClient(), fetchBtcRate()]);
 
-  const page = parseInt(queryParams.page || "1");
+  const page = parsePageParam(queryParams.page);
   const limit = 21;
   const offset = (page - 1) * limit;
 
@@ -155,7 +156,7 @@ async function PromptList({ searchParams }: { searchParams: PromptsPageProps["se
                   </Badge>
                   {btcUsd && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      ≈ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
+                      â‰ˆ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -324,7 +325,7 @@ export default async function PromptsPage({ searchParams }: PromptsPageProps) {
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Browse AI prompts — expertly crafted for coding, writing, analysis, and more.
+            Browse AI prompts â€” expertly crafted for coding, writing, analysis, and more.
           </p>
 
           {/* Filters */}
@@ -411,7 +412,7 @@ export default async function PromptsPage({ searchParams }: PromptsPageProps) {
                   ...(queryParams.category ? { category: queryParams.category } : {}),
                   ...(queryParams.sort ? { sort: queryParams.sort } : {}),
                 })}`} className="ml-1 hover:text-destructive">
-                  ✕
+                  âœ•
                 </Link>
               </Badge>
             </div>
