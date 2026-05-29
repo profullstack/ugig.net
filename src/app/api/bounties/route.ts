@@ -9,8 +9,15 @@ export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
     const status = params.get("status") || "open";
-    const limit = Math.min(Number(params.get("limit") || 50), 100);
-    const page = Math.max(Number(params.get("page") || 1), 1);
+    const defaultLimit = 50;
+
+    const limitRaw = Number(params.get("limit"));
+    const limitCandidate =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : defaultLimit;
+    const limit = Math.min(limitCandidate, 100);
+
+    const pageRaw = Number(params.get("page"));
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
     const offset = (page - 1) * limit;
 
     const supabase = await createClient();
