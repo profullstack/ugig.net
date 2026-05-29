@@ -25,10 +25,15 @@ function mockLeaderboardQuery() {
 
   mockFrom.mockImplementation((table: string) => {
     if (table === "zaps") {
+      const query = {
+        gte: vi.fn(() => query),
+        then: (
+          resolve: (value: { data: typeof zaps; error: null }) => void
+        ) => resolve({ data: zaps, error: null }),
+      };
+
       return {
-        select: vi.fn(() =>
-          Promise.resolve({ data: zaps, error: null })
-        ),
+        select: vi.fn(() => query),
       };
     }
 
