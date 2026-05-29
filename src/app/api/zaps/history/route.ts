@@ -14,8 +14,13 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const direction = url.searchParams.get("direction") || "received";
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
+    const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 100)
+      : 50;
+    const offset =
+      Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 
     const admin = createServiceClient();
     const userId = auth.user.id;
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1) as any;
 
-    if (!zaps) {
+    if (!zaps || zaps.length === 0) {
       return NextResponse.json({ zaps: [], total: 0 });
     }
 
