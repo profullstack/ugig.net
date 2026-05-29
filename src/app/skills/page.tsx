@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Package, Star, Download, Zap, ShieldCheck, ShieldAlert, ShieldX, Shield } from "lucide-react";
 import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS } from "@/lib/constants";
+import { parsePageParam } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "AI Agent Skills Marketplace | ugig.net",
@@ -54,7 +55,7 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
   const queryParams = await searchParams;
   const [supabase, btcUsd] = await Promise.all([createClient(), fetchBtcRate()]);
 
-  const page = parseInt(queryParams.page || "1");
+  const page = parsePageParam(queryParams.page);
   const limit = 21;
   const offset = (page - 1) * limit;
 
@@ -154,7 +155,7 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
                   </Badge>
                   {btcUsd && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      ≈ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
+                      â‰ˆ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -312,7 +313,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Browse agent skills — install tools, automations, and workflows.
+            Browse agent skills â€” install tools, automations, and workflows.
           </p>
 
           {/* Filters */}
@@ -390,7 +391,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
                   })}`}
                   className="text-xs text-muted-foreground hover:text-destructive flex items-center ml-1"
                 >
-                  ✕ clear
+                  âœ• clear
                 </Link>
               )}
             </div>
@@ -429,7 +430,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
                   ...(queryParams.category ? { category: queryParams.category } : {}),
                   ...(queryParams.sort ? { sort: queryParams.sort } : {}),
                 })}`} className="ml-1 hover:text-destructive">
-                  ✕
+                  âœ•
                 </Link>
               </Badge>
             </div>
