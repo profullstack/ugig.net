@@ -76,6 +76,7 @@ export interface SupportedCoin {
   symbol?: string;
   code?: string;
   currency?: string;
+  cryptocurrency?: string;
   id?: string;
   name?: string;
   chain?: string;
@@ -281,6 +282,7 @@ export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | 
     normalizeCoinSymbol(coin.symbol) ||
     normalizeCoinSymbol(coin.code) ||
     normalizeCoinSymbol(coin.currency) ||
+    normalizeCoinSymbol(coin.cryptocurrency) ||
     normalizeCoinSymbol(coin.id);
   const chain =
     normalizeCoinSymbol(coin.chain) ||
