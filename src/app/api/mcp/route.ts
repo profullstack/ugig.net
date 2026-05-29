@@ -6,9 +6,13 @@ import { mcpListingSchema, slugify } from "@/lib/mcp/validation";
 import { combinedScan, MCP_SCANNER_VERSION } from "@/lib/mcp/security-scan";
 import { sanitizeSearchParams } from "@/lib/security/sanitize";
 
+const MAX_PAGE = 100_000;
+
 function parsePage(value: string | null) {
   const parsed = Number(value || "1");
-  return Number.isFinite(parsed) ? Math.max(1, Math.trunc(parsed)) : 1;
+  return Number.isFinite(parsed)
+    ? Math.min(Math.max(1, Math.trunc(parsed)), MAX_PAGE)
+    : 1;
 }
 
 /**

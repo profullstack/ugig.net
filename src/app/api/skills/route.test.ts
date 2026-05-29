@@ -164,6 +164,27 @@ describe("GET /api/skills", () => {
     expect(range).toHaveBeenCalledWith(20, 39);
     expect(json.page).toBe(2);
   });
+
+  it("caps huge page values before calculating ranges", async () => {
+    const range = vi.fn(() =>
+      Promise.resolve({ data: [], count: 0, error: null })
+    );
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          order: () => ({ range }),
+        }),
+      }),
+    });
+
+    const response = await GET(makeGetRequest({ page: "1e308" }));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(range).toHaveBeenCalledWith(1999980, 1999999);
+    expect(json.page).toBe(100000);
+  });
 });
 
 describe("POST /api/skills", () => {

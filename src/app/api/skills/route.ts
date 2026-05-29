@@ -8,9 +8,13 @@ import { importSkillFromUrl } from "@/lib/skills/url-import";
 import { isScanAcceptable } from "@/lib/skills/security-scan";
 import { sanitizeSearchParams } from "@/lib/security/sanitize";
 
+const MAX_PAGE = 100_000;
+
 function parsePage(value: string | null) {
   const parsed = Number(value || "1");
-  return Number.isFinite(parsed) ? Math.max(1, Math.trunc(parsed)) : 1;
+  return Number.isFinite(parsed)
+    ? Math.min(Math.max(1, Math.trunc(parsed)), MAX_PAGE)
+    : 1;
 }
 
 /**
