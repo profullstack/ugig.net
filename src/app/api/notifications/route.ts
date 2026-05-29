@@ -19,8 +19,10 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
-    const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
-    const offset = Number(searchParams.get("offset")) || 0;
+    const parsedLimit = Number(searchParams.get("limit")) || 50;
+    const parsedOffset = Number(searchParams.get("offset")) || 0;
+    const limit = Math.min(Math.max(parsedLimit, 1), 100);
+    const offset = Math.max(parsedOffset, 0);
 
     let query = supabase
       .from("notifications")
