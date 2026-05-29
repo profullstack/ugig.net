@@ -3,14 +3,17 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 /**
  * GET /api/leaderboard/zaps?period=week|month|all&sort=received|sent&limit=25
- * Public endpoint — no auth required.
+ * Public endpoint â€” no auth required.
  */
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const period = url.searchParams.get("period") || "all";
     const sort = url.searchParams.get("sort") || "received";
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "25"), 50);
+    const parsedLimit = parseInt(url.searchParams.get("limit") || "25", 10);
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 50)
+      : 25;
 
     const admin = createServiceClient();
 
