@@ -5,13 +5,19 @@ import { getUserLnWallet } from "@/lib/lightning/wallet-utils";
 
 const LNBITS_URL = process.env.LNBITS_URL || "https://ln.coinpayportal.com";
 
+function parseLimit(value: string | null) {
+  const parsed = Number(value && value.trim() !== "" ? value : 50);
+  const finiteValue = Number.isFinite(parsed) ? parsed : 50;
+  return Math.min(Math.max(Math.trunc(finiteValue), 1), 100);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
+    const limit = parseLimit(url.searchParams.get("limit"));
 
     const admin = createServiceClient();
     const lnWallet = await getUserLnWallet(admin, auth.user.id);
