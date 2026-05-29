@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const tag = sanitizeSearchParams(url, "tag");
-    const page = parseInt(url.searchParams.get("page") || "1");
+    const parsedPage = parseInt(url.searchParams.get("page") || "1", 10);
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const limit = 20;
     const offset = (page - 1) * limit;
 
