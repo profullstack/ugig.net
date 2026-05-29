@@ -18,12 +18,8 @@ export async function GET(request: NextRequest) {
       category: searchParams.get("category") || undefined,
       skills: searchParams.get("skills")?.split(",").filter(Boolean) || undefined,
       budget_type: searchParams.get("budget_type") || undefined,
-      budget_min: searchParams.get("budget_min")
-        ? Number(searchParams.get("budget_min"))
-        : undefined,
-      budget_max: searchParams.get("budget_max")
-        ? Number(searchParams.get("budget_max"))
-        : undefined,
+      budget_min: (() => { const v = Number(searchParams.get("budget_min")); return searchParams.get("budget_min") && Number.isFinite(v) ? v : undefined; })(),
+      budget_max: (() => { const v = Number(searchParams.get("budget_max")); return searchParams.get("budget_max") && Number.isFinite(v) ? v : undefined; })(),
       location_type: searchParams.get("location_type") || undefined,
       account_type: searchParams.get("account_type") || undefined,
       listing_type: searchParams.get("listing_type") || undefined,
