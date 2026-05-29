@@ -108,6 +108,48 @@ describe("GET /api/mcp", () => {
     expect(json.listings).toHaveLength(0);
     expect(json.total).toBe(0);
   });
+
+  it("clamps invalid page values to the first page", async () => {
+    const range = vi.fn(() =>
+      Promise.resolve({ data: [], count: 0, error: null })
+    );
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          order: () => ({ range }),
+        }),
+      }),
+    });
+
+    const response = await GET(makeGetRequest({ page: "-1" }));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(range).toHaveBeenCalledWith(0, 19);
+    expect(json.page).toBe(1);
+  });
+
+  it("truncates fractional page values before calculating ranges", async () => {
+    const range = vi.fn(() =>
+      Promise.resolve({ data: [], count: 0, error: null })
+    );
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          order: () => ({ range }),
+        }),
+      }),
+    });
+
+    const response = await GET(makeGetRequest({ page: "2.9" }));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(range).toHaveBeenCalledWith(20, 39);
+    expect(json.page).toBe(2);
+  });
 });
 
 describe("POST /api/mcp", () => {

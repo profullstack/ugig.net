@@ -6,6 +6,11 @@ import { mcpListingSchema, slugify } from "@/lib/mcp/validation";
 import { combinedScan, MCP_SCANNER_VERSION } from "@/lib/mcp/security-scan";
 import { sanitizeSearchParams } from "@/lib/security/sanitize";
 
+function parsePage(value: string | null) {
+  const parsed = Number(value || "1");
+  return Number.isFinite(parsed) ? Math.max(1, Math.trunc(parsed)) : 1;
+}
+
 /**
  * GET /api/mcp - Public listing of active MCP servers
  */
@@ -16,7 +21,7 @@ export async function GET(request: NextRequest) {
     const category = url.searchParams.get("category") || "";
     const tag = sanitizeSearchParams(url, "tag");
     const sort = url.searchParams.get("sort") || "newest";
-    const page = parseInt(url.searchParams.get("page") || "1");
+    const page = parsePage(url.searchParams.get("page"));
     const limit = 20;
     const offset = (page - 1) * limit;
 
