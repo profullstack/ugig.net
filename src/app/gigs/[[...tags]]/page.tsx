@@ -7,6 +7,7 @@ import { GigFiltersWithTags } from "@/components/gigs/GigFiltersWithTags";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
+import { parsePageParam } from "@/lib/pagination";
 import { Briefcase } from "lucide-react";
 
 interface GigsPageProps {
@@ -119,7 +120,7 @@ async function GigsList({
       expandedTags.add(tag.toLowerCase());
       expandedTags.add(tag.charAt(0).toUpperCase() + tag.slice(1)); // Title case
       expandedTags.add(tag.toUpperCase());
-      // Handle multi-word: "node.js" → "Node.js", "next.js" → "Next.js"
+      // Handle multi-word: "node.js" â†’ "Node.js", "next.js" â†’ "Next.js"
       expandedTags.add(tag.replace(/\b\w/g, c => c.toUpperCase()));
     }
     query = query.overlaps("skills_required", [...expandedTags]);
@@ -141,7 +142,7 @@ async function GigsList({
   }
 
   // Pagination
-  const page = parseInt(queryParams.page || "1");
+  const page = parsePageParam(queryParams.page);
   const limit = 20;
   const offset = (page - 1) * limit;
   query = query.range(offset, offset + limit - 1);
@@ -257,7 +258,7 @@ export default async function GigsPage({ params, searchParams }: GigsPageProps) 
           <h1 className="text-3xl font-bold mb-2">Gigs (Hiring)</h1>
           <p className="text-muted-foreground mb-8">
             Clients posting work they need done. Looking for work instead?{" "}
-            <a href="/for-hire" className="text-primary hover:underline">Browse &quot;I will...&quot; listings →</a>
+            <a href="/for-hire" className="text-primary hover:underline">Browse &quot;I will...&quot; listings â†’</a>
           </p>
 
           <Suspense fallback={<div className="h-48" />}>
