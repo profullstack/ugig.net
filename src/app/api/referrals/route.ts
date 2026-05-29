@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       .from("referrals")
       .select("referred_email")
       .eq("referrer_id", user.id)
-      .in("referred_email", normalizedEmails);
+      .in("referred_email", validEmails);
 
     const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
 
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     const referralRows = newValidEmails.map((email: string) => ({
       referrer_id: user.id,
-      referred_email: email.trim().toLowerCase(),
+      referred_email: email,
       referral_code: referralCode,
       status: "pending" as const,
     }));
