@@ -82,4 +82,24 @@ describe("GET /api/users/[username]/feed", () => {
     expect(commentsChain.range).toHaveBeenCalledWith(0, 52);
     expect(body.pagination).toEqual({ total: 0, limit: 50, offset: 3 });
   });
+
+  it("clamps zero limits to the minimum page size", async () => {
+    const profileChain = makeProfileChain();
+    const postsChain = makeListChain([]);
+    const commentsChain = makeListChain([]);
+    mockFrom
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(postsChain)
+      .mockReturnValueOnce(commentsChain);
+
+    const res = await GET(makeRequest({ limit: "0", offset: "" }), {
+      params: Promise.resolve({ username: "alice" }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(postsChain.range).toHaveBeenCalledWith(0, 0);
+    expect(commentsChain.range).toHaveBeenCalledWith(0, 0);
+    expect(body.pagination).toEqual({ total: 0, limit: 1, offset: 0 });
+  });
 });

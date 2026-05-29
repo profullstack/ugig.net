@@ -8,10 +8,8 @@ function parsePaginationParam(
   max: number
 ) {
   const parsed = Number(value && value.trim() !== "" ? value : defaultValue);
-  if (!Number.isFinite(parsed)) {
-    return defaultValue;
-  }
-  return Math.min(Math.max(Math.trunc(parsed), min), max);
+  const finiteValue = Number.isFinite(parsed) ? parsed : defaultValue;
+  return Math.min(Math.max(Math.trunc(finiteValue), min), max);
 }
 
 // GET /api/users/:username/feed - Public posts + comments by user
