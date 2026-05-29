@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const category = url.searchParams.get("category") || "";
     const tag = url.searchParams.get("tag") || "";
     const sort = url.searchParams.get("sort") || "newest";
-    const page = parseInt(url.searchParams.get("page") || "1");
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1") || 1);
     const limit = 20;
     const offset = (page - 1) * limit;
 
