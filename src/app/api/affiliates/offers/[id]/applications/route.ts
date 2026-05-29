@@ -101,6 +101,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
     }
 
+    const { data: existingApplication, error: existingError } = await (admin as AnySupabase)
+      .from("affiliate_applications")
+      .select("id, status")
+      .eq("id", application_id)
+      .eq("offer_id", id)
+      .single();
+
+    if (existingError || !existingApplication) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    }
+
     const status = action === "approve" ? "approved" : "rejected";
     const updateData: Record<string, unknown> = {
       status,
@@ -108,6 +119,8 @@ export async function PATCH(
     };
     if (status === "approved") {
       updateData.approved_at = new Date().toISOString();
+    } else {
+      updateData.approved_at = null;
     }
 
     const { data: application, error } = await (admin as AnySupabase)
@@ -120,6 +133,23 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    const countDelta =
+      existingApplication.status !== "approved" && status === "approved"
+        ? 1
+        : existingApplication.status === "approved" && status !== "approved"
+          ? -1
+          : 0;
+
+    if (countDelta !== 0) {
+      const { error: countError } = await (admin as AnySupabase).rpc(
+        "adjust_affiliate_offer_total_affiliates",
+        { p_offer_id: id, p_delta: countDelta }
+      );
+      if (countError) {
+        return NextResponse.json({ error: countError.message }, { status: 400 });
+      }
     }
 
     // Notify affiliate
