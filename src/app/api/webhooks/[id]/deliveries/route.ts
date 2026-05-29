@@ -7,7 +7,7 @@ function parsePaginationParam(
   min: number,
   max: number
 ) {
-  const parsed = Number(value ?? defaultValue);
+  const parsed = Number(value && value.trim() !== "" ? value : defaultValue);
   if (!Number.isFinite(parsed)) {
     return defaultValue;
   }
@@ -48,7 +48,12 @@ export async function GET(
     // Parse pagination
     const { searchParams } = new URL(request.url);
     const limit = parsePaginationParam(searchParams.get("limit"), 50, 1, 100);
-    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
+    const offset = parsePaginationParam(
+      searchParams.get("offset"),
+      0,
+      0,
+      100_000
+    );
 
     const {
       data: deliveries,

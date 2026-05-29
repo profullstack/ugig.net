@@ -70,6 +70,21 @@ describe("GET /api/webhooks/[id]/deliveries", () => {
     expect(json.pagination).toEqual({ total: 12, limit: 50, offset: 0 });
   });
 
+  it("uses defaults for empty pagination params", async () => {
+    const webhookChain = chainResult({ data: null, error: null });
+    const deliveriesChain = chainResult({ data: [], error: null, count: 3 });
+    mockFrom.mockReturnValueOnce(webhookChain).mockReturnValueOnce(deliveriesChain);
+
+    const res = await GET(makeRequest({ limit: "", offset: "" }), {
+      params: Promise.resolve({ id: "webhook-1" }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(deliveriesChain.range).toHaveBeenCalledWith(0, 49);
+    expect(json.pagination).toEqual({ total: 3, limit: 50, offset: 0 });
+  });
+
   it("truncates fractional pagination params and caps high limits", async () => {
     const webhookChain = chainResult({ data: null, error: null });
     const deliveriesChain = chainResult({ data: [], error: null, count: 200 });
