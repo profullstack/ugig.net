@@ -68,58 +68,26 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
     };
     let updatePayload: Record<string, unknown> | undefined;
     let notificationPayload: Record<string, unknown> | undefined;
-    let applicationCall = 0;
+
+    mockRpc.mockResolvedValue({
+      data: updatedApplication,
+      error: null,
+    });
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
+      if (table === "affiliate_applications") {
         return {
           select: () => ({
             eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: updatedApplication,
+                    error: null,
+                  }),
+              }),
             }),
           }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        applicationCall++;
-        if (applicationCall === 1) {
-          return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  single: () =>
-                    Promise.resolve({
-                      data: { id: "app-1", status: "pending" },
-                      error: null,
-                    }),
-                }),
-              }),
-            }),
-          };
-        }
-
-        return {
-          update: (payload: Record<string, unknown>) => {
-            updatePayload = payload;
-            return {
-              eq: () => ({
-                eq: () => ({
-                  select: () => ({
-                    single: () =>
-                      Promise.resolve({
-                        data: updatedApplication,
-                        error: null,
-                      }),
-                  }),
-                }),
-              }),
-            };
-          },
         };
       }
 
@@ -145,11 +113,12 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
 
     expect(res.status).toBe(200);
     expect(body.application).toEqual(updatedApplication);
-    expect(updatePayload).toMatchObject({ status: "approved" });
-    expect(updatePayload?.approved_at).toEqual(expect.any(String));
-    expect(mockRpc).toHaveBeenCalledWith("adjust_affiliate_offer_total_affiliates", {
+    expect(updatePayload).toBeUndefined();
+    expect(mockRpc).toHaveBeenCalledWith("moderate_affiliate_application", {
       p_offer_id: "offer-1",
-      p_delta: 1,
+      p_application_id: "app-1",
+      p_seller_id: "seller-1",
+      p_status: "approved",
     });
     expect(notificationPayload).toMatchObject({
       user_id: "affiliate-1",
@@ -167,58 +136,26 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
       profiles: { username: "alice" },
     };
     let updatePayload: Record<string, unknown> | undefined;
-    let applicationCall = 0;
+
+    mockRpc.mockResolvedValue({
+      data: updatedApplication,
+      error: null,
+    });
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "affiliate_offers") {
+      if (table === "affiliate_applications") {
         return {
           select: () => ({
             eq: () => ({
-              single: () =>
-                Promise.resolve({
-                  data: { id: "offer-1", seller_id: "seller-1" },
-                  error: null,
-                }),
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: updatedApplication,
+                    error: null,
+                  }),
+              }),
             }),
           }),
-        };
-      }
-
-      if (table === "affiliate_applications") {
-        applicationCall++;
-        if (applicationCall === 1) {
-          return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  single: () =>
-                    Promise.resolve({
-                      data: { id: "app-1", status: "approved" },
-                      error: null,
-                    }),
-                }),
-              }),
-            }),
-          };
-        }
-
-        return {
-          update: (payload: Record<string, unknown>) => {
-            updatePayload = payload;
-            return {
-              eq: () => ({
-                eq: () => ({
-                  select: () => ({
-                    single: () =>
-                      Promise.resolve({
-                        data: updatedApplication,
-                        error: null,
-                      }),
-                  }),
-                }),
-              }),
-            };
-          },
         };
       }
 
@@ -241,10 +178,12 @@ describe("PATCH /api/affiliates/offers/[id]/applications", () => {
 
     expect(res.status).toBe(200);
     expect(body.application).toEqual(updatedApplication);
-    expect(updatePayload).toMatchObject({ status: "rejected", approved_at: null });
-    expect(mockRpc).toHaveBeenCalledWith("adjust_affiliate_offer_total_affiliates", {
+    expect(updatePayload).toBeUndefined();
+    expect(mockRpc).toHaveBeenCalledWith("moderate_affiliate_application", {
       p_offer_id: "offer-1",
-      p_delta: -1,
+      p_application_id: "app-1",
+      p_seller_id: "seller-1",
+      p_status: "rejected",
     });
   });
 });
