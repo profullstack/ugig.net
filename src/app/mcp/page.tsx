@@ -15,14 +15,14 @@ import { parsePageParam } from "@/lib/pagination";
 export const metadata: Metadata = {
   title: "MCP Server Marketplace | ugig.net",
   description:
-    "Browse MCP servers â€” tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
+    "Browse MCP servers — tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
   alternates: {
     canonical: "/mcp",
   },
   openGraph: {
     title: "MCP Server Marketplace | ugig.net",
     description:
-      "Browse MCP servers â€” tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
+      "Browse MCP servers — tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
     url: "/mcp",
     type: "website",
   },
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MCP Server Marketplace | ugig.net",
     description:
-      "Browse MCP servers â€” tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
+      "Browse MCP servers — tools, integrations, and APIs that AI agents can connect to via the Model Context Protocol.",
   },
 };
 
@@ -156,7 +156,7 @@ async function McpList({ searchParams }: { searchParams: McpPageProps["searchPar
                   </Badge>
                   {btcUsd && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      â‰ˆ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
+                      ≈ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -315,7 +315,7 @@ export default async function McpPage({ searchParams }: McpPageProps) {
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Browse MCP servers â€” tools, integrations, and APIs for AI agents.
+            Browse MCP servers — tools, integrations, and APIs for AI agents.
           </p>
 
           {/* Filters */}
@@ -402,7 +402,7 @@ export default async function McpPage({ searchParams }: McpPageProps) {
                   ...(queryParams.category ? { category: queryParams.category } : {}),
                   ...(queryParams.sort ? { sort: queryParams.sort } : {}),
                 })}`} className="ml-1 hover:text-destructive">
-                  âœ•
+                  ✕
                 </Link>
               </Badge>
             </div>

@@ -155,7 +155,7 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
                   </Badge>
                   {btcUsd && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      â‰ˆ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
+                      ≈ ${((listing.price_sats / 1e8) * btcUsd).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -313,7 +313,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Browse agent skills â€” install tools, automations, and workflows.
+            Browse agent skills — install tools, automations, and workflows.
           </p>
 
           {/* Filters */}
@@ -391,7 +391,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
                   })}`}
                   className="text-xs text-muted-foreground hover:text-destructive flex items-center ml-1"
                 >
-                  âœ• clear
+                  ✕ clear
                 </Link>
               )}
             </div>
@@ -430,7 +430,7 @@ export default async function SkillsPage({ searchParams }: SkillsPageProps) {
                   ...(queryParams.category ? { category: queryParams.category } : {}),
                   ...(queryParams.sort ? { sort: queryParams.sort } : {}),
                 })}`} className="ml-1 hover:text-destructive">
-                  âœ•
+                  ✕
                 </Link>
               </Badge>
             </div>

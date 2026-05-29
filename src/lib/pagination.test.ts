@@ -19,6 +19,6 @@ describe("parsePageParam", () => {
   });
 
   it("caps very large page values", () => {
-    expect(parsePageParam("999999999")).toBe(100_000);
+    expect(parsePageParam("999999999")).toBe(1_000);
   });
 });

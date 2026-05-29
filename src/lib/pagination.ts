@@ -1,4 +1,4 @@
-const DEFAULT_MAX_PAGE = 100_000;
+const DEFAULT_MAX_PAGE = 1_000;
 
 export function parsePageParam(
   value: string | null | undefined,

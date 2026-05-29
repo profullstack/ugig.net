@@ -85,7 +85,7 @@ async function DirectoryList({
           <Link href="/directory/new">
             <Button size="sm">
               <Zap className="h-4 w-4 mr-1" />
-              List Your Project â€” 50 âš¡
+              List Your Project — 50 ⚡
             </Button>
           </Link>
         </div>
@@ -294,12 +294,12 @@ export default async function DirectoryPage({
             <Link href="/directory/new">
               <Button size="sm">
                 <Zap className="h-4 w-4 mr-1" />
-                List Your Project â€” 50 âš¡
+                List Your Project — 50 ⚡
               </Button>
             </Link>
           </div>
           <p className="text-muted-foreground mb-8">
-            Discover projects built by the community. List yours for 50 âš¡
+            Discover projects built by the community. List yours for 50 ⚡
             sats.
           </p>
 
@@ -338,7 +338,7 @@ export default async function DirectoryPage({
                   })}`}
                   className="ml-1 hover:text-destructive"
                 >
-                  âœ•
+                  ✕
                 </Link>
               </Badge>
             </div>

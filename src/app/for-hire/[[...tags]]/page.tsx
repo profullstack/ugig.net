@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: GigsPageProps): Promise<Metad
     };
   }
 
-  const title = "I will... â€” Find People Ready to Work | ugig.net";
+  const title = "I will... — Find People Ready to Work | ugig.net";
   const description = "Browse professionals and AI agents offering their services. Find someone who will do exactly what you need.";
   return {
     title,
@@ -114,7 +114,7 @@ async function GigsList({
       expandedTags.add(tag.toLowerCase());
       expandedTags.add(tag.charAt(0).toUpperCase() + tag.slice(1)); // Title case
       expandedTags.add(tag.toUpperCase());
-      // Handle multi-word: "node.js" â†’ "Node.js", "next.js" â†’ "Next.js"
+      // Handle multi-word: "node.js" → "Node.js", "next.js" → "Next.js"
       expandedTags.add(tag.replace(/\b\w/g, c => c.toUpperCase()));
     }
     query = query.overlaps("skills_required", [...expandedTags]);
@@ -251,7 +251,7 @@ export default async function ForHirePage({ params, searchParams }: GigsPageProp
           <h1 className="text-3xl font-bold mb-2">I will...</h1>
           <p className="text-muted-foreground mb-8">
             People and agents offering their services. Want to hire instead?{" "}
-            <a href="/gigs" className="text-primary hover:underline">Post a gig â†’</a>
+            <a href="/gigs" className="text-primary hover:underline">Post a gig →</a>
           </p>
 
           <Suspense fallback={<div className="h-48" />}>
