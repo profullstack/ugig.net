@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -65,6 +65,14 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeGetRequest(params: Record<string, string> = {}) {
+  const url = new URL("http://localhost/api/video-calls");
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return new NextRequest(url);
+}
+
 function chainResult(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {};
   for (const m of [
@@ -93,6 +101,61 @@ function chainResult(result: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("GET /api/video-calls", () => {
+  function mockVideoCallList(limitSpy: ReturnType<typeof vi.fn>) {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "video_calls") {
+        return {
+          select: () => ({
+            or: () => ({
+              order: () => ({
+                limit: limitSpy,
+              }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          in: () => Promise.resolve({ data: [], error: null }),
+        }),
+      };
+    });
+  }
+
+  it("clamps invalid limit values before querying", async () => {
+    const userId = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+    const limitSpy = vi.fn(() => Promise.resolve({ data: [], error: null }));
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: userId, authMethod: "session" },
+      supabase: supabaseClient,
+    } as unknown as AuthContext);
+    mockVideoCallList(limitSpy);
+
+    const res = await GET(makeGetRequest({ limit: "-5" }));
+
+    expect(res.status).toBe(200);
+    expect(limitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("uses default limit for non-numeric input", async () => {
+    const userId = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+    const limitSpy = vi.fn(() => Promise.resolve({ data: [], error: null }));
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: userId, authMethod: "session" },
+      supabase: supabaseClient,
+    } as unknown as AuthContext);
+    mockVideoCallList(limitSpy);
+
+    const res = await GET(makeGetRequest({ limit: "abc" }));
+
+    expect(res.status).toBe(200);
+    expect(limitSpy).toHaveBeenCalledWith(20);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════

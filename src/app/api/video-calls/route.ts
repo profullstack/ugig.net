@@ -11,6 +11,12 @@ const createVideoCallSchema = z.object({
   scheduled_at: z.string().datetime().optional(),
 });
 
+function parseLimit(value: string | null) {
+  const parsed = Number(value && value.trim() !== "" ? value : 20);
+  const finiteValue = Number.isFinite(parsed) ? parsed : 20;
+  return Math.min(Math.max(Math.trunc(finiteValue), 1), 50);
+}
+
 // GET /api/video-calls - List user's video calls
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const upcoming = searchParams.get("upcoming") === "true";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
+    const limit = parseLimit(searchParams.get("limit"));
 
     let query = supabase
       .from("video_calls")
