@@ -19,10 +19,12 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
-    const parsedLimit = Number(searchParams.get("limit")) || 50;
-    const parsedOffset = Number(searchParams.get("offset")) || 0;
-    const limit = Math.min(Math.max(parsedLimit, 1), 100);
-    const offset = Math.max(parsedOffset, 0);
+    const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
+    const parsedOffset = parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 100)
+      : 50;
+    const offset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
 
     let query = supabase
       .from("notifications")
