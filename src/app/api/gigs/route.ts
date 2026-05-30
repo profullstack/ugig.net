@@ -8,6 +8,7 @@ import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 
 const MAX_GIG_PAGE = 100_000;
+const MAX_GIG_LIMIT = 50;
 
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       listing_type: searchParams.get("listing_type") || undefined,
       sort: searchParams.get("sort") || "newest",
       page: Math.min(Number(searchParams.get("page")) || 1, MAX_GIG_PAGE),
-      limit: Number(searchParams.get("limit")) || 20,
+      limit: Math.min(Number(searchParams.get("limit")) || 20, MAX_GIG_LIMIT),
     });
 
     if (!filters.success) {
@@ -130,8 +131,7 @@ export async function GET(request: NextRequest) {
 
     // Apply pagination — ensure non-negative offset (#69)
     const offset = Math.max(0, (page - 1) * limit);
-    const clampedLimit = Math.max(1, Math.min(50, limit));
-    query = query.range(offset, offset + clampedLimit - 1);
+    query = query.range(offset, offset + limit - 1);
 
     const { data: gigs, error, count } = await query;
 
