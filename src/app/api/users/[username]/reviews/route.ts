@@ -52,19 +52,27 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const { data: allRatings, error: ratingsError } = await supabase
-      .from("reviews")
-      .select("rating")
-      .eq("reviewee_id", profile.id);
-
-    if (ratingsError) {
-      return NextResponse.json({ error: ratingsError.message }, { status: 400 });
-    }
-
     // Calculate average rating from all reviews
     const totalReviews = count || 0;
     let averageRating = 0;
-    if (allRatings && allRatings.length > 0) {
+    if (totalReviews > 0) {
+      const { data: allRatings, error: ratingsError } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("reviewee_id", profile.id)
+        .range(0, totalReviews - 1);
+
+      if (ratingsError) {
+        return NextResponse.json({ error: ratingsError.message }, { status: 400 });
+      }
+
+      if (!allRatings || allRatings.length !== totalReviews) {
+        return NextResponse.json(
+          { error: "Unable to calculate average rating" },
+          { status: 500 }
+        );
+      }
+
       const sumRatings = allRatings.reduce((sum, review) => sum + review.rating, 0);
       averageRating = sumRatings / allRatings.length;
     }
