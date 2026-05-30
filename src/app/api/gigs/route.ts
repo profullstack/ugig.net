@@ -7,6 +7,8 @@ import { sanitizeTitle, sanitizeContent, stripProtoPollution } from "@/lib/sanit
 import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 
+const MAX_GIG_PAGE = 100_000;
+
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
       account_type: searchParams.get("account_type") || undefined,
       listing_type: searchParams.get("listing_type") || undefined,
       sort: searchParams.get("sort") || "newest",
-      page: Number(searchParams.get("page")) || 1,
+      page: Math.min(Number(searchParams.get("page")) || 1, MAX_GIG_PAGE),
       limit: Number(searchParams.get("limit")) || 20,
     });
 
