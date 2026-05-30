@@ -343,7 +343,7 @@ export async function clawbackCommission(
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: conv, error } = await (admin as AnySupabase)
     .from("affiliate_conversions")
-    .select("id, status, commission_sats, affiliate_id")
+    .select("id, status, commission_sats, affiliate_id, offer_id")
     .eq("id", conversionId)
     .single();
 
@@ -355,19 +355,24 @@ export async function clawbackCommission(
     return { ok: false, error: "Already clawed back" };
   }
 
-  // If already paid, deduct from affiliate wallet
+  // If already paid, reverse all three legs of the settlement:
+  // affiliate payout, platform fee, and seller deduction.
   if (conv.status === "paid") {
-    const { data: wallet } = await (admin as AnySupabase)
+    const platformFee = calculatePlatformFee(conv.commission_sats);
+    const affiliatePayout = conv.commission_sats - platformFee;
+
+    // 1. Deduct affiliate payout from affiliate wallet (only what they received)
+    const { data: affWallet } = await (admin as AnySupabase)
       .from("wallets")
       .select("balance_sats")
       .eq("user_id", conv.affiliate_id)
       .single();
 
-    if (wallet) {
-      const newBalance = Math.max(0, (wallet.balance_sats ?? 0) - conv.commission_sats);
+    if (affWallet) {
+      const newAffBalance = Math.max(0, (affWallet.balance_sats ?? 0) - affiliatePayout);
       await (admin as AnySupabase)
         .from("wallets")
-        .update({ balance_sats: newBalance, updated_at: new Date().toISOString() })
+        .update({ balance_sats: newAffBalance, updated_at: new Date().toISOString() })
         .eq("user_id", conv.affiliate_id);
 
       await (admin as AnySupabase)
@@ -375,11 +380,77 @@ export async function clawbackCommission(
         .insert({
           user_id: conv.affiliate_id,
           type: "affiliate_commission_clawback",
-          amount_sats: conv.commission_sats,
-          balance_after: newBalance,
+          amount_sats: affiliatePayout,
+          balance_after: newAffBalance,
           reference_id: conversionId,
           status: "completed",
         });
+    }
+
+    // 2. Return full commission to seller
+    const { data: offer } = await (admin as AnySupabase)
+      .from("affiliate_offers")
+      .select("seller_id")
+      .eq("id", conv.offer_id)
+      .single();
+
+    if (offer?.seller_id) {
+      const { data: sellerWallet } = await (admin as AnySupabase)
+        .from("wallets")
+        .select("balance_sats")
+        .eq("user_id", offer.seller_id)
+        .single();
+
+      const newSellerBalance = (sellerWallet?.balance_sats ?? 0) + conv.commission_sats;
+      if (sellerWallet) {
+        await (admin as AnySupabase)
+          .from("wallets")
+          .update({ balance_sats: newSellerBalance, updated_at: new Date().toISOString() })
+          .eq("user_id", offer.seller_id);
+      } else {
+        await (admin as AnySupabase)
+          .from("wallets")
+          .insert({ user_id: offer.seller_id, balance_sats: newSellerBalance });
+      }
+
+      await (admin as AnySupabase)
+        .from("wallet_transactions")
+        .insert({
+          user_id: offer.seller_id,
+          type: "affiliate_commission_clawback_refund",
+          amount_sats: conv.commission_sats,
+          balance_after: newSellerBalance,
+          reference_id: conversionId,
+          status: "completed",
+        });
+    }
+
+    // 3. Return platform fee from platform wallet
+    if (platformFee > 0) {
+      const { data: platWallet } = await (admin as AnySupabase)
+        .from("wallets")
+        .select("balance_sats")
+        .eq("user_id", PLATFORM_WALLET_USER_ID)
+        .single();
+
+      const newPlatBalance = Math.max(0, (platWallet?.balance_sats ?? 0) - platformFee);
+      if (platWallet) {
+        await (admin as AnySupabase)
+          .from("wallets")
+          .update({ balance_sats: newPlatBalance, updated_at: new Date().toISOString() })
+          .eq("user_id", PLATFORM_WALLET_USER_ID);
+
+        await (admin as AnySupabase)
+          .from("wallet_transactions")
+          .insert({
+            user_id: PLATFORM_WALLET_USER_ID,
+            type: "affiliate_commission_fee_clawback",
+            amount_sats: platformFee,
+            balance_after: newPlatBalance,
+            reference_id: conversionId,
+            status: "completed",
+          });
+      }
     }
   }
 
