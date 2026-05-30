@@ -57,7 +57,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         `
         *,
         worker:profiles!worker_id(id, username, full_name, avatar_url),
-        poster:profiles!poster_id(id, username, full_name, avatar_url)
+        poster:profiles!poster_id(id, username, full_name, avatar_url),
+        items:gig_invoice_items(id, description, amount_usd, position)
       `
       )
       .eq("gig_id", gigId)
@@ -353,6 +354,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           payment_currency: selectedWallet.currency,
           expires_at: null,
           metadata: invoice.metadata,
+          items: lineItems.map((it, idx) => ({
+            description: it.description ?? "",
+            amount_usd: it.amount,
+            position: idx,
+          })),
         },
       },
       { status: 201 }
