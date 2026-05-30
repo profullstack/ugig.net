@@ -55,6 +55,30 @@ function makeServiceClientWithNoExistingReferrals() {
   };
 }
 
+function makeServiceClientWithExistingReferrals(existingEmails: string[]) {
+  let referralsQueryCount = 0;
+
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          gte: vi.fn().mockImplementation(() => {
+            referralsQueryCount += 1;
+            if (referralsQueryCount <= 2) {
+              return Promise.resolve({ count: 0, error: null });
+            }
+            return Promise.resolve({ data: [], error: null });
+          }),
+          in: vi.fn().mockResolvedValue({
+            data: existingEmails.map((referred_email) => ({ referred_email })),
+            error: null,
+          }),
+        }),
+      }),
+    })),
+  };
+}
+
 function makeGetRequest() {
   return new NextRequest("http://localhost/api/referrals", { method: "GET" });
 }
@@ -174,10 +198,18 @@ describe("POST /api/referrals", () => {
       return {};
     });
 
+    mockSendEmail.mockResolvedValue({ success: true });
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+
     const res = await POST(makePostRequest({ emails: ["friend@test.com"] }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.message).toContain("1 invite(s) created and sent");
+    // Route returns "X invite(s) sent successfully" for all-successful sends
+    expect(body.message).toContain("1 invite(s) sent successfully");
     expect(body.email_delivery_failed).toBe(0);
     expect(mockReferralInviteEmail).toHaveBeenCalledWith({
       inviterName: "Test User",
@@ -191,12 +223,20 @@ describe("POST /api/referrals", () => {
     });
   });
 
-  it("should keep created invites when email delivery fails", async () => {
+  it("returns 502 when all email deliveries fail", async () => {
+    // Route sends emails FIRST, then only inserts DB records for successfully
+    // delivered emails. When all fail, it returns 502 rather than inserting
+    // pending records that can never be confirmed.
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user1" },
       supabase: mockSupabase,
     });
-    mockSendEmail.mockResolvedValueOnce({ success: false, error: "resend failed" });
+    mockSendEmail.mockResolvedValue({ success: false, error: "resend failed" });
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
 
     const mockSelectChain = {
       eq: vi.fn().mockReturnValue({
@@ -206,28 +246,19 @@ describe("POST /api/referrals", () => {
         }),
       }),
     };
-    const mockInsertChain = {
-      select: vi.fn().mockResolvedValue({
-        data: [{ id: "ref1", referred_email: "friend@test.com", status: "pending" }],
-        error: null,
-      }),
-    };
 
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === "profiles") return { select: () => mockSelectChain };
-      if (table === "referrals") return { insert: () => mockInsertChain };
+      if (table === "referrals") return { insert: mockInsert };
       return {};
     });
 
     const res = await POST(makePostRequest({ emails: ["friend@test.com"] }));
-    expect(res.status).toBe(200);
+    // All deliveries failed -> 502, no DB records inserted
+    expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.message).toContain("1 email(s) failed to send");
-    expect(body.email_delivery_failed).toBe(1);
-    expect(mockReferralInviteEmail).toHaveBeenCalledWith({
-      inviterName: "testuser",
-      referralCode: "testuser",
-    });
+    expect(body.error).toContain("Failed to send invitation emails");
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("should return 400 for invalid emails only", async () => {
@@ -240,6 +271,36 @@ describe("POST /api/referrals", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("No valid email");
+  });
+
+  it("normalizes duplicate invite checks before inserting or sending", async () => {
+    mockCreateServiceClient.mockReturnValue(makeServiceClientWithExistingReferrals(["friend@test.com"]));
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: mockSupabase,
+    });
+
+    const mockSelectChain = {
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { referral_code: "testuser", username: "testuser", full_name: "Test User" },
+          error: null,
+        }),
+      }),
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === "profiles") return { select: () => mockSelectChain };
+      if (table === "referrals") return { insert: mockInsert };
+      return {};
+    });
+
+    const res = await POST(makePostRequest({ emails: [" Friend@Test.com "] }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("already been invited");
+    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   // Regression test for #143: Invalid emails should return 400 before rate-limit check
@@ -284,6 +345,13 @@ describe("POST /api/referrals", () => {
       if (table === "profiles") return { select: () => mockSelectChain };
       if (table === "referrals") return { insert: () => mockInsertChain };
       return {};
+    });
+
+    mockSendEmail.mockResolvedValue({ success: true });
+    mockReferralInviteEmail.mockReturnValue({
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
     });
 
     // Send 9 invalid + 1 valid email. With old code, emails.length=10 would count
