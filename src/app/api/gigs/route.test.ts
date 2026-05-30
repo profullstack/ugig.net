@@ -128,6 +128,22 @@ describe("GET /api/gigs", () => {
     expect(json.pagination.page).toBe(100000);
   });
 
+  it("caps huge limit values before building range and pagination metadata", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 125 });
+
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ limit: "999999999" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 49);
+    expect(json.pagination.limit).toBe(50);
+    expect(json.pagination.totalPages).toBe(3);
+  });
+
   it("filters by listing_type when provided", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.select = vi.fn().mockReturnValue(chain);
