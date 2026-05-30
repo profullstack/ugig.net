@@ -113,6 +113,21 @@ describe("GET /api/gigs", () => {
     expect(json.pagination.total).toBe(1);
   });
 
+  it("caps huge page values before building the Supabase range", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ page: "999999999" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(1999980, 1999999);
+    expect(json.pagination.page).toBe(100000);
+  });
+
   it("filters by listing_type when provided", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.select = vi.fn().mockReturnValue(chain);
