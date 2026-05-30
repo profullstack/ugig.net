@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 
+const MAX_NOTIFICATION_OFFSET = 100_000;
+
 // GET /api/notifications - List user's notifications
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +26,9 @@ export async function GET(request: NextRequest) {
     const limit = Number.isFinite(parsedLimit)
       ? Math.min(Math.max(parsedLimit, 1), 100)
       : 50;
-    const offset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
+    const offset = Number.isFinite(parsedOffset)
+      ? Math.min(Math.max(parsedOffset, 0), MAX_NOTIFICATION_OFFSET)
+      : 0;
 
     let query = supabase
       .from("notifications")
