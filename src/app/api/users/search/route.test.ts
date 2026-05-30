@@ -168,4 +168,20 @@ describe("GET /api/users/search", () => {
     await GET(makeRequest("/api/users/search?q=test&limit=abc"));
     expect(mockLimit).toHaveBeenCalledWith(10);
   });
+
+  it.each([
+    ["0", 1],
+    ["-1", 1],
+    ["Infinity", 10],
+  ])("normalizes edge-case limit value %s", async (value, expectedLimit) => {
+    vi.mocked(getAuthContext).mockResolvedValue({
+      user: { id: "user-1", authMethod: "session" },
+      supabase: supabaseClient as any,
+    });
+
+    mockLimit.mockResolvedValue({ data: [], error: null });
+
+    await GET(makeRequest(`/api/users/search?q=test&limit=${value}`));
+    expect(mockLimit).toHaveBeenCalledWith(expectedLimit);
+  });
 });
