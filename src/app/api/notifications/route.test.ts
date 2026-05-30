@@ -22,6 +22,10 @@ async function expectNotificationRange(
   expectedFrom: number,
   expectedTo: number
 ) {
+  const activeAtThen = vi.fn((resolve: () => void) => resolve());
+  const activeAtEq = vi.fn().mockReturnValue({ then: activeAtThen });
+  const profileUpdate = vi.fn().mockReturnValue({ eq: activeAtEq });
+
   const range = vi.fn().mockResolvedValue({
     data: [],
     error: null,
@@ -37,6 +41,7 @@ async function expectNotificationRange(
 
   const from = vi
     .fn()
+    .mockReturnValueOnce({ update: profileUpdate })
     .mockReturnValueOnce({ select: notificationSelect })
     .mockReturnValueOnce({ select: unreadSelect });
 
