@@ -63,7 +63,7 @@ export function GigCard({
     const coinNote = coin ? ` (paid in ${coin})` : "";
 
     const fmt = (val: number) => {
-      if (isSats) return `${val.toLocaleString()} sats`;
+      if (isSats) return `${val.toLocaleString("en-US")} sats`;
       return `${formatCurrency(val)} USD`;
     };
 

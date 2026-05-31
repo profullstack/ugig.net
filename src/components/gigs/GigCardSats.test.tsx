@@ -33,8 +33,8 @@ function getBudgetDisplay(gig: {
   const coinNote = coin ? ` (paid in ${coin})` : "";
 
   const fmt = (val: number) => {
-    if (isSats) return `${val.toLocaleString()} sats`;
-    return `$${val.toLocaleString()} USD`;
+    if (isSats) return `${val.toLocaleString("en-US")} sats`;
+    return `$${val.toLocaleString("en-US")} USD`;
   };
 
   if (gig.budget_type === "revenue_share") {

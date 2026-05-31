@@ -340,10 +340,10 @@ export function formatBudgetAmount(amount: number, paymentCoin?: string | null):
     if (paymentCoin === "BTC" && amount < 1) {
       return `₿${amount}`;
     }
-    return `${amount.toLocaleString()} sats`;
+    return `${amount.toLocaleString("en-US")} sats`;
   }
   // Default: USD
-  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 /** Get the currency label for display */
