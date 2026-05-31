@@ -45,7 +45,7 @@ describe("PollDisplay", () => {
       .mockResolvedValueOnce(jsonResponse(changedResults));
 
     render(<PollDisplay postId="post-1" isLoggedIn />);
-    await userEvent.click(await screen.findByRole("button", { name: /Second/ }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Second/ }));
 
     expect(fetch).toHaveBeenNthCalledWith(
       2,
@@ -56,10 +56,19 @@ describe("PollDisplay", () => {
       })
     );
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Second/ })).toHaveAttribute(
-        "aria-pressed",
+      expect(screen.getByRole("radio", { name: /Second/ })).toHaveAttribute(
+        "aria-checked",
         "true"
       );
     });
+  });
+
+  it("does not submit the already-selected option again", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(initialResults));
+
+    render(<PollDisplay postId="post-1" isLoggedIn />);
+    await userEvent.click(await screen.findByRole("radio", { name: /First/ }));
+
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
