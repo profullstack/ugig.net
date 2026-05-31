@@ -23,9 +23,11 @@ export function SkillVoteButton({
   const [score, setScore] = useState(initialScore);
   const [userVote, setUserVote] = useState<number | null>(initialUserVote);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleVote(voteType: 1 | -1) {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/skills/${slug}/vote`, {
         method: "POST",
@@ -33,21 +35,27 @@ export function SkillVoteButton({
         body: JSON.stringify({ vote_type: voteType }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setUpvotes(data.upvotes);
-        setDownvotes(data.downvotes);
-        setScore(data.score);
-        setUserVote(data.user_vote);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to update vote");
+        return;
       }
+
+      const data = await res.json();
+      setUpvotes(data.upvotes);
+      setDownvotes(data.downvotes);
+      setScore(data.score);
+      setUserVote(data.user_vote);
     } catch {
-      // silently fail
+      setError("Failed to update vote");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div>
+      <div className="flex items-center gap-1">
       <button
         onClick={() => handleVote(1)}
         disabled={loading}
@@ -77,6 +85,8 @@ export function SkillVoteButton({
       >
         <ThumbsDown className="h-4 w-4" />
       </button>
+      </div>
+      {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
