@@ -83,7 +83,7 @@ Important:
 - For partial URLs like "github.com/user", prepend "https://"
 
 Resume text:
-  ${text}`;
+${text}`;
 
   try {
     const openai = getOpenAIClient();
