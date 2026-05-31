@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { CreatePostForm } from "@/components/feed/CreatePostForm";
 import { FeedSortTabs } from "@/components/feed/FeedSortTabs";
 import { FeedList } from "@/components/feed/FeedList";
+import { parsePageParam } from "@/lib/pagination";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ async function FeedContent({ searchParams }: FeedPageProps) {
   const resolvedParams = await searchParams;
   const sort = resolvedParams.sort || "hot";
   const tag = resolvedParams.tag || undefined;
-  const page = Number(resolvedParams.page) || 1;
+  const page = parsePageParam(resolvedParams.page);
 
   const supabase = await createClient();
 
