@@ -5,10 +5,11 @@ import { SearchResults } from "./SearchResults";
 const navigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   push: vi.fn(),
+  replace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: navigation.push }),
+  useRouter: () => ({ push: navigation.push, replace: navigation.replace }),
   useSearchParams: () => navigation.searchParams,
 }));
 
@@ -51,5 +52,8 @@ describe("SearchResults", () => {
     });
 
     expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
+    expect(navigation.replace).toHaveBeenCalledWith(
+      "/search?q=typescript&type=gigs"
+    );
   });
 });

@@ -35,7 +35,8 @@ export function SearchResults() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const typeParam = (searchParams.get("type") || "all") as SearchTab;
-  const pageParam = parsePageParam(searchParams.get("page"), 100_000);
+  const rawPageParam = searchParams.get("page");
+  const pageParam = parsePageParam(rawPageParam, 100_000);
 
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SearchResponse | null>(null);
@@ -73,12 +74,22 @@ export function SearchResults() {
 
   // Fetch on mount and when URL params change
   useEffect(() => {
+    if (rawPageParam !== null && rawPageParam !== String(pageParam)) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (pageParam > 1) {
+        params.set("page", String(pageParam));
+      } else {
+        params.delete("page");
+      }
+      router.replace(`/search?${params.toString()}`);
+    }
+
     setActiveTab(typeParam);
     setPage(pageParam);
     if (queryParam) {
       fetchResults(queryParam, typeParam, pageParam);
     }
-  }, [queryParam, typeParam, pageParam, fetchResults]);
+  }, [queryParam, typeParam, rawPageParam, pageParam, searchParams, router, fetchResults]);
 
   const updateUrl = (q: string, type: SearchTab, p: number) => {
     const params = new URLSearchParams();
