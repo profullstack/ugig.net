@@ -13,6 +13,7 @@ describe("parsePageParam", () => {
     expect(parsePageParam("0")).toBe(1);
     expect(parsePageParam("abc")).toBe(1);
     expect(parsePageParam("Infinity")).toBe(1);
+    expect(parsePageParam("-Infinity")).toBe(1);
   });
 
   it("truncates fractional page values", () => {
