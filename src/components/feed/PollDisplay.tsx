@@ -78,6 +78,7 @@ export function PollDisplay({ postId, isLoggedIn }: PollDisplayProps) {
       className="mt-3 space-y-2"
       onClick={(e) => e.stopPropagation()}
       role={showResults && isLoggedIn ? "radiogroup" : undefined}
+      aria-label={showResults && isLoggedIn ? "Poll choices" : undefined}
     >
       {options.map((option) => {
         const isSelected = userVote === option.id;
