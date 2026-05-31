@@ -44,15 +44,20 @@ export function SkillComments({ slug, isAuthenticated }: SkillCommentsProps) {
   async function fetchComments() {
     try {
       const res = await fetch(`/api/skills/${slug}/comments`);
-      if (res.ok) {
-        const data = await res.json();
-        setComments(data.comments || []);
-        setTotal(data.total || 0);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to load comments");
+        return;
       }
+
+      const data = await res.json();
+      setComments(data.comments || []);
+      setTotal(data.total || 0);
     } catch {
-      // silently fail
+      setError("Failed to load comments");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handlePost(parentId: string | null = null) {
@@ -213,7 +218,7 @@ export function SkillComments({ slug, isAuthenticated }: SkillCommentsProps) {
       )}
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+        <div role="alert" className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
           {error}
         </div>
       )}
@@ -222,7 +227,7 @@ export function SkillComments({ slug, isAuthenticated }: SkillCommentsProps) {
         <div className="flex justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : comments.length > 0 ? (
+      ) : error ? null : comments.length > 0 ? (
         <div className="divide-y divide-border">
           {comments.map((comment) => renderComment(comment))}
         </div>
