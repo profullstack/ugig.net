@@ -57,6 +57,7 @@ export function PromptVoteButton({
     <div>
       <div className="flex items-center gap-1">
       <button
+        type="button"
         onClick={() => handleVote(1)}
         disabled={loading}
         className={`p-1.5 rounded-md transition-colors ${
@@ -74,6 +75,7 @@ export function PromptVoteButton({
         {score}
       </span>
       <button
+        type="button"
         onClick={() => handleVote(-1)}
         disabled={loading}
         className={`p-1.5 rounded-md transition-colors ${

@@ -78,4 +78,14 @@ describe("marketplace vote errors", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Vote denied");
     expect(screen.getByTitle("Upvote")).toBeEnabled();
   });
+
+  it("shows a fallback error when a vote request fails at the network layer", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+
+    render(forms[0].render());
+    await userEvent.click(screen.getByTitle("Upvote"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to update vote");
+    expect(screen.getByTitle("Upvote")).toBeEnabled();
+  });
 });
