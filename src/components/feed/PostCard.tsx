@@ -289,7 +289,7 @@ export function PostCard({ post: initialPost, showFollowButtons, followedTags, e
 
         {/* Poll if present */}
         {post.post_type === "poll" && (
-          <PollDisplay postId={post.id} isLoggedIn={true} />
+          <PollDisplay postId={post.id} isLoggedIn={!!currentUserId} />
         )}
 
         {/* URL if present */}
