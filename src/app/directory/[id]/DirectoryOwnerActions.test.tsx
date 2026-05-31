@@ -59,4 +59,16 @@ describe("DirectoryOwnerActions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Delete denied");
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("re-enables saving when an edit request fails at the network layer", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+
+    render(<DirectoryOwnerActions listing={listing} />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Update failed");
+    expect(screen.getByRole("button", { name: "Save Changes" })).toBeEnabled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });

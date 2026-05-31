@@ -54,30 +54,33 @@ export function DirectoryOwnerActions({ listing }: DirectoryOwnerActionsProps) {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    const res = await fetch(`/api/directory/${listing.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        url,
-        description: description || undefined,
-        tags,
-        logo_url: logoUrl || null,
-        banner_url: bannerUrl || null,
-        screenshot_url: screenshotUrl || null,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/directory/${listing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          url,
+          description: description || undefined,
+          tags,
+          logo_url: logoUrl || null,
+          banner_url: bannerUrl || null,
+          screenshot_url: screenshotUrl || null,
+        }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Update failed");
+      if (!res.ok) {
+        setError(await responseError(res, "Update failed"));
+        return;
+      }
+
+      setEditing(false);
+      router.refresh();
+    } catch {
+      setError("Update failed");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setEditing(false);
-    setLoading(false);
-    router.refresh();
   }
 
   async function handleToggleVisibility() {
@@ -163,7 +166,7 @@ export function DirectoryOwnerActions({ listing }: DirectoryOwnerActionsProps) {
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Changes"}</Button>
-            <Button type="button" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setError(""); setEditing(false); }}>Cancel</Button>
           </div>
         </form>
       </div>
@@ -179,7 +182,7 @@ export function DirectoryOwnerActions({ listing }: DirectoryOwnerActionsProps) {
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+        <Button variant="outline" size="sm" onClick={() => { setError(""); setEditing(true); }}>
           <Pencil className="h-4 w-4 mr-1" />
           Edit
         </Button>
