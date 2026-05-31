@@ -80,14 +80,8 @@ export function PollDisplay({ postId, isLoggedIn }: PollDisplayProps) {
         const isWinner = showResults && option.votes === Math.max(...options.map((o) => o.votes)) && option.votes > 0;
 
         if (showResults) {
-          return (
-            <div
-              key={option.id}
-              className={cn(
-                "relative rounded-md border overflow-hidden transition-colors",
-                isSelected ? "border-primary" : "border-border"
-              )}
-            >
+          const result = (
+            <>
               {/* Background bar */}
               <div
                 className={cn(
@@ -106,6 +100,27 @@ export function PollDisplay({ postId, isLoggedIn }: PollDisplayProps) {
                   {option.percentage}%
                 </span>
               </div>
+            </>
+          );
+          const className = cn(
+            "relative rounded-md border overflow-hidden transition-colors",
+            isSelected ? "border-primary" : "border-border"
+          );
+
+          return isLoggedIn ? (
+            <button
+              key={option.id}
+              type="button"
+              className={cn(className, "block w-full text-left disabled:opacity-50")}
+              onClick={() => handleVote(option.id)}
+              disabled={voting}
+              aria-pressed={isSelected}
+            >
+              {result}
+            </button>
+          ) : (
+            <div key={option.id} className={className}>
+              {result}
             </div>
           );
         }
