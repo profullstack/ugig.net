@@ -34,9 +34,13 @@ export interface ParsedResumeProfile {
   };
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  return new OpenAI({ apiKey });
+}
 
 // Use OpenAI to parse resume text into structured data
 async function parseWithOpenAI(text: string): Promise<ParsedResumeProfile> {
@@ -79,9 +83,10 @@ Important:
 - For partial URLs like "github.com/user", prepend "https://"
 
 Resume text:
-${text}`;
+  ${text}`;
 
   try {
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
