@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "./SearchInput";
 import { SearchTypeTabs, type SearchTab } from "./SearchTypeTabs";
 import Link from "next/link";
+import { parsePageParam } from "@/lib/pagination";
 
 interface PaginatedData<T> {
   data: T[];
@@ -34,7 +35,7 @@ export function SearchResults() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const typeParam = (searchParams.get("type") || "all") as SearchTab;
-  const pageParam = Number(searchParams.get("page")) || 1;
+  const pageParam = parsePageParam(searchParams.get("page"), 100_000);
 
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SearchResponse | null>(null);
