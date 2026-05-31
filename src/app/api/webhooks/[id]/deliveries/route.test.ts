@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFrom = vi.fn();
-const mockGetAuthContext = vi.fn();
+const { mockFrom, mockGetAuthContext } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockGetAuthContext: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: mockGetAuthContext,
