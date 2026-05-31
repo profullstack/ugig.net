@@ -104,4 +104,24 @@ describe("GET /api/users/[username]/followers", () => {
 
     expect(follows.range).toHaveBeenCalledWith(30, 39);
   });
+
+  it("caps huge offsets before applying range", async () => {
+    const targetProfile = profileChain({ data: { id: "user-123" }, error: null });
+    const follows = followsChain({ data: [], error: null, count: 0 });
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? targetProfile : follows;
+    });
+
+    const res = await GET(
+      makeRequest({ limit: "10", offset: "999999999" }),
+      routeParams
+    );
+    const json = await res.json();
+
+    expect(follows.range).toHaveBeenCalledWith(100000, 100009);
+    expect(json.pagination.offset).toBe(100000);
+  });
 });
