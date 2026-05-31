@@ -109,16 +109,22 @@ export function McpListingForm({ slug, initialData }: McpListingFormProps) {
     if (!await confirm("Archive this MCP server listing? It will be hidden from the marketplace.")) return;
 
     setDeleting(true);
+    setError(null);
     try {
       const res = await fetch(`/api/mcp/${slug}`, { method: "DELETE" });
-      if (res.ok) {
-        router.push("/dashboard/mcp");
-        router.refresh();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to archive MCP server listing");
+        return;
       }
+
+      router.push("/dashboard/mcp");
+      router.refresh();
     } catch {
-      // ignore
+      setError("Failed to archive MCP server listing");
+    } finally {
+      setDeleting(false);
     }
-    setDeleting(false);
   }
 
   return (

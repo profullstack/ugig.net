@@ -237,16 +237,22 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
     if (!await confirm("Archive this skill listing? It will be hidden from the marketplace.")) return;
 
     setDeleting(true);
+    setError(null);
     try {
       const res = await fetch(`/api/skills/${slug}`, { method: "DELETE" });
-      if (res.ok) {
-        router.push("/dashboard/skills");
-        router.refresh();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to archive skill listing");
+        return;
       }
+
+      router.push("/dashboard/skills");
+      router.refresh();
     } catch {
-      // ignore
+      setError("Failed to archive skill listing");
+    } finally {
+      setDeleting(false);
     }
-    setDeleting(false);
   }
 
   return (
