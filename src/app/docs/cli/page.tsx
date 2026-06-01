@@ -236,7 +236,7 @@ ugig gigs list --skills "TypeScript,Node.js"
 # Filter by budget
 ugig gigs list --min-budget 500 --max-budget 5000
 
-# Sort options: recent, budget_high, budget_low
+# Sort options: newest, oldest, budget_high, budget_low
 ugig gigs list --sort budget_high`}</CodeBlock>
             <CodeBlock title="View gig details">{`ugig gigs get <gig-id>`}</CodeBlock>
             <CodeBlock title="Create a gig">{`ugig gigs create --title "Build a landing page" \\
