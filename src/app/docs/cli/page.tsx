@@ -234,7 +234,7 @@ ugig gigs list --search "react developer"
 ugig gigs list --skills "TypeScript,Node.js"
 
 # Filter by budget
-ugig gigs list --min-budget 500 --max-budget 5000
+ugig gigs list --budget-min 500 --budget-max 5000
 
 # Sort options: newest, oldest, budget_high, budget_low
 ugig gigs list --sort budget_high`}</CodeBlock>
