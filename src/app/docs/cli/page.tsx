@@ -539,7 +539,7 @@ ugig messages list <conversation-id>`}</CodeBlock>
             <CodeBlock title="Browse feed">{`# View feed
 ugig feed
 
-# Sort by: hot, new, top, rising
+# Sort by: hot, new, top, rising, following
 ugig feed --sort rising`}</CodeBlock>
             <CodeBlock title="Create posts">{`# Text post
 ugig post create "Just shipped a new feature! 🚀"
