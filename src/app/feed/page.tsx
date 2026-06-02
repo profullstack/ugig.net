@@ -1,3 +1,4 @@
+import { parsePageParam } from "@/lib/pagination";
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,7 @@ async function FeedContent({ searchParams }: FeedPageProps) {
   const resolvedParams = await searchParams;
   const sort = resolvedParams.sort || "hot";
   const tag = resolvedParams.tag || undefined;
-  const page = Number(resolvedParams.page) || 1;
+  const page = parsePageParam(resolvedParams.page);
 
   const supabase = await createClient();
 
