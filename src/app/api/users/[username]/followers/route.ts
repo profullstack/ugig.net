@@ -27,7 +27,7 @@ export async function GET(
     const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
     const limit = parsePositiveInt(searchParams.get("limit"), 20, 100);
-    const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
+    const offset = Math.min(parseNonNegativeInt(searchParams.get("offset"), 0), 100_000);
 
     // Look up target user
     const { data: targetProfile, error: profileError } = await supabase
