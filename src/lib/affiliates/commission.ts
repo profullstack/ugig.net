@@ -343,7 +343,7 @@ export async function clawbackCommission(
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: conv, error } = await (admin as AnySupabase)
     .from("affiliate_conversions")
-    .select("id, status, commission_sats, affiliate_id")
+    .select("id, status, commission_sats, affiliate_id, affiliate_offers!inner(seller_id)")
     .eq("id", conversionId)
     .single();
 
@@ -355,19 +355,26 @@ export async function clawbackCommission(
     return { ok: false, error: "Already clawed back" };
   }
 
-  // If already paid, deduct from affiliate wallet
+  // If already paid, reverse the full settlement: debit the affiliate by what
+  // they actually received, re-credit the seller, and return the platform fee.
   if (conv.status === "paid") {
-    const { data: wallet } = await (admin as AnySupabase)
+    const sellerId = conv.affiliate_offers.seller_id;
+    const commissionSats = conv.commission_sats;
+    const platformFee = calculatePlatformFee(commissionSats);
+    const affiliatePayout = commissionSats - platformFee;
+
+    // Debit affiliate by the net payout they received (not the full commission)
+    const { data: affWallet } = await (admin as AnySupabase)
       .from("wallets")
       .select("balance_sats")
       .eq("user_id", conv.affiliate_id)
       .single();
 
-    if (wallet) {
-      const newBalance = Math.max(0, (wallet.balance_sats ?? 0) - conv.commission_sats);
+    if (affWallet) {
+      const newAffBalance = Math.max(0, (affWallet.balance_sats ?? 0) - affiliatePayout);
       await (admin as AnySupabase)
         .from("wallets")
-        .update({ balance_sats: newBalance, updated_at: new Date().toISOString() })
+        .update({ balance_sats: newAffBalance, updated_at: new Date().toISOString() })
         .eq("user_id", conv.affiliate_id);
 
       await (admin as AnySupabase)
@@ -375,8 +382,66 @@ export async function clawbackCommission(
         .insert({
           user_id: conv.affiliate_id,
           type: "affiliate_commission_clawback",
-          amount_sats: conv.commission_sats,
-          balance_after: newBalance,
+          amount_sats: affiliatePayout,
+          balance_after: newAffBalance,
+          reference_id: conversionId,
+          status: "completed",
+        });
+    }
+
+    // Re-credit the seller the full commission debited at settlement
+    const { data: sellerWallet } = await (admin as AnySupabase)
+      .from("wallets")
+      .select("balance_sats")
+      .eq("user_id", sellerId)
+      .single();
+
+    const newSellerBalance = (sellerWallet?.balance_sats ?? 0) + commissionSats;
+    if (sellerWallet) {
+      await (admin as AnySupabase)
+        .from("wallets")
+        .update({ balance_sats: newSellerBalance, updated_at: new Date().toISOString() })
+        .eq("user_id", sellerId);
+    } else {
+      await (admin as AnySupabase)
+        .from("wallets")
+        .insert({ user_id: sellerId, balance_sats: newSellerBalance });
+    }
+
+    await (admin as AnySupabase)
+      .from("wallet_transactions")
+      .insert({
+        user_id: sellerId,
+        type: "affiliate_commission_refund",
+        amount_sats: commissionSats,
+        balance_after: newSellerBalance,
+        reference_id: conversionId,
+        status: "completed",
+      });
+
+    // Return the platform fee collected at settlement
+    if (platformFee > 0) {
+      const { data: platWallet } = await (admin as AnySupabase)
+        .from("wallets")
+        .select("balance_sats")
+        .eq("user_id", PLATFORM_WALLET_USER_ID)
+        .single();
+
+      const newPlatBalance = Math.max(0, (platWallet?.balance_sats ?? 0) - platformFee);
+      if (platWallet) {
+        await (admin as AnySupabase)
+          .from("wallets")
+          .update({ balance_sats: newPlatBalance, updated_at: new Date().toISOString() })
+          .eq("user_id", PLATFORM_WALLET_USER_ID);
+      }
+
+      await (admin as AnySupabase)
+        .from("wallet_transactions")
+        .insert({
+          user_id: PLATFORM_WALLET_USER_ID,
+          type: "affiliate_commission_fee_refund",
+          amount_sats: platformFee,
+          balance_after: newPlatBalance,
           reference_id: conversionId,
           status: "completed",
         });
