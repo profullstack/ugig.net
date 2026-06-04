@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    // Update last_active_at (fire and forget, piggybacks on 30s notification poll)
     void supabase
       .from("profiles")
       .update({ last_active_at: new Date().toISOString() })
@@ -23,9 +22,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
 
-    // Validate limit: must be positive integer if provided
     const limitRaw = searchParams.get("limit");
-    let limit = 50; // default
+    let limit = 50;
     if (limitRaw !== null) {
       const v = Number(limitRaw);
       if (!Number.isFinite(v) || !Number.isInteger(v) || v < 1) {
@@ -37,9 +35,8 @@ export async function GET(request: NextRequest) {
       limit = Math.min(v, MAX_NOTIFICATION_LIMIT);
     }
 
-    // Validate offset: must be non-negative integer if provided
     const offsetRaw = searchParams.get("offset");
-    let offset = 0; // default
+    let offset = 0;
     if (offsetRaw !== null) {
       const v = Number(offsetRaw);
       if (!Number.isFinite(v) || !Number.isInteger(v) || v < 0) {
@@ -69,7 +66,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Get unread count separately
     const { count: unreadCount } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -78,11 +74,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       notifications,
-      pagination: {
-        total: count || 0,
-        limit,
-        offset,
-      },
+      pagination: { total: count || 0, limit, offset },
       unread_count: unreadCount || 0,
     });
   } catch (err) {
