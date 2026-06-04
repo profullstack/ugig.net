@@ -10,6 +10,21 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const period = url.searchParams.get("period") || "all";
     const sort = url.searchParams.get("sort") || "received";
+
+    if (!["all", "month", "week"].includes(period)) {
+      return NextResponse.json(
+        { error: "Invalid period. Must be: all, month, or week" },
+        { status: 400 }
+      );
+    }
+
+    if (!["received", "sent"].includes(sort)) {
+      return NextResponse.json(
+        { error: "Invalid sort. Must be: received or sent" },
+        { status: 400 }
+      );
+    }
+
     const parsedLimit = parseInt(url.searchParams.get("limit") || "25", 10);
     const limit = Number.isFinite(parsedLimit)
       ? Math.min(Math.max(parsedLimit, 1), 50)
