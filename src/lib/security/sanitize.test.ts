@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeUrlParam, sanitizeSearchParams } from "./sanitize";
+import { escapePostgrestSearchValue, sanitizeUrlParam, sanitizeSearchParams } from "./sanitize";
 
 describe("sanitizeUrlParam", () => {
   it("should return empty string for null/undefined input", () => {
@@ -49,5 +49,13 @@ describe("sanitizeSearchParams", () => {
   it("should return empty string for missing parameter", () => {
     const url = new URL("https://example.com/api");
     expect(sanitizeSearchParams(url, "missing")).toBe("");
+  });
+});
+
+describe("escapePostgrestSearchValue", () => {
+  it("escapes LIKE wildcards and PostgREST filter punctuation", () => {
+    expect(escapePostgrestSearchValue("100%_match,(v1.2)")).toBe(
+      "100\\%\\_match\\,\\(v1\\.2\\)"
+    );
   });
 });

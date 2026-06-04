@@ -327,6 +327,17 @@ describe("GET /api/search", () => {
     expect(orArg).toContain("my\\_var");
   });
 
+  it("escapes PostgREST filter punctuation in search query", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    await GET(makeRequest({ q: "foo,(v1.2)", type: "posts" }));
+
+    expect(chain.or).toHaveBeenCalled();
+    const orArg = chain.or.mock.calls[0][0] as string;
+    expect(orArg).toBe("content.ilike.%foo\\,\\(v1\\.2\\)%");
+  });
+
   // ── Empty results ─────────────────────────────────────────────
 
   it("returns proper empty structure for type=all", async () => {

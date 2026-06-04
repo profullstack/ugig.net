@@ -6,7 +6,7 @@ import { skillListingSchema } from "@/lib/skills/validation";
 import { slugify } from "@/lib/skills/validation";
 import { importSkillFromUrl } from "@/lib/skills/url-import";
 import { isScanAcceptable } from "@/lib/skills/security-scan";
-import { sanitizeSearchParams } from "@/lib/security/sanitize";
+import { escapePostgrestSearchValue, sanitizeSearchParams } from "@/lib/security/sanitize";
 
 const MAX_PAGE = 100_000;
 
@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
       .eq("status", "active");
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,tagline.ilike.%${search}%`);
+      const safeSearch = escapePostgrestSearchValue(search);
+      query = query.or(`title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%,tagline.ilike.%${safeSearch}%`);
     }
 
     if (category) {
