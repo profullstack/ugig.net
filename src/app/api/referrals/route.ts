@@ -4,6 +4,8 @@ import { referralInviteEmail, sendEmail } from "@/lib/email";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type AnySupabase = any;
+const MAX_EMAIL_ENTRIES_PER_REQUEST = 200;
+const MAX_INVITES_PER_REQUEST = 20;
 
 // GET /api/referrals - List my referrals
 export async function GET(request: NextRequest) {
@@ -69,9 +71,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (emails.length > 20) {
+    if (emails.length > MAX_EMAIL_ENTRIES_PER_REQUEST) {
       return NextResponse.json(
-        { error: "Maximum 20 invites at a time" },
+        { error: `Maximum ${MAX_EMAIL_ENTRIES_PER_REQUEST} email entries at a time` },
         { status: 400 }
       );
     }
@@ -80,11 +82,22 @@ export async function POST(request: NextRequest) {
     // Only valid emails should count toward throttle limits
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase());
-    const validEmails = normalizedEmails.filter((e: string) => emailRegex.test(e));
+    const userEmail = user.email?.toLowerCase();
+    const validEmails = Array.from(
+      new Set(normalizedEmails.filter((e: string) => emailRegex.test(e) && e !== userEmail))
+    );
 
     if (validEmails.length === 0) {
+      const onlySelf = normalizedEmails.every(e => e === userEmail || !emailRegex.test(e));
       return NextResponse.json(
-        { error: "No valid email addresses provided" },
+        { error: onlySelf ? "You cannot invite yourself" : "No valid email addresses provided" },
+        { status: 400 }
+      );
+    }
+
+    if (validEmails.length > MAX_INVITES_PER_REQUEST) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_INVITES_PER_REQUEST} invites at a time` },
         { status: 400 }
       );
     }
