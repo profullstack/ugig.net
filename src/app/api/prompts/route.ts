@@ -5,6 +5,17 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { promptListingSchema, slugify } from "@/lib/prompts/validation";
 import { scanPrompt } from "@/lib/prompts/security-scan";
 
+function escapePostgrestSearch(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/,/g, "\\,")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/\./g, "\\.");
+}
+
 /**
  * GET /api/prompts - Public listing of active prompts
  */
@@ -31,7 +42,10 @@ export async function GET(request: NextRequest) {
       .eq("status", "active");
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,tagline.ilike.%${search}%`);
+      const safeSearch = escapePostgrestSearch(search);
+      query = query.or(
+        `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%,tagline.ilike.%${safeSearch}%`
+      );
     }
 
     if (category) {
