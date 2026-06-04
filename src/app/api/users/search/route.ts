@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 // GET /api/users/search?q=<query>&limit=10
 export async function GET(request: NextRequest) {
@@ -21,11 +22,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { supabase } = authContext;
+    const escapedQuery = escapePostgrestSearchValue(query);
 
     const { data: users, error } = await supabase
       .from("profiles")
       .select("id, username, avatar_url")
-      .ilike("username", `${query}%`)
+      .ilike("username", `${escapedQuery}%`)
       .limit(limit);
 
     if (error) {

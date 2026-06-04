@@ -102,6 +102,22 @@ describe("GET /api/users/search", () => {
     expect(mockIlike).toHaveBeenCalledWith("username", "cho%");
   });
 
+  it("escapes PostgREST wildcard and filter syntax in username search", async () => {
+    vi.mocked(getAuthContext).mockResolvedValue({
+      user: { id: "user-1", authMethod: "session" },
+      supabase: supabaseClient as any,
+    });
+
+    mockLimit.mockResolvedValue({ data: [], error: null });
+
+    await GET(makeRequest("/api/users/search?q=ai_agent,pro.v2"));
+
+    expect(mockIlike).toHaveBeenCalledWith(
+      "username",
+      String.raw`ai\_agent\,pro\.v2%`
+    );
+  });
+
   it("does NOT leak email, full_name, or phone", async () => {
     vi.mocked(getAuthContext).mockResolvedValue({
       user: { id: "user-1", authMethod: "session" },
