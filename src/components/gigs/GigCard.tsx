@@ -60,7 +60,9 @@ export function GigCard({
     const coin = gig.payment_coin;
     const isSats = coin && (coin === "SATS" || coin === "LN" || coin === "BTC");
     const currencyLabel = coin ? (isSats ? "sats" : coin) : "USD";
-    const coinNote = coin ? ` (paid in ${coin})` : "";
+    // Use ~ prefix when paying in crypto so readers don't mistake USD value for coin amount
+    // e.g. "$1.00 USD (~SOL)" not "$1.00 USD (paid in SOL)" — ~ makes it clear it's an equivalent
+    const coinNote = coin ? ` (~${coin})` : "";
 
     const fmt = (val: number) => {
       if (isSats) return `${val.toLocaleString("en-US")} sats`;

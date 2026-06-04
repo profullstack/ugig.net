@@ -252,4 +252,17 @@ describe("GigCard", () => {
     render(<GigCard gig={gig} />);
     expect(screen.getByText(/\/article/)).toBeInTheDocument();
   });
+
+  it("displays ~coin notation when payment_coin is set so USD value is not mistaken for coin amount", () => {
+    const gig = {
+      ...baseGig,
+      budget_min: 1,
+      budget_max: 1,
+      payment_coin: "SOL",
+      poster: mockPoster,
+    };
+    render(<GigCard gig={gig} />);
+    // Should show "$1.00 USD (~SOL)" not "$1.00 USD (paid in SOL)"
+    expect(screen.getByText(/\$1\.00 USD \(~SOL\)/)).toBeInTheDocument();
+  });
 });
