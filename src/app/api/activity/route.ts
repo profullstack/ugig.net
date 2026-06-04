@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-
-const MAX_ACTIVITY_OFFSET = 100_000;
-const MAX_ACTIVITY_LIMIT = 50;
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 // GET /api/activity - User's own activity feed (includes private activities)
+// When authenticated, returns the user's own activities including private ones
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
@@ -14,37 +13,15 @@ export async function GET(request: NextRequest) {
     const { user, supabase } = auth;
 
     const searchParams = request.nextUrl.searchParams;
+    const limit = parsePaginationParam(searchParams.get("limit"), 20, 1, 50);
+    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
 
-    const limitRaw = searchParams.get("limit");
-    let limit = 20;
-    if (limitRaw !== null) {
-      const v = Number(limitRaw);
-      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 1) {
-        return NextResponse.json(
-          { error: "Invalid limit. Must be a positive integer (>= 1)." },
-          { status: 400 }
-        );
-      }
-      limit = Math.min(v, MAX_ACTIVITY_LIMIT);
-    }
-
-    const offsetRaw = searchParams.get("offset");
-    let offset = 0;
-    if (offsetRaw !== null) {
-      const v = Number(offsetRaw);
-      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 0) {
-        return NextResponse.json(
-          { error: "Invalid offset. Must be a non-negative integer (>= 0)." },
-          { status: 400 }
-        );
-      }
-      offset = Math.min(v, MAX_ACTIVITY_OFFSET);
-    }
-
+    // Fetch all activities for the authenticated user (including private)
     const { data: activities, error, count } = await supabase
       .from("activities")
       .select(
-        `*,
+        `
+        *,
         user:profiles!user_id (
           id,
           username,
@@ -59,16 +36,18 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("[GET /api/activity] Supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({
       data: activities,
-      pagination: { total: count || 0, limit, offset },
+      pagination: {
+        total: count || 0,
+        limit,
+        offset,
+      },
     });
-  } catch (err) {
-    console.error("[GET /api/activity] Unexpected error:", err);
+  } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
