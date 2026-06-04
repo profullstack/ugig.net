@@ -10,6 +10,16 @@ import { logActivity } from "@/lib/activity";
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
 
+function parsePositiveIntegerParam(
+  value: string | null,
+  defaultValue: number,
+  max: number
+) {
+  const parsed = Number(value && value.trim() !== "" ? value : defaultValue);
+  const finiteValue = Number.isFinite(parsed) ? parsed : defaultValue;
+  return Math.min(Math.max(1, Math.trunc(finiteValue)), max);
+}
+
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
   try {
@@ -27,8 +37,8 @@ export async function GET(request: NextRequest) {
       account_type: searchParams.get("account_type") || undefined,
       listing_type: searchParams.get("listing_type") || undefined,
       sort: searchParams.get("sort") || "newest",
-      page: Math.min(Number(searchParams.get("page")) || 1, MAX_GIG_PAGE),
-      limit: Math.min(Number(searchParams.get("limit")) || 20, MAX_GIG_LIMIT),
+      page: parsePositiveIntegerParam(searchParams.get("page"), 1, MAX_GIG_PAGE),
+      limit: parsePositiveIntegerParam(searchParams.get("limit"), 20, MAX_GIG_LIMIT),
     });
 
     if (!filters.success) {

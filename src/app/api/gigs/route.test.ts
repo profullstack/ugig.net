@@ -144,6 +144,39 @@ describe("GET /api/gigs", () => {
     expect(json.pagination.totalPages).toBe(3);
   });
 
+  it("truncates fractional page and limit values before querying", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 30 });
+
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ page: "2.9", limit: "5.9" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(5, 9);
+    expect(json.pagination.page).toBe(2);
+    expect(json.pagination.limit).toBe(5);
+    expect(json.pagination.totalPages).toBe(6);
+  });
+
+  it("defaults invalid and non-positive pagination values before querying", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ page: "-10", limit: "abc" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+    expect(json.pagination.page).toBe(1);
+    expect(json.pagination.limit).toBe(20);
+  });
+
   it("filters by listing_type when provided", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.select = vi.fn().mockReturnValue(chain);
