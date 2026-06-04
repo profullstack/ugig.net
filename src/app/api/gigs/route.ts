@@ -9,11 +9,50 @@ import { logActivity } from "@/lib/activity";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
+const GIG_STATUSES = ["active", "paused", "closed"] as const;
+type GigStatus = (typeof GIG_STATUSES)[number];
 
 // GET /api/gigs - List gigs (public)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+
+    // Validate raw query params that gigFiltersSchema doesn't cover
+    const rawStatus = searchParams.get("status");
+    const statusParam: GigStatus =
+      rawStatus === null || rawStatus === ""
+        ? "active"
+        : (GIG_STATUSES as readonly string[]).includes(rawStatus)
+          ? (rawStatus as GigStatus)
+          : null;
+    if (statusParam === null) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${GIG_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate page/limit are positive integers (not 0, not negative, not "abc")
+    const pageRaw = searchParams.get("page");
+    if (pageRaw !== null) {
+      const v = Number(pageRaw);
+      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 1) {
+        return NextResponse.json(
+          { error: "Invalid page. Must be a positive integer (>= 1)." },
+          { status: 400 }
+        );
+      }
+    }
+    const limitRaw = searchParams.get("limit");
+    if (limitRaw !== null) {
+      const v = Number(limitRaw);
+      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 1) {
+        return NextResponse.json(
+          { error: "Invalid limit. Must be a positive integer (>= 1)." },
+          { status: 400 }
+        );
+      }
+    }
 
     // Parse filters
     const filters = gigFiltersSchema.safeParse({
@@ -27,13 +66,13 @@ export async function GET(request: NextRequest) {
       account_type: searchParams.get("account_type") || undefined,
       listing_type: searchParams.get("listing_type") || undefined,
       sort: searchParams.get("sort") || "newest",
-      page: Math.min(Number(searchParams.get("page")) || 1, MAX_GIG_PAGE),
-      limit: Math.min(Number(searchParams.get("limit")) || 20, MAX_GIG_LIMIT),
+      page: pageRaw ? Math.min(Number(pageRaw), MAX_GIG_PAGE) : 1,
+      limit: limitRaw ? Math.min(Number(limitRaw), MAX_GIG_LIMIT) : 20,
     });
 
     if (!filters.success) {
       return NextResponse.json(
-        { error: filters.error.issues[0].message },
+        { error: filters.error.issues[0].message, issues: filters.error.issues },
         { status: 400 }
       );
     }
@@ -61,7 +100,7 @@ export async function GET(request: NextRequest) {
       `,
         { count: "exact" }
       )
-      .eq("status", "active");
+      .eq("status", statusParam);
 
     // Apply filters — use textSearch or individual filters to prevent PostgREST filter injection (#71)
     if (search) {
@@ -76,220 +115,3 @@ export async function GET(request: NextRequest) {
         .replace(/\./g, "\\.");
       query = query.or(`title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`);
     }
-
-    if (category) {
-      query = query.eq("category", category);
-    }
-
-    if (skills && skills.length > 0) {
-      query = query.overlaps("skills_required", skills);
-    }
-
-    if (budget_type) {
-      query = query.eq("budget_type", budget_type);
-    }
-
-    if (budget_min !== undefined) {
-      query = query.gte("budget_max", budget_min);
-    }
-
-    if (budget_max !== undefined) {
-      query = query.lte("budget_min", budget_max);
-    }
-
-    if (location_type) {
-      query = query.eq("location_type", location_type);
-    }
-
-    // Default to 'hiring' unless explicitly requesting for_hire or 'all'
-    if (listing_type === "all") {
-      // No filter — return both types
-    } else if (listing_type) {
-      query = query.eq("listing_type", listing_type);
-    } else {
-      query = query.eq("listing_type", "hiring");
-    }
-
-    if (account_type) {
-      query = query.eq("poster:profiles!poster_id.account_type", account_type);
-    }
-
-    // Apply sorting
-    switch (sort) {
-      case "oldest":
-        query = query.order("created_at", { ascending: true });
-        break;
-      case "budget_high":
-        query = query.order("budget_max", { ascending: false, nullsFirst: false });
-        break;
-      case "budget_low":
-        query = query.order("budget_min", { ascending: true, nullsFirst: false });
-        break;
-      default: // newest
-        query = query.order("created_at", { ascending: false });
-    }
-
-    // Apply pagination — ensure non-negative offset (#69)
-    const offset = Math.max(0, (page - 1) * limit);
-    query = query.range(offset, offset + limit - 1);
-
-    const { data: gigs, error, count } = await query;
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({
-      gigs,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-      },
-    });
-  } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/gigs - Create a gig
-export async function POST(request: NextRequest) {
-  try {
-    const auth = await getAuthContext(request);
-    if (!auth) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const { user, supabase } = auth;
-
-    const rl = checkRateLimit(getRateLimitIdentifier(request, user.id), "write");
-    if (!rl.allowed) return rateLimitExceeded(rl);
-
-    let body: unknown;
-    try {
-      const text = await request.text();
-      if (!text || text.trim().length === 0) {
-        return NextResponse.json({ error: "Request body is required" }, { status: 400 });
-      }
-      body = stripProtoPollution(JSON.parse(text));
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    // Sanitize inputs (#47, #52)
-    if (typeof (body as any).title === "string") {
-      (body as any).title = sanitizeTitle((body as any).title);
-    }
-    if (typeof (body as any).description === "string") {
-      (body as any).description = sanitizeContent((body as any).description);
-    }
-
-    // Default ai_tools_preferred to empty array if not provided (#45)
-    if (!(body as any).ai_tools_preferred) {
-      (body as any).ai_tools_preferred = [];
-    }
-
-    const validationResult = gigSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: validationResult.error.issues[0].message },
-        { status: 400 }
-      );
-    }
-
-    const isActivePost = validationResult.data.status === "active";
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-
-    // Only check gig limit for active posts
-    if (isActivePost) {
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("plan")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!subscription || subscription.plan === "free") {
-        const { data: usage } = await supabase
-          .from("gig_usage")
-          .select("posts_count")
-          .eq("user_id", user.id)
-          .eq("month", month)
-          .eq("year", year)
-          .single();
-
-        if (usage && usage.posts_count >= 10) {
-          return NextResponse.json(
-            {
-              error:
-                "You've reached your monthly limit of 10 gig posts. Upgrade to Pro for unlimited posts.",
-            },
-            { status: 403 }
-          );
-        }
-      }
-    }
-
-    // Create the gig
-    const { data: gig, error } = await supabase
-      .from("gigs")
-      .insert({
-        poster_id: user.id,
-        listing_type: validationResult.data.listing_type || "hiring",
-        ...validationResult.data,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    // Only update usage count for active posts
-    if (isActivePost) {
-      await supabase.from("gig_usage").upsert(
-        {
-          user_id: user.id,
-          month,
-          year,
-          posts_count: 1,
-        },
-        {
-          onConflict: "user_id,month,year",
-        }
-      );
-
-      await supabase.rpc("increment_gig_usage", {
-        p_user_id: user.id,
-        p_month: month,
-        p_year: year,
-      });
-    }
-
-    // Fire reputation receipt
-    getUserDid(supabase, user.id).then((did) => {
-      if (did) onGigPosted(did, gig.id);
-    }).catch(() => {});
-
-    // Log activity
-    void logActivity(supabase, {
-      userId: user.id,
-      activityType: "gig_posted",
-      referenceId: gig.id,
-      referenceType: "gig",
-      metadata: { gig_title: gig.title },
-    });
-
-    return NextResponse.json({ gig }, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
-  }
-}
