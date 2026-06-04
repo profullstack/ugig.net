@@ -21,8 +21,47 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const gigId = searchParams.get("gig_id");
-    const limit = parsePaginationParam(searchParams.get("limit"), 20, 1, 50);
-    const offset = parsePaginationParam(searchParams.get("offset"), 0, 0, 100_000);
+
+    // Validate gig_id as UUID if provided
+    if (gigId) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(gigId)) {
+        return NextResponse.json(
+          { error: "Invalid gig_id. Must be a valid UUID." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate limit
+    const MAX_REVIEW_LIMIT = 50;
+    const MAX_REVIEW_OFFSET = 100_000;
+    const limitRaw = searchParams.get("limit");
+    let limit = 20;
+    if (limitRaw !== null) {
+      const v = Number(limitRaw);
+      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 1) {
+        return NextResponse.json(
+          { error: "Invalid limit. Must be a positive integer (>= 1)." },
+          { status: 400 }
+        );
+      }
+      limit = Math.min(v, MAX_REVIEW_LIMIT);
+    }
+
+    // Validate offset
+    const offsetRaw = searchParams.get("offset");
+    let offset = 0;
+    if (offsetRaw !== null) {
+      const v = Number(offsetRaw);
+      if (!Number.isFinite(v) || !Number.isInteger(v) || v < 0) {
+        return NextResponse.json(
+          { error: "Invalid offset. Must be a non-negative integer (>= 0)." },
+          { status: 400 }
+        );
+      }
+      offset = Math.min(v, MAX_REVIEW_OFFSET);
+    }
 
     let query = supabase
       .from("reviews")
@@ -58,6 +97,7 @@ export async function GET(request: NextRequest) {
     const { data: reviews, error, count } = await query;
 
     if (error) {
+      console.error("[GET /api/reviews] Supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -69,7 +109,8 @@ export async function GET(request: NextRequest) {
         offset,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("[GET /api/reviews] Unexpected error:", err);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
@@ -91,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: validationResult.error.issues[0].message },
+        { error: "Invalid review payload", issues: validationResult.error.issues },
         { status: 400 }
       );
     }
@@ -203,6 +244,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
+      console.error("[POST /api/reviews] Supabase error:", createError);
       return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
