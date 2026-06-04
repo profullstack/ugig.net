@@ -15,8 +15,17 @@ export async function GET(
     }
     const { user, supabase } = auth;
 
-    // RLS will filter to (submitter or bounty creator) automatically.
-    const { data, error } = await (supabase as any)
+    const { data: bounty } = await (supabase as any)
+      .from("bounties")
+      .select("id, creator_id")
+      .eq("id", id)
+      .single();
+
+    if (!bounty) {
+      return NextResponse.json({ error: "Bounty not found" }, { status: 404 });
+    }
+
+    let query = (supabase as any)
       .from("bounty_submissions")
       .select(
         `
@@ -24,13 +33,17 @@ export async function GET(
         submitter:profiles!submitter_id (id, username, full_name, avatar_url)
       `
       )
-      .eq("bounty_id", id)
-      .order("created_at", { ascending: false });
+      .eq("bounty_id", id);
+
+    if (bounty.creator_id !== user.id) {
+      query = query.eq("submitter_id", user.id);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    void user;
     return NextResponse.json({ data: data || [] });
   } catch {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
