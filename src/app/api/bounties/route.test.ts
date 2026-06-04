@@ -23,28 +23,20 @@ function chain(result: { data: any; error?: any }) {
 describe("GET /api/bounties", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("falls back to default limit when limit is non-positive", async () => {
-    const bountyChain = chain({ data: [] });
-    (createClient as any).mockResolvedValue({
-      from: vi.fn(() => bountyChain),
-    });
-
+  it("rejects non-positive limit with 400", async () => {
     const res = await GET(makeReq("http://localhost/api/bounties?limit=0&page=1"));
 
-    expect(res.status).toBe(200);
-    expect(bountyChain.range).toHaveBeenCalledWith(0, 49);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid limit/i);
   });
 
-  it("falls back to page 1 when page is invalid or non-positive", async () => {
-    const bountyChain = chain({ data: [] });
-    (createClient as any).mockResolvedValue({
-      from: vi.fn(() => bountyChain),
-    });
-
+  it("rejects non-positive page with 400", async () => {
     const res = await GET(makeReq("http://localhost/api/bounties?limit=50&page=-2"));
 
-    expect(res.status).toBe(200);
-    expect(bountyChain.range).toHaveBeenCalledWith(0, 49);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid page/i);
   });
 
   it("caps limit at 100 and computes offset using page", async () => {
@@ -59,16 +51,12 @@ describe("GET /api/bounties", () => {
     expect(bountyChain.range).toHaveBeenCalledWith(100, 199);
   });
 
-  it("falls back to defaults when limit/page are non-numeric", async () => {
-    const bountyChain = chain({ data: [] });
-    (createClient as any).mockResolvedValue({
-      from: vi.fn(() => bountyChain),
-    });
-
+  it("rejects non-numeric limit/page with 400", async () => {
     const res = await GET(makeReq("http://localhost/api/bounties?limit=abc&page=def"));
 
-    expect(res.status).toBe(200);
-    expect(bountyChain.range).toHaveBeenCalledWith(0, 49);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid limit/i);
   });
 });
 

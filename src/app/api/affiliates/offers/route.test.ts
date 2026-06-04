@@ -98,11 +98,30 @@ describe("GET /api/affiliates/offers", () => {
   });
 
   it("filters by search query (#21)", async () => {
-    mockFrom.mockReturnValue(chainable([], null, 0));
+    const orSpy = vi.fn();
+    const queryChain: Record<string, any> = {};
+    const chainHandler: ProxyHandler<any> = {
+      get(_target, prop) {
+        if (prop === "then") return undefined;
+        if (prop === "data") return [];
+        if (prop === "error") return null;
+        if (prop === "count") return 0;
+        if (prop === "or") {
+          return (...args: any[]) => {
+            orSpy(...args);
+            return new Proxy(queryChain, chainHandler);
+          };
+        }
+        return (..._args: any[]) => new Proxy(queryChain, chainHandler);
+      },
+    };
+    mockFrom.mockReturnValue(new Proxy(queryChain, chainHandler));
 
-    const res = await GET(makeRequest({ q: "test search" }));
+    const res = await GET(makeRequest({ q: "100%_offer,(v1.2)" }));
     expect(res.status).toBe(200);
-    expect(mockFrom).toHaveBeenCalled();
+    expect(orSpy).toHaveBeenCalledWith(
+      "title.ilike.%100\\%\\_offer\\,\\(v1\\.2\\)%,description.ilike.%100\\%\\_offer\\,\\(v1\\.2\\)%"
+    );
   });
 
   it("hides product_url from unauthenticated users (#20)", async () => {

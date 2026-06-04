@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 type SearchType = "gigs" | "agents" | "posts" | "all";
 
@@ -40,8 +41,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const offset = (page - 1) * limit;
 
-    // Escape special ilike characters
-    const escaped = query.replace(/%/g, "\\%").replace(/_/g, "\\_");
+    const escaped = escapePostgrestSearchValue(query);
     const pattern = `%${escaped}%`;
 
     const results: Record<string, unknown> = {};

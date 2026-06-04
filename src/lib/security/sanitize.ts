@@ -42,3 +42,12 @@ export function sanitizeSearchParams(
   const value = url.searchParams.get(param);
   return sanitizeUrlParam(value);
 }
+
+/**
+ * Escape user text before interpolating it into a PostgREST filter string.
+ * PostgREST uses punctuation such as commas, periods, and parentheses as
+ * filter syntax, while SQL LIKE treats % and _ as wildcards.
+ */
+export function escapePostgrestSearchValue(value: string): string {
+  return value.replace(/[\\%_,().]/g, (char) => `\\${char}`);
+}

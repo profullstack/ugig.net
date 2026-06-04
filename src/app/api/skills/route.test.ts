@@ -123,6 +123,32 @@ describe("GET /api/skills", () => {
     expect(json.page).toBe(1);
   });
 
+  it("escapes search text before building PostgREST filters", async () => {
+    const orSpy = vi.fn(() => ({
+      order: () => ({
+        range: () => Promise.resolve({ data: [], count: 0, error: null }),
+      }),
+    }));
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          or: orSpy,
+          order: () => ({
+            range: () => Promise.resolve({ data: [], count: 0, error: null }),
+          }),
+        }),
+      }),
+    });
+
+    const response = await GET(makeGetRequest({ search: "100%_mcp,(v1.2)" }));
+
+    expect(response.status).toBe(200);
+    expect(orSpy).toHaveBeenCalledWith(
+      "title.ilike.%100\\%\\_mcp\\,\\(v1\\.2\\)%,description.ilike.%100\\%\\_mcp\\,\\(v1\\.2\\)%,tagline.ilike.%100\\%\\_mcp\\,\\(v1\\.2\\)%"
+    );
+  });
+
   it("clamps invalid page values to the first page", async () => {
     const range = vi.fn(() =>
       Promise.resolve({ data: [], count: 0, error: null })
