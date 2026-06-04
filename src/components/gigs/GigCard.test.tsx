@@ -262,7 +262,7 @@ describe("GigCard", () => {
       poster: mockPoster,
     };
     render(<GigCard gig={gig} />);
-    // Should show "$1.00 USD (~SOL)" not "$1.00 USD (paid in SOL)"
-    expect(screen.getByText(/\$1\.00 USD \(~SOL\)/)).toBeInTheDocument();
+    // Should show "$1.00 USD (SOL)" not "$1.00 USD (paid in SOL)" — (SOL) not (~SOL)
+    expect(screen.getByText(/\$1\.00 USD \(SOL\)/)).toBeInTheDocument();
   });
 });

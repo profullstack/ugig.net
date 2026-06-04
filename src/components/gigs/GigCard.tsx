@@ -62,7 +62,7 @@ export function GigCard({
     const currencyLabel = coin ? (isSats ? "sats" : coin) : "USD";
     // Use ~ prefix when paying in crypto so readers don't mistake USD value for coin amount
     // e.g. "$1.00 USD (~SOL)" not "$1.00 USD (paid in SOL)" — ~ makes it clear it's an equivalent
-    const coinNote = coin ? ` (~${coin})` : "";
+    const coinNote = coin ? ` (${coin})` : "";
 
     const fmt = (val: number) => {
       if (isSats) return `${val.toLocaleString("en-US")} sats`;
@@ -77,7 +77,7 @@ export function GigCard({
     }
 
     if (min && max && min !== max) return `${fmt(min)} - ${fmt(max)}${suffix}${!isSats ? coinNote : ""}`;
-    if (min && max) return `${fmt(min)}${suffix}${!isSats ? coinNote : ""}`;
+    if (min && max) return `${fmt(min)}${suffix}${!isSats ? " " + coinNote : ""}`;
     if (min) return `${fmt(min)}+${suffix}${!isSats ? coinNote : ""}`;
     if (max) return `up to ${fmt(max)}${suffix}${!isSats ? coinNote : ""}`;
     return (gig.budget_type === "fixed" || gig.budget_type === "bounty") ? "Budget TBD" : "Rate TBD";
