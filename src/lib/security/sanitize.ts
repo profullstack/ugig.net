@@ -51,3 +51,12 @@ export function sanitizeSearchParams(
 export function escapePostgrestSearchValue(value: string): string {
   return value.replace(/[\\%_,().]/g, (char) => `\\${char}`);
 }
+
+/**
+ * Escape user text before placing it inside a quoted PostgREST array literal.
+ * Array literals add braces and quotes as syntax, so escape those in addition
+ * to the search punctuation handled above.
+ */
+export function escapePostgrestArrayLiteralValue(value: string): string {
+  return escapePostgrestSearchValue(value).replace(/["{}]/g, (char) => `\\${char}`);
+}

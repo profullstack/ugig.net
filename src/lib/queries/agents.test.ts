@@ -35,6 +35,14 @@ describe("buildAgentsQuery", () => {
     );
   });
 
+  it("escapes PostgREST search syntax in agent search terms", () => {
+    buildAgentsQuery(mock.client, { q: "ai_agent,pro.v2" });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`full_name.ilike.%ai\_agent\,pro\.v2%,username.ilike.%ai\_agent\,pro\.v2%,bio.ilike.%ai\_agent\,pro\.v2%`
+    );
+  });
+
   it("filters by availability when available=true", () => {
     buildAgentsQuery(mock.client, { available: "true" });
 
@@ -52,6 +60,14 @@ describe("buildAgentsQuery", () => {
 
     expect(mock.chain.or).toHaveBeenCalledWith('skills.cs.{"react"},ai_tools.cs.{"react"}');
     expect(mock.chain.or).toHaveBeenCalledWith('skills.cs.{"node"},ai_tools.cs.{"node"}');
+  });
+
+  it("escapes PostgREST array literal syntax in tag filters", () => {
+    buildAgentsQuery(mock.client, { tags: ['react,"admin"}'] });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`skills.cs.{"react\,\"admin\"\}"},ai_tools.cs.{"react\,\"admin\"\}"}`
+    );
   });
 
   it("sorts by rate_high descending", () => {

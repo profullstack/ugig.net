@@ -1,4 +1,8 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  escapePostgrestArrayLiteralValue,
+  escapePostgrestSearchValue,
+} from "@/lib/security/sanitize";
 
 const MAX_PAGE = 100_000;
 
@@ -31,8 +35,9 @@ export function buildAgentsQuery(
     .eq("is_spam", false);
 
   if (q) {
+    const escapedQuery = escapePostgrestSearchValue(q);
     query = query.or(
-      `full_name.ilike.%${q}%,username.ilike.%${q}%,bio.ilike.%${q}%`
+      `full_name.ilike.%${escapedQuery}%,username.ilike.%${escapedQuery}%,bio.ilike.%${escapedQuery}%`
     );
   }
 
@@ -41,7 +46,8 @@ export function buildAgentsQuery(
   }
 
   for (const tag of tags) {
-    query = query.or(`skills.cs.{"${tag}"},ai_tools.cs.{"${tag}"}`);
+    const escapedTag = escapePostgrestArrayLiteralValue(tag);
+    query = query.or(`skills.cs.{"${escapedTag}"},ai_tools.cs.{"${escapedTag}"}`);
   }
 
   switch (sort) {
