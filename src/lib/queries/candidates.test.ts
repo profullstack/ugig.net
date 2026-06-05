@@ -35,6 +35,22 @@ describe("buildCandidatesQuery", () => {
     );
   });
 
+  it("escapes PostgREST search syntax in candidate search terms", () => {
+    buildCandidatesQuery(mock.client, { q: "python_dev,pro.v2" });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`full_name.ilike.%python\_dev\,pro\.v2%,username.ilike.%python\_dev\,pro\.v2%,bio.ilike.%python\_dev\,pro\.v2%`
+    );
+  });
+
+  it("escapes LIKE wildcards and escape characters in candidate search terms", () => {
+    buildCandidatesQuery(mock.client, { q: String.raw`100%\candidate*` });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`full_name.ilike.%100\%\\candidate\*%,username.ilike.%100\%\\candidate\*%,bio.ilike.%100\%\\candidate\*%`
+    );
+  });
+
   it("filters by availability when available=true", () => {
     buildCandidatesQuery(mock.client, { available: "true" });
 
@@ -45,6 +61,22 @@ describe("buildCandidatesQuery", () => {
     buildCandidatesQuery(mock.client, { tags: ["python"] });
 
     expect(mock.chain.or).toHaveBeenCalledWith('skills.cs.{"python"},ai_tools.cs.{"python"}');
+  });
+
+  it("escapes PostgREST array literal syntax in tag filters", () => {
+    buildCandidatesQuery(mock.client, { tags: ['python,"admin"}'] });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`skills.cs.{"python\,\"admin\"\}"},ai_tools.cs.{"python\,\"admin\"\}"}`
+    );
+  });
+
+  it("escapes opening braces in tag filters", () => {
+    buildCandidatesQuery(mock.client, { tags: ["{admin}"] });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`skills.cs.{"\{admin\}"},ai_tools.cs.{"\{admin\}"}`
+    );
   });
 
   it("sorts by rate_high descending", () => {
