@@ -110,11 +110,11 @@ describe("GET /api/users/search", () => {
 
     mockLimit.mockResolvedValue({ data: [], error: null });
 
-    await GET(makeRequest("/api/users/search?q=ai_agent,pro.v2"));
+    await GET(makeRequest("/api/users/search?q=100%*ai_agent,pro.v2"));
 
     expect(mockIlike).toHaveBeenCalledWith(
       "username",
-      String.raw`ai\_agent\,pro\.v2%`
+      String.raw`100\%\*ai\_agent\,pro\.v2%`
     );
   });
 
