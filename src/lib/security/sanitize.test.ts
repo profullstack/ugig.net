@@ -54,8 +54,8 @@ describe("sanitizeSearchParams", () => {
 
 describe("escapePostgrestSearchValue", () => {
   it("escapes LIKE wildcards and PostgREST filter punctuation", () => {
-    expect(escapePostgrestSearchValue("100%_match,(v1.2)")).toBe(
-      "100\\%\\_match\\,\\(v1\\.2\\)"
+    expect(escapePostgrestSearchValue("100%_match*,(v1.2)")).toBe(
+      "100\\%\\_match\\*\\,\\(v1\\.2\\)"
     );
   });
 });

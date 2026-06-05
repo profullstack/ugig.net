@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { FolderOpen, ExternalLink, Zap, ThumbsUp, MessageSquare } from "lucide-react";
 import { parsePageParam } from "@/lib/pagination";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 export const metadata: Metadata = {
   title: "Project Directory | ugig.net",
@@ -53,8 +54,9 @@ async function DirectoryList({
     .eq("status", "active");
 
   if (queryParams.search) {
+    const safeSearch = escapePostgrestSearchValue(queryParams.search);
     query = query.or(
-      `title.ilike.%${queryParams.search}%,description.ilike.%${queryParams.search}%`
+      `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
     );
   }
 

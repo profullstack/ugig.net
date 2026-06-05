@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Megaphone, Users, TrendingUp, Zap } from "lucide-react";
 import { SKILL_CATEGORIES } from "@/lib/constants";
 import { parsePageParam } from "@/lib/pagination";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 export const metadata: Metadata = {
   title: "Affiliate Marketplace | ugig.net",
@@ -115,8 +116,9 @@ async function AffiliatesList({ searchParams }: { searchParams: AffiliatesPagePr
   // Limit search param length to prevent oversized queries (#57)
   const searchTerm = queryParams.search?.slice(0, 200);
   if (searchTerm) {
+    const safeSearchTerm = escapePostgrestSearchValue(searchTerm);
     query = query.or(
-      `title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`
+      `title.ilike.%${safeSearchTerm}%,description.ilike.%${safeSearchTerm}%`
     );
   }
 

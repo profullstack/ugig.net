@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Package, Star, Download, Zap, ShieldCheck, ShieldAlert, ShieldX, Shield } from "lucide-react";
 import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS } from "@/lib/constants";
 import { parsePageParam } from "@/lib/pagination";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 export const metadata: Metadata = {
   title: "AI Agent Skills Marketplace | ugig.net",
@@ -68,8 +69,9 @@ async function SkillsList({ searchParams }: { searchParams: SkillsPageProps["sea
     .eq("status", "active");
 
   if (queryParams.search) {
+    const safeSearch = escapePostgrestSearchValue(queryParams.search);
     query = query.or(
-      `title.ilike.%${queryParams.search}%,description.ilike.%${queryParams.search}%,tagline.ilike.%${queryParams.search}%`
+      `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%,tagline.ilike.%${safeSearch}%`
     );
   }
 

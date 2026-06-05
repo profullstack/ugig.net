@@ -11,6 +11,7 @@ import { FileText, Star, Download, Zap } from "lucide-react";
 import { PROMPT_CATEGORIES } from "@/lib/constants";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { parsePageParam } from "@/lib/pagination";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 export const metadata: Metadata = {
   title: "Prompt Marketplace | ugig.net",
@@ -69,8 +70,9 @@ async function PromptList({ searchParams }: { searchParams: PromptsPageProps["se
     .eq("status", "active");
 
   if (queryParams.search) {
+    const safeSearch = escapePostgrestSearchValue(queryParams.search);
     query = query.or(
-      `title.ilike.%${queryParams.search}%,description.ilike.%${queryParams.search}%,tagline.ilike.%${queryParams.search}%`
+      `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%,tagline.ilike.%${safeSearch}%`
     );
   }
 

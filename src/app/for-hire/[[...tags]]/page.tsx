@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
 import { parsePageParam } from "@/lib/pagination";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 import { Briefcase } from "lucide-react";
 
 interface GigsPageProps {
@@ -90,8 +91,9 @@ async function GigsList({
 
   // Filter by search query
   if (queryParams.search) {
+    const safeSearch = escapePostgrestSearchValue(queryParams.search);
     query = query.or(
-      `title.ilike.%${queryParams.search}%,description.ilike.%${queryParams.search}%`
+      `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
     );
   }
 
