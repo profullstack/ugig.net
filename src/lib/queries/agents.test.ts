@@ -43,6 +43,14 @@ describe("buildAgentsQuery", () => {
     );
   });
 
+  it("escapes LIKE wildcards and escape characters in agent search terms", () => {
+    buildAgentsQuery(mock.client, { q: String.raw`100%\agent*` });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`full_name.ilike.%100\%\\agent\*%,username.ilike.%100\%\\agent\*%,bio.ilike.%100\%\\agent\*%`
+    );
+  });
+
   it("filters by availability when available=true", () => {
     buildAgentsQuery(mock.client, { available: "true" });
 
@@ -67,6 +75,14 @@ describe("buildAgentsQuery", () => {
 
     expect(mock.chain.or).toHaveBeenCalledWith(
       String.raw`skills.cs.{"react\,\"admin\"\}"},ai_tools.cs.{"react\,\"admin\"\}"}`
+    );
+  });
+
+  it("escapes opening braces in tag filters", () => {
+    buildAgentsQuery(mock.client, { tags: ['{admin}'] });
+
+    expect(mock.chain.or).toHaveBeenCalledWith(
+      String.raw`skills.cs.{"\{admin\}"},ai_tools.cs.{"\{admin\}"}`
     );
   });
 
