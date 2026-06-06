@@ -54,6 +54,35 @@ describe("POST /api/affiliates/offers/[id]/conversions/pay", () => {
     vi.clearAllMocks();
   });
 
+  it("rejects non-string conversion_id before querying conversions (#422)", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller-1", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "seller-1",
+        });
+      }
+      return chainable(null);
+    });
+
+    const res = await POST(
+      makePostRequest("offer-1", { conversion_id: { id: "conv-1" } }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "conversion_id must be a non-empty string",
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
+    expect(mockInternalTransfer).not.toHaveBeenCalled();
+  });
+
   it("rejects pending conversions before their settlement date", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "seller-1", authMethod: "session" },

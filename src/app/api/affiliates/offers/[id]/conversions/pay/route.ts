@@ -37,15 +37,19 @@ export async function POST(
     const body = await request.json();
     const { conversion_id } = body;
 
-    if (!conversion_id) {
-      return NextResponse.json({ error: "conversion_id is required" }, { status: 400 });
+    if (typeof conversion_id !== "string" || conversion_id.trim() === "") {
+      return NextResponse.json(
+        { error: "conversion_id must be a non-empty string" },
+        { status: 400 }
+      );
     }
+    const conversionId = conversion_id.trim();
 
     // Get the conversion
     const { data: conv } = await (admin as AnySupabase)
       .from("affiliate_conversions")
       .select("id, affiliate_id, commission_sats, status, settles_at")
-      .eq("id", conversion_id)
+      .eq("id", conversionId)
       .eq("offer_id", id)
       .single();
 
@@ -104,7 +108,7 @@ export async function POST(
         status: "paid",
         paid_at: new Date().toISOString(),
       })
-      .eq("id", conversion_id);
+      .eq("id", conversionId);
 
     // Record wallet transactions for both parties
     await (admin as AnySupabase)
