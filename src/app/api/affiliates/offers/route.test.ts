@@ -231,6 +231,44 @@ describe("POST /api/affiliates/offers", () => {
     expect(insertData.title).not.toContain("<b>");
   });
 
+  it("falls back to a non-empty slug when the title has no slug-safe characters", async () => {
+    mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
+
+    const insertMock = vi.fn().mockReturnValue({
+      select: () => ({
+        single: () => Promise.resolve({
+          data: { id: "new-id", slug: "offer", title: "🔥🔥🔥" },
+          error: null,
+        }),
+      }),
+    });
+
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+      insert: insertMock,
+    });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "🔥🔥🔥",
+        description: "A description that is long enough for validation",
+        price_sats: 1000,
+        commission_type: "percentage",
+        commission_rate: 0.2,
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const insertData = insertMock.mock.calls[0][0];
+    expect(insertData.slug).toBe("offer");
+  });
+
   it("rejects negative commission_flat_sats (#23)", async () => {
     mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
 
