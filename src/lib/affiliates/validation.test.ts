@@ -170,6 +170,15 @@ describe("validateOfferInput", () => {
     expect(result.errors.some((e) => e.includes("10 tags"))).toBe(true);
   });
 
+  it("rejects non-string tags before sanitizing", () => {
+    const result = validateOfferInput({
+      ...validInput,
+      tags: ["valid", 123] as any,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("tags") && e.includes("strings"))).toBe(true);
+  });
+
   it("rejects title shorter than 3 characters", () => {
     const result = validateOfferInput({ ...validInput, title: "AB" });
     expect(result.ok).toBe(false);

@@ -121,8 +121,17 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
     errors.push(`Category must be one of: ${SKILL_CATEGORIES.join(", ")}`);
   }
 
-  if (input.tags && input.tags.length > 10) {
-    errors.push("Maximum 10 tags");
+  if (input.tags !== undefined) {
+    if (!Array.isArray(input.tags)) {
+      errors.push("tags must be an array");
+    } else {
+      if (input.tags.length > 10) {
+        errors.push("Maximum 10 tags");
+      }
+      if (input.tags.some((tag) => typeof tag !== "string")) {
+        errors.push("tags must be strings");
+      }
+    }
   }
 
   if (errors.length > 0) {
