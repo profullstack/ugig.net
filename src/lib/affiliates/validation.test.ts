@@ -105,6 +105,19 @@ describe("validateOfferInput", () => {
     expect(result.errors.some((e) => e.includes("price_sats"))).toBe(true);
   });
 
+  it("rejects non-string title, description, and product_url before string sanitizers run", () => {
+    const titleResult = validateOfferInput({ ...validInput, title: 123 as any });
+    const descriptionResult = validateOfferInput({ ...validInput, description: 123 as any });
+    const productUrlResult = validateOfferInput({ ...validInput, product_url: 123 as any });
+
+    expect(titleResult.ok).toBe(false);
+    expect(titleResult.errors.some((e) => e.includes("title") && e.includes("string"))).toBe(true);
+    expect(descriptionResult.ok).toBe(false);
+    expect(descriptionResult.errors.some((e) => e.includes("description") && e.includes("string"))).toBe(true);
+    expect(productUrlResult.ok).toBe(false);
+    expect(productUrlResult.errors.some((e) => e.includes("product_url") && e.includes("string"))).toBe(true);
+  });
+
   it("trims whitespace-only product_url to undefined", () => {
     const result = validateOfferInput({
       ...validInput,

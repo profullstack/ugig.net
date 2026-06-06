@@ -41,26 +41,37 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
   const errors: string[] = [];
 
   // Strip HTML tags from title and description (#26)
-  if (input.title) {
-    input.title = stripHtmlTags(input.title);
-  }
-  if (input.description) {
-    input.description = stripHtmlTags(input.description);
+  if (input.title !== undefined && typeof input.title !== "string") {
+    errors.push("title must be a string");
+  } else {
+    if (input.title) {
+      input.title = stripHtmlTags(input.title);
+    }
+
+    if (!input.title || input.title.trim().length < 3) {
+      errors.push("Title must be at least 3 characters");
+    }
+    if (input.title && input.title.length > 200) {
+      errors.push("Title must be under 200 characters");
+    }
   }
 
-  if (!input.title || input.title.trim().length < 3) {
-    errors.push("Title must be at least 3 characters");
-  }
-  if (input.title && input.title.length > 200) {
-    errors.push("Title must be under 200 characters");
-  }
+  if (input.description !== undefined && typeof input.description !== "string") {
+    errors.push("description must be a string");
+  } else {
+    if (input.description) {
+      input.description = stripHtmlTags(input.description);
+    }
 
-  if (!input.description || input.description.trim().length < 10) {
-    errors.push("Description must be at least 10 characters");
+    if (!input.description || input.description.trim().length < 10) {
+      errors.push("Description must be at least 10 characters");
+    }
   }
 
   // Normalize product_url — trim whitespace, treat blank as null (#18 - XSS prevention)
-  if (input.product_url) {
+  if (input.product_url !== undefined && input.product_url !== null && typeof input.product_url !== "string") {
+    errors.push("product_url must be a string");
+  } else if (input.product_url) {
     input.product_url = input.product_url.trim();
     if (input.product_url.length === 0) {
       input.product_url = undefined;
