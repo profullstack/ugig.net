@@ -103,10 +103,14 @@ export async function PATCH(
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.description !== undefined) updateData.description = body.description.trim();
     if (body.product_url !== undefined) {
-      if (body.product_url && body.product_url.trim().length > 0 && !isValidUrl(body.product_url.trim())) {
+      if (body.product_url !== null && typeof body.product_url !== "string") {
+        return NextResponse.json({ error: "product_url must be a string" }, { status: 400 });
+      }
+      const productUrl = typeof body.product_url === "string" ? body.product_url.trim() : "";
+      if (productUrl.length > 0 && !isValidUrl(productUrl)) {
         return NextResponse.json({ error: "product_url must use http:// or https:// scheme" }, { status: 400 });
       }
-      updateData.product_url = body.product_url.trim() || null;
+      updateData.product_url = productUrl || null;
     }
     if (body.product_type !== undefined) updateData.product_type = body.product_type;
     if (body.price_sats !== undefined) updateData.price_sats = body.price_sats;
