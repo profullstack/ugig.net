@@ -4,6 +4,47 @@ export type Json = string | number | boolean | null | {
 export type Database = {
     public: {
         Tables: {
+            activities: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    activity_type: string;
+                    reference_id: string | null;
+                    reference_type: string | null;
+                    metadata: Json;
+                    is_public: boolean;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    activity_type: string;
+                    reference_id?: string | null;
+                    reference_type?: string | null;
+                    metadata?: Json;
+                    is_public?: boolean;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    activity_type?: string;
+                    reference_id?: string | null;
+                    reference_type?: string | null;
+                    metadata?: Json;
+                    is_public?: boolean;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "activities_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             profiles: {
                 Row: {
                     id: string;

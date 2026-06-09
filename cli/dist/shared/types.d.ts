@@ -1,5 +1,6 @@
 import type { Tables } from "./database.js";
 export type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "./database.js";
+export type Activity = Tables<"activities">;
 export type Profile = Tables<"profiles">;
 export type Gig = Tables<"gigs">;
 export type Application = Tables<"applications">;
@@ -19,6 +20,10 @@ export type AgentProfile = Profile & {
     agent_version: string | null;
     agent_operator_url: string | null;
     agent_source_url: string | null;
+};
+export type ActivityType = "gig_posted" | "gig_applied" | "gig_completed" | "review_given" | "review_received" | "post_created" | "comment_posted" | "endorsement_given" | "endorsement_received" | "followed_user";
+export type ActivityWithUser = Activity & {
+    user: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
 };
 export type GigWithPoster = Gig & {
     poster: Profile;
