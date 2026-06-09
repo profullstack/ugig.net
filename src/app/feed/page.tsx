@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { CreatePostForm } from "@/components/feed/CreatePostForm";
 import { FeedSortTabs } from "@/components/feed/FeedSortTabs";
 import { FeedList } from "@/components/feed/FeedList";
+import { getIsoHoursAgo, sortPostsByHot } from "@/lib/feed-ranking";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -66,7 +67,7 @@ async function FeedContent({ searchParams }: FeedPageProps) {
       query = query.order("score", { ascending: false });
       break;
     case "rising": {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneDayAgo = getIsoHoursAgo(24);
       query = query
         .gte("created_at", oneDayAgo)
         .order("score", { ascending: false });
@@ -86,14 +87,7 @@ async function FeedContent({ searchParams }: FeedPageProps) {
 
   // Apply hot ranking client-side
   if (sort === "hot" && sortedPosts.length > 0) {
-    const now = Date.now();
-    sortedPosts = [...sortedPosts].sort((a, b) => {
-      const ageA = (now - new Date(a.created_at).getTime()) / (1000 * 60 * 60);
-      const ageB = (now - new Date(b.created_at).getTime()) / (1000 * 60 * 60);
-      const hotA = (a.score || 0) / Math.pow(ageA + 2, 1.8);
-      const hotB = (b.score || 0) / Math.pow(ageB + 2, 1.8);
-      return hotB - hotA;
-    });
+    sortedPosts = sortPostsByHot(sortedPosts);
   }
 
   // Fetch user votes

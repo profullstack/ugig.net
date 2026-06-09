@@ -100,8 +100,12 @@ describe("StartVideoCallButton", () => {
   });
 
   it("shows loading state while creating call", async () => {
+    let resolveCreate: (value: { data: { data: { id: string } }; error: null }) => void;
     vi.mocked(videoCalls.create).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: { data: { id: "call-123" } }, error: null }), 100))
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
     );
 
     render(<StartVideoCallButton participantId="user-456" />);
@@ -111,11 +115,20 @@ describe("StartVideoCallButton", () => {
 
     // Button should be disabled during loading
     expect(button).toBeDisabled();
+
+    resolveCreate!({ data: { data: { id: "call-123" } }, error: null });
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/calls/call-123");
+    });
   });
 
   it("disables button while loading", async () => {
+    let resolveCreate: (value: { data: { data: { id: string } }; error: null }) => void;
     vi.mocked(videoCalls.create).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: { data: { id: "call-123" } }, error: null }), 100))
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
     );
 
     render(<StartVideoCallButton participantId="user-456" />);
@@ -124,6 +137,11 @@ describe("StartVideoCallButton", () => {
     fireEvent.click(button);
 
     expect(button).toBeDisabled();
+
+    resolveCreate!({ data: { data: { id: "call-123" } }, error: null });
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/calls/call-123");
+    });
   });
 
   it("does not navigate on API error", async () => {

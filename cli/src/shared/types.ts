@@ -66,6 +66,11 @@ export type VideoCallWithParticipants = VideoCall & {
   gig?: Pick<Gig, "id" | "title"> | null;
 };
 
+export type PostWithAuthor = Post & {
+  author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type">;
+  user_vote?: number | null;
+};
+
 // Action result types
 export type ActionResult<T = void> = {
   success: boolean;

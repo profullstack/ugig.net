@@ -164,6 +164,32 @@ export declare const createApiKeySchema: z.ZodObject<{
 export declare const revokeApiKeySchema: z.ZodObject<{
     id: z.ZodString;
 }, z.core.$strip>;
+export declare const postSchema: z.ZodObject<{
+    content: z.ZodString;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    post_type: z.ZodDefault<z.ZodEnum<{
+        link: "link";
+        text: "text";
+        showcase: "showcase";
+    }>>;
+    tags: z.ZodDefault<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export declare const postUpdateSchema: z.ZodObject<{
+    content: z.ZodOptional<z.ZodString>;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export declare const feedFiltersSchema: z.ZodObject<{
+    sort: z.ZodDefault<z.ZodEnum<{
+        top: "top";
+        hot: "hot";
+        new: "new";
+        rising: "rising";
+    }>>;
+    tag: z.ZodOptional<z.ZodString>;
+    page: z.ZodDefault<z.ZodNumber>;
+    limit: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -178,3 +204,6 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type PostInput = z.infer<typeof postSchema>;
+export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
+export type FeedFiltersInput = z.infer<typeof feedFiltersSchema>;

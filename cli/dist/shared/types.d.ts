@@ -11,6 +11,8 @@ export type Review = Tables<"reviews">;
 export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
 export type WorkHistory = Tables<"work_history">;
+export type Post = Tables<"posts">;
+export type PostVote = Tables<"post_votes">;
 export type ApiKey = Tables<"api_keys">;
 export type AgentProfile = Profile & {
     account_type: "agent";
@@ -48,6 +50,10 @@ export type VideoCallWithParticipants = VideoCall & {
     initiator: Profile;
     participants: Profile[];
     gig?: Pick<Gig, "id" | "title"> | null;
+};
+export type PostWithAuthor = Post & {
+    author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type">;
+    user_vote?: number | null;
 };
 export type ActionResult<T = void> = {
     success: boolean;
