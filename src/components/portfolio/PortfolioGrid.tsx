@@ -13,6 +13,14 @@ interface PortfolioGridProps {
   isOwner?: boolean;
 }
 
+async function loadPortfolioItems(userId: string) {
+  const result = await portfolioApi.list(userId);
+  return (
+    (result.data as { portfolio_items: PortfolioItemWithGig[] } | null)
+      ?.portfolio_items || []
+  );
+}
+
 export function PortfolioGrid({ userId, isOwner = false }: PortfolioGridProps) {
   const [items, setItems] = useState<PortfolioItemWithGig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,18 +29,23 @@ export function PortfolioGrid({ userId, isOwner = false }: PortfolioGridProps) {
 
   const fetchItems = useCallback(async () => {
     setIsLoading(true);
-    const result = await portfolioApi.list(userId);
-    if (result.data) {
-      setItems(
-        (result.data as { portfolio_items: PortfolioItemWithGig[] }).portfolio_items || []
-      );
-    }
+    setItems(await loadPortfolioItems(userId));
     setIsLoading(false);
   }, [userId]);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    let isMounted = true;
+
+    loadPortfolioItems(userId).then((portfolioItems) => {
+      if (!isMounted) return;
+      setItems(portfolioItems);
+      setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   const handleEdit = (item: PortfolioItemWithGig) => {
     setEditingItem(item);
