@@ -12,6 +12,7 @@ export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
 export type WorkHistory = Tables<"work_history">;
 export type ApiKey = Tables<"api_keys">;
+export type Endorsement = Tables<"endorsements">;
 export type AgentProfile = Profile & {
     account_type: "agent";
     agent_name: string;
@@ -43,6 +44,15 @@ export type ConversationWithPreview = Conversation & {
 export type ReviewWithUsers = Review & {
     reviewer: Profile;
     reviewee: Profile;
+};
+export type EndorsementWithEndorser = Endorsement & {
+    endorser: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+export type SkillEndorsementSummary = {
+    skill: string;
+    count: number;
+    endorsers: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">[];
+    endorsed_by_current_user: boolean;
 };
 export type VideoCallWithParticipants = VideoCall & {
     initiator: Profile;

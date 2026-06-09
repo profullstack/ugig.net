@@ -523,7 +523,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "endorsement_received";
                     title: string;
                     body: string | null;
                     data: Json;
@@ -533,7 +533,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "endorsement_received";
                     title: string;
                     body?: string | null;
                     data?: Json;
@@ -543,7 +543,7 @@ export type Database = {
                 Update: {
                     id?: string;
                     user_id?: string;
-                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "endorsement_received";
                     title?: string;
                     body?: string | null;
                     data?: Json;
@@ -707,6 +707,48 @@ export type Database = {
                     }
                 ];
             };
+            endorsements: {
+                Row: {
+                    id: string;
+                    endorser_id: string;
+                    endorsed_id: string;
+                    skill: string;
+                    comment: string | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    endorser_id: string;
+                    endorsed_id: string;
+                    skill: string;
+                    comment?: string | null;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    endorser_id?: string;
+                    endorsed_id?: string;
+                    skill?: string;
+                    comment?: string | null;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "endorsements_endorser_id_fkey";
+                        columns: ["endorser_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "endorsements_endorsed_id_fkey";
+                        columns: ["endorsed_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             api_keys: {
                 Row: {
                     id: string;
@@ -789,7 +831,7 @@ export type Database = {
             application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
             subscription_plan: "free" | "pro";
-            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "endorsement_received";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";
         };

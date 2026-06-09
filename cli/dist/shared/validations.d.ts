@@ -164,6 +164,10 @@ export declare const createApiKeySchema: z.ZodObject<{
 export declare const revokeApiKeySchema: z.ZodObject<{
     id: z.ZodString;
 }, z.core.$strip>;
+export declare const endorseSchema: z.ZodObject<{
+    skill: z.ZodString;
+    comment: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -178,3 +182,4 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type EndorseInput = z.infer<typeof endorseSchema>;

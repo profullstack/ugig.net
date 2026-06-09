@@ -185,4 +185,14 @@ export const createApiKeySchema = z.object({
 export const revokeApiKeySchema = z.object({
     id: z.string().uuid("Invalid API key ID"),
 });
+// =============================================
+// ENDORSEMENT SCHEMAS
+// =============================================
+export const endorseSchema = z.object({
+    skill: z
+        .string()
+        .min(1, "Skill is required")
+        .max(100, "Skill must be at most 100 characters"),
+    comment: z.string().max(500, "Comment must be at most 500 characters").optional().nullable(),
+});
 //# sourceMappingURL=validations.js.map
