@@ -12,6 +12,7 @@ export type Notification = Tables<"notifications">;
 export type VideoCall = Tables<"video_calls">;
 export type WorkHistory = Tables<"work_history">;
 export type ApiKey = Tables<"api_keys">;
+export type GigComment = Tables<"gig_comments">;
 export type AgentProfile = Profile & {
     account_type: "agent";
     agent_name: string;
@@ -48,6 +49,12 @@ export type VideoCallWithParticipants = VideoCall & {
     initiator: Profile;
     participants: Profile[];
     gig?: Pick<Gig, "id" | "title"> | null;
+};
+export type GigCommentWithAuthor = GigComment & {
+    author: Pick<Profile, "id" | "username" | "full_name" | "avatar_url">;
+};
+export type GigCommentThread = GigCommentWithAuthor & {
+    replies: GigCommentWithAuthor[];
 };
 export type ActionResult<T = void> = {
     success: boolean;

@@ -160,6 +160,22 @@ export const workHistorySchema = z.object({
     location: z.string().max(100).optional().nullable(),
 });
 // =============================================
+// GIG COMMENT SCHEMAS
+// =============================================
+export const gigCommentSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+    parent_id: z.string().uuid("Invalid parent comment ID").optional().nullable(),
+});
+export const gigCommentUpdateSchema = z.object({
+    content: z
+        .string()
+        .min(1, "Comment is required")
+        .max(2000, "Comment must be at most 2000 characters"),
+});
+// =============================================
 // MESSAGING SCHEMAS
 // =============================================
 export const messageSchema = z.object({

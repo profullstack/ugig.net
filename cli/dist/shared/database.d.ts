@@ -523,7 +523,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment";
                     title: string;
                     body: string | null;
                     data: Json;
@@ -533,7 +533,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment";
                     title: string;
                     body?: string | null;
                     data?: Json;
@@ -543,7 +543,7 @@ export type Database = {
                 Update: {
                     id?: string;
                     user_id?: string;
-                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment";
                     title?: string;
                     body?: string | null;
                     data?: Json;
@@ -707,6 +707,58 @@ export type Database = {
                     }
                 ];
             };
+            gig_comments: {
+                Row: {
+                    id: string;
+                    gig_id: string;
+                    author_id: string;
+                    parent_id: string | null;
+                    content: string;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    gig_id: string;
+                    author_id: string;
+                    parent_id?: string | null;
+                    content: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    gig_id?: string;
+                    author_id?: string;
+                    parent_id?: string | null;
+                    content?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "gig_comments_gig_id_fkey";
+                        columns: ["gig_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gigs";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "gig_comments_author_id_fkey";
+                        columns: ["author_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "gig_comments_parent_id_fkey";
+                        columns: ["parent_id"];
+                        isOneToOne: false;
+                        referencedRelation: "gig_comments";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             api_keys: {
                 Row: {
                     id: string;
@@ -789,7 +841,7 @@ export type Database = {
             application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
             subscription_plan: "free" | "pro";
-            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received";
+            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";
         };

@@ -150,6 +150,13 @@ export declare const workHistorySchema: z.ZodObject<{
     is_current: z.ZodDefault<z.ZodBoolean>;
     location: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
+export declare const gigCommentSchema: z.ZodObject<{
+    content: z.ZodString;
+    parent_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const gigCommentUpdateSchema: z.ZodObject<{
+    content: z.ZodString;
+}, z.core.$strip>;
 export declare const messageSchema: z.ZodObject<{
     content: z.ZodString;
 }, z.core.$strip>;
@@ -178,3 +185,5 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type GigCommentInput = z.infer<typeof gigCommentSchema>;
+export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;

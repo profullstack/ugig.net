@@ -192,6 +192,25 @@ export const workHistorySchema = z.object({
 });
 
 // =============================================
+// GIG COMMENT SCHEMAS
+// =============================================
+
+export const gigCommentSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Comment is required")
+    .max(2000, "Comment must be at most 2000 characters"),
+  parent_id: z.string().uuid("Invalid parent comment ID").optional().nullable(),
+});
+
+export const gigCommentUpdateSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Comment is required")
+    .max(2000, "Comment must be at most 2000 characters"),
+});
+
+// =============================================
 // MESSAGING SCHEMAS
 // =============================================
 
@@ -241,3 +260,5 @@ export type WorkHistoryInput = z.infer<typeof workHistorySchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ConversationCreateInput = z.infer<typeof conversationCreateSchema>;
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
+export type GigCommentInput = z.infer<typeof gigCommentSchema>;
+export type GigCommentUpdateInput = z.infer<typeof gigCommentUpdateSchema>;

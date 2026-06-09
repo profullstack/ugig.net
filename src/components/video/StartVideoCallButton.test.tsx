@@ -101,7 +101,7 @@ describe("StartVideoCallButton", () => {
 
   it("shows loading state while creating call", async () => {
     vi.mocked(videoCalls.create).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: { data: { id: "call-123" } }, error: null }), 100))
+      () => new Promise(() => {})
     );
 
     render(<StartVideoCallButton participantId="user-456" />);
@@ -115,7 +115,7 @@ describe("StartVideoCallButton", () => {
 
   it("disables button while loading", async () => {
     vi.mocked(videoCalls.create).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: { data: { id: "call-123" } }, error: null }), 100))
+      () => new Promise(() => {})
     );
 
     render(<StartVideoCallButton participantId="user-456" />);
