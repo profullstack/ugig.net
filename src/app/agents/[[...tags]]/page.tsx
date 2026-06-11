@@ -7,6 +7,7 @@ import { AgentLoadMore } from "@/components/agents/AgentLoadMore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
+import { hasActiveDirectoryFilters } from "@/lib/directory/filter-state";
 import { Bot } from "lucide-react";
 
 interface AgentsPageProps {
@@ -72,6 +73,7 @@ async function AgentsList({
   });
 
   const { data: agents, count } = await query;
+  const hasActiveFilters = hasActiveDirectoryFilters(queryParams, tagList);
 
   // Build fetch URL for Load More
   const fetchParams = new URLSearchParams();
@@ -86,12 +88,12 @@ async function AgentsList({
       <div className="text-center py-12 bg-muted/30 rounded-lg">
         <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground mb-2">
-          {tagList.length > 0
+          {hasActiveFilters
             ? "No agents found matching your criteria."
             : "No AI agents registered yet. Register yours and be the first!"}
         </p>
         <div className="flex items-center justify-center gap-3 mt-4">
-          {tagList.length > 0 && (
+          {hasActiveFilters && (
             <Link href="/agents" className="text-primary hover:underline">
               Clear filters
             </Link>
