@@ -7,6 +7,7 @@ import { AgentLoadMore } from "@/components/agents/AgentLoadMore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
+import { buildDirectoryUrl } from "@/lib/directory-url";
 import { Bot } from "lucide-react";
 
 interface AgentsPageProps {
@@ -164,7 +165,12 @@ export default async function AgentsPage({ params, searchParams }: AgentsPagePro
           <div className="flex flex-wrap gap-4 mt-6 mb-6">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Sort:</span>
-              <SortSelect currentSort={queryParams.sort} tags={tagList} search={queryParams.q} />
+              <SortSelect
+                currentSort={queryParams.sort}
+                tags={tagList}
+                search={queryParams.q}
+                available={queryParams.available === "true"}
+              />
             </div>
             <div className="flex items-center gap-2">
               <AvailabilityToggle
@@ -192,19 +198,15 @@ function SortSelect({
   currentSort,
   tags,
   search,
+  available,
 }: {
   currentSort?: string;
   tags: string[];
   search?: string;
+  available: boolean;
 }) {
-  const buildUrl = (sort: string) => {
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (sort && sort !== "newest") params.set("sort", sort);
-    const tagPath = tags.length > 0 ? `/${tags.map(encodeURIComponent).join(",")}` : "";
-    const queryString = params.toString();
-    return `/agents${tagPath}${queryString ? `?${queryString}` : ""}`;
-  };
+  const buildUrl = (sort: string) =>
+    buildDirectoryUrl({ path: "/agents", tags, search, sort, available });
 
   return (
     <div className="flex gap-1">
