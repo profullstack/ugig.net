@@ -87,7 +87,22 @@ export function registerInvoicesCommands(program: Command): void {
     .command("create <gig-id>")
     .description("Create an invoice for an accepted gig application (worker pays out via CoinPay)")
     .requiredOption("--application-id <id>", "Application ID")
-    .requiredOption("--amount <usd>", "Amount in the gig's native unit (USD or sats)")
+    .option(
+      "--amount <usd>",
+      "Total amount in the gig's native unit (USD or sats). Optional when --item is used."
+    )
+    .option(
+      "--item <spec>",
+      'Line item as "description|qty|unit_price[|link]" (repeatable). ' +
+        'Link is an optional GitHub PR or PR-search URL, e.g. ' +
+        '"Pull requests|8|1|https://github.com/org/repo/pulls?q=is:pr+is:merged+author:you"',
+      (value: string, previous: string[]) => previous.concat(value),
+      [] as string[]
+    )
+    .option(
+      "--pr-links <urls>",
+      "Comma-separated GitHub PR links (or a PR search URL) for the merged work this invoice bills"
+    )
     .requiredOption(
       "--payment-currency <currency>",
       "CoinPay receiving currency (e.g. usdc_pol, btc, eth). Run `ugig coinpay wallets` to see options."
@@ -104,7 +119,9 @@ export function registerInvoicesCommands(program: Command): void {
         gigId: string,
         cmdOpts: {
           applicationId: string;
-          amount: string;
+          amount?: string;
+          item: string[];
+          prLinks?: string;
           paymentCurrency: string;
           walletAddress: string;
           currency?: string;
@@ -115,14 +132,41 @@ export function registerInvoicesCommands(program: Command): void {
         const opts = program.opts() as GlobalOpts;
         const spinner = opts.json ? null : ora("Creating invoice...").start();
         try {
+          const items = cmdOpts.item.map((spec) => {
+            const [description = "", qty = "1", unitPrice = "", link = ""] = spec.split("|");
+            const item: Record<string, unknown> = {
+              description: description.trim(),
+              quantity: parseFloat(qty) || 1,
+              unit_price: parseFloat(unitPrice),
+            };
+            if (link.trim()) item.link = link.trim();
+            if (!Number.isFinite(item.unit_price as number) || (item.unit_price as number) <= 0) {
+              throw new Error(
+                `Invalid --item "${spec}" — expected "description|qty|unit_price[|link]" with a positive unit price`
+              );
+            }
+            return item;
+          });
+          if (!cmdOpts.amount && items.length === 0) {
+            throw new Error("Provide --amount or at least one --item");
+          }
+
           const client = createClient(opts);
           const body: Record<string, unknown> = {
             application_id: cmdOpts.applicationId,
-            amount: parseFloat(cmdOpts.amount),
             currency: cmdOpts.currency || "USD",
             payment_currency: cmdOpts.paymentCurrency,
             merchant_wallet_address: cmdOpts.walletAddress,
           };
+          if (cmdOpts.amount) body.amount = parseFloat(cmdOpts.amount);
+          if (items.length > 0) body.items = items;
+          if (cmdOpts.prLinks) {
+            const prLinks = cmdOpts.prLinks
+              .split(",")
+              .map((u) => u.trim())
+              .filter(Boolean);
+            if (prLinks.length > 0) body.pr_links = prLinks;
+          }
           if (cmdOpts.notes) body.notes = cmdOpts.notes;
           if (cmdOpts.dueDate) body.due_date = cmdOpts.dueDate;
 

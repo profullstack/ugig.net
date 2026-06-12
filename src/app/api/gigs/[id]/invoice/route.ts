@@ -7,8 +7,17 @@ import {
   preferredCoinToPaymentCurrency,
 } from "@/lib/coinpayportal";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
+import { isGitHubPrLink } from "@/lib/github-links";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { z } from "zod";
+
+const githubPrLinkSchema = z
+  .string()
+  .url("Each PR link must be a valid URL")
+  .max(500)
+  .refine(isGitHubPrLink, {
+    message: "PR links must be GitHub pull request or PR search URLs",
+  });
 
 const lineItemSchema = z.object({
   description: z.string().max(500).optional().default(""),
@@ -16,6 +25,9 @@ const lineItemSchema = z.object({
   quantity: z.number().positive().optional().default(1),
   unit_price: z.number().positive("Unit price must be positive").optional(),
   amount: z.number().positive("Line item amount must be positive").optional(),
+  // Optional GitHub link backing this charge, e.g. the worker's merged PRs:
+  // "Pull requests (8 x $1.00)" → github.com/org/repo/pulls?q=is:pr+is:merged+author:user
+  link: githubPrLinkSchema.optional(),
 }).refine(
   (d) => (d.unit_price != null && d.unit_price > 0) || (d.amount != null && d.amount > 0),
   { message: "Provide either a unit price or an amount for each line item" }
@@ -25,6 +37,7 @@ const lineItemSchema = z.object({
   unit_price: d.unit_price ?? (d.amount ?? 0),
   // amount is quantity × unit_price; fall back to legacy flat amount
   amount: d.unit_price != null ? (d.quantity ?? 1) * d.unit_price : (d.amount ?? 0),
+  link: d.link ?? null,
 }));
 
 const createInvoiceSchema = z
@@ -38,6 +51,10 @@ const createInvoiceSchema = z
     merchant_wallet_address: z.string().optional(),
     notes: z.string().optional(),
     due_date: z.string().optional(),
+    // Optional links to the merged GitHub PRs this invoice bills for, so the
+    // poster can verify the work without the worker communicating it manually.
+    // Accepts individual PR URLs and PR search URLs (merged PRs by author).
+    pr_links: z.array(githubPrLinkSchema).max(20).optional(),
   })
   .refine(
     (d) =>
@@ -71,7 +88,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         *,
         worker:profiles!worker_id(id, username, full_name, avatar_url),
         poster:profiles!poster_id(id, username, full_name, avatar_url),
-        items:gig_invoice_items(id, description, quantity, unit_price_usd, amount_usd, position)
+        items:gig_invoice_items(id, description, quantity, unit_price_usd, amount_usd, link, position)
       `
       )
       .eq("gig_id", gigId)
@@ -116,7 +133,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       merchant_wallet_address,
       notes,
       due_date,
+      pr_links,
     } = validationResult.data;
+
+    // De-dupe and trim the PR links; an empty array is treated as "none".
+    const prLinks = Array.from(
+      new Set((pr_links ?? []).map((u) => u.trim()).filter(Boolean))
+    );
 
     // The amounts arriving from the client are in the posting's NATIVE unit:
     // sats for SATS/LN/BTC gigs, USD otherwise. We validate them in that unit,
@@ -234,15 +257,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const workerId = application.applicant_id;
     const posterId = gig.poster_id;
 
+    // Retry guard: agents and double-clicks resubmit the same request, so an
+    // identical recent open invoice is returned instead of duplicated. It must
+    // be a *retry* — same amount, unpaid, and recent. A different amount or an
+    // older invoice is a genuinely new invoice ("Send Another Invoice"), which
+    // an earlier version of this check swallowed forever.
     const { data: openInvoices } = await (supabase as any)
       .from("gig_invoices")
-      .select("id, coinpay_invoice_id, pay_url, status, metadata")
+      .select("id, coinpay_invoice_id, pay_url, status, metadata, amount_usd, created_at")
       .eq("application_id", application_id)
-      .in("status", ["draft", "sent", "expired"])
+      .in("status", ["draft", "sent"])
       .order("created_at", { ascending: false })
       .limit(1);
 
-    const openInvoice = openInvoices?.[0] || null;
+    const RETRY_WINDOW_MS = 10 * 60 * 1000;
+    const candidate = openInvoices?.[0] || null;
+    const candidateMeta =
+      candidate?.metadata && typeof candidate.metadata === "object"
+        ? (candidate.metadata as Record<string, unknown>)
+        : {};
+    // Compare in the posting-native unit when recorded (exact — no FX drift
+    // between retries on sats gigs); fall back to the USD total.
+    const candidateAmount =
+      typeof candidateMeta.native_amount === "number"
+        ? candidateMeta.native_amount
+        : Number(candidate?.amount_usd);
+    const requestAmount =
+      typeof candidateMeta.native_amount === "number" ? nativeTotal : total;
+    const openInvoice =
+      candidate &&
+      Math.abs(candidateAmount - requestAmount) < 0.005 &&
+      Date.now() - new Date(candidate.created_at).getTime() < RETRY_WINDOW_MS
+        ? candidate
+        : null;
     if (openInvoice) {
       const metadata =
         openInvoice.metadata && typeof openInvoice.metadata === "object"
@@ -343,6 +390,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           native_unit: nativeUnit,
           native_amount: nativeTotal,
           ...(isSats ? { btc_usd_rate: btcUsd } : {}),
+          ...(prLinks.length > 0 ? { pr_links: prLinks } : {}),
         },
       })
       .select()
@@ -363,6 +411,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         quantity: it.quantity ?? 1,
         unit_price_usd: toUsd(it.unit_price ?? it.amount),
         amount_usd: toUsd(it.amount),
+        link: it.link,
         position: idx,
       }));
       const { error: itemsError } = await (svc as any)
@@ -418,6 +467,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             gigTitle: gig.title,
             amountUsd: total,
             invoiceId: invoice.id,
+            prLinks,
+            items: lineItems.map((it) => ({
+              description: it.description,
+              quantity: it.quantity,
+              unitPriceUsd: toUsd(it.unit_price ?? it.amount),
+              amountUsd: toUsd(it.amount),
+              link: it.link,
+            })),
           });
 
           await sendEmail({ to: posterEmail, ...emailContent });
@@ -443,6 +500,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             quantity: it.quantity ?? 1,
             unit_price_usd: it.unit_price ?? it.amount,
             amount_usd: it.amount,
+            link: it.link,
             position: idx,
           })),
         },

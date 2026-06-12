@@ -4,6 +4,7 @@ interface InvoiceItem {
   quantity?: number | null;
   unit_price_usd?: number | null;
   amount_usd: number;
+  link?: string | null;
   position: number;
 }
 
@@ -32,7 +33,7 @@ export function InvoiceCharges({
   const crypto = metadata?.amount_crypto;
   const cryptoCurrency = metadata?.payment_currency;
 
-  function formatItem(it: InvoiceItem): { label: string; amount: number } {
+  function formatItem(it: InvoiceItem): { label: string; amount: number; link: string | null } {
     const qty = Number(it.quantity ?? 1);
     const unitPrice = Number(it.unit_price_usd ?? it.amount_usd);
     const total = Number(it.amount_usd);
@@ -40,7 +41,7 @@ export function InvoiceCharges({
     const qtyStr = qty % 1 === 0 ? String(qty) : qty.toFixed(2);
     const showBreakdown = qty !== 1 || (it.unit_price_usd != null && it.unit_price_usd !== it.amount_usd);
     const label = showBreakdown ? desc + " (" + qtyStr + " x $" + unitPrice.toFixed(2) + ")" : desc;
-    return { label, amount: total };
+    return { label, amount: total, link: it.link || null };
   }
 
   const lines =
@@ -50,6 +51,7 @@ export function InvoiceCharges({
           {
             label: gigTitle ? "Work on \"" + gigTitle + "\"" : "Invoice amount",
             amount: amountUsd,
+            link: null as string | null,
           },
         ];
 
@@ -61,7 +63,18 @@ export function InvoiceCharges({
       <div className="divide-y divide-border/60">
         {lines.map((line, i) => (
           <div key={i} className="flex items-start justify-between gap-3 py-1">
-            <span className="text-foreground">{line.label}</span>
+            {line.link ? (
+              <a
+                href={line.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline break-all"
+              >
+                {line.label}
+              </a>
+            ) : (
+              <span className="text-foreground">{line.label}</span>
+            )}
             <span className="whitespace-nowrap font-medium tabular-nums">
               ${line.amount.toFixed(2)}
             </span>

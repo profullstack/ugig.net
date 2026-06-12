@@ -427,14 +427,76 @@ export function invoiceReceivedEmail(params: {
   gigTitle: string;
   amountUsd: number;
   invoiceId: string;
+  prLinks?: string[];
+  items?: {
+    description: string;
+    quantity: number;
+    unitPriceUsd: number;
+    amountUsd: number;
+    link?: string | null;
+  }[];
 }) {
-  const { posterName, workerName, gigTitle, amountUsd } = params;
+  const { posterName, workerName, gigTitle, amountUsd, prLinks = [], items = [] } = params;
   const baseUrl = getBaseUrl();
   const invoicesUrl = `${baseUrl}/dashboard/invoices?tab=received`;
   const amount = amountUsd.toFixed(2);
   const safePosterName = escapeHtml(posterName);
   const safeWorkerName = escapeHtml(workerName);
   const safeGigTitle = escapeHtml(gigTitle);
+
+  // Line items, e.g. "Pull requests (8 × $1.00) $8.00" linking to the merged PRs.
+  const itemLabel = (it: (typeof items)[number]) => {
+    const desc = (it.description || "").trim() || "Charge";
+    const qtyStr = it.quantity % 1 === 0 ? String(it.quantity) : it.quantity.toFixed(2);
+    return it.quantity !== 1 || it.unitPriceUsd !== it.amountUsd
+      ? `${desc} (${qtyStr} × $${it.unitPriceUsd.toFixed(2)})`
+      : desc;
+  };
+  const itemsHtml =
+    items.length > 0
+      ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px;">
+        ${items
+          .map((it) => {
+            const label = escapeHtml(itemLabel(it));
+            const labelCell = it.link
+              ? `<a href="${escapeHtml(it.link)}" style="color: #2563eb;">${label}</a>`
+              : label;
+            return `<tr>
+          <td style="padding: 4px 0; border-bottom: 1px solid #f3f4f6;">${labelCell}</td>
+          <td style="padding: 4px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">$${it.amountUsd.toFixed(2)}</td>
+        </tr>`;
+          })
+          .join("")}
+      </table>`
+      : "";
+  const itemsText =
+    items.length > 0
+      ? `\n${items
+          .map((it) => `- ${itemLabel(it)}: $${it.amountUsd.toFixed(2)}${it.link ? ` (${it.link})` : ""}`)
+          .join("\n")}\n`
+      : "";
+
+  // Merged-PR links the worker attached, so the poster can verify the work.
+  const prLinksHtml =
+    prLinks.length > 0
+      ? `
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-weight: 600;">Merged pull requests</p>
+      <ul style="margin: 0; padding-left: 20px;">
+        ${prLinks
+          .map(
+            (u) =>
+              `<li><a href="${escapeHtml(u)}" style="color: #2563eb;">${escapeHtml(u)}</a></li>`
+          )
+          .join("")}
+      </ul>
+    </div>`
+      : "";
+  const prLinksText =
+    prLinks.length > 0
+      ? `\nMerged pull requests:\n${prLinks.map((u) => `- ${u}`).join("\n")}\n`
+      : "";
 
   const html = `
 <!DOCTYPE html>
@@ -456,9 +518,9 @@ export function invoiceReceivedEmail(params: {
 
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
       <h3 style="margin-top: 0; color: #2563eb;">${safeGigTitle}</h3>
-      <p style="font-size: 18px; margin-bottom: 0;"><strong>$${amount}</strong></p>
+      <p style="font-size: 18px; margin-bottom: 0;"><strong>$${amount}</strong></p>${itemsHtml}
     </div>
-
+${prLinksHtml}
     <a href="${invoicesUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-top: 10px;">
       Review Invoice
     </a>
@@ -480,7 +542,7 @@ Invoice Received
 Hi ${posterName},
 
 ${workerName} sent you a $${amount} invoice for: ${gigTitle}
-
+${itemsText}${prLinksText}
 Review it here: ${invoicesUrl}
 
 ---

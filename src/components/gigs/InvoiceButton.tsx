@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
+import { isGitHubPrLink } from "@/lib/github-links";
 
 interface CoinPayWalletOption {
   currency: string;
@@ -66,6 +67,7 @@ interface GigInvoice {
     checkout_url?: string | null;
     expires_at?: string | null;
     replacement_requested_at?: string | null;
+    pr_links?: string[] | null;
   } | null;
   worker?: { id: string; username: string; full_name?: string };
   poster?: { id: string; username: string; full_name?: string };
@@ -123,11 +125,13 @@ export function InvoiceButton({
   const [walletsLoaded, setWalletsLoaded] = useState(false);
   const [oauthRequired, setOauthRequired] = useState(false);
   const [walletInstructions, setWalletInstructions] = useState<string[]>([]);
-  const [items, setItems] = useState<{ description: string; quantity: string; unit_price: string }[]>([
-    { description: "", quantity: "1", unit_price: budgetAmount ? budgetAmount.toString() : "" },
+  const [items, setItems] = useState<LineItem[]>([
+    { description: "", quantity: "1", unit_price: budgetAmount ? budgetAmount.toString() : "", link: "" },
   ]);
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
+  // Optional GitHub PR links, one per line; parsed into an array on submit.
+  const [prLinksText, setPrLinksText] = useState("");
 
   // Fetch existing invoices
   useEffect(() => {
@@ -193,10 +197,16 @@ export function InvoiceButton({
         description: it.description.trim(),
         quantity: parseFloat(it.quantity) || 1,
         unit_price: parseFloat(it.unit_price),
+        link: it.link.trim() || undefined,
       }))
       .filter((it) => Number.isFinite(it.unit_price) && it.unit_price > 0);
     if (lineItems.length === 0) {
       setError("Add at least one line item with a unit price");
+      return;
+    }
+    const badItemLink = lineItems.find((it) => it.link && !isGitHubPrLink(it.link));
+    if (badItemLink) {
+      setError(`Not a GitHub PR or PR search link: ${badItemLink.link}`);
       return;
     }
     const total = Math.round(
@@ -207,6 +217,18 @@ export function InvoiceButton({
       const fmt = (n: number) =>
         isSats ? `${n.toLocaleString()} sats` : `$${n.toFixed(2)}`;
       setError(`Invoice total (${fmt(total)}) can't exceed the agreed amount (${fmt(capAmount)}).`);
+      return;
+    }
+
+    // Split the textarea into one link per line/comma and validate each looks
+    // like a GitHub PR URL (matches the server's check) before sending.
+    const prLinks = prLinksText
+      .split(/[\n,]+/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const badLink = prLinks.find((u) => !isGitHubPrLink(u));
+    if (badLink) {
+      setError(`Not a GitHub pull request link: ${badLink}`);
       return;
     }
 
@@ -233,6 +255,7 @@ export function InvoiceButton({
           merchant_wallet_address: selectedWallet.address,
           notes: notes || undefined,
           due_date: dueDate || undefined,
+          pr_links: prLinks.length > 0 ? prLinks : undefined,
         }),
       });
 
@@ -267,9 +290,10 @@ export function InvoiceButton({
         ...prev,
       ]);
       setShowForm(false);
-      setItems([{ description: "", quantity: "1", unit_price: "" }]);
+      setItems([{ description: "", quantity: "1", unit_price: "", link: "" }]);
       setNotes("");
       setDueDate("");
+      setPrLinksText("");
     } catch {
       setError("An error occurred. Please try again.");
     } finally {
@@ -412,6 +436,27 @@ export function InvoiceButton({
 
             {inv.notes && <p className="text-sm text-muted-foreground">{inv.notes}</p>}
 
+            {inv.metadata?.pr_links && inv.metadata.pr_links.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Merged PRs</p>
+                <ul className="space-y-0.5">
+                  {inv.metadata.pr_links.map((url) => (
+                    <li key={url}>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline break-all"
+                      >
+                        <LinkIcon className="h-3 w-3 shrink-0" />
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Poster: keep payment UX inside uGig. */}
             {isPoster && inv.status === "sent" && inv.metadata?.payment_address && (
               <CryptoPaymentBox
@@ -508,6 +553,8 @@ export function InvoiceButton({
             setNotes={setNotes}
             dueDate={dueDate}
             setDueDate={setDueDate}
+            prLinksText={prLinksText}
+            setPrLinksText={setPrLinksText}
             error={error}
             isCreating={isCreating}
             wallets={wallets}
@@ -541,6 +588,8 @@ export function InvoiceButton({
           setNotes={setNotes}
           dueDate={dueDate}
           setDueDate={setDueDate}
+          prLinksText={prLinksText}
+          setPrLinksText={setPrLinksText}
           error={error}
           isCreating={isCreating}
           wallets={wallets}
@@ -578,7 +627,7 @@ export function InvoiceButton({
 
 // ── Invoice Form ──
 
-type LineItem = { description: string; quantity: string; unit_price: string };
+type LineItem = { description: string; quantity: string; unit_price: string; link: string };
 
 function InvoiceForm({
   isSats,
@@ -589,6 +638,8 @@ function InvoiceForm({
   setNotes,
   dueDate,
   setDueDate,
+  prLinksText,
+  setPrLinksText,
   error,
   isCreating,
   wallets,
@@ -609,6 +660,8 @@ function InvoiceForm({
   setNotes: (v: string) => void;
   dueDate: string;
   setDueDate: (v: string) => void;
+  prLinksText: string;
+  setPrLinksText: (v: string) => void;
   error: string | null;
   isCreating: boolean;
   wallets: CoinPayWalletOption[];
@@ -632,7 +685,8 @@ function InvoiceForm({
     isSats ? `${n.toLocaleString()} sats` : `$${n.toFixed(2)}`;
   const updateItem = (i: number, patch: Partial<LineItem>) =>
     setItems(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "" }]);
+  const addItem = () =>
+    setItems([...items, { description: "", quantity: "1", unit_price: "", link: "" }]);
   const removeItem = (i: number) =>
     setItems(items.length > 1 ? items.filter((_, idx) => idx !== i) : items);
 
@@ -714,6 +768,13 @@ function InvoiceForm({
                   </span>
                 )}
               </div>
+              <input
+                type="url"
+                value={item.link}
+                onChange={(e) => updateItem(i, { link: e.target.value })}
+                placeholder="Link to merged PRs (optional) — e.g. https://github.com/org/repo/pulls?q=is:pr+is:merged+author:you"
+                className="w-full text-xs border rounded-md px-2 py-1 bg-background"
+              />
             </div>
           );
         })}
@@ -754,6 +815,23 @@ function InvoiceForm({
           rows={2}
           className="w-full text-sm border rounded-md px-2 py-1.5 bg-background resize-none"
         />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">
+          Merged PR links (optional)
+        </label>
+        <textarea
+          value={prLinksText}
+          onChange={(e) => setPrLinksText(e.target.value)}
+          placeholder="https://github.com/org/repo/pull/123 (one per line)"
+          rows={2}
+          className="w-full text-sm border rounded-md px-2 py-1.5 bg-background resize-none"
+        />
+        <p className="text-xs text-muted-foreground">
+          Paste the GitHub pull requests merged for this work, one per line. A PR search URL
+          (github.com/org/repo/pulls?q=…) also works.
+        </p>
       </div>
 
       <div className="space-y-1">

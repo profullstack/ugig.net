@@ -186,7 +186,7 @@ export type WalletAddress = {
     address: string;
     is_preferred: boolean;
 };
-export declare const PAYMENT_COINS: readonly ["BTC", "SATS", "LN", "SOL", "ETH", "USDC", "USDT", "POL"];
+export declare const PAYMENT_COINS: readonly ["SOL", "ETH", "USDC", "USDT", "POL"];
 /** Coins where amounts are denominated in sats instead of USD */
 export declare const SATS_COINS: Set<string>;
 /** Format a budget amount based on payment coin */

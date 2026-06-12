@@ -81,11 +81,15 @@ describe("invoices create", () => {
       "invoices", "create", "gig-123",
       "--application-id", "app-456",
       "--amount", "100",
+      "--payment-currency", "usdc_pol",
+      "--wallet-address", "0xabc",
     ]);
     expect(mockClient.post).toHaveBeenCalledWith("/api/gigs/gig-123/invoice", {
       application_id: "app-456",
       amount: 100,
       currency: "USD",
+      payment_currency: "usdc_pol",
+      merchant_wallet_address: "0xabc",
     });
   });
 
@@ -97,6 +101,8 @@ describe("invoices create", () => {
       "invoices", "create", "gig-123",
       "--application-id", "app-456",
       "--amount", "50",
+      "--payment-currency", "btc",
+      "--wallet-address", "bc1qabc",
       "--notes", "First milestone",
       "--due-date", "2025-06-01",
     ]);
@@ -104,8 +110,37 @@ describe("invoices create", () => {
       application_id: "app-456",
       amount: 50,
       currency: "USD",
+      payment_currency: "btc",
+      merchant_wallet_address: "bc1qabc",
       notes: "First milestone",
       due_date: "2025-06-01",
+    });
+  });
+
+  it("sends line items and PR links", async () => {
+    mockClient.post.mockResolvedValue({
+      data: { invoice_id: "inv3", coinpay_invoice_id: null, pay_url: null },
+    });
+    const searchUrl = "https://github.com/org/repo/pulls?q=is:pr+is:merged+author:you";
+    await run([
+      "invoices", "create", "gig-123",
+      "--application-id", "app-456",
+      "--item", `Pull requests|8|1|${searchUrl}`,
+      "--item", "Code review|1|25",
+      "--pr-links", `${searchUrl},https://github.com/org/repo/pull/42`,
+      "--payment-currency", "usdc_pol",
+      "--wallet-address", "0xabc",
+    ]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/gigs/gig-123/invoice", {
+      application_id: "app-456",
+      currency: "USD",
+      payment_currency: "usdc_pol",
+      merchant_wallet_address: "0xabc",
+      items: [
+        { description: "Pull requests", quantity: 8, unit_price: 1, link: searchUrl },
+        { description: "Code review", quantity: 1, unit_price: 25 },
+      ],
+      pr_links: [searchUrl, "https://github.com/org/repo/pull/42"],
     });
   });
 });

@@ -71,10 +71,8 @@ export const SKILLS = [
     "Teaching",
 ];
 // Common payment coins for gigs and profiles
+// SATS/LN/BTC are excluded — CoinPay cannot process Lightning/on-chain BTC payments
 export const PAYMENT_COINS = [
-    "BTC",
-    "SATS",
-    "LN",
     "SOL",
     "ETH",
     "USDC",
@@ -91,10 +89,10 @@ export function formatBudgetAmount(amount, paymentCoin) {
         if (paymentCoin === "BTC" && amount < 1) {
             return `₿${amount}`;
         }
-        return `${amount.toLocaleString()} sats`;
+        return `${amount.toLocaleString("en-US")} sats`;
     }
     // Default: USD
-    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 /** Get the currency label for display */
 export function getBudgetCurrencyLabel(paymentCoin) {

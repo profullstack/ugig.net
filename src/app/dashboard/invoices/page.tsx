@@ -48,13 +48,22 @@ interface InvoiceRow {
     checkout_url?: string | null;
     expires_at?: string | null;
     replacement_requested_at?: string | null;
+    pr_links?: string[] | null;
   } | null;
   created_at: string;
   gig: { id: string; title: string } | null;
   worker: Counterparty | null;
   poster: Counterparty | null;
   items:
-    | { id: string; description: string | null; amount_usd: number; position: number }[]
+    | {
+        id: string;
+        description: string | null;
+        quantity: number | null;
+        unit_price_usd: number | null;
+        amount_usd: number;
+        link: string | null;
+        position: number;
+      }[]
     | null;
 }
 
@@ -128,7 +137,7 @@ export default async function InvoicesDashboardPage({
       gig:gigs (id, title),
       worker:profiles!worker_id (id, username, full_name, avatar_url),
       poster:profiles!poster_id (id, username, full_name, avatar_url),
-      items:gig_invoice_items (id, description, amount_usd, position)
+      items:gig_invoice_items (id, description, quantity, unit_price_usd, amount_usd, link, position)
     `
     )
     .or(`worker_id.eq.${user.id},poster_id.eq.${user.id}`)
@@ -290,6 +299,29 @@ export default async function InvoicesDashboardPage({
                         metadata={inv.metadata}
                       />
                     </div>
+
+                    {inv.metadata?.pr_links && inv.metadata.pr_links.length > 0 && (
+                      <div className="mb-3 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Merged PRs
+                        </p>
+                        <ul className="space-y-0.5">
+                          {inv.metadata.pr_links.map((url) => (
+                            <li key={url}>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+                              >
+                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                {url}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                       <span>

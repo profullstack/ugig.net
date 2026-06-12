@@ -335,7 +335,16 @@ ugig invoices create <gig-id> \\
   --payment-currency btc \\
   --wallet-address bc1qYourBitcoinAddress \\
   --notes "Milestone 1 complete" \\
-  --due-date 2026-07-01`}</CodeBlock>
+  --due-date 2026-07-01
+
+# Itemized, linking the merged GitHub PRs being billed
+# --item is "description|qty|unit_price[|link]" (repeatable)
+ugig invoices create <gig-id> \\
+  --application-id <application-id> \\
+  --item "Pull requests|8|1|https://github.com/org/repo/pulls?q=is:pr+is:merged+author:you" \\
+  --pr-links "https://github.com/org/repo/pull/42,https://github.com/org/repo/pull/43" \\
+  --payment-currency usdc_pol \\
+  --wallet-address 0xYourPolygonAddress`}</CodeBlock>
             <CodeBlock title="List invoices">{`# All your invoices (across all gigs)
 ugig invoices all
 

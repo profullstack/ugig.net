@@ -43,7 +43,7 @@ vi.mock("@/lib/rates", async () => {
 });
 
 import { GET, POST } from "./route";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { createServiceClient, getAuthContext } from "@/lib/auth/get-user";
 import {
   createPayment,
   getCoinpayGlobalWalletTokens,
@@ -389,7 +389,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it("returns an existing invoice instead of creating another invoice or CoinPay payment", async () => {
+  it("returns the existing invoice when the request is a retry (same amount, recent)", async () => {
     const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID, payment_coin: "SOL" };
     const application = {
       id: APP_ID,
@@ -402,10 +402,13 @@ describe("POST /api/gigs/[id]/invoice", () => {
       coinpay_invoice_id: "cp-pay-existing",
       pay_url: null,
       status: "sent",
+      amount_usd: 150,
+      created_at: new Date().toISOString(),
       metadata: {
         payment_address: "So11111111111111111111111111111111111111112",
         amount_crypto: 0.75,
         payment_currency: "sol",
+        native_amount: 150,
         expires_at: new Date(Date.now() + 28 * 60 * 60 * 1000).toISOString(),
       },
     };
@@ -434,6 +437,94 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(body.data.coinpay_invoice_id).toBe("cp-pay-existing");
     expect(body.data.payment_address).toBe("So11111111111111111111111111111111111111112");
     expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  function newInvoiceMocks(existingInvoice: any) {
+    const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID, payment_coin: "SOL" };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 150,
+    };
+    return mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+      gig_invoices: mockInvoiceTable({
+        openInvoices: existingInvoice ? [existingInvoice] : [],
+        insertResult: { id: "local-inv-new", metadata: {} },
+      }),
+      profiles: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({ data: { username: "w", full_name: "Test Worker" }, error: null }),
+      },
+      notifications: { insert: vi.fn().mockResolvedValue({ error: null }) },
+    });
+  }
+
+  it("creates a new invoice when an open invoice has a different amount", async () => {
+    const sb = newInvoiceMocks({
+      id: "local-inv-existing",
+      coinpay_invoice_id: null,
+      pay_url: null,
+      status: "sent",
+      amount_usd: 150,
+      created_at: new Date().toISOString(),
+      metadata: { native_amount: 150 },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 100,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.invoice_id).toBe("local-inv-new");
+  });
+
+  it("creates a new invoice when the matching open invoice is outside the retry window", async () => {
+    const sb = newInvoiceMocks({
+      id: "local-inv-existing",
+      coinpay_invoice_id: null,
+      pay_url: null,
+      status: "sent",
+      amount_usd: 150,
+      created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      metadata: { native_amount: 150 },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.invoice_id).toBe("local-inv-new");
   });
 
   it("rejects an invoice total above the agreed amount on a fixed-price gig", async () => {
@@ -616,5 +707,156 @@ describe("POST /api/gigs/[id]/invoice", () => {
       native_unit: "sats",
       native_amount: 500,
     });
+  });
+
+  it("stores merged GitHub PR links in metadata and passes them to the email", async () => {
+    const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID, payment_coin: "SOL" };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 150,
+    };
+    const prLinks = [
+      "https://github.com/profullstack/ugig.net/pull/42",
+      "https://github.com/profullstack/ugig.net/pull/43",
+    ];
+
+    let inserted: any = null;
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+      gig_invoices: mockInvoiceTable({
+        insertResult: { id: "local-inv-pr", metadata: {} },
+        onInsert: (row) => {
+          inserted = row;
+        },
+      }),
+      profiles: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({ data: { username: "w", full_name: "Test Worker" }, error: null }),
+      },
+      notifications: { insert: vi.fn().mockResolvedValue({ error: null }) },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        // Duplicate + whitespace to exercise de-duping/trimming.
+        pr_links: [...prLinks, ` ${prLinks[0]} `],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    expect(inserted.metadata.pr_links).toEqual(prLinks);
+    expect(invoiceReceivedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ prLinks })
+    );
+  });
+
+  it("accepts a GitHub PR search URL (merged PRs by author) and stores item links", async () => {
+    const sb = newInvoiceMocks(null);
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    let itemRows: any[] | null = null;
+    (createServiceClient as any).mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi
+            .fn()
+            .mockResolvedValue({ data: { user: { email: "poster@example.com" } } }),
+        },
+      },
+      from: vi.fn(() => ({
+        insert: vi.fn((rows: any[]) => {
+          itemRows = rows;
+          return Promise.resolve({ error: null });
+        }),
+      })),
+    });
+
+    const searchUrl =
+      "https://github.com/profullstack/ugig.net/pulls?q=is%3Apr+is%3Amerged+author%3Achovy";
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        items: [{ description: "Pull requests", quantity: 8, unit_price: 1, link: searchUrl }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: [searchUrl],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.items).toEqual([
+      expect.objectContaining({
+        description: "Pull requests",
+        quantity: 8,
+        unit_price_usd: 1,
+        amount_usd: 8,
+        link: searchUrl,
+      }),
+    ]);
+    expect(itemRows).toEqual([
+      expect.objectContaining({ quantity: 8, unit_price_usd: 1, amount_usd: 8, link: searchUrl }),
+    ]);
+  });
+
+  it("rejects a line item link that is not a GitHub PR URL", async () => {
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        items: [
+          {
+            description: "Pull requests",
+            quantity: 8,
+            unit_price: 1,
+            link: "https://example.com/prs",
+          },
+        ],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/GitHub pull request/i);
+  });
+
+  it("rejects PR links that are not GitHub pull request URLs", async () => {
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: ["https://gitlab.com/org/repo/-/merge_requests/1"],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/GitHub pull request/i);
   });
 });

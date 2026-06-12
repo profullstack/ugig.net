@@ -169,9 +169,9 @@ export declare const applicationStatusSchema: z.ZodObject<{
         rejected: "rejected";
         withdrawn: "withdrawn";
         shortlisted: "shortlisted";
+        paid: "paid";
         in_progress: "in_progress";
         completed: "completed";
-        paid: "paid";
     }>;
     metadata: z.ZodOptional<z.ZodObject<{
         tx_id: z.ZodOptional<z.ZodString>;
@@ -261,8 +261,8 @@ export declare const feedFiltersSchema: z.ZodObject<{
     sort: z.ZodDefault<z.ZodEnum<{
         top: "top";
         hot: "hot";
-        following: "following";
         new: "new";
+        following: "following";
         rising: "rising";
     }>>;
     tag: z.ZodOptional<z.ZodString>;
