@@ -38,15 +38,22 @@ export function DirectoryNewForm() {
 
   useEffect(() => {
     async function init() {
-      const supabase = createBrowserClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login?redirect=/directory/new");
-        return;
+      try {
+        const supabase = createBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/login?redirect=/directory/new");
+          return;
+        }
+      } catch {
+        // If the auth check fails (network/Supabase hiccup), don't trap the
+        // user on a "Loading..." screen — let the form render. Auth is
+        // re-enforced server-side when the listing is submitted.
+      } finally {
+        setCheckingAuth(false);
       }
-      setCheckingAuth(false);
 
       try {
         const res = await fetch("/api/wallet/balance");
