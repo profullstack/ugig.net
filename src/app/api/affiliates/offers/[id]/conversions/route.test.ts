@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET, POST, PUT } from "./route";
+import { DELETE, GET, POST, PUT } from "./route";
 import { NextRequest } from "next/server";
 
 // Mock auth
@@ -39,6 +39,14 @@ function makePostRequest(id: string, body: Record<string, unknown>) {
 function makePutRequest(id: string, body: Record<string, unknown>) {
   return new NextRequest(`http://localhost/api/affiliates/offers/${id}/conversions`, {
     method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function makeDeleteRequest(id: string, body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost/api/affiliates/offers/${id}/conversions`, {
+    method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -390,6 +398,37 @@ describe("PUT /api/affiliates/offers/[id]/conversions", () => {
     expect(mockCalculateCommission).not.toHaveBeenCalled();
   });
 
+  it("rejects non-string conversion_id before updating conversions", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+          commission_rate: 0.2,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await PUT(
+      makePutRequest("offer-1", {
+        conversion_id: { id: "conv-1" },
+        note: "paid elsewhere",
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "conversion_id is required" });
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
+  });
+
   it("updates integer sale_amount_sats and recalculates commission", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "user-seller", authMethod: "session" },
@@ -474,6 +513,39 @@ describe("PUT /api/affiliates/offers/[id]/conversions", () => {
     expect(body.error).toBe("note must be a string");
     expect(mockFrom).not.toHaveBeenCalledWith("affiliate_applications");
     expect(mockRecordConversion).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/affiliates/offers/[id]/conversions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects non-string conversion_id before querying conversions", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-seller", authMethod: "session" },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "affiliate_offers") {
+        return chainable({
+          id: "offer-1",
+          seller_id: "user-seller",
+        });
+      }
+      return chainable([]);
+    });
+
+    const res = await DELETE(
+      makeDeleteRequest("offer-1", {
+        conversion_id: ["conv-1"],
+      }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "conversion_id is required" });
+    expect(mockFrom).not.toHaveBeenCalledWith("affiliate_conversions");
   });
 });
 

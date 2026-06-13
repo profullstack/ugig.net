@@ -9,6 +9,10 @@ function isPositiveIntegerSats(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 /**
  * GET /api/affiliates/offers/[id]/conversions - List conversions for an offer (seller only)
  */
@@ -226,9 +230,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { conversion_id, sale_amount_sats, note, status } = body;
 
-    if (!conversion_id) {
+    if (!isNonEmptyString(conversion_id)) {
       return NextResponse.json({ error: "conversion_id is required" }, { status: 400 });
     }
+    const conversionId = conversion_id.trim();
 
     const updateData: Record<string, unknown> = {};
     if (typeof note === "string") updateData.note = note.trim();
@@ -261,7 +266,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { error: updateErr } = await (admin as AnySupabase)
       .from("affiliate_conversions")
       .update(updateData)
-      .eq("id", conversion_id)
+      .eq("id", conversionId)
       .eq("offer_id", id);
 
     if (updateErr) {
@@ -304,14 +309,15 @@ export async function DELETE(
     const body = await request.json();
     const { conversion_id } = body;
 
-    if (!conversion_id) {
+    if (!isNonEmptyString(conversion_id)) {
       return NextResponse.json({ error: "conversion_id is required" }, { status: 400 });
     }
+    const conversionId = conversion_id.trim();
 
     const { data: conv } = await (admin as AnySupabase)
       .from("affiliate_conversions")
       .select("id, status")
-      .eq("id", conversion_id)
+      .eq("id", conversionId)
       .eq("offer_id", id)
       .single();
 
@@ -326,7 +332,7 @@ export async function DELETE(
     const { error: delErr } = await (admin as AnySupabase)
       .from("affiliate_conversions")
       .delete()
-      .eq("id", conversion_id)
+      .eq("id", conversionId)
       .eq("offer_id", id);
 
     if (delErr) {
