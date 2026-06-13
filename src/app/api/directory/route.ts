@@ -12,7 +12,10 @@ import {
   internalTransfer,
   syncBalanceCache,
 } from "@/lib/lightning/wallet-utils";
-import { sanitizeSearchParams } from "@/lib/security/sanitize";
+import {
+  escapePostgrestSearchValue,
+  sanitizeSearchParams,
+} from "@/lib/security/sanitize";
 
 const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || "";
 const MAX_DIRECTORY_PAGE = 10_000;
@@ -33,7 +36,7 @@ const createListingSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.searchParams.get("search") || "";
+    const search = sanitizeSearchParams(url, "search");
     const tag = sanitizeSearchParams(url, "tag");
     const parsedPage = parseInt(url.searchParams.get("page") || "1", 10);
     const page = Number.isFinite(parsedPage) && parsedPage > 0
@@ -53,8 +56,9 @@ export async function GET(request: NextRequest) {
       .eq("status", "active");
 
     if (search) {
+      const safeSearch = escapePostgrestSearchValue(search);
       query = query.or(
-        `title.ilike.%${search}%,description.ilike.%${search}%`
+        `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
       );
     }
 
