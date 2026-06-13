@@ -223,4 +223,34 @@ describe("POST /api/referrals duplicate invite handling", () => {
       },
     ]);
   });
+
+  it("does not send invites when the existing-recipient lookup fails", async () => {
+    const existingInviteLookup = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "database unavailable" },
+    });
+    mocks.mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            in: existingInviteLookup,
+          })),
+        })),
+      })),
+    });
+    mocks.mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: { from: vi.fn() },
+    });
+
+    const res = await POST(
+      makePostRequest({ emails: ["friend@test.com"] })
+    );
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({
+      error: "Failed to check existing invitations",
+    });
+    expect(mocks.mockSendEmail).not.toHaveBeenCalled();
+  });
 });

@@ -103,11 +103,18 @@ export async function POST(request: NextRequest) {
     const svc = createServiceClient();
 
     // Prevent duplicate invites to the same email before calculating quota usage.
-    const { data: existingInvites } = await (svc as AnySupabase)
+    const { data: existingInvites, error: existingInvitesError } = await (svc as AnySupabase)
       .from("referrals")
       .select("referred_email")
       .eq("referrer_id", user.id)
       .in("referred_email", validEmails);
+
+    if (existingInvitesError) {
+      return NextResponse.json(
+        { error: "Failed to check existing invitations" },
+        { status: 500 }
+      );
+    }
 
     const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
     const newValidEmails = validEmails.filter((e: string) => !alreadyInvited.has(e));
