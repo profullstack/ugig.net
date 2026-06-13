@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       .from("gigs")
       .select("id, title, poster_id, status")
       .eq("id", gig_id)
-      .single();
+      .maybeSingle();
 
     if (!gig) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
       .eq("status", "accepted")
-      .single();
+      .maybeSingle();
 
     const isAcceptedApplicant = !!application;
 
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       .eq("gig_id", gig_id)
       .eq("applicant_id", reviewee_id)
       .eq("status", "accepted")
-      .single();
+      .maybeSingle();
 
     const revieweeIsAcceptedApplicant = !!revieweeApplication;
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       .eq("gig_id", gig_id)
       .eq("reviewer_id", user.id)
       .eq("reviewee_id", reviewee_id)
-      .single();
+      .maybeSingle();
 
     if (existingReview) {
       return NextResponse.json(
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
         )
       `
       )
-      .single();
+      .maybeSingle();
 
     if (createError) {
       console.error("[POST /api/reviews] Supabase error:", createError);
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("did")
       .eq("id", reviewee_id)
-      .single();
+      .maybeSingle();
     if (userDid) {
       onReviewCreated(userDid, review.id, revieweeProfile?.did || undefined);
     }
