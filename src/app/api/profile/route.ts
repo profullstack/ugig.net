@@ -79,18 +79,20 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if username is taken by another user
-    const { data: existingUser } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", validationResult.data.username)
-      .neq("id", user.id)
-      .single();
+    if (validationResult.data.username) {
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", validationResult.data.username)
+        .neq("id", user.id)
+        .maybeSingle();
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Username is already taken" },
-        { status: 400 }
-      );
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "Username is already taken" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get current profile to check for resume changes
