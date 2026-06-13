@@ -100,9 +100,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Spam throttling: max 50 invites per day, max 10 per hour
-    // Only count valid emails toward rate limits (#143)
     const svc = createServiceClient();
+
+    // Prevent duplicate invites to same email before quota math.
+    const { data: existingInvites } = await (svc as AnySupabase)
+      .from("referrals")
+      .select("referred_email")
+      .eq("referrer_id", user.id)
+      .in("referred_email", validEmails);
+
+    const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
+    const newValidEmails = validEmails.filter((e: string) => !alreadyInvited.has(e));
+
+    if (newValidEmails.length === 0) {
+      return NextResponse.json(
+        { error: "All these emails have already been invited" },
+        { status: 400 }
+      );
+    }
+
+    // Spam throttling: max 50 invites per day, max 10 per hour.
+    // Only new valid emails should count toward rate limits.
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -112,7 +130,7 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneHourAgo);
 
-    if ((hourlyCount ?? 0) + validEmails.length > 10) {
+    if ((hourlyCount ?? 0) + newValidEmails.length > 10) {
       return NextResponse.json(
         { error: "Too many invites. Max 10 per hour." },
         { status: 429 }
@@ -125,21 +143,12 @@ export async function POST(request: NextRequest) {
       .eq("referrer_id", user.id)
       .gte("created_at", oneDayAgo);
 
-    if ((dailyCount ?? 0) + validEmails.length > 50) {
+    if ((dailyCount ?? 0) + newValidEmails.length > 50) {
       return NextResponse.json(
         { error: "Daily invite limit reached. Max 50 per day." },
         { status: 429 }
       );
     }
-
-    // Prevent duplicate invites to same email
-    const { data: existingInvites } = await (svc as AnySupabase)
-      .from("referrals")
-      .select("referred_email")
-      .eq("referrer_id", user.id)
-      .in("referred_email", validEmails);
-
-    const alreadyInvited = new Set((existingInvites || []).map((r: any) => r.referred_email));
 
     // Get user's referral code
     const { data: profile } = await (supabase as any)
@@ -154,16 +163,6 @@ export async function POST(request: NextRequest) {
 
     const referralCode = profile.referral_code || profile.username;
     const inviterName = profile.full_name || profile.username || "Someone";
-
-    // Filter valid emails that aren't already invited (#143)
-    const newValidEmails = validEmails.filter((e: string) => !alreadyInvited.has(e));
-
-    if (newValidEmails.length === 0) {
-      return NextResponse.json(
-        { error: "All these emails have already been invited" },
-        { status: 400 }
-      );
-    }
 
     // Send emails BEFORE inserting into DB to avoid partial-state issues
     const emailContent = referralInviteEmail({ inviterName, referralCode });
