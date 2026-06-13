@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       .from("gigs")
       .select("id, status, poster_id")
       .eq("id", gig_id)
-      .single();
+      .maybeSingle();
 
     if (!gig) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("user_id", user.id)
       .eq("gig_id", gig_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ error: "Gig already saved" }, { status: 409 });
