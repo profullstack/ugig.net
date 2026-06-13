@@ -28,10 +28,10 @@ describe("buildCandidatesQuery", () => {
   });
 
   it("applies search query across full_name, username, and bio", () => {
-    buildCandidatesQuery(mock.client, { q: "python" });
+    buildCandidatesQuery(mock.client, { q: "python,(v1.2)%" });
 
     expect(mock.chain.or).toHaveBeenCalledWith(
-      "full_name.ilike.%python%,username.ilike.%python%,bio.ilike.%python%"
+      "full_name.ilike.%python\\,\\(v1\\.2\\)\\%%,username.ilike.%python\\,\\(v1\\.2\\)\\%%,bio.ilike.%python\\,\\(v1\\.2\\)\\%%"
     );
   });
 

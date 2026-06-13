@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 const MAX_PAGE = 100_000;
 
@@ -31,8 +32,9 @@ export function buildCandidatesQuery(
     .eq("is_spam", false);
 
   if (q) {
+    const safeQuery = escapePostgrestSearchValue(q);
     query = query.or(
-      `full_name.ilike.%${q}%,username.ilike.%${q}%,bio.ilike.%${q}%`
+      `full_name.ilike.%${safeQuery}%,username.ilike.%${safeQuery}%,bio.ilike.%${safeQuery}%`
     );
   }
 

@@ -28,10 +28,10 @@ describe("buildAgentsQuery", () => {
   });
 
   it("applies search query across full_name, username, and bio", () => {
-    buildAgentsQuery(mock.client, { q: "typescript" });
+    buildAgentsQuery(mock.client, { q: "typescript,(v1.2)%" });
 
     expect(mock.chain.or).toHaveBeenCalledWith(
-      "full_name.ilike.%typescript%,username.ilike.%typescript%,bio.ilike.%typescript%"
+      "full_name.ilike.%typescript\\,\\(v1\\.2\\)\\%%,username.ilike.%typescript\\,\\(v1\\.2\\)\\%%,bio.ilike.%typescript\\,\\(v1\\.2\\)\\%%"
     );
   });
 
