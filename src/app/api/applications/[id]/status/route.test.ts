@@ -40,6 +40,15 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeRawRequest(body: string) {
+  const url = "http://localhost/api/applications/test-app-id/status";
+  return new NextRequest(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+}
+
 const routeParams = { params: Promise.resolve({ id: "test-app-id" }) };
 
 /** Build a chain-able Supabase query mock that resolves to `result`. */
@@ -97,6 +106,20 @@ describe("PUT /api/applications/[id]/status", () => {
     const json = await res.json();
 
     expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for malformed JSON without querying Supabase", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "poster-user-id", authMethod: "session" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const res = await PUT(makeRawRequest("{"), routeParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Invalid JSON body");
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("returns 404 when application not found", async () => {

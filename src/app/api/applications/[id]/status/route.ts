@@ -3,6 +3,16 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationStatusSchema } from "@/lib/validations";
 import { getUserDid, onHired } from "@/lib/reputation-hooks";
 
+async function parseJsonBody(request: NextRequest) {
+  try {
+    return { body: await request.json() };
+  } catch {
+    return {
+      response: NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+    };
+  }
+}
+
 // PUT /api/applications/[id]/status - Update application status
 export async function PUT(
   request: NextRequest,
@@ -16,7 +26,10 @@ export async function PUT(
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request);
+    if (parsed.response) return parsed.response;
+
+    const body = parsed.body;
     const validationResult = applicationStatusSchema.safeParse(body);
 
     if (!validationResult.success) {
