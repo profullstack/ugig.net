@@ -13,6 +13,16 @@ const bulkStatusSchema = z.object({
   ]),
 });
 
+async function parseJsonBody(request: NextRequest) {
+  try {
+    return { body: await request.json() };
+  } catch {
+    return {
+      response: NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+    };
+  }
+}
+
 // PUT /api/applications/bulk-status - Bulk update application statuses
 export async function PUT(request: NextRequest) {
   try {
@@ -22,7 +32,10 @@ export async function PUT(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request);
+    if (parsed.response) return parsed.response;
+
+    const body = parsed.body;
     const validationResult = bulkStatusSchema.safeParse(body);
 
     if (!validationResult.success) {
