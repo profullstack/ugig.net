@@ -144,4 +144,83 @@ describe("POST /api/referrals duplicate invite handling", () => {
       },
     ]);
   });
+
+  it("only counts new recipients toward the hourly invite limit", async () => {
+    const existingInviteLookup = vi.fn().mockResolvedValue({
+      data: [{ referred_email: "existing@test.com" }],
+      error: null,
+    });
+    mocks.mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            gte: vi.fn().mockResolvedValue({ count: 9, error: null }),
+            in: existingInviteLookup,
+          })),
+        })),
+      })),
+    });
+
+    const insertReferrals = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "ref1", referred_email: "new@test.com", status: "pending" }],
+        error: null,
+      }),
+    });
+    const authSupabase = {
+      from: vi.fn((table: string) => {
+        if (table === "profiles") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    referral_code: "testuser",
+                    username: "testuser",
+                    full_name: "Test User",
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          };
+        }
+
+        if (table === "referrals") {
+          return { insert: insertReferrals };
+        }
+
+        return {};
+      }),
+    };
+    mocks.mockGetAuthContext.mockResolvedValue({
+      user: { id: "user1" },
+      supabase: authSupabase,
+    });
+
+    const res = await POST(
+      makePostRequest({ emails: ["existing@test.com", "new@test.com"] })
+    );
+
+    expect(res.status).toBe(200);
+    expect(existingInviteLookup).toHaveBeenCalledWith(
+      "referred_email",
+      ["existing@test.com", "new@test.com"]
+    );
+    expect(mocks.mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mocks.mockSendEmail).toHaveBeenCalledWith({
+      to: "new@test.com",
+      subject: "Join ugig.net",
+      html: "<p>Join</p>",
+      text: "Join",
+    });
+    expect(insertReferrals).toHaveBeenCalledWith([
+      {
+        referrer_id: "user1",
+        referred_email: "new@test.com",
+        referral_code: "testuser",
+        status: "pending",
+      },
+    ]);
+  });
 });
