@@ -14,8 +14,9 @@ describe("resolveMagicLinkRedirect", () => {
     ["host-like value", "@example.com"],
     ["absolute URL", "https://example.com"],
     ["protocol-relative URL", "//example.com"],
-    ["backslash-relative URL", "\\example.com"],
+    ["leading backslash", "\\example.com"],
     ["mixed slash URL", "/\\example.com"],
+    ["empty string", ""],
   ])("falls back for %s", (_label, next) => {
     expect(resolveMagicLinkRedirect(appUrl, next)).toBe("https://ugig.net/dashboard");
   });
