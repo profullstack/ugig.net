@@ -19,12 +19,17 @@ async function getAttributionWindowStart(admin: SupabaseClient, offerId: string)
  */
 export function generateTrackingCode(username: string, offerSlug: string): string {
   const base = `${username}-${offerSlug}`;
+  const prefix = username
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "affiliate";
   const hash = crypto
     .createHash("sha256")
     .update(base + Date.now())
     .digest("hex")
     .slice(0, 6);
-  return `${username}-${hash}`;
+  return `${prefix}-${hash}`;
 }
 
 /**

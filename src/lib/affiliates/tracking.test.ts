@@ -98,6 +98,19 @@ describe("generateTrackingCode", () => {
     expect(code1).toMatch(/^bob-[a-f0-9]{6}$/);
     expect(code2).toMatch(/^bob-[a-f0-9]{6}$/);
   });
+
+  it("sanitizes username prefixes for URL-safe tracking codes", () => {
+    const code = generateTrackingCode("Alice Smith/@Example", "offer-1");
+
+    expect(code).toMatch(/^alice-smith-example-[a-f0-9]{6}$/);
+    expect(code).not.toMatch(/[ /@]/);
+  });
+
+  it("falls back when the username has no URL-safe characters", () => {
+    const code = generateTrackingCode("!!!", "offer-1");
+
+    expect(code).toMatch(/^affiliate-[a-f0-9]{6}$/);
+  });
 });
 
 describe("hashIP", () => {
