@@ -32,6 +32,17 @@ function makePostRequest(id: string, body: Record<string, unknown>) {
   );
 }
 
+function makeRawPostRequest(id: string, body: string) {
+  return new NextRequest(
+    `http://localhost/api/affiliates/offers/${id}/conversions/pay`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    }
+  );
+}
+
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
@@ -52,6 +63,25 @@ function chainable(data: unknown, error: unknown = null) {
 describe("POST /api/affiliates/offers/[id]/conversions/pay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("rejects malformed JSON before querying the affiliate offer", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "seller-1", authMethod: "session" },
+    });
+
+    const res = await POST(
+      makeRawPostRequest("offer-1", "{not valid json"),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockGetUserLnWallet).not.toHaveBeenCalled();
+    expect(mockInternalTransfer).not.toHaveBeenCalled();
   });
 
   it("rejects non-string conversion_id before querying conversions (#422)", async () => {

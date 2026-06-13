@@ -21,6 +21,25 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const conversion_id =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? (body as Record<string, unknown>).conversion_id
+        : undefined;
+
+    if (typeof conversion_id !== "string" || conversion_id.trim() === "") {
+      return NextResponse.json(
+        { error: "conversion_id must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+    const conversionId = conversion_id.trim();
+
     const admin = createServiceClient();
 
     // Verify seller ownership
@@ -33,17 +52,6 @@ export async function POST(
     if (!offer || offer.seller_id !== auth.user.id) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
-
-    const body = await request.json();
-    const { conversion_id } = body;
-
-    if (typeof conversion_id !== "string" || conversion_id.trim() === "") {
-      return NextResponse.json(
-        { error: "conversion_id must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-    const conversionId = conversion_id.trim();
 
     // Get the conversion
     const { data: conv } = await (admin as AnySupabase)
