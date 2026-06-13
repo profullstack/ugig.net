@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       .from("gigs")
       .select("poster_id, status, title, poster:profiles!poster_id(full_name, username)")
       .eq("id", gig_id)
-      .single();
+      .maybeSingle();
 
     if (!gig) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existingApplication) {
       return NextResponse.json(
