@@ -100,8 +100,18 @@ export async function PATCH(
     // Partial validation — only validate provided fields
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-    if (body.title !== undefined) updateData.title = body.title.trim();
-    if (body.description !== undefined) updateData.description = body.description.trim();
+    if (body.title !== undefined) {
+      if (typeof body.title !== "string") {
+        return NextResponse.json({ error: "title must be a string" }, { status: 400 });
+      }
+      updateData.title = body.title.trim();
+    }
+    if (body.description !== undefined) {
+      if (typeof body.description !== "string") {
+        return NextResponse.json({ error: "description must be a string" }, { status: 400 });
+      }
+      updateData.description = body.description.trim();
+    }
     if (body.product_url !== undefined) {
       if (body.product_url !== null && typeof body.product_url !== "string") {
         return NextResponse.json({ error: "product_url must be a string" }, { status: 400 });

@@ -198,6 +198,28 @@ describe("PATCH /api/affiliates/offers/[id] - product_url validation (#137)", ()
     expect(body.error).toContain("string");
   });
 
+  it("rejects non-string title values before trimming", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { title: { text: "New title" } }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("title must be a string");
+  });
+
+  it("rejects non-string description values before trimming", async () => {
+    const res = await PATCH(
+      makeRequest("offer-1", { description: ["New description"] }),
+      makeParams("offer-1")
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("description must be a string");
+  });
+
   it("accepts valid https URL in product_url (#137)", async () => {
     // Mock the update chain to succeed
     mockFrom.mockReturnValue(chainable({ id: "offer-1", product_url: "https://example.com/product" }));
