@@ -99,7 +99,7 @@ export default async function DashboardPage() {
       id,
       status,
       created_at,
-      gig:gigs!gig_id (
+      gig:gigs!inner!gig_id (
         id,
         title,
         poster_id
