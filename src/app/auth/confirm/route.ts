@@ -14,10 +14,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export function resolveMagicLinkRedirect(appUrl: string, next: string | null): string {
+  const fallback = new URL("/dashboard", appUrl);
+
+  if (!next?.startsWith("/")) {
+    return fallback.toString();
+  }
+
+  try {
+    const target = new URL(next, fallback.origin);
+    return target.origin === fallback.origin ? target.toString() : fallback.toString();
+  } catch {
+    return fallback.toString();
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as "signup" | "email" | "recovery" | "invite" | "magiclink" | null;
+  const type = searchParams.get("type") as
+    | "signup"
+    | "email"
+    | "recovery"
+    | "invite"
+    | "magiclink"
+    | null;
   const next = searchParams.get("next");
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
@@ -48,8 +69,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Magic link (OAuth flow) — go to next or dashboard
-    if (type === "magiclink" && next) {
-      return NextResponse.redirect(`${appUrl}${next}`);
+    if (type === "magiclink") {
+      return NextResponse.redirect(resolveMagicLinkRedirect(appUrl, next));
     }
 
     // Signup/email confirmation — go to login with success message
