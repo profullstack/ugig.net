@@ -54,8 +54,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         updateData.content = content.trim();
       }
       if (rating !== undefined) {
-        if (typeof rating !== "number" || rating < 1 || rating > 5) {
-          return NextResponse.json({ error: "Rating must be 1-5" }, { status: 400 });
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return NextResponse.json({ error: "Rating must be an integer from 1-5" }, { status: 400 });
         }
         updateData.rating = rating;
       }
