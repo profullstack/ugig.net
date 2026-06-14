@@ -11,6 +11,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { ApplicationActions } from "@/components/applications/ApplicationActions";
 import { ExpandableApplicationCard } from "@/components/applications/ExpandableApplicationCard";
 import { StartConversationButton } from "@/components/messages/StartConversationButton";
+import { MessageAllApplicantsButton } from "@/components/applications/MessageAllApplicantsButton";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
@@ -142,9 +143,27 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
             Back to gig
           </Link>
 
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Applications</h1>
-            <p className="text-muted-foreground">{gig.title}</p>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Applications</h1>
+              <p className="text-muted-foreground">{gig.title}</p>
+            </div>
+            {applications && applications.length > 0 && (
+              <MessageAllApplicantsButton
+                gigId={gig.id}
+                applicantCount={
+                  new Set(
+                    applications
+                      .map((a) =>
+                        Array.isArray(a.applicant)
+                          ? a.applicant[0]?.id
+                          : a.applicant?.id
+                      )
+                      .filter(Boolean)
+                  ).size
+                }
+              />
+            )}
           </div>
 
           {/* Stats */}
