@@ -125,4 +125,43 @@ describe("InvoicePaymentActions", () => {
     });
     expect(screen.getByText("0.5 SOL")).toBeInTheDocument();
   });
+
+  it("accepts an invoice and shows it will be paid soon", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: { invoice_id: "inv-1", accepted_at: "2030-01-01T00:00:00Z" },
+      }),
+    });
+
+    render(<InvoicePaymentActions {...baseProps} status="sent" metadata={null} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^accept$/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/gigs/gig-1/invoice/inv-1/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/will be paid soon/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows the accepted indicator when already accepted", () => {
+    render(
+      <InvoicePaymentActions
+        {...baseProps}
+        status="sent"
+        metadata={{ accepted_at: "2030-01-01T00:00:00Z" }}
+      />
+    );
+
+    expect(screen.getByText(/will be paid soon/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^accept$/i })
+    ).not.toBeInTheDocument();
+  });
 });

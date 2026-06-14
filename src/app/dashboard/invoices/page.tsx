@@ -22,6 +22,30 @@ export const metadata = {
 
 type TabKey = "received" | "sent";
 
+type StatusFilter = "all" | "pending" | "accepted" | "paid";
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "accepted", label: "Accepted" },
+  { key: "paid", label: "Paid" },
+];
+
+// Pending = billed and awaiting payment, not yet accepted.
+function matchesStatusFilter(inv: InvoiceRow, filter: StatusFilter): boolean {
+  switch (filter) {
+    case "pending":
+      return isAwaitingPayment(inv.status) && !inv.metadata?.accepted_at;
+    case "accepted":
+      return isAcceptedUnpaid(inv);
+    case "paid":
+      return inv.status === "paid";
+    case "all":
+    default:
+      return true;
+  }
+}
+
 interface Counterparty {
   id: string;
   username: string | null;
@@ -48,6 +72,7 @@ interface InvoiceRow {
     checkout_url?: string | null;
     expires_at?: string | null;
     replacement_requested_at?: string | null;
+    accepted_at?: string | null;
     pr_links?: string[] | null;
   } | null;
   created_at: string;
@@ -113,10 +138,15 @@ function isAwaitingPayment(status: InvoiceRow["status"]) {
   return status === "sent" || status === "expired";
 }
 
+// An invoice the payer accepted but hasn't paid yet — the "Accepted" queue.
+function isAcceptedUnpaid(inv: InvoiceRow) {
+  return Boolean(inv.metadata?.accepted_at) && isAwaitingPayment(inv.status);
+}
+
 export default async function InvoicesDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; status?: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -126,8 +156,13 @@ export default async function InvoicesDashboardPage({
     redirect("/login?redirect=/dashboard/invoices");
   }
 
-  const tabParam = (await searchParams).tab;
-  const tab: TabKey = tabParam === "sent" ? "sent" : "received";
+  const sp = await searchParams;
+  const tab: TabKey = sp.tab === "sent" ? "sent" : "received";
+  const statusFilter: StatusFilter = STATUS_FILTERS.some(
+    (f) => f.key === sp.status
+  )
+    ? (sp.status as StatusFilter)
+    : "all";
 
   const { data: invoiceData } = await (supabase as any)
     .from("gig_invoices")
@@ -146,10 +181,15 @@ export default async function InvoicesDashboardPage({
   const invoices = (invoiceData || []) as InvoiceRow[];
   const sent = invoices.filter((i) => i.worker_id === user.id);
   const received = invoices.filter((i) => i.poster_id === user.id);
+  const accepted = received.filter(isAcceptedUnpaid);
 
   const totalOwed = received
     .filter((i) => isAwaitingPayment(i.status))
     .reduce((s, i) => s + Number(i.amount_usd || 0), 0);
+  const totalAccepted = accepted.reduce(
+    (s, i) => s + Number(i.amount_usd || 0),
+    0
+  );
   const totalEarned = sent
     .filter((i) => i.status === "paid")
     .reduce((s, i) => s + Number(i.amount_usd || 0), 0);
@@ -157,7 +197,8 @@ export default async function InvoicesDashboardPage({
     .filter((i) => isAwaitingPayment(i.status))
     .reduce((s, i) => s + Number(i.amount_usd || 0), 0);
 
-  const list = tab === "sent" ? sent : received;
+  const base = tab === "sent" ? sent : received;
+  const list = base.filter((i) => matchesStatusFilter(i, statusFilter));
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -178,10 +219,14 @@ export default async function InvoicesDashboardPage({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
             <p className="text-2xl font-bold text-blue-600">${totalOwed.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground mt-1">You owe (unpaid received)</p>
+          </div>
+          <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
+            <p className="text-2xl font-bold text-emerald-600">${totalAccepted.toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground mt-1">Accepted — ready to pay</p>
           </div>
           <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
             <p className="text-2xl font-bold text-yellow-600">${totalPendingForMe.toFixed(2)}</p>
@@ -194,7 +239,7 @@ export default async function InvoicesDashboardPage({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-border mb-6">
+        <div className="flex gap-1 border-b border-border mb-4">
           <Link
             href="/dashboard/invoices?tab=received"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -217,29 +262,60 @@ export default async function InvoicesDashboardPage({
           </Link>
         </div>
 
+        {/* Status filter */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {STATUS_FILTERS.map((f) => {
+            const count = base.filter((i) => matchesStatusFilter(i, f.key)).length;
+            const active = statusFilter === f.key;
+            return (
+              <Link
+                key={f.key}
+                href={`/dashboard/invoices?tab=${tab}${f.key === "all" ? "" : `&status=${f.key}`}`}
+                className={`rounded-full px-3 py-1 text-sm border transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/30"
+                }`}
+              >
+                {f.label} ({count})
+              </Link>
+            );
+          })}
+        </div>
+
         {/* Invoice list */}
         <div>
           <h2 className="text-lg font-semibold mb-4">
-            {tab === "received" ? "Invoices from workers" : "Invoices you've sent"}
+            {tab === "sent" ? "Invoices you've sent" : "Invoices from workers"}
+            {statusFilter !== "all" && (
+              <span className="text-muted-foreground font-normal">
+                {" · "}
+                {STATUS_FILTERS.find((f) => f.key === statusFilter)?.label}
+              </span>
+            )}
           </h2>
 
           {list.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-lg border border-border">
               <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground mb-1">
-                {tab === "received" ? "No invoices received yet" : "No invoices sent yet"}
+                {statusFilter !== "all"
+                  ? `No ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()} invoices`
+                  : tab === "sent"
+                    ? "No invoices sent yet"
+                    : "No invoices received yet"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {tab === "received"
-                  ? "When a worker bills you (or you initiate a payment), it will appear here."
-                  : "Once you're accepted on a gig, you can send an invoice from the gig page."}
+                {tab === "sent"
+                  ? "Once you're accepted on a gig, you can send an invoice from the gig page."
+                  : "When a worker bills you (or you initiate a payment), it will appear here."}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               {list.map((inv) => {
                 const counterparty =
-                  tab === "received" ? inv.worker : inv.poster;
+                  tab === "sent" ? inv.poster : inv.worker;
                 return (
                   <div
                     key={inv.id}
@@ -257,7 +333,7 @@ export default async function InvoicesDashboardPage({
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {tab === "received" ? "From " : "To "}
+                          {tab === "sent" ? "To " : "From "}
                           <span className="font-medium text-foreground">
                             {counterpartyName(counterparty)}
                           </span>
@@ -277,6 +353,11 @@ export default async function InvoicesDashboardPage({
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {statusBadge(inv.status)}
+                        {isAcceptedUnpaid(inv) && (
+                          <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 border border-emerald-500/20">
+                            Accepted · will be paid soon
+                          </span>
+                        )}
                         {inv.metadata?.replacement_requested_at &&
                           isAwaitingPayment(inv.status) && (
                             <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600 border border-amber-500/20">
@@ -343,7 +424,7 @@ export default async function InvoicesDashboardPage({
                       )}
                     </div>
 
-                    {tab === "received" && (
+                    {tab !== "sent" && (
                       <div className="mt-3">
                         <InvoicePaymentActions
                           invoiceId={inv.id}
