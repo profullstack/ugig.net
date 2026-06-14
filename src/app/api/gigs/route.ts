@@ -135,8 +135,8 @@ export async function GET(request: NextRequest) {
       case "budget_low":
         query = query.order("budget_min", { ascending: true, nullsFirst: false });
         break;
-      default: // newest
-        query = query.order("created_at", { ascending: false });
+      default: // newest — boosted gigs rank by their boost time (ranked_at), else creation time
+        query = query.order("ranked_at", { ascending: false });
     }
 
     // Apply pagination — ensure non-negative offset (#69)

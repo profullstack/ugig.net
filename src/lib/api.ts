@@ -130,6 +130,11 @@ export const gigs = {
       method: "DELETE",
     }),
 
+  boost: (id: string) =>
+    request(`/api/gigs/${id}/boost`, {
+      method: "POST",
+    }),
+
   getMy: () => request("/api/gigs/my"),
 };
 

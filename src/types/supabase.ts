@@ -363,6 +363,7 @@ export type Database = {
         Row: {
           ai_tools_preferred: string[] | null
           applications_count: number | null
+          boosted_at: string | null
           budget_max: number | null
           budget_min: number | null
           budget_type: Database["public"]["Enums"]["budget_type"]
@@ -377,6 +378,7 @@ export type Database = {
           location_type: Database["public"]["Enums"]["location_type"] | null
           payment_coin: string | null
           poster_id: string
+          ranked_at: string | null
           skills_required: string[] | null
           status: Database["public"]["Enums"]["gig_status"] | null
           title: string
@@ -386,6 +388,7 @@ export type Database = {
         Insert: {
           ai_tools_preferred?: string[] | null
           applications_count?: number | null
+          boosted_at?: string | null
           budget_max?: number | null
           budget_min?: number | null
           budget_type: Database["public"]["Enums"]["budget_type"]
@@ -409,6 +412,7 @@ export type Database = {
         Update: {
           ai_tools_preferred?: string[] | null
           applications_count?: number | null
+          boosted_at?: string | null
           budget_max?: number | null
           budget_min?: number | null
           budget_type?: Database["public"]["Enums"]["budget_type"]

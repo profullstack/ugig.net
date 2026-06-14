@@ -13,21 +13,27 @@ import {
   CheckCircle,
   Loader2,
   XCircle,
+  Rocket,
 } from "lucide-react";
 import Link from "next/link";
 import { useDialog } from "@/components/providers/DialogProvider";
+import { getBoostEligibility } from "@/lib/boost";
 
 interface GigActionsProps {
   gigId: string;
   status: string;
+  createdAt?: string | null;
+  boostedAt?: string | null;
 }
 
-export function GigActions({ gigId, status }: GigActionsProps) {
+export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsProps) {
   const router = useRouter();
   const { confirm } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const boost = getBoostEligibility({ created_at: createdAt, boosted_at: boostedAt });
 
   const handleStatusChange = async (newStatus: string) => {
     setIsLoading(true);
@@ -37,6 +43,23 @@ export function GigActions({ gigId, status }: GigActionsProps) {
       gigId,
       newStatus as "draft" | "active" | "paused" | "closed" | "filled"
     );
+
+    if (result.error) {
+      setError(result.error);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsOpen(false);
+    setIsLoading(false);
+    router.refresh();
+  };
+
+  const handleBoost = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const result = await gigsApi.boost(gigId);
 
     if (result.error) {
       setError(result.error);
@@ -118,6 +141,26 @@ export function GigActions({ gigId, status }: GigActionsProps) {
 
                 {status === "active" && (
                   <>
+                    {boost.eligible ? (
+                      <button
+                        onClick={handleBoost}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2 text-primary"
+                        disabled={isLoading}
+                      >
+                        <Rocket className="h-4 w-4" />
+                        Boost Gig
+                      </button>
+                    ) : (
+                      <div className="w-full px-3 py-2 text-left text-xs text-muted-foreground flex items-center gap-2">
+                        <Rocket className="h-4 w-4 shrink-0" />
+                        <span>
+                          Boost available{" "}
+                          {boost.nextEligibleAt
+                            ? new Date(boost.nextEligibleAt).toLocaleDateString()
+                            : "soon"}
+                        </span>
+                      </div>
+                    )}
                     <button
                       onClick={() => handleStatusChange("paused")}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2"

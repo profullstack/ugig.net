@@ -181,7 +181,12 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                       </div>
                     </div>
 
-                    <GigActions gigId={gig.id} status={gig.status} />
+                    <GigActions
+                      gigId={gig.id}
+                      status={gig.status}
+                      createdAt={gig.created_at}
+                      boostedAt={gig.boosted_at}
+                    />
                   </div>
 
                   {(pendingByGig[gig.id]?.length ?? 0) > 0 && (

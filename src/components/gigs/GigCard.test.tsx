@@ -39,6 +39,8 @@ const baseGig = {
   poster_id: "user-1",
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  boosted_at: null,
+  ranked_at: new Date().toISOString(),
   expires_at: null,
   applications_count: 0,
   duration: null,
