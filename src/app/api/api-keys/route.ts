@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         scope,
       })
       .select("id, name, key_prefix, created_at, expires_at, scope")
-      .single();
+      .maybeSingle();
 
     if (error || !apiKey) {
       console.error("API key creation error:", error);

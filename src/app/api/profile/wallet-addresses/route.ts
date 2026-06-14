@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       .from("profiles")
       .select("wallet_addresses")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     const posterAddresses = Array.isArray(posterProfile?.wallet_addresses)
       ? posterProfile.wallet_addresses
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         .from("gigs")
         .select("id, poster_id")
         .eq("id", gigId)
-        .single();
+        .maybeSingle();
 
       if (!gig || gig.poster_id !== user.id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         .from("profiles")
         .select("wallet_addresses")
         .eq("id", workerId)
-        .single();
+        .maybeSingle();
 
       workerAddresses = Array.isArray(workerProfile?.wallet_addresses)
         ? workerProfile.wallet_addresses

@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
         gig_id,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

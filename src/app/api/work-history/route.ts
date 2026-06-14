@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         ...validationResult.data,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
