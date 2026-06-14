@@ -7,6 +7,18 @@ type AnySupabase = any;
 const MAX_EMAIL_ENTRIES_PER_REQUEST = 200;
 const MAX_INVITES_PER_REQUEST = 20;
 
+async function readJsonObject(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 // GET /api/referrals - List my referrals
 export async function GET(request: NextRequest) {
   try {
@@ -54,7 +66,13 @@ export async function POST(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
     const { emails } = body;
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
