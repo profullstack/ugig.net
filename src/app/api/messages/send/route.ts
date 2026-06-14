@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("id, full_name, username, last_active_at")
       .eq("username", recipient)
-      .single();
+      .maybeSingle();
 
     if (recipientError || !recipientProfile) {
       return NextResponse.json(
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       .select("id, participant_ids")
       .is("gig_id", null)
       .contains("participant_ids", participantIds)
-      .single();
+      .maybeSingle();
 
     let conversationId: string;
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           gig_id: null,
         })
         .select("id")
-        .single();
+        .maybeSingle();
 
       if (createError || !newConversation) {
         return NextResponse.json(
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         )
       `
       )
-      .single();
+      .maybeSingle();
 
     if (messageError || !message) {
       return NextResponse.json(
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("full_name, username")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     const senderName =
       senderProfile?.full_name || senderProfile?.username || "Someone";

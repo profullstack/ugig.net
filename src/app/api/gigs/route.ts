@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("status", "active");
 
-    // Apply filters â€” use textSearch or individual filters to prevent PostgREST filter injection (#71)
+    // Apply filters â€?use textSearch or individual filters to prevent PostgREST filter injection (#71)
     if (search) {
       // Sanitize: escape PostgREST special chars and SQL wildcards
       const safeSearch = search
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
 
     // Default to 'hiring' unless explicitly requesting for_hire or 'all'
     if (listing_type === "all") {
-      // No filter â€” return both types
+      // No filter â€?return both types
     } else if (listing_type) {
       query = query.eq("listing_type", listing_type);
     } else {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         query = query.order("created_at", { ascending: false });
     }
 
-    // Apply pagination â€” ensure non-negative offset (#69)
+    // Apply pagination â€?ensure non-negative offset (#69)
     const offset = Math.max(0, (page - 1) * limit);
     query = query.range(offset, offset + limit - 1);
 
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
         .from("subscriptions")
         .select("plan")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!subscription || subscription.plan === "free") {
         const { data: usage } = await supabase
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
           .eq("user_id", user.id)
           .eq("month", month)
           .eq("year", year)
-          .single();
+          .maybeSingle();
 
         if (usage && usage.posts_count >= 10) {
           return NextResponse.json(
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
         ...validationResult.data,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

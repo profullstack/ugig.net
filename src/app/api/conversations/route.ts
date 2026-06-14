@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("id")
       .eq("id", recipient_id)
-      .single();
+      .maybeSingle();
 
     if (!recipient) {
       return NextResponse.json(
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
         .from("gigs")
         .select("id, poster_id")
         .eq("id", gig_id)
-        .single();
+        .maybeSingle();
 
       if (!gig) {
         return NextResponse.json({ error: "Gig not found" }, { status: 404 });
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
           .select("id")
           .eq("gig_id", gig_id)
           .eq("applicant_id", user.id)
-          .single();
+          .maybeSingle();
 
         isApplicant = !!application;
       }
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
         .select("*")
         .eq("gig_id", gig_id)
         .contains("participant_ids", participantIds)
-        .single();
+        .maybeSingle();
 
       if (existingConv) {
         return NextResponse.json({ data: existingConv });
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
           gig_id,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
           gig_id: null,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -277,7 +277,7 @@ export async function PATCH(request: NextRequest) {
       .select("id, participant_ids")
       .eq("id", conversation_id)
       .contains("participant_ids", [user.id])
-      .single();
+      .maybeSingle();
 
     if (!conv) {
       return NextResponse.json(
@@ -293,7 +293,7 @@ export async function PATCH(request: NextRequest) {
       })
       .eq("id", conversation_id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

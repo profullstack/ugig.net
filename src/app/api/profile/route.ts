@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !profile) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -100,7 +100,7 @@ export async function PUT(request: NextRequest) {
       .from("profiles")
       .select("did, resume_url")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     // Check if profile is complete
     const isComplete = Boolean(
@@ -120,9 +120,9 @@ export async function PUT(request: NextRequest) {
       .update(updateData)
       .eq("id", user.id)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !profile) {
       console.error("Profile update error:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json({ error: error.message }, { status: 400 });

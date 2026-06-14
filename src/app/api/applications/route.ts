@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       .from("gigs")
       .select("poster_id, status, title, poster:profiles!poster_id(full_name, username)")
       .eq("id", gig_id)
-      .single();
+      .maybeSingle();
 
     if (!gig) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existingApplication) {
       return NextResponse.json(
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         ...applicationData,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         .from("profiles")
         .select("full_name, username")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const applicantName = applicantProfile?.full_name || applicantProfile?.username || "A candidate";
       const posterName = poster?.full_name || poster?.username || "there";
