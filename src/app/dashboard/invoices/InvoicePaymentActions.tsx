@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
-import { CheckCircle2, Loader2, RefreshCw, Send, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, Send, ThumbsUp, XCircle } from "lucide-react";
 
 type InvoiceStatus =
   | "draft"
@@ -21,6 +21,7 @@ interface InvoicePaymentMetadata {
   checkout_url?: string | null;
   expires_at?: string | null;
   replacement_requested_at?: string | null;
+  accepted_at?: string | null;
 }
 
 interface InvoicePaymentActionsProps {
@@ -54,6 +55,10 @@ export function InvoicePaymentActions({
     Boolean(initialMetadata?.replacement_requested_at)
   );
   const [rejecting, setRejecting] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(
+    initialMetadata?.accepted_at ?? null
+  );
   const [canRequestNew, setCanRequestNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -213,13 +218,37 @@ export function InvoicePaymentActions({
     }
   };
 
+  const acceptInvoice = async () => {
+    setAccepting(true);
+    setError(null);
+    setStatusMessage(null);
+    try {
+      const res = await fetch(`/api/gigs/${gigId}/invoice/${invoiceId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to accept invoice");
+        return;
+      }
+      setAcceptedAt(json.data?.accepted_at || new Date().toISOString());
+      setStatusMessage("Accepted. The worker was notified you'll pay soon.");
+      router.refresh();
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setAccepting(false);
+    }
+  };
+
   const rejectButton = (
     <Button
       type="button"
       size="sm"
       variant="ghost"
       onClick={rejectInvoice}
-      disabled={rejecting || submitting}
+      disabled={rejecting || submitting || accepting}
       className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
     >
       {rejecting ? (
@@ -228,6 +257,31 @@ export function InvoicePaymentActions({
         <XCircle className="h-4 w-4" />
       )}
       Reject invoice
+    </Button>
+  );
+
+  // Marks the invoice as accepted so it lands in the "Accepted" queue to be paid
+  // quickly. Once accepted, we show a durable confirmation instead of the button.
+  const acceptControl = acceptedAt ? (
+    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700">
+      <ThumbsUp className="h-4 w-4" />
+      Accepted — will be paid soon
+    </span>
+  ) : (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={acceptInvoice}
+      disabled={accepting || rejecting || submitting}
+      className="gap-2 border-green-500/30 text-green-700 hover:bg-green-500/10 hover:text-green-700"
+    >
+      {accepting ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ThumbsUp className="h-4 w-4" />
+      )}
+      Accept
     </Button>
   );
 
@@ -310,7 +364,10 @@ export function InvoicePaymentActions({
           </Button>
         </div>
 
-        <div className="flex justify-end">{rejectButton}</div>
+        <div className="flex items-center justify-between gap-2">
+          {acceptControl}
+          {rejectButton}
+        </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
@@ -332,12 +389,13 @@ export function InvoicePaymentActions({
           Ask them to send a fresh invoice with a connected wallet.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {acceptControl}
         <Button
           type="button"
           size="sm"
           onClick={createPaymentRequest}
-          disabled={submitting || requestingNew}
+          disabled={submitting || requestingNew || accepting}
           className="gap-2"
         >
           {submitting ? (
