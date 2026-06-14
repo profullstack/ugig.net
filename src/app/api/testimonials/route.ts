@@ -90,9 +90,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof rating !== "number" || rating < 1 || rating > 5) {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return NextResponse.json(
-        { error: "Rating must be between 1 and 5" },
+        { error: "Rating must be an integer from 1-5" },
         { status: 400 }
       );
     }
