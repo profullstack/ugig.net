@@ -6,7 +6,7 @@ import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
-import { validateOfferInput } from "@/lib/affiliates/validation";
+import { validateOfferInput, type OfferInput } from "@/lib/affiliates/validation";
 
 function parsePaginationParam(
   value: string | null,
@@ -26,6 +26,18 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "")
     .slice(0, 80);
   return slug || "offer";
+}
+
+async function readJsonObject(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -148,8 +160,11 @@ export async function POST(request: NextRequest) {
     const rl = checkRateLimit(getRateLimitIdentifier(request, auth.user.id), "write");
     if (!rl.allowed) return rateLimitExceeded(rl);
 
-    const body = await request.json();
-    const validation = validateOfferInput(body);
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const validation = validateOfferInput(body as unknown as OfferInput);
 
     if (!validation.ok) {
       return NextResponse.json({ error: validation.errors.join("; ") }, { status: 400 });

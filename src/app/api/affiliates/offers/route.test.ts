@@ -170,6 +170,23 @@ describe("POST /api/affiliates/offers", () => {
     vi.clearAllMocks();
   });
 
+  it("returns 400 for malformed JSON before touching affiliate offers", async () => {
+    mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
+
+    const req = new NextRequest("http://localhost/api/affiliates/offers", {
+      method: "POST",
+      body: "{not valid json",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid JSON body");
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it("rejects javascript: URL in product_url (#18)", async () => {
     mockGetAuthContext.mockResolvedValue({ user: { id: "user1" } });
 
