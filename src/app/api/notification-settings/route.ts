@@ -14,6 +14,18 @@ const SETTING_KEYS = [
   "email_upvote_milestone",
 ] as const;
 
+async function readJsonObject(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return null;
+    }
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 // GET /api/notification-settings
 export async function GET(request: NextRequest) {
   try {
@@ -60,7 +72,10 @@ export async function PUT(request: NextRequest) {
     }
     const { user, supabase } = auth;
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     // Only allow known boolean keys
     const updateData: Record<string, boolean> = {};
