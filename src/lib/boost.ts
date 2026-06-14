@@ -6,6 +6,24 @@ export const BOOST_COOLDOWN_DAYS = 7;
 
 const COOLDOWN_MS = BOOST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
+/**
+ * How long a boost stays "active" — i.e. the gig shows the Boosted badge and is
+ * pinned to the top of the listing. Equal to the cooldown, so a gig is pinned for
+ * exactly the window during which it cannot be boosted again.
+ */
+export const BOOST_ACTIVE_MS = COOLDOWN_MS;
+
+/** True when the gig was boosted within the active window and should be pinned/badged. */
+export function isGigBoosted(
+  gig: { boosted_at?: string | null },
+  now: Date = new Date()
+): boolean {
+  if (!gig.boosted_at) return false;
+  const boostedMs = new Date(gig.boosted_at).getTime();
+  if (!Number.isFinite(boostedMs)) return false;
+  return now.getTime() - boostedMs < BOOST_ACTIVE_MS;
+}
+
 interface BoostableGig {
   created_at?: string | null;
   boosted_at?: string | null;

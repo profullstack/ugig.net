@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getBoostEligibility, BOOST_COOLDOWN_DAYS } from "./boost";
+import { getBoostEligibility, isGigBoosted, BOOST_COOLDOWN_DAYS } from "./boost";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const now = new Date("2026-06-14T00:00:00.000Z");
@@ -52,5 +52,26 @@ describe("getBoostEligibility", () => {
   it("treats gigs with no timestamps as eligible rather than locked", () => {
     expect(getBoostEligibility({}, now).eligible).toBe(true);
     expect(getBoostEligibility({ created_at: "not-a-date" }, now).eligible).toBe(true);
+  });
+});
+
+describe("isGigBoosted", () => {
+  it("is false when never boosted", () => {
+    expect(isGigBoosted({ boosted_at: null }, now)).toBe(false);
+    expect(isGigBoosted({}, now)).toBe(false);
+  });
+
+  it("is true within the active window", () => {
+    expect(isGigBoosted({ boosted_at: daysAgo(0) }, now)).toBe(true);
+    expect(isGigBoosted({ boosted_at: daysAgo(BOOST_COOLDOWN_DAYS - 1) }, now)).toBe(true);
+  });
+
+  it("is false once the active window has elapsed", () => {
+    expect(isGigBoosted({ boosted_at: daysAgo(BOOST_COOLDOWN_DAYS) }, now)).toBe(false);
+    expect(isGigBoosted({ boosted_at: daysAgo(30) }, now)).toBe(false);
+  });
+
+  it("is false for an unparseable timestamp", () => {
+    expect(isGigBoosted({ boosted_at: "nope" }, now)).toBe(false);
   });
 });

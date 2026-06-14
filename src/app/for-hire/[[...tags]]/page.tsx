@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
 import { parsePageParam } from "@/lib/pagination";
-import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
+import { fetchGigs } from "@/lib/gigs/fetch-gigs";
+import type { GigCardData } from "@/components/gigs/GigCard";
 import { Briefcase } from "lucide-react";
 
 interface GigsPageProps {
@@ -68,86 +69,22 @@ async function GigsList({
     ? queryParams.skill.split(",").map(decodeURIComponent)
     : tags?.[0]?.split(",").map(decodeURIComponent) || [];
 
-  // Build query
-  let query = supabase
-    .from("gigs")
-    .select(
-      `
-      *,
-      poster:profiles!poster_id (
-        id,
-        username,
-        full_name,
-        avatar_url,
-        account_type,
-        verified,
-        verification_type
-      )
-    `,
-      { count: "exact" }
-    )
-    .eq("status", "active")
-    .eq("listing_type", "for_hire");
-
-  // Filter by search query
-  if (queryParams.search) {
-    const safeSearch = escapePostgrestSearchValue(queryParams.search);
-    query = query.or(
-      `title.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
-    );
-  }
-
-  // Filter by category
-  if (queryParams.category) {
-    query = query.eq("category", queryParams.category);
-  }
-
-  // Filter by location type
-  if (
-    queryParams.location_type &&
-    ["remote", "onsite", "hybrid"].includes(queryParams.location_type)
-  ) {
-    query = query.eq("location_type", queryParams.location_type as "remote" | "onsite" | "hybrid");
-  }
-
-  // Filter by skill tags
-  // We need to filter gigs that have ANY of the tags in their skills_required
-  if (tagList.length > 0) {
-    // Build expanded tag list with common casings to handle case-insensitive matching
-    const expandedTags = new Set<string>();
-    for (const tag of tagList) {
-      expandedTags.add(tag);
-      expandedTags.add(tag.toLowerCase());
-      expandedTags.add(tag.charAt(0).toUpperCase() + tag.slice(1)); // Title case
-      expandedTags.add(tag.toUpperCase());
-      // Handle multi-word: "node.js" → "Node.js", "next.js" → "Next.js"
-      expandedTags.add(tag.replace(/\b\w/g, (c) => c.toUpperCase()));
-    }
-    query = query.overlaps("skills_required", [...expandedTags]);
-  }
-
-  // Apply sorting
-  switch (queryParams.sort) {
-    case "oldest":
-      query = query.order("created_at", { ascending: true });
-      break;
-    case "budget_high":
-      query = query.order("budget_max", { ascending: false, nullsFirst: false });
-      break;
-    case "budget_low":
-      query = query.order("budget_min", { ascending: true, nullsFirst: false });
-      break;
-    default:
-      query = query.order("created_at", { ascending: false });
-  }
-
   // Pagination
   const page = parsePageParam(queryParams.page);
   const limit = 20;
-  const offset = (page - 1) * limit;
-  query = query.range(offset, offset + limit - 1);
 
-  const { data: gigs, count } = await query;
+  const { gigs, count } = await fetchGigs(supabase, {
+    listingType: "for_hire",
+    filters: {
+      search: queryParams.search,
+      category: queryParams.category,
+      locationType: queryParams.location_type,
+      tags: tagList,
+    },
+    sort: queryParams.sort,
+    page,
+    limit,
+  });
 
   if (!gigs || gigs.length === 0) {
     return (
@@ -193,7 +130,7 @@ async function GigsList({
       </p>
 
       <div className="space-y-4">
-        {gigs.map((gig) => (
+        {(gigs as unknown as GigCardData[]).map((gig) => (
           <GigCard key={gig.id} gig={gig} highlightTags={tagList} />
         ))}
       </div>

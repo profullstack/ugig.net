@@ -10,8 +10,9 @@ import {
   type PendingApplication,
 } from "@/components/gigs/PendingApplicantsDropdown";
 import { ApproveAllButton } from "@/components/gigs/ApproveAllButton";
-import { Plus, ArrowLeft, Eye, Users, Briefcase, Archive } from "lucide-react";
+import { Plus, ArrowLeft, Eye, Users, Briefcase, Archive, Rocket } from "lucide-react";
 import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
+import { isGigBoosted } from "@/lib/boost";
 
 export const metadata = {
   title: "My Gigs | ugig.net",
@@ -155,6 +156,12 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                         >
                           {gig.status}
                         </Badge>
+                        {isGigBoosted(gig) && (
+                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 flex items-center gap-1">
+                            <Rocket className="h-3 w-3" />
+                            Boosted
+                          </Badge>
+                        )}
                       </div>
 
                       <p className="text-muted-foreground text-sm mb-4 line-clamp-2 whitespace-pre-wrap break-words">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Clock, DollarSign } from "lucide-react";
+import { MapPin, Clock, DollarSign, Rocket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -13,11 +13,14 @@ import { linkifyText } from "@/lib/linkify";
 import type { Gig, Profile } from "@/types";
 import { SatsRangeToUsd } from "./SatsToUsd";
 import { ZapButton } from "@/components/zaps/ZapButton";
+import { isGigBoosted } from "@/lib/boost";
+
+export type GigCardData = Gig & {
+  poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
+};
 
 interface GigCardProps {
-  gig: Gig & {
-    poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
-  };
+  gig: GigCardData;
   showSaveButton?: boolean;
   isSaved?: boolean;
   onSaveChange?: (saved: boolean) => void;
@@ -85,11 +88,16 @@ export function GigCard({
 
   const isForHire = gig.listing_type === "for_hire";
   const detailHref = isForHire ? `/for-hire/${gig.id}` : `/gigs/${gig.id}`;
+  const boosted = isGigBoosted(gig);
 
   return (
     <Link
       href={detailHref}
-      className="block p-6 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-200 bg-card"
+      className={`block p-6 border rounded-lg shadow-sm hover:shadow-md transition-all duration-200 bg-card ${
+        boosted
+          ? "border-amber-400 ring-1 ring-amber-400/40 hover:border-amber-500"
+          : "border-border hover:border-primary/40"
+      }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -131,6 +139,12 @@ export function GigCard({
       </div>
 
       <div className="flex flex-wrap gap-2 mt-4">
+        {boosted && (
+          <Badge className="font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 flex items-center gap-1">
+            <Rocket className="h-3 w-3" />
+            Boosted
+          </Badge>
+        )}
         {gig.listing_type === "for_hire" ? (
           <Badge className="font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">For Hire</Badge>
         ) : (

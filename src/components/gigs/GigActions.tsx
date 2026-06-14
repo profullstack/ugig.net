@@ -28,7 +28,7 @@ interface GigActionsProps {
 
 export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsProps) {
   const router = useRouter();
-  const { confirm } = useDialog();
+  const { confirm, alert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,14 +61,17 @@ export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsPr
 
     const result = await gigsApi.boost(gigId);
 
+    setIsOpen(false);
+    setIsLoading(false);
+
     if (result.error) {
-      setError(result.error);
-      setIsLoading(false);
+      await alert(result.error);
       return;
     }
 
-    setIsOpen(false);
-    setIsLoading(false);
+    await alert(
+      "Gig boosted! It's pinned to the top of the listing for the next week."
+    );
     router.refresh();
   };
 
@@ -120,7 +123,7 @@ export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsPr
               className="fixed inset-0 z-10"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg z-20">
+            <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-20">
               <div className="p-1">
                 {error && (
                   <div className="px-3 py-2 text-xs text-destructive">
