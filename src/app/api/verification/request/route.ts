@@ -7,7 +7,7 @@ import {
 } from "@/lib/rate-limit";
 import { getUserDid, onVerificationRequested } from "@/lib/reputation-hooks";
 
-// POST /api/verification/request â€” submit a verification request with evidence
+// POST /api/verification/request â€?submit a verification request with evidence
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext(request);
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("verified")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profile?.verified) {
       return NextResponse.json(
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       .select("id, status")
       .eq("user_id", user.id)
       .eq("status", "pending")
-      .single();
+      .maybeSingle();
 
     if (existingRequest) {
       return NextResponse.json(
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         status: "pending",
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

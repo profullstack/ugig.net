@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("id, username, full_name")
       .eq("id", participant_id)
-      .single();
+      .maybeSingle();
 
     if (!participant) {
       return NextResponse.json(
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
         scheduled_at,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (createError) {
       return NextResponse.json({ error: createError.message }, { status: 400 });
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
         .from("profiles")
         .select("full_name, username")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const initiatorName = initiatorProfile?.full_name || initiatorProfile?.username || "Someone";
       const participantName = participant.full_name || participant.username || "there";
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
           .from("gigs")
           .select("title")
           .eq("id", gig_id)
-          .single();
+          .maybeSingle();
         gigTitle = gig?.title || null;
       }
 

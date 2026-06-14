@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       .from("subscriptions")
       .select("*")
       .eq("user_id", auth.user.id)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== "PGRST116") {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -54,7 +54,7 @@ export async function DELETE(request: NextRequest) {
       .from("subscriptions")
       .select("stripe_subscription_id, status")
       .eq("user_id", auth.user.id)
-      .single();
+      .maybeSingle();
 
     if (error || !subscription) {
       return NextResponse.json(
@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest) {
       .from("subscriptions")
       .select("stripe_subscription_id, cancel_at_period_end")
       .eq("user_id", auth.user.id)
-      .single();
+      .maybeSingle();
 
     if (error || !subscription) {
       return NextResponse.json(

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         .from("gigs")
         .select("poster_id, title")
         .eq("id", gig_id)
-        .single();
+        .maybeSingle();
 
       if (gigError || !gig) {
         return NextResponse.json(
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
-        // Someone else leaving a testimonial on this gig â€” notify the poster
+        // Someone else leaving a testimonial on this gig â€?notify the poster
         notifyUserId = gig.poster_id;
         targetLabel = `your gig "${gig.title}"`;
       }
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
         ...(autoApprove ? { status: "approved" } : {}),
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === "23505") {
@@ -202,10 +202,10 @@ export async function POST(request: NextRequest) {
         .from("profiles")
         .select("full_name, username")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const authorName = authorProfile?.full_name || authorProfile?.username || "Someone";
-      const stars = "â˜…".repeat(rating) + "â˜†".repeat(5 - rating);
+      const stars = "â˜?.repeat(rating) + "â˜?.repeat(5 - rating);
 
       // In-app notification
       await serviceClient.from("notifications").insert({
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
         await sendEmail({
           to: ownerEmail,
-          subject: `${authorName} left a ${rating}-star testimonial on ${targetLabel} â€” ugig.net`,
+          subject: `${authorName} left a ${rating}-star testimonial on ${targetLabel} â€?ugig.net`,
           html: `
             <div style="font-family: sans-serif; max-width: 500px;">
               <h2>New Testimonial ${stars}</h2>

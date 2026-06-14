@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No Lightning wallet found" }, { status: 400 });
     }
 
-    // Pre-check sender's balance (informational only â€” authoritative check happens at transfer time)
+    // Pre-check sender's balance (informational only â€?authoritative check happens at transfer time)
     const senderBalance = await getLnBalance(senderWallet.invoice_key);
     if (senderBalance < amount_sats) {
       return NextResponse.json({ error: "Insufficient balance", balance_sats: senderBalance }, { status: 400 });
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const fee_sats = Math.floor(amount_sats * PLATFORM_FEE_RATE);
     const recipient_amount = amount_sats - fee_sats;
 
-    // Transfer recipient's share: sender â†’ recipient (instant internal transfer)
+    // Transfer recipient's share: sender â†?recipient (instant internal transfer)
     // Handle insufficient-funds errors gracefully (TOCTOU race condition #78)
     try {
       await internalTransfer(
@@ -117,13 +117,13 @@ export async function POST(request: NextRequest) {
         }, { status: 502 });
       }
 
-      // Generic LNbits error â€” expose the actual message
+      // Generic LNbits error â€?expose the actual message
       return NextResponse.json({
         error: err?.message || "Zap transfer failed",
       }, { status: 502 });
     }
 
-    // Transfer platform fee: sender â†’ platform wallet (retry up to 3 times)
+    // Transfer platform fee: sender â†?platform wallet (retry up to 3 times)
     if (fee_sats > 0) {
       let feeTransferred = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         note: note || null,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     const zapId = (zap as any)?.id;
 
@@ -229,13 +229,13 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("*")
       .eq("id", recipient_id)
-      .single();
+      .maybeSingle();
 
     const { data: senderProfile } = await admin
       .from("profiles")
       .select("username")
       .eq("id", senderId)
-      .single();
+      .maybeSingle();
 
     const senderName = senderProfile?.username || "Someone";
 
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
       await (admin.from("notifications") as any).insert({
         user_id: recipient_id,
         type: "zap_received",
-        title: "You received a zap! âš¡",
+        title: "You received a zap! âš?,
         body: `${senderName} zapped you ${recipient_amount.toLocaleString()} sats`,
         data: { zap_id: zapId, amount_sats: recipient_amount, target_type, target_id },
       });
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       await (admin.from("notifications") as any).insert({
         user_id: recipient_id,
         type: "zap_received",
-        title: "You received a zap! âš¡",
+        title: "You received a zap! âš?,
         body: `${senderName} zapped you ${recipient_amount.toLocaleString()} sats. Add a Lightning Address to your profile to withdraw.`,
         data: { zap_id: zapId, amount_sats: recipient_amount, target_type, target_id, action_url: "/profile" },
       });
