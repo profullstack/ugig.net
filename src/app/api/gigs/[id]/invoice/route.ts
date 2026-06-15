@@ -227,6 +227,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           { status: 400 }
         );
       }
+    } else if (lineItems.length > 0 && agreedCap != null) {
+      // Per-unit / per-task / hourly gigs: the *total* legitimately exceeds the
+      // single quoted rate because the worker bills multiple units, so we don't
+      // cap the total here. But no single line item may be priced above the
+      // agreed per-unit rate — e.g. a $1/PR gig can be invoiced as 1 PR × 5
+      // ($5 total), not as one $6 line item. Bill more by raising the quantity,
+      // not the unit price.
+      const overpriced = lineItems.find((it) => it.unit_price > agreedCap + 1e-6);
+      if (overpriced) {
+        return NextResponse.json(
+          {
+            error: `Line item "${
+              overpriced.description || "item"
+            }" unit price (${fmtNative(
+              overpriced.unit_price
+            )}) exceeds the agreed rate for this gig (${fmtNative(
+              agreedCap
+            )}). Increase the quantity instead of the unit price.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Convert the native total to USD — the canonical amount CoinPay charges.

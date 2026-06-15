@@ -643,6 +643,126 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(body.error).toMatch(/no agreed amount/i);
   });
 
+  it("rejects a per-unit line item priced above the agreed rate", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "PR Gig",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+      budget_type: "per_unit",
+      budget_min: 1,
+      budget_max: 1,
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 1, // $1 per PR
+    };
+
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    // $6 for a single PR exceeds the $1/PR rate — should be rejected even though
+    // a 6 × $1 invoice for the same $6 total would be fine.
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        items: [{ description: "Pull request", quantity: 1, unit_price: 6 }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/exceeds the agreed rate/i);
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("allows a per-unit gig to multiply quantity past the single-unit rate", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "PR Gig",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+      budget_type: "per_unit",
+      budget_min: 1,
+      budget_max: 1,
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 1, // $1 per PR
+    };
+
+    let inserted: any = null;
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+      gig_invoices: mockInvoiceTable({
+        insertResult: { id: "local-inv-perunit", metadata: {} },
+        onInsert: (row) => {
+          inserted = row;
+        },
+      }),
+      profiles: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({ data: { username: "w", full_name: "Test Worker" }, error: null }),
+      },
+      notifications: { insert: vi.fn().mockResolvedValue({ error: null }) },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+    (createServiceClient as any).mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi
+            .fn()
+            .mockResolvedValue({ data: { user: { email: "poster@example.com" } } }),
+        },
+      },
+      from: vi.fn(() => ({ insert: vi.fn().mockResolvedValue({ error: null }) })),
+    });
+
+    // 1 PR × 5 at the $1/PR rate = $5 total, which is fine on a per-unit gig.
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        items: [{ description: "Pull requests", quantity: 5, unit_price: 1 }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    expect(inserted.amount_usd).toBe(5);
+  });
+
   it("denominates a sats gig's invoice in USD instead of treating sats as dollars", async () => {
     const gig = {
       id: GIG_ID,
