@@ -74,6 +74,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const requestedIds = [...new Set(application_ids)];
+    const foundIds = new Set(applications.map((app) => app.id));
+    const missingIds = requestedIds.filter((id) => !foundIds.has(id));
+
+    if (missingIds.length > 0) {
+      return NextResponse.json(
+        { error: "Some applications were not found" },
+        { status: 404 }
+      );
+    }
+
     // Verify user owns all the gigs these applications belong to
     const unauthorizedApplications = applications.filter(
       (app) => (app.gig as { poster_id: string })?.poster_id !== user.id
