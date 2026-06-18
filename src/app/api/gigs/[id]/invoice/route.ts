@@ -348,7 +348,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!selectedCurrency || !selectedAddress) {
       const gigCoin = preferredCoinToPaymentCurrency(gig.payment_coin || null);
-      const preferred = workerWallets.find((w) => w.currency === gigCoin) || workerWallets[0];
+      const preferred = workerWallets.find((w) => w.currency === gigCoin || (gigCoin && w.currency.toLowerCase().startsWith(`${gigCoin.toLowerCase()}_`))) || workerWallets[0];
       
       if (preferred) {
         selectedCurrency = preferred.currency;

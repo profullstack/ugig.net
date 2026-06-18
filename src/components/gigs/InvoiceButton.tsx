@@ -552,6 +552,7 @@ export function InvoiceButton({
 
         {isWorker && showForm && (
           <InvoiceForm
+            isWorker={isWorker}
             isSats={isSats}
             capAmount={capAmount}
             items={items}
@@ -587,6 +588,7 @@ export function InvoiceButton({
     if (showForm) {
       return (
         <InvoiceForm
+          isWorker={isWorker}
           isSats={isSats}
           capAmount={capAmount}
           items={items}
@@ -637,6 +639,7 @@ export function InvoiceButton({
 type LineItem = { description: string; quantity: string; unit_price: string; link: string };
 
 function InvoiceForm({
+  isWorker,
   isSats,
   capAmount,
   items,
@@ -659,6 +662,7 @@ function InvoiceForm({
   onSubmit,
   onCancel,
 }: {
+  isWorker: boolean;
   isSats: boolean;
   capAmount: number | null;
   items: LineItem[];
