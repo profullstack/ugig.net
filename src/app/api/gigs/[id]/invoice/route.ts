@@ -335,16 +335,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const selectedCurrency = preferredCoinToPaymentCurrency(payment_currency || null);
-    const selectedAddress = merchant_wallet_address?.trim() || "";
-
-    if (!selectedCurrency || !selectedAddress) {
-      return NextResponse.json(
-        { error: "Select a CoinPay receiving wallet before sending the invoice" },
-        { status: 400 }
-      );
-    }
-
     const workerCoinpayToken = await getConnectedCoinpayAccessToken(workerId);
     if (!workerCoinpayToken) {
       return NextResponse.json(
@@ -373,6 +363,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
         { status: 409 }
       );
+    }
+
+    let selectedCurrency = preferredCoinToPaymentCurrency(payment_currency || null);
+    let selectedAddress = merchant_wallet_address?.trim() || "";
+
+    if (!selectedCurrency || !selectedAddress) {
+      const baseCoin = (gig.payment_coin || "").trim().toLowerCase();
+      const gigCoin = preferredCoinToPaymentCurrency(gig.payment_coin || null);
+      const preferred = workerWallets.find((w) => {
+        const wc = w.currency.toLowerCase();
+        return wc === gigCoin?.toLowerCase() || (baseCoin && (wc === baseCoin || wc.startsWith(`${baseCoin}_`)));
+      }) || workerWallets[0];
+      
+      if (preferred) {
+        selectedCurrency = preferred.currency;
+        selectedAddress = preferred.address;
+      } else {
+        return NextResponse.json(
+          { error: "Select a CoinPay receiving wallet before sending the invoice" },
+          { status: 400 }
+        );
+      }
     }
 
     const selectedWallet = findCoinpayGlobalWallet(

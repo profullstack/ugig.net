@@ -234,12 +234,19 @@ export function InvoiceButton({
 
     setIsCreating(true);
     setError(null);
-    const selectedWallet =
-      wallets.find((wallet) => walletKey(wallet) === selectedWalletKey) || null;
-    if (!selectedWallet) {
-      setError("Select a CoinPay receiving wallet");
-      setIsCreating(false);
-      return;
+    let selectedWalletCurrency: string | undefined;
+    let selectedWalletAddress: string | undefined;
+
+    if (isWorker) {
+      const selectedWallet =
+        wallets.find((wallet) => walletKey(wallet) === selectedWalletKey) || null;
+      if (!selectedWallet) {
+        setError("Select a CoinPay receiving wallet");
+        setIsCreating(false);
+        return;
+      }
+      selectedWalletCurrency = selectedWallet.currency;
+      selectedWalletAddress = selectedWallet.address;
     }
 
     try {
@@ -251,8 +258,8 @@ export function InvoiceButton({
           items: lineItems,
           amount: total,
           currency: "USD",
-          payment_currency: selectedWallet.currency,
-          merchant_wallet_address: selectedWallet.address,
+          payment_currency: selectedWalletCurrency,
+          merchant_wallet_address: selectedWalletAddress,
           notes: notes || undefined,
           due_date: dueDate || undefined,
           pr_links: prLinks.length > 0 ? prLinks : undefined,
@@ -545,6 +552,7 @@ export function InvoiceButton({
 
         {isWorker && showForm && (
           <InvoiceForm
+            isWorker={isWorker}
             isSats={isSats}
             capAmount={capAmount}
             items={items}
@@ -580,6 +588,7 @@ export function InvoiceButton({
     if (showForm) {
       return (
         <InvoiceForm
+          isWorker={isWorker}
           isSats={isSats}
           capAmount={capAmount}
           items={items}
@@ -630,6 +639,7 @@ export function InvoiceButton({
 type LineItem = { description: string; quantity: string; unit_price: string; link: string };
 
 function InvoiceForm({
+  isWorker,
   isSats,
   capAmount,
   items,
@@ -652,6 +662,7 @@ function InvoiceForm({
   onSubmit,
   onCancel,
 }: {
+  isWorker: boolean;
   isSats: boolean;
   capAmount: number | null;
   items: LineItem[];
@@ -844,7 +855,8 @@ function InvoiceForm({
         />
       </div>
 
-      <div className="space-y-2 rounded-md border border-border bg-background p-3">
+      {isWorker && (
+        <div className="space-y-2 rounded-md border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-3">
           <label className="text-xs font-medium text-muted-foreground">
             CoinPay receiving wallet
@@ -906,14 +918,15 @@ function InvoiceForm({
             )}
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex gap-2">
         <Button
           onClick={onSubmit}
-          disabled={isCreating || total <= 0 || overCap || !hasWallets}
+          disabled={isCreating || total <= 0 || overCap || (isWorker && !hasWallets)}
           className="flex-1"
           size="sm"
         >
