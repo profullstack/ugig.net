@@ -347,8 +347,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     let selectedAddress = merchant_wallet_address?.trim() || "";
 
     if (!selectedCurrency || !selectedAddress) {
+      const baseCoin = (gig.payment_coin || "").trim().toLowerCase();
       const gigCoin = preferredCoinToPaymentCurrency(gig.payment_coin || null);
-      const preferred = workerWallets.find((w) => w.currency === gigCoin || (gigCoin && w.currency.toLowerCase().startsWith(`${gigCoin.toLowerCase()}_`))) || workerWallets[0];
+      const preferred = workerWallets.find((w) => {
+        const wc = w.currency.toLowerCase();
+        return wc === gigCoin?.toLowerCase() || (baseCoin && (wc === baseCoin || wc.startsWith(`${baseCoin}_`)));
+      }) || workerWallets[0];
       
       if (preferred) {
         selectedCurrency = preferred.currency;
