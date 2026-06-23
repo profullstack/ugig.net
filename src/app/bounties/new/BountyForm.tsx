@@ -22,6 +22,7 @@ interface BountyInitialData {
   payout_usd?: number;
   payment_coin?: string | null;
   max_submissions?: number | null;
+  github_issue_url?: string | null;
   questions?: Array<{
     id: string;
     type: QuestionType;
@@ -58,6 +59,7 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
   const [maxSubmissions, setMaxSubmissions] = useState(
     initialData?.max_submissions != null ? String(initialData.max_submissions) : ""
   );
+  const [githubIssueUrl, setGithubIssueUrl] = useState(initialData?.github_issue_url ?? "");
   const [questions, setQuestions] = useState<DraftQuestion[]>(
     initialData?.questions && initialData.questions.length > 0
       ? initialData.questions.map((q) => ({
@@ -103,6 +105,11 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
       return setError("Max submissions must be a positive number or blank");
     }
 
+    const issueUrl = githubIssueUrl.trim();
+    if (issueUrl && !/^https:\/\/(www\.)?github\.com\/[^/]+\/[^/]+\/issues\/\d+/.test(issueUrl)) {
+      return setError("GitHub issue URL must look like https://github.com/owner/repo/issues/123");
+    }
+
     setSubmitting(true);
     try {
       const url = isEdit ? `/api/bounties/${bountyId}` : "/api/bounties";
@@ -116,6 +123,7 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
           payout_usd: payoutNum,
           payment_coin: coin || null,
           max_submissions: max,
+          github_issue_url: issueUrl || undefined,
           questions: questions.map((q) => ({
             id: q.id,
             type: q.type,
@@ -189,6 +197,23 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
           step="1"
           className="w-full border rounded-md px-3 py-2 bg-background"
         />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">
+          GitHub issue URL <span className="text-muted-foreground">(optional)</span>
+        </label>
+        <input
+          type="url"
+          value={githubIssueUrl}
+          onChange={(e) => setGithubIssueUrl(e.target.value)}
+          placeholder="https://github.com/owner/repo/issues/123"
+          className="w-full border rounded-md px-3 py-2 bg-background"
+        />
+        <p className="text-xs text-muted-foreground">
+          Link the issue this bounty funds. If the ugig GitHub App is installed on the repo, we
+          post a status comment on the issue and mark it paid when the payout settles.
+        </p>
       </div>
 
       <div>

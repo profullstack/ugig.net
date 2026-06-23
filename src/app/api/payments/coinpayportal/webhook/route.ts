@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { verifyWebhookSignature, type CoinPayWebhookPayload } from "@/lib/coinpayportal";
 import { LIFETIME_THRESHOLD_USD } from "@/lib/funding";
 import { getUserDid, onPaymentReceived, onPaymentSent } from "@/lib/reputation-hooks";
+import { parseGitHubIssueUrl } from "@/lib/github-links";
+import { updateIssueComment } from "@/lib/github-app";
 
 // POST /api/payments/coinpayportal/webhook - Handle CoinPayPortal webhooks
 export async function POST(request: NextRequest) {
@@ -438,9 +440,23 @@ async function handleBountyPaymentConfirmed(
 
   const { data: bounty } = await (supabase as any)
     .from("bounties")
-    .select("id, title, creator_id, payout_usd")
+    .select("id, title, creator_id, payout_usd, github_issue_url, github_comment_id")
     .eq("id", submission.bounty_id)
     .single();
+
+  // Best-effort: flip the GitHub issue status comment to "paid". Only runs on
+  // the first paid transition (the early-return above handles forwarded events),
+  // so the comment is edited once.
+  if (bounty?.github_issue_url && bounty.github_comment_id) {
+    const coords = parseGitHubIssueUrl(bounty.github_issue_url);
+    if (coords) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net").replace(/\/$/, "");
+      const body =
+        `✅ **Bounty paid via [ugig.net](${appUrl})** — $${bounty.payout_usd} for "${bounty.title}".\n\n` +
+        `<sub>Updated automatically by ugig.net.</sub>`;
+      await updateIssueComment(coords.owner, coords.repo, bounty.github_comment_id, body);
+    }
+  }
 
   await (supabase.from("notifications") as any).insert(
     [

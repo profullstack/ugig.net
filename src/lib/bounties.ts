@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatCurrency } from "@/lib/utils";
+import { isGitHubIssueLink, GITHUB_ISSUE_LINK_HINT } from "@/lib/github-links";
 
 /**
  * Human label for a bounty payout, matching the gig card style:
@@ -31,6 +32,14 @@ export const createBountySchema = z.object({
   payment_coin: z.string().max(16).nullable().optional(),
   max_submissions: z.number().int().positive().max(100000).nullable().optional(),
   closes_at: z.string().datetime().optional(),
+  // Optional GitHub issue this bounty funds. When set (and the ugig GitHub App
+  // is installed on the repo), a status comment is posted on the issue.
+  github_issue_url: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isGitHubIssueLink(v), GITHUB_ISSUE_LINK_HINT)
+    .transform((v) => (v === "" ? undefined : v))
+    .optional(),
   questions: z.array(questionSchema).min(1).max(20),
 });
 

@@ -2,7 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createBountySchema } from "@/lib/bounties";
+import { createBountySchema, formatBountyPayout } from "@/lib/bounties";
+import { parseGitHubIssueUrl } from "@/lib/github-links";
+import { postIssueComment } from "@/lib/github-app";
+
+// Post the "bounty posted" status comment on the funded GitHub issue.
+// Returns the comment id (to store for later editing) or null. Best-effort.
+async function postBountyIssueComment(bounty: {
+  id: string;
+  title: string;
+  payout_usd: number | string;
+  payment_coin: string | null;
+  github_issue_url: string;
+}): Promise<number | null> {
+  const coords = parseGitHubIssueUrl(bounty.github_issue_url);
+  if (!coords) return null;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net").replace(/\/$/, "");
+  const bountyUrl = `${appUrl}/bounties/${bounty.id}`;
+  const body =
+    `💰 **Bounty posted on [ugig.net](${appUrl})** — ${formatBountyPayout(bounty.payout_usd, bounty.payment_coin)}\n\n` +
+    `**${bounty.title}**\n\n` +
+    `[Claim this bounty →](${bountyUrl})\n\n` +
+    `<sub>Posted automatically by ugig.net.</sub>`;
+  return postIssueComment(coords.owner, coords.repo, coords.number, body);
+}
 
 const BOUNTY_STATUSES = ["open", "paused", "closed"] as const;
 type BountyStatus = (typeof BOUNTY_STATUSES)[number];
@@ -115,6 +138,7 @@ export async function POST(request: NextRequest) {
         payment_coin: parsed.data.payment_coin || null,
         max_submissions: parsed.data.max_submissions ?? null,
         closes_at: parsed.data.closes_at || null,
+        github_issue_url: parsed.data.github_issue_url ?? null,
         questions,
       })
       .select()
@@ -124,6 +148,21 @@ export async function POST(request: NextRequest) {
       console.error("[POST /api/bounties] Supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Best-effort: if the bounty funds a GitHub issue and the ugig App is
+    // installed on that repo, post a status comment and remember its id so we
+    // can edit it to "paid" later. Never blocks bounty creation.
+    if (data?.github_issue_url) {
+      const commentId = await postBountyIssueComment(data);
+      if (commentId) {
+        await (supabase as any)
+          .from("bounties")
+          .update({ github_comment_id: commentId })
+          .eq("id", data.id);
+        data.github_comment_id = commentId;
+      }
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {
     console.error("[POST /api/bounties] Unexpected error:", err);

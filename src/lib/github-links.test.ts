@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isGitHubPrLink } from "./github-links";
+import { isGitHubPrLink, isGitHubIssueLink, parseGitHubIssueUrl } from "./github-links";
 
 describe("isGitHubPrLink", () => {
   it("accepts a single pull request URL", () => {
@@ -30,5 +30,33 @@ describe("isGitHubPrLink", () => {
     expect(isGitHubPrLink("https://evil.com/github.com/org/repo/pull/1")).toBe(false);
     expect(isGitHubPrLink("http://github.com/org/repo/pull/1")).toBe(false);
     expect(isGitHubPrLink("not a url")).toBe(false);
+  });
+});
+
+describe("isGitHubIssueLink / parseGitHubIssueUrl", () => {
+  it("accepts a single issue URL and parses its coordinates", () => {
+    expect(isGitHubIssueLink("https://github.com/org/repo/issues/123")).toBe(true);
+    expect(parseGitHubIssueUrl("https://github.com/org/repo/issues/123")).toEqual({
+      owner: "org",
+      repo: "repo",
+      number: 123,
+    });
+  });
+
+  it("accepts trailing fragments/queries", () => {
+    expect(
+      parseGitHubIssueUrl("https://github.com/org/repo/issues/7#issuecomment-99")
+    ).toEqual({ owner: "org", repo: "repo", number: 7 });
+    expect(isGitHubIssueLink("https://www.github.com/org/repo/issues/7?foo=bar")).toBe(true);
+  });
+
+  it("rejects PRs, non-issue, and non-GitHub URLs", () => {
+    expect(isGitHubIssueLink("https://github.com/org/repo/pull/123")).toBe(false);
+    expect(isGitHubIssueLink("https://github.com/org/repo")).toBe(false);
+    expect(isGitHubIssueLink("https://github.com/org/repo/issues")).toBe(false);
+    expect(isGitHubIssueLink("https://gitlab.com/org/repo/issues/1")).toBe(false);
+    expect(isGitHubIssueLink("https://evil.com/github.com/org/repo/issues/1")).toBe(false);
+    expect(isGitHubIssueLink("http://github.com/org/repo/issues/1")).toBe(false);
+    expect(parseGitHubIssueUrl("not a url")).toBeNull();
   });
 });

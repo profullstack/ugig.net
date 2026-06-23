@@ -10,6 +10,7 @@ import {
   Clock,
   Lock,
   Pencil,
+  Github,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
@@ -26,6 +27,7 @@ interface BountyDetail {
   payout_currency: string;
   payment_coin: string | null;
   max_submissions: number | null;
+  github_issue_url: string | null;
   status: "open" | "paused" | "closed";
   questions: {
     id: string;
@@ -238,6 +240,18 @@ export default async function BountyDetailPage({
                 {(submissionCount ?? 0) === 1 ? "" : "s"}
                 {bounty.max_submissions && ` / ${bounty.max_submissions}`}
               </PriceBoxRow>
+              {bounty.github_issue_url && (
+                <PriceBoxRow icon={<Github className="h-4 w-4" />}>
+                  <a
+                    href={bounty.github_issue_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline truncate"
+                  >
+                    {bounty.github_issue_url.replace(/^https:\/\/(www\.)?github\.com\//, "")}
+                  </a>
+                </PriceBoxRow>
+              )}
               {!isCreator && bounty.status === "open" && user && !mySubmission && (
                 <p className="text-xs text-muted-foreground pt-2 border-t border-border">
                   Scroll down to submit your answers.
