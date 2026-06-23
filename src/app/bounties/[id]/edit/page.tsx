@@ -26,7 +26,7 @@ export default async function EditBountyPage({
   const { data: bounty } = await (supabase as any)
     .from("bounties")
     .select(
-      "id, creator_id, title, description, payout_usd, payment_coin, max_submissions, questions, status"
+      "id, creator_id, title, description, payout_usd, payment_coin, max_submissions, github_issue_url, questions, status"
     )
     .eq("id", id)
     .single();
@@ -67,6 +67,7 @@ export default async function EditBountyPage({
               payout_usd: Number(bounty.payout_usd),
               payment_coin: bounty.payment_coin,
               max_submissions: bounty.max_submissions,
+              github_issue_url: bounty.github_issue_url,
               questions: bounty.questions || [],
             }}
           />
