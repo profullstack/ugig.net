@@ -1,17 +1,20 @@
-// Minimal GitHub App client for posting/editing a single status comment on the
-// GitHub issue a bounty is funding. Zero external dependencies — the App JWT is
-// signed with node:crypto (RS256), and all calls go through fetch against the
-// REST API.
+// Minimal GitHub client for posting/editing a single status comment on the
+// GitHub issue a bounty is funding. Zero external dependencies — all calls go
+// through fetch against the REST API.
 //
-// Configure via env:
-//   GITHUB_APP_ID           — the numeric App ID
-//   GITHUB_APP_PRIVATE_KEY  — the App private key (PEM). Literal "\n" sequences
-//                             are normalized so the key can live on one env line.
+// Two auth modes, checked in this order:
 //
-// The App must be installed on the target repo. We resolve the installation on
-// demand (GET /repos/{owner}/{repo}/installation) so no installation_id needs to
-// be stored — if the App isn't installed, the call returns null and callers skip
-// the comment gracefully.
+//   1. GITHUB_TOKEN — a personal access token or `gh auth token` value. Simplest
+//      setup: the token already covers every repo the user can write to, so
+//      there is no per-repo install. Comments post as that user.
+//
+//   2. GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY — a GitHub App. The App JWT is
+//      signed with node:crypto (RS256); the installation is resolved on demand
+//      (GET /repos/{owner}/{repo}/installation) so no installation_id is stored.
+//      The App must be installed on the target repo, else the call is skipped.
+//
+// If neither is configured (or the call fails / the App isn't installed), the
+// comment is silently skipped and callers carry on.
 import crypto from "crypto";
 
 const API = "https://api.github.com";
@@ -23,6 +26,20 @@ const API_HEADERS = {
 
 export function isGitHubAppConfigured(): boolean {
   return Boolean(process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY);
+}
+
+/** True if any GitHub auth mode (token or App) is configured. */
+export function isGitHubConfigured(): boolean {
+  return Boolean(process.env.GITHUB_TOKEN) || isGitHubAppConfigured();
+}
+
+// Resolve a bearer token for REST calls on {owner}/{repo}. Prefers a static
+// GITHUB_TOKEN; otherwise mints a short-lived App installation token. Returns
+// null if no mode is configured or the App isn't installed on the repo.
+async function resolveToken(owner: string, repo: string): Promise<string | null> {
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+  if (!isGitHubAppConfigured()) return null;
+  return installationToken(owner, repo);
 }
 
 function base64url(input: Buffer | string): string {
@@ -84,9 +101,9 @@ export async function postIssueComment(
   issueNumber: number,
   body: string
 ): Promise<number | null> {
-  if (!isGitHubAppConfigured()) return null;
+  if (!isGitHubConfigured()) return null;
   try {
-    const token = await installationToken(owner, repo);
+    const token = await resolveToken(owner, repo);
     if (!token) return null;
     const res = await fetch(`${API}/repos/${owner}/${repo}/issues/${issueNumber}/comments`, {
       method: "POST",
@@ -115,9 +132,9 @@ export async function updateIssueComment(
   commentId: number,
   body: string
 ): Promise<boolean> {
-  if (!isGitHubAppConfigured()) return false;
+  if (!isGitHubConfigured()) return false;
   try {
-    const token = await installationToken(owner, repo);
+    const token = await resolveToken(owner, repo);
     if (!token) return false;
     const res = await fetch(`${API}/repos/${owner}/${repo}/issues/comments/${commentId}`, {
       method: "PATCH",
