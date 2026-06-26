@@ -36,6 +36,12 @@ vi.mock("@/lib/email", () => ({
   sendEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
 
+// PR merge-state lookup: default to "unknown" (GitHub unconfigured) so existing
+// PR-link tests stay green; individual tests override it to exercise the gate.
+vi.mock("@/lib/github-app", () => ({
+  getPullRequestMergeState: vi.fn().mockResolvedValue("unknown"),
+}));
+
 // Keep isSatsCoin/satsToUsd real; pin the BTC price so sats→USD is deterministic.
 vi.mock("@/lib/rates", async () => {
   const actual = await vi.importActual<typeof import("@/lib/rates")>("@/lib/rates");
@@ -51,6 +57,7 @@ import {
 } from "@/lib/coinpayportal";
 import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
+import { getPullRequestMergeState } from "@/lib/github-app";
 
 const GIG_ID = "8489a861-0999-4107-afca-2592021ac338";
 const APP_ID = "d2317730-c56a-49e9-a6e4-dc469b7605f7";
@@ -978,5 +985,115 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/GitHub pull request/i);
+  });
+
+  it("requires a PR link when the invoice category is code", async () => {
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: {} });
+
+    const res = await POST(
+      req({ application_id: APP_ID, amount: 150, category: "code" }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/Code invoices require/i);
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("allows a code invoice once a PR link is supplied", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "Fix the bug",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 150,
+    };
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+      gig_invoices: mockInvoiceTable({ insertResult: { id: "local-inv-dev", metadata: {} } }),
+      profiles: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({ data: { username: "w", full_name: "W" }, error: null }),
+      },
+      notifications: { insert: vi.fn().mockResolvedValue({ error: null }) },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        category: "code",
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: ["https://github.com/profullstack/ugig.net/pull/42"],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+  });
+
+  it("rejects an invoice whose PR the GitHub API reports as not merged", async () => {
+    (getPullRequestMergeState as any).mockResolvedValueOnce("not_merged");
+    const gig = {
+      id: GIG_ID,
+      title: "Fix the bug",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 150,
+    };
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: ["https://github.com/profullstack/ugig.net/pull/99"],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/aren't merged/i);
+    expect(createPayment).not.toHaveBeenCalled();
   });
 });

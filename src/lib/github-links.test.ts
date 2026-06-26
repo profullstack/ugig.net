@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isGitHubPrLink, isGitHubIssueLink, parseGitHubIssueUrl } from "./github-links";
+import {
+  isGitHubPrLink,
+  isGitHubIssueLink,
+  parseGitHubIssueUrl,
+  parseGitHubPullUrl,
+} from "./github-links";
 
 describe("isGitHubPrLink", () => {
   it("accepts a single pull request URL", () => {
@@ -58,5 +63,42 @@ describe("isGitHubIssueLink / parseGitHubIssueUrl", () => {
     expect(isGitHubIssueLink("https://evil.com/github.com/org/repo/issues/1")).toBe(false);
     expect(isGitHubIssueLink("http://github.com/org/repo/issues/1")).toBe(false);
     expect(parseGitHubIssueUrl("not a url")).toBeNull();
+  });
+});
+
+describe("parseGitHubPullUrl", () => {
+  it("parses a single PR URL into its coordinates", () => {
+    expect(parseGitHubPullUrl("https://github.com/profullstack/ugig.net/pull/42")).toEqual({
+      owner: "profullstack",
+      repo: "ugig.net",
+      number: 42,
+    });
+  });
+
+  it("accepts trailing path/fragment/query segments", () => {
+    expect(parseGitHubPullUrl("https://github.com/org/repo/pull/7/files")).toEqual({
+      owner: "org",
+      repo: "repo",
+      number: 7,
+    });
+    expect(
+      parseGitHubPullUrl("https://www.github.com/org/repo/pull/7#discussion_r1")
+    ).toEqual({ owner: "org", repo: "repo", number: 7 });
+  });
+
+  it("returns null for PR search/list URLs (no single merge state to verify)", () => {
+    expect(parseGitHubPullUrl("https://github.com/org/repo/pulls")).toBeNull();
+    expect(
+      parseGitHubPullUrl("https://github.com/org/repo/pulls?q=is%3Apr+is%3Amerged")
+    ).toBeNull();
+    expect(parseGitHubPullUrl("https://github.com/pulls?q=author%3Achovy")).toBeNull();
+  });
+
+  it("returns null for non-PR, non-GitHub, and malformed URLs", () => {
+    expect(parseGitHubPullUrl("https://github.com/org/repo/issues/3")).toBeNull();
+    expect(parseGitHubPullUrl("https://gitlab.com/org/repo/-/merge_requests/1")).toBeNull();
+    expect(parseGitHubPullUrl("https://evil.com/github.com/org/repo/pull/1")).toBeNull();
+    expect(parseGitHubPullUrl("http://github.com/org/repo/pull/1")).toBeNull();
+    expect(parseGitHubPullUrl("not a url")).toBeNull();
   });
 });

@@ -94,6 +94,15 @@ const SATS_COINS = ["SATS", "LN", "BTC"];
 const coinIsSats = (coin?: string | null) =>
   SATS_COINS.includes((coin || "").trim().toUpperCase());
 
+// Work category for the invoice. "code" requires a GitHub PR link.
+const INVOICE_CATEGORIES = [
+  { value: "code", label: "Code" },
+  { value: "art", label: "Art" },
+  { value: "marketing", label: "Marketing" },
+  { value: "other", label: "Other" },
+] as const;
+type InvoiceCategory = (typeof INVOICE_CATEGORIES)[number]["value"];
+
 export function InvoiceButton({
   gigId,
   applicationId,
@@ -132,6 +141,8 @@ export function InvoiceButton({
   const [dueDate, setDueDate] = useState("");
   // Optional GitHub PR links, one per line; parsed into an array on submit.
   const [prLinksText, setPrLinksText] = useState("");
+  // Work category; "code" requires at least one GitHub PR link.
+  const [category, setCategory] = useState<InvoiceCategory>("code");
 
   // Fetch existing invoices
   useEffect(() => {
@@ -232,6 +243,16 @@ export function InvoiceButton({
       return;
     }
 
+    // Code invoices must reference at least one GitHub PR — either in the PR
+    // links field or on a line item — so the poster can verify the merged work.
+    if (category === "code") {
+      const hasItemPr = lineItems.some((it) => it.link);
+      if (prLinks.length === 0 && !hasItemPr) {
+        setError("Code invoices require at least one GitHub PR link.");
+        return;
+      }
+    }
+
     setIsCreating(true);
     setError(null);
     let selectedWalletCurrency: string | undefined;
@@ -262,6 +283,7 @@ export function InvoiceButton({
           merchant_wallet_address: selectedWalletAddress,
           notes: notes || undefined,
           due_date: dueDate || undefined,
+          category,
           pr_links: prLinks.length > 0 ? prLinks : undefined,
         }),
       });
@@ -301,6 +323,7 @@ export function InvoiceButton({
       setNotes("");
       setDueDate("");
       setPrLinksText("");
+      setCategory("code");
     } catch {
       setError("An error occurred. Please try again.");
     } finally {
@@ -563,6 +586,8 @@ export function InvoiceButton({
             setDueDate={setDueDate}
             prLinksText={prLinksText}
             setPrLinksText={setPrLinksText}
+            category={category}
+            setCategory={setCategory}
             error={error}
             isCreating={isCreating}
             wallets={wallets}
@@ -599,6 +624,8 @@ export function InvoiceButton({
           setDueDate={setDueDate}
           prLinksText={prLinksText}
           setPrLinksText={setPrLinksText}
+          category={category}
+          setCategory={setCategory}
           error={error}
           isCreating={isCreating}
           wallets={wallets}
@@ -650,6 +677,8 @@ function InvoiceForm({
   setDueDate,
   prLinksText,
   setPrLinksText,
+  category,
+  setCategory,
   error,
   isCreating,
   wallets,
@@ -673,6 +702,8 @@ function InvoiceForm({
   setDueDate: (v: string) => void;
   prLinksText: string;
   setPrLinksText: (v: string) => void;
+  category: InvoiceCategory;
+  setCategory: (v: InvoiceCategory) => void;
   error: string | null;
   isCreating: boolean;
   wallets: CoinPayWalletOption[];
@@ -704,6 +735,26 @@ function InvoiceForm({
   return (
     <div className="border border-border rounded-lg p-4 space-y-3">
       <p className="font-medium text-sm">Create Invoice</p>
+
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Category</label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as InvoiceCategory)}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        >
+          {INVOICE_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        {category === "code" && (
+          <p className="text-xs text-muted-foreground">
+            Code invoices require at least one GitHub PR link below.
+          </p>
+        )}
+      </div>
 
       <div className="space-y-2">
         <label className="text-xs font-medium text-muted-foreground">Charges</label>
@@ -830,7 +881,12 @@ function InvoiceForm({
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">
-          Merged PR links (optional)
+          Merged PR links{" "}
+          {category === "code" ? (
+            <span className="text-destructive">(required)</span>
+          ) : (
+            "(optional)"
+          )}
         </label>
         <textarea
           value={prLinksText}

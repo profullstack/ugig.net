@@ -7,7 +7,8 @@ import {
   preferredCoinToPaymentCurrency,
 } from "@/lib/coinpayportal";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
-import { isGitHubPrLink } from "@/lib/github-links";
+import { getPullRequestMergeState } from "@/lib/github-app";
+import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { z } from "zod";
 
@@ -18,6 +19,10 @@ const githubPrLinkSchema = z
   .refine(isGitHubPrLink, {
     message: "PR links must be GitHub pull request or PR search URLs",
   });
+
+// Work category for the invoice. "code" gigs must back the invoice with at
+// least one GitHub PR link so the poster can verify the merged work.
+const INVOICE_CATEGORIES = ["code", "art", "marketing", "other"] as const;
 
 const lineItemSchema = z.object({
   description: z.string().max(500).optional().default(""),
@@ -51,6 +56,11 @@ const createInvoiceSchema = z
     merchant_wallet_address: z.string().optional(),
     notes: z.string().optional(),
     due_date: z.string().optional(),
+    // What kind of work this invoice bills for. Optional with no server
+    // default so legacy/CLI callers that omit it aren't forced to attach a PR;
+    // the "code" PR-link requirement below only fires when "code" is explicit.
+    // The invoice form defaults its dropdown to "code".
+    category: z.enum(INVOICE_CATEGORIES).optional(),
     // Optional links to the merged GitHub PRs this invoice bills for, so the
     // poster can verify the work without the worker communicating it manually.
     // Accepts individual PR URLs and PR search URLs (merged PRs by author).
@@ -61,6 +71,20 @@ const createInvoiceSchema = z
       (d.items && d.items.length > 0) ||
       (typeof d.amount === "number" && d.amount > 0),
     { message: "Add at least one line item or an amount", path: ["items"] }
+  )
+  .refine(
+    (d) => {
+      // Code invoices must reference at least one GitHub PR, either in the
+      // dedicated pr_links field or on a line item's link.
+      if (d.category !== "code") return true;
+      const hasTopLevelPr = (d.pr_links ?? []).length > 0;
+      const hasItemPr = (d.items ?? []).some((it) => it.link);
+      return hasTopLevelPr || hasItemPr;
+    },
+    {
+      message: "Code invoices require at least one GitHub PR link",
+      path: ["pr_links"],
+    }
   );
 
 const COINPAY_WALLET_SETUP_INSTRUCTIONS = [
@@ -133,6 +157,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       merchant_wallet_address,
       notes,
       due_date,
+      category,
       pr_links,
     } = validationResult.data;
 
@@ -192,6 +217,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
+    // Every PR link backing this invoice — the top-level pr_links plus any link
+    // attached to an individual line item. The presence requirement for "code"
+    // invoices is enforced in createInvoiceSchema; here we collect them for the
+    // merge check below.
+    const itemPrLinks = lineItems
+      .map((it) => it.link)
+      .filter((l): l is string => Boolean(l));
+    const allPrLinks = Array.from(new Set([...prLinks, ...itemPrLinks]));
+
     // Stop made-up amounts: the invoice can't exceed the agreed amount for the
     // posting. The agreed amount is the accepted rate, falling back to the gig's
     // budget. Only enforced for single-payout gigs (fixed and bounty) —
@@ -245,6 +279,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             )}) exceeds the agreed rate for this gig (${fmtNative(
               agreedCap
             )}). Increase the quantity instead of the unit price.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify that the PR links point at *merged* PRs — a worker shouldn't bill
+    // for an open or abandoned PR. Only single-PR URLs can be checked; PR
+    // search/list URLs (…/pulls?q=…) describe a query, not one PR, so they pass
+    // through. The check is lenient by design: getPullRequestMergeState returns
+    // "unknown" (and we allow it) when GitHub auth is unconfigured, the repo
+    // isn't reachable by our token, or the API call fails — only a PR positively
+    // reported as un-merged blocks the invoice.
+    if (allPrLinks.length > 0) {
+      const singlePrs = allPrLinks
+        .map((url) => ({ url, pr: parseGitHubPullUrl(url) }))
+        .filter((x): x is { url: string; pr: NonNullable<typeof x.pr> } => x.pr !== null);
+      const states = await Promise.all(
+        singlePrs.map(async ({ url, pr }) => ({
+          url,
+          state: await getPullRequestMergeState(pr.owner, pr.repo, pr.number),
+        }))
+      );
+      const unmerged = states.filter((s) => s.state === "not_merged").map((s) => s.url);
+      if (unmerged.length > 0) {
+        return NextResponse.json(
+          {
+            error: `These PRs aren't merged yet, so they can't be billed: ${unmerged.join(
+              ", "
+            )}. Merge them first, or invoice only the merged PRs.`,
           },
           { status: 400 }
         );
@@ -423,6 +487,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           posting_coin: gig.payment_coin || null,
           native_unit: nativeUnit,
           native_amount: nativeTotal,
+          ...(category ? { category } : {}),
           ...(isSats ? { btc_usd_rate: btcUsd } : {}),
           ...(prLinks.length > 0 ? { pr_links: prLinks } : {}),
         },
