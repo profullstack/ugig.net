@@ -30,7 +30,7 @@ export declare const walletAddressSchema: z.ZodObject<{
     is_preferred: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 export declare const profileSchema: z.ZodObject<{
-    username: z.ZodString;
+    username: z.ZodOptional<z.ZodString>;
     full_name: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     bio: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     skills: z.ZodDefault<z.ZodArray<z.ZodString>>;

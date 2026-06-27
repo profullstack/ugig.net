@@ -306,6 +306,8 @@ export type Database = {
           views_count: number;
           created_at: string;
           updated_at: string;
+          boosted_at: string | null;
+          ranked_at: string | null;
         };
         Insert: {
           id?: string;
@@ -329,6 +331,7 @@ export type Database = {
           views_count?: number;
           created_at?: string;
           updated_at?: string;
+          boosted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -352,6 +355,7 @@ export type Database = {
           views_count?: number;
           created_at?: string;
           updated_at?: string;
+          boosted_at?: string | null;
         };
         Relationships: [
           {
