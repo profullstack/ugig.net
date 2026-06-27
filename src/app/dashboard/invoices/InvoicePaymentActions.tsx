@@ -14,6 +14,17 @@ type InvoiceStatus =
   | "expired"
   | "rejected";
 
+// Quick-pick reasons the payer can drop into the note instead of typing.
+// They're free to edit the text after picking, or write something custom.
+const CANNED_REJECT_REASONS = [
+  "Need a link to a merged PR please.",
+  "The work isn't complete yet.",
+  "This doesn't match what we agreed on.",
+  "The amount is incorrect.",
+  "Please send an itemized invoice.",
+  "Duplicate invoice.",
+];
+
 interface InvoicePaymentMetadata {
   payment_address?: string | null;
   amount_crypto?: string | number | null;
@@ -257,9 +268,30 @@ export function InvoicePaymentActions({
         Reject this invoice?
       </label>
       <p className="text-xs text-muted-foreground">
-        The sender is notified and it can no longer be paid. Optionally tell them
-        why so they can fix it.
+        The sender is notified and it can no longer be paid. Pick a reason below
+        or write your own so they can fix it.
       </p>
+      <div className="flex flex-wrap gap-1.5">
+        {CANNED_REJECT_REASONS.map((reason) => {
+          const selected = rejectReason === reason;
+          return (
+            <button
+              key={reason}
+              type="button"
+              onClick={() => setRejectReason(reason)}
+              disabled={rejecting}
+              aria-pressed={selected}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+                selected
+                  ? "border-destructive bg-destructive/10 text-destructive"
+                  : "border-border bg-background text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+              }`}
+            >
+              {reason}
+            </button>
+          );
+        })}
+      </div>
       <textarea
         id={`reject-reason-${invoiceId}`}
         value={rejectReason}
