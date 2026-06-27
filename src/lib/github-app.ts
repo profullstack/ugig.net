@@ -122,6 +122,39 @@ export async function postIssueComment(
   }
 }
 
+// Whether a pull request has been merged. "unknown" means we couldn't tell —
+// no GitHub auth configured, the App isn't installed on the repo, or the API
+// call failed — and callers treat that as "don't block".
+export type PrMergeState = "merged" | "not_merged" | "unknown";
+
+/**
+ * Look up whether a single pull request has been merged. Returns "unknown"
+ * (never throws) when GitHub isn't configured/installed or the lookup fails, so
+ * a missing token or a private repo can't block an invoice — only a PR the API
+ * positively reports as un-merged returns "not_merged".
+ */
+export async function getPullRequestMergeState(
+  owner: string,
+  repo: string,
+  pullNumber: number
+): Promise<PrMergeState> {
+  if (!isGitHubConfigured()) return "unknown";
+  try {
+    const token = await resolveToken(owner, repo);
+    if (!token) return "unknown";
+    const res = await fetch(`${API}/repos/${owner}/${repo}/pulls/${pullNumber}`, {
+      headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+    });
+    // 404/403 = PR not visible to our token; can't verify, so don't block.
+    if (!res.ok) return "unknown";
+    const pr = (await res.json()) as { merged?: boolean; merged_at?: string | null };
+    return pr.merged || pr.merged_at ? "merged" : "not_merged";
+  } catch (err) {
+    console.warn("[github-app] PR merge-state lookup error:", err);
+    return "unknown";
+  }
+}
+
 /**
  * Edit an existing issue comment in place. Best-effort: returns true on success,
  * false otherwise. Never throws.

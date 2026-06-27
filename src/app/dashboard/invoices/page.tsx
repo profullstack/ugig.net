@@ -65,6 +65,7 @@ interface InvoiceRow {
   pay_url: string | null;
   notes: string | null;
   due_date: string | null;
+  rejection_reason: string | null;
   metadata: {
     payment_address?: string | null;
     amount_crypto?: string | number | null;
@@ -404,6 +405,17 @@ export default async function InvoicesDashboardPage({
                       </div>
                     )}
 
+                    {tab === "sent" && inv.status === "rejected" && (
+                      <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600">
+                        <p className="font-medium">The client rejected this invoice.</p>
+                        {inv.rejection_reason && (
+                          <p className="mt-0.5 text-red-600/80">
+                            Reason: {inv.rejection_reason}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                       <span>
                         Created {new Date(inv.created_at).toLocaleDateString()}
@@ -437,6 +449,7 @@ export default async function InvoicesDashboardPage({
                           notes={inv.notes}
                           dueDate={inv.due_date}
                           metadata={inv.metadata}
+                          rejectionReason={inv.rejection_reason}
                         />
                       </div>
                     )}

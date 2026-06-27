@@ -150,6 +150,34 @@ describe("InvoicePaymentActions", () => {
     });
   });
 
+  it("rejects an invoice with an optional reason", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { invoice_id: "inv-1", status: "rejected" } }),
+    });
+
+    render(<InvoicePaymentActions {...baseProps} status="sent" metadata={null} />);
+
+    // Open the inline reject form, type a reason, confirm.
+    fireEvent.click(await screen.findByRole("button", { name: /reject invoice/i }));
+    fireEvent.change(screen.getByPlaceholderText(/need links to the merged pr/i), {
+      target: { value: "Need links to the merged PR" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /confirm reject/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/gigs/gig-1/invoice/inv-1/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Need links to the merged PR" }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Reason: Need links to the merged PR")).toBeInTheDocument();
+    });
+  });
+
   it("shows the accepted indicator when already accepted", () => {
     render(
       <InvoicePaymentActions
