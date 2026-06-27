@@ -18,6 +18,17 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Optional note explaining why (e.g. "need links to the merged PR").
+    let reason: string | null = null;
+    try {
+      const body = await request.json();
+      if (typeof body?.reason === "string") {
+        reason = body.reason.trim().slice(0, 1000) || null;
+      }
+    } catch {
+      // No/invalid JSON body — reason stays null.
+    }
+
     const { user, supabase } = auth;
     const { data: invoice, error } = await (supabase as any)
       .from("gig_invoices")
@@ -60,7 +71,11 @@ export async function POST(
 
     const { error: updateError } = await (supabase as any)
       .from("gig_invoices")
-      .update({ status: "rejected", updated_at: new Date().toISOString() })
+      .update({
+        status: "rejected",
+        rejection_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", invoiceId);
 
     if (updateError) {
@@ -74,11 +89,14 @@ export async function POST(
       user_id: invoice.worker_id,
       type: "payment_received",
       title: "Invoice rejected",
-      body: `The client declined the invoice for "${title}".`,
+      body: reason
+        ? `The client declined the invoice for "${title}": ${reason}`
+        : `The client declined the invoice for "${title}".`,
       data: {
         gig_id: invoice.gig_id,
         invoice_id: invoice.id,
         previous_status: invoice.status,
+        rejection_reason: reason,
       },
     });
 

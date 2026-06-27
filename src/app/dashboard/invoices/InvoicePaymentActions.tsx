@@ -35,6 +35,7 @@ interface InvoicePaymentActionsProps {
   notes: string | null;
   dueDate: string | null;
   metadata: InvoicePaymentMetadata | null;
+  rejectionReason?: string | null;
 }
 
 export function InvoicePaymentActions({
@@ -43,6 +44,7 @@ export function InvoicePaymentActions({
   status: initialStatus,
   payUrl: initialPayUrl,
   metadata: initialMetadata,
+  rejectionReason = null,
 }: InvoicePaymentActionsProps) {
   const router = useRouter();
   const [status, setStatus] = useState<InvoiceStatus>(initialStatus);
@@ -55,6 +57,11 @@ export function InvoicePaymentActions({
     Boolean(initialMetadata?.replacement_requested_at)
   );
   const [rejecting, setRejecting] = useState(false);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [submittedReason, setSubmittedReason] = useState<string | null>(
+    rejectionReason
+  );
   const [accepting, setAccepting] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(
     initialMetadata?.accepted_at ?? null
@@ -189,26 +196,23 @@ export function InvoicePaymentActions({
   };
 
   const rejectInvoice = async () => {
-    if (
-      !window.confirm(
-        "Reject this invoice? The sender is notified and it can no longer be paid."
-      )
-    ) {
-      return;
-    }
     setRejecting(true);
     setError(null);
     setStatusMessage(null);
     try {
+      const reason = rejectReason.trim();
       const res = await fetch(`/api/gigs/${gigId}/invoice/${invoiceId}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reason ? { reason } : {}),
       });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error || "Failed to reject invoice");
         return;
       }
+      setShowRejectForm(false);
+      setSubmittedReason(reason || null);
       setStatus("rejected");
       router.refresh();
     } catch {
@@ -242,20 +246,72 @@ export function InvoicePaymentActions({
     }
   };
 
-  const rejectButton = (
+  // Either the "Reject invoice" trigger, or an inline form with an optional
+  // note (e.g. "need links to the merged PR") that the worker will see.
+  const rejectButton = showRejectForm ? (
+    <div className="w-full space-y-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+      <label
+        htmlFor={`reject-reason-${invoiceId}`}
+        className="block text-sm font-medium text-destructive"
+      >
+        Reject this invoice?
+      </label>
+      <p className="text-xs text-muted-foreground">
+        The sender is notified and it can no longer be paid. Optionally tell them
+        why so they can fix it.
+      </p>
+      <textarea
+        id={`reject-reason-${invoiceId}`}
+        value={rejectReason}
+        onChange={(e) => setRejectReason(e.target.value)}
+        maxLength={1000}
+        rows={2}
+        placeholder="e.g. Need links to the merged PR"
+        className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
+      />
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          onClick={rejectInvoice}
+          disabled={rejecting}
+          className="gap-2"
+        >
+          {rejecting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <XCircle className="h-4 w-4" />
+          )}
+          Confirm reject
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setShowRejectForm(false);
+            setRejectReason("");
+          }}
+          disabled={rejecting}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ) : (
     <Button
       type="button"
       size="sm"
       variant="ghost"
-      onClick={rejectInvoice}
+      onClick={() => {
+        setError(null);
+        setShowRejectForm(true);
+      }}
       disabled={rejecting || submitting || accepting}
       className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
     >
-      {rejecting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <XCircle className="h-4 w-4" />
-      )}
+      <XCircle className="h-4 w-4" />
       Reject invoice
     </Button>
   );
@@ -298,11 +354,14 @@ export function InvoicePaymentActions({
 
   if (status === "rejected") {
     return (
-      <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-600">
+      <div className="space-y-1 rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-600">
         <div className="flex items-center gap-2 font-medium">
           <XCircle className="h-4 w-4" />
           You rejected this invoice
         </div>
+        {submittedReason && (
+          <p className="text-red-600/80">Reason: {submittedReason}</p>
+        )}
       </div>
     );
   }
