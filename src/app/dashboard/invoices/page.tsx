@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InvoicePaymentActions } from "./InvoicePaymentActions";
 import { InvoiceCharges } from "./InvoiceCharges";
+import { SentInvoiceActions } from "./SentInvoiceActions";
 import {
   ArrowLeft,
   ExternalLink,
@@ -416,6 +417,12 @@ export default async function InvoicesDashboardPage({
                       </div>
                     )}
 
+                    {tab === "sent" && inv.status === "cancelled" && (
+                      <div className="mb-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                        You revoked this invoice. Resend a corrected one from the gig.
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                       <span>
                         Created {new Date(inv.created_at).toLocaleDateString()}
@@ -452,6 +459,14 @@ export default async function InvoicesDashboardPage({
                           rejectionReason={inv.rejection_reason}
                         />
                       </div>
+                    )}
+
+                    {tab === "sent" && (
+                      <SentInvoiceActions
+                        invoiceId={inv.id}
+                        gigId={inv.gig_id}
+                        status={inv.status}
+                      />
                     )}
                   </div>
                 );
