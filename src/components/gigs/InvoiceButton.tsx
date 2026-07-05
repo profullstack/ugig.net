@@ -56,6 +56,7 @@ interface GigInvoice {
   pay_url: string | null;
   notes: string | null;
   due_date: string | null;
+  rejection_reason?: string | null;
   created_at: string;
   metadata?: {
     payment_address?: string | null;
@@ -68,7 +69,18 @@ interface GigInvoice {
     expires_at?: string | null;
     replacement_requested_at?: string | null;
     pr_links?: string[] | null;
+    category?: string | null;
   } | null;
+  // Line items (present when the invoice was itemized) — used to pre-fill the
+  // form when the worker resends a revoked or rejected invoice.
+  items?: {
+    description: string | null;
+    quantity: number | null;
+    unit_price_usd: number | null;
+    amount_usd: number;
+    link: string | null;
+    position: number;
+  }[] | null;
   worker?: { id: string; username: string; full_name?: string };
   poster?: { id: string; username: string; full_name?: string };
 }
@@ -128,6 +140,7 @@ export function InvoiceButton({
   const [walletErrorInvoiceId, setWalletErrorInvoiceId] = useState<string | null>(null);
   const [requestingNewId, setRequestingNewId] = useState<string | null>(null);
   const [requestedNewIds, setRequestedNewIds] = useState<string[]>([]);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [wallets, setWallets] = useState<CoinPayWalletOption[]>([]);
   const [selectedWalletKey, setSelectedWalletKey] = useState("");
   const [walletsLoading, setWalletsLoading] = useState(false);
@@ -403,6 +416,72 @@ export function InvoiceButton({
     }
   };
 
+  // Worker takes back an invoice they sent (wrong amount, missing PR, etc.).
+  // Marks it cancelled locally so the "Resend" affordance appears.
+  const handleRevoke = async (invoiceId: string) => {
+    setRevokingId(invoiceId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/gigs/${gigId}/invoice/${invoiceId}/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error || "Failed to revoke invoice");
+        return;
+      }
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoiceId ? { ...inv, status: "cancelled" } : inv
+        )
+      );
+    } catch {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  // Opens the invoice form pre-filled from a revoked/rejected invoice so the
+  // worker can fix and resend it. Submitting creates a fresh invoice (the create
+  // route allows it — a cancelled/rejected invoice isn't an open one). For sats
+  // gigs the stored amounts are USD, not the native unit, so we don't pre-fill
+  // prices there and let the worker re-enter them.
+  const startResend = (inv: GigInvoice) => {
+    const sourceItems = inv.items && inv.items.length > 0 ? inv.items : null;
+    if (sourceItems) {
+      setItems(
+        [...sourceItems]
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((it) => ({
+            description: it.description ?? "",
+            quantity: String(it.quantity ?? 1),
+            unit_price: isSats ? "" : String(it.unit_price_usd ?? it.amount_usd ?? ""),
+            link: it.link ?? "",
+          }))
+      );
+    } else {
+      setItems([
+        {
+          description: inv.notes ?? "",
+          quantity: "1",
+          unit_price: isSats ? "" : String(inv.amount_usd ?? ""),
+          link: "",
+        },
+      ]);
+    }
+    setNotes(inv.notes ?? "");
+    setPrLinksText((inv.metadata?.pr_links ?? []).join("\n"));
+    const cat = (inv.metadata?.category as InvoiceCategory | undefined) ?? undefined;
+    setCategory(
+      cat && INVOICE_CATEGORIES.some((c) => c.value === cat) ? cat : "code"
+    );
+    setDueDate("");
+    setError(null);
+    setShowForm(true);
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case "draft":
@@ -426,7 +505,13 @@ export function InvoiceButton({
       case "cancelled":
         return (
           <Badge variant="secondary" className="gap-1">
-            Cancelled
+            Revoked
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="gap-1 bg-red-500/10 text-red-600 border-red-500/20">
+            Rejected
           </Badge>
         );
       case "expired":
@@ -559,6 +644,53 @@ export function InvoiceButton({
               <p className="text-sm text-blue-600">
                 📧 Invoice sent to client. Waiting for payment.
               </p>
+            )}
+
+            {/* Worker: rejection reason so they know what to fix before resending. */}
+            {isWorker && inv.status === "rejected" && (
+              <div className="rounded-md border border-red-500/20 bg-red-500/5 p-2 text-sm text-red-600">
+                <p className="font-medium">The client rejected this invoice.</p>
+                {inv.rejection_reason && (
+                  <p className="mt-0.5 text-red-600/80">Reason: {inv.rejection_reason}</p>
+                )}
+              </div>
+            )}
+
+            {isWorker && inv.status === "cancelled" && (
+              <p className="text-sm text-muted-foreground">
+                You revoked this invoice. Resend a corrected one below.
+              </p>
+            )}
+
+            {/* Worker controls: revoke an unpaid invoice, or resend a
+                revoked/rejected one as a fresh invoice. */}
+            {isWorker && (inv.status === "sent" || inv.status === "draft" || inv.status === "expired") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleRevoke(inv.id)}
+                disabled={revokingId === inv.id}
+                className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                {revokingId === inv.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Revoke invoice
+              </Button>
+            )}
+
+            {isWorker && (inv.status === "cancelled" || inv.status === "rejected") && !showForm && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startResend(inv)}
+                className="gap-2"
+              >
+                <Send className="h-4 w-4" />
+                Resend invoice
+              </Button>
             )}
 
             {inv.status === "paid" && <p className="text-sm text-green-600">✅ Invoice paid!</p>}
