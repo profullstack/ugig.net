@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
+import { AdUnit } from "@/components/AdUnit";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const metadata = {
@@ -142,6 +143,8 @@ export default async function BlogIndex() {
             ))}
           </ul>
         )}
+
+        <AdUnit />
       </main>
     </>
   );
