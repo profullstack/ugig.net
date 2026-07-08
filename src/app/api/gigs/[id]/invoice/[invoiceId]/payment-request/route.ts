@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 export const dynamic = "force-dynamic";
 
 const PAYMENT_REQUEST_SECONDS = 15 * 60;
+const PAYABLE_INVOICE_STATUSES = new Set(["sent", "expired"]);
 type InvoiceContext =
   | { response: NextResponse }
   | {
@@ -76,7 +77,7 @@ async function loadInvoiceContext(
   if (invoice.status === "paid") {
     return { response: NextResponse.json({ error: "Invoice is already paid" }, { status: 400 }) };
   }
-  if (invoice.status === "cancelled" || invoice.status === "draft") {
+  if (!PAYABLE_INVOICE_STATUSES.has(invoice.status)) {
     return { response: NextResponse.json({ error: "Invoice is not payable" }, { status: 400 }) };
   }
 

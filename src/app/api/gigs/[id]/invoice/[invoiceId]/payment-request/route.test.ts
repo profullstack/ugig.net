@@ -166,6 +166,30 @@ describe("POST /api/gigs/[id]/invoice/[invoiceId]/payment-request", () => {
     expect(createPayment).not.toHaveBeenCalled();
   });
 
+  it("does not create a payment request for a rejected invoice", async () => {
+    const invoice = {
+      ...payableInvoice({
+        receiver_payment_currency: "sol",
+        merchant_wallet_address: WALLET_ADDRESS,
+      }),
+      status: "rejected",
+    };
+
+    (getAuthContext as any).mockResolvedValue({
+      user: { id: POSTER_ID },
+      supabase: { from: vi.fn(() => invoiceQuery(invoice)) },
+    });
+    (createServiceClient as any).mockReturnValue(serviceClient({ id: INVOICE_ID }));
+
+    const res = await POST({} as any, params);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invoice is not payable");
+    expect(createPayment).not.toHaveBeenCalled();
+    expect(createServiceClient).not.toHaveBeenCalled();
+  });
+
   it("returns the invoice receiving wallet metadata", async () => {
     const invoice = payableInvoice({
       receiver_payment_currency: "sol",
