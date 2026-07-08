@@ -15,7 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
-import { isGitHubPrLink } from "@/lib/github-links";
+import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 
 interface CoinPayWalletOption {
   currency: string;
@@ -114,6 +114,55 @@ const INVOICE_CATEGORIES = [
   { value: "other", label: "Other" },
 ] as const;
 type InvoiceCategory = (typeof INVOICE_CATEGORIES)[number]["value"];
+
+type InvoiceLineForCap = { quantity: number; unit_price: number; link?: string };
+
+function parsePrLinksText(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+function countSinglePullRequestLinks(links: string[]) {
+  return new Set(
+    links
+      .map((url) => parseGitHubPullUrl(url))
+      .filter((pr): pr is NonNullable<typeof pr> => pr !== null)
+      .map((pr) => `${pr.owner.toLowerCase()}/${pr.repo.toLowerCase()}#${pr.number}`)
+  ).size;
+}
+
+function canBillMultipleCodePrs({
+  category,
+  capAmount,
+  lineItems,
+  prLinks,
+}: {
+  category: InvoiceCategory;
+  capAmount: number | null;
+  lineItems: InvoiceLineForCap[];
+  prLinks: string[];
+}) {
+  if (category !== "code" || capAmount == null || lineItems.length === 0) return false;
+
+  const billedUnits = lineItems.reduce((sum, it) => sum + it.quantity, 0);
+  const billIsWholePrUnits = lineItems.every((it) => Number.isInteger(it.quantity));
+  const eachUnitAtOrBelowAgreedRate = lineItems.every(
+    (it) => it.unit_price <= capAmount + 1e-6
+  );
+  const allPrLinks = [
+    ...prLinks,
+    ...lineItems.map((it) => it.link).filter((link): link is string => Boolean(link)),
+  ];
+
+  return (
+    billedUnits > 1 &&
+    billIsWholePrUnits &&
+    eachUnitAtOrBelowAgreedRate &&
+    countSinglePullRequestLinks(allPrLinks) >= billedUnits
+  );
+}
 
 export function InvoiceButton({
   gigId,
@@ -237,22 +286,26 @@ export function InvoiceButton({
       lineItems.reduce((s, it) => s + it.quantity * it.unit_price, 0) * 100
     ) / 100;
 
-    if (capAmount != null && total > capAmount + 1e-6) {
-      const fmt = (n: number) =>
-        isSats ? `${n.toLocaleString()} sats` : `$${n.toFixed(2)}`;
-      setError(`Invoice total (${fmt(total)}) can't exceed the agreed amount (${fmt(capAmount)}).`);
-      return;
-    }
-
     // Split the textarea into one link per line/comma and validate each looks
     // like a GitHub PR URL (matches the server's check) before sending.
-    const prLinks = prLinksText
-      .split(/[\n,]+/)
-      .map((l) => l.trim())
-      .filter(Boolean);
+    const prLinks = parsePrLinksText(prLinksText);
     const badLink = prLinks.find((u) => !isGitHubPrLink(u));
     if (badLink) {
       setError(`Not a GitHub pull request link: ${badLink}`);
+      return;
+    }
+
+    const canExceedCapForMultiplePrs = canBillMultipleCodePrs({
+      category,
+      capAmount,
+      lineItems,
+      prLinks,
+    });
+
+    if (capAmount != null && total > capAmount + 1e-6 && !canExceedCapForMultiplePrs) {
+      const fmt = (n: number) =>
+        isSats ? `${n.toLocaleString()} sats` : `$${n.toFixed(2)}`;
+      setError(`Invoice total (${fmt(total)}) can't exceed the agreed amount (${fmt(capAmount)}).`);
       return;
     }
 
@@ -854,7 +907,21 @@ function InvoiceForm({
     const price = parseFloat(it.unit_price) || 0;
     return s + qty * price;
   }, 0);
-  const overCap = capAmount != null && total > capAmount + 1e-6;
+  const normalizedItems = items
+    .map((it) => ({
+      quantity: parseFloat(it.quantity) || 1,
+      unit_price: parseFloat(it.unit_price) || 0,
+      link: it.link.trim() || undefined,
+    }))
+    .filter((it) => Number.isFinite(it.unit_price) && it.unit_price > 0);
+  const canExceedCapForMultiplePrs = canBillMultipleCodePrs({
+    category,
+    capAmount,
+    lineItems: normalizedItems,
+    prLinks: parsePrLinksText(prLinksText),
+  });
+  const overCap =
+    capAmount != null && total > capAmount + 1e-6 && !canExceedCapForMultiplePrs;
   const fmtAmount = (n: number) =>
     isSats ? `${n.toLocaleString()} sats` : `$${n.toFixed(2)}`;
   const updateItem = (i: number, patch: Partial<LineItem>) =>
