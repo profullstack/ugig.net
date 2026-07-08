@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search, Users, Video, Zap, Check, ArrowRight, Sparkles, Bot, Terminal, Key, Download } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { AdUnit } from "@/components/AdUnit";
 import { createClient } from "@/lib/supabase/server";
 
 async function getAuthStatus() {
@@ -344,6 +345,10 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
             </div>
           </div>
         </section>
+
+        <div className="container mx-auto px-4">
+          <AdUnit />
+        </div>
       </main>
 
     </div>

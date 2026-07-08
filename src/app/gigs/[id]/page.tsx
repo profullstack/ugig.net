@@ -30,6 +30,7 @@ import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
 import { ZapButton } from "@/components/zaps/ZapButton";
 import { GigTestimonialSection } from "@/components/testimonials/GigTestimonialSection";
 import { HiredWorkerReview } from "@/components/gigs/HiredWorkerReview";
+import { AdUnit } from "@/components/AdUnit";
 import { createServiceClient } from "@/lib/supabase/service";
 
 interface GigPageProps {
@@ -550,6 +551,8 @@ export default async function GigPage({ params }: GigPageProps) {
 
             {/* Escrow Services */}
             <EscrowBadge variant="compact" />
+
+            <AdUnit className="my-0" />
           </div>
         </div>
       </main>

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
+import { AdUnit } from "@/components/AdUnit";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,8 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         ) : (
           <p className="mt-6 text-muted-foreground">This post has no body content.</p>
         )}
+
+        <AdUnit />
       </main>
     </>
   );

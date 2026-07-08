@@ -7,6 +7,7 @@ import { GigFiltersWithTags } from "@/components/gigs/GigFiltersWithTags";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/layout/Header";
+import { AdUnit } from "@/components/AdUnit";
 import { parsePageParam } from "@/lib/pagination";
 import { fetchGigs } from "@/lib/gigs/fetch-gigs";
 import type { GigCardData } from "@/components/gigs/GigCard";
@@ -214,6 +215,8 @@ export default async function ForHirePage({ params, searchParams }: GigsPageProp
               <GigsList params={params} searchParams={searchParams} />
             </Suspense>
           </div>
+
+          <AdUnit />
         </div>
       </main>
     </div>
