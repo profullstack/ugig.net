@@ -574,6 +574,194 @@ describe("POST /api/gigs/[id]/invoice", () => {
     expect(createPayment).not.toHaveBeenCalled();
   });
 
+  it("allows a fixed-price code gig to bill multiple merged PRs in one itemized invoice", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "PR fixes",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+      budget_type: "fixed",
+      budget_min: 1,
+      budget_max: 1,
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 1,
+    };
+    const prLinks = [
+      "https://github.com/profullstack/aiornot.vote/pull/15",
+      "https://github.com/profullstack/aiornot.vote/pull/19",
+    ];
+
+    let inserted: any = null;
+    let itemRows: any[] | null = null;
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+      gig_invoices: mockInvoiceTable({
+        insertResult: { id: "local-inv-multi-pr", metadata: {} },
+        onInsert: (row) => {
+          inserted = row;
+        },
+      }),
+      profiles: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({ data: { username: "w", full_name: "Test Worker" }, error: null }),
+      },
+      notifications: { insert: vi.fn().mockResolvedValue({ error: null }) },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+    (createServiceClient as any).mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi
+            .fn()
+            .mockResolvedValue({ data: { user: { email: "poster@example.com" } } }),
+        },
+      },
+      from: vi.fn(() => ({
+        insert: vi.fn((rows: any[]) => {
+          itemRows = rows;
+          return Promise.resolve({ error: null });
+        }),
+      })),
+    });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        category: "code",
+        items: [{ description: "Merged PRs", quantity: 2, unit_price: 1 }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: prLinks,
+      }),
+      params
+    );
+
+    expect(res.status).toBe(201);
+    expect(inserted.amount_usd).toBe(2);
+    expect(inserted.metadata.pr_links).toEqual(prLinks);
+    expect(itemRows).toEqual([
+      expect.objectContaining({ quantity: 2, unit_price_usd: 1, amount_usd: 2 }),
+    ]);
+    expect(invoiceReceivedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ amountUsd: 2, prLinks })
+    );
+  });
+
+  it("still rejects a fixed-price code invoice above the agreed amount without enough PR links", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "PR fixes",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+      budget_type: "fixed",
+      budget_min: 1,
+      budget_max: 1,
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 1,
+    };
+
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        category: "code",
+        items: [{ description: "Merged PRs", quantity: 2, unit_price: 1 }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: ["https://github.com/profullstack/aiornot.vote/pull/15"],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/exceeds the agreed amount/i);
+  });
+
+  it("does not count the same PR twice when owner or repo casing differs", async () => {
+    const gig = {
+      id: GIG_ID,
+      title: "PR fixes",
+      poster_id: POSTER_ID,
+      payment_coin: "SOL",
+      budget_type: "fixed",
+      budget_min: 1,
+      budget_max: 1,
+    };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 1,
+    };
+
+    const sb = mockSupabase({
+      gigs: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+      },
+      applications: {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: application, error: null }),
+      },
+    });
+    (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+
+    const res = await POST(
+      req({
+        application_id: APP_ID,
+        category: "code",
+        items: [{ description: "Merged PRs", quantity: 2, unit_price: 1 }],
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+        pr_links: [
+          "https://github.com/profullstack/aiornot.vote/pull/15",
+          "https://github.com/ProFullStack/AIOrNot.Vote/pull/15",
+        ],
+      }),
+      params
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/exceeds the agreed amount/i);
+  });
+
   it("caps bounty-type gigs at the agreed amount too (not just fixed)", async () => {
     const gig = {
       id: GIG_ID,

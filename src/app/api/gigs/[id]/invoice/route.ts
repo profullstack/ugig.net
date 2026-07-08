@@ -94,6 +94,42 @@ const COINPAY_WALLET_SETUP_INSTRUCTIONS = [
   "Paste those addresses into Settings > Global Wallet Addresses in CoinPay, then refresh the invoice form.",
 ];
 
+function countSinglePullRequestLinks(links: string[]) {
+  return new Set(
+    links
+      .map((url) => parseGitHubPullUrl(url))
+      .filter((pr): pr is NonNullable<typeof pr> => pr !== null)
+      .map((pr) => `${pr.owner.toLowerCase()}/${pr.repo.toLowerCase()}#${pr.number}`)
+  ).size;
+}
+
+function canBillMultipleCodePrsOnSinglePayoutGig({
+  category,
+  lineItems,
+  agreedCap,
+  prLinks,
+}: {
+  category?: (typeof INVOICE_CATEGORIES)[number];
+  lineItems: Array<{ quantity: number; unit_price: number }>;
+  agreedCap: number;
+  prLinks: string[];
+}) {
+  if (category !== "code" || lineItems.length === 0) return false;
+
+  const billedUnits = lineItems.reduce((sum, it) => sum + it.quantity, 0);
+  const billIsWholePrUnits = lineItems.every((it) => Number.isInteger(it.quantity));
+  const eachUnitAtOrBelowAgreedRate = lineItems.every(
+    (it) => it.unit_price <= agreedCap + 1e-6
+  );
+
+  return (
+    billedUnits > 1 &&
+    billIsWholePrUnits &&
+    eachUnitAtOrBelowAgreedRate &&
+    countSinglePullRequestLinks(prLinks) >= billedUnits
+  );
+}
+
 // GET /api/gigs/[id]/invoice - Get invoices for a gig
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -251,7 +287,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           { status: 400 }
         );
       }
-      if (nativeTotal > agreedCap + 1e-6) {
+      const canBillMultipleCodePrs = canBillMultipleCodePrsOnSinglePayoutGig({
+        category,
+        lineItems,
+        agreedCap,
+        prLinks: allPrLinks,
+      });
+
+      if (nativeTotal > agreedCap + 1e-6 && !canBillMultipleCodePrs) {
         return NextResponse.json(
           {
             error: `Invoice total (${fmtNative(nativeTotal)}) exceeds the agreed amount for this gig (${fmtNative(
@@ -489,7 +532,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           native_amount: nativeTotal,
           ...(category ? { category } : {}),
           ...(isSats ? { btc_usd_rate: btcUsd } : {}),
-          ...(prLinks.length > 0 ? { pr_links: prLinks } : {}),
+          ...(allPrLinks.length > 0 ? { pr_links: allPrLinks } : {}),
         },
       })
       .select()
@@ -566,7 +609,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             gigTitle: gig.title,
             amountUsd: total,
             invoiceId: invoice.id,
-            prLinks,
+            prLinks: allPrLinks,
             items: lineItems.map((it) => ({
               description: it.description,
               quantity: it.quantity,
