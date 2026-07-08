@@ -6,6 +6,8 @@ import { getUserDid, onPaymentReceived, onPaymentSent } from "@/lib/reputation-h
 import { parseGitHubIssueUrl } from "@/lib/github-links";
 import { updateIssueComment } from "@/lib/github-app";
 
+const PAYABLE_GIG_INVOICE_STATUSES = new Set(["sent", "expired"]);
+
 // POST /api/payments/coinpayportal/webhook - Handle CoinPayPortal webhooks
 export async function POST(request: NextRequest) {
   return processCoinPayWebhook(request, [
@@ -606,6 +608,10 @@ async function handleGigInvoicePaymentConfirmed(
     return true;
   }
 
+  if (!PAYABLE_GIG_INVOICE_STATUSES.has(existingInvoice.status)) {
+    return true;
+  }
+
   const { data: invoice } = await (supabase as any)
     .from("gig_invoices")
     .update({
@@ -622,6 +628,7 @@ async function handleGigInvoicePaymentConfirmed(
       },
     })
     .eq("id", existingInvoice.id)
+    .in("status", Array.from(PAYABLE_GIG_INVOICE_STATUSES))
     .select()
     .single();
 
@@ -695,6 +702,10 @@ async function updateGigInvoicePaymentMetadata(
 
   if (!existingInvoice) return false;
 
+  if (!PAYABLE_GIG_INVOICE_STATUSES.has(existingInvoice.status)) {
+    return true;
+  }
+
   const metadata: Record<string, unknown> = {
     ...((existingInvoice.metadata || {}) as Record<string, unknown>),
     tx_hash: paymentData.tx_hash,
@@ -712,6 +723,7 @@ async function updateGigInvoicePaymentMetadata(
       updated_at: new Date().toISOString(),
     })
     .eq("id", existingInvoice.id)
+    .in("status", Array.from(PAYABLE_GIG_INVOICE_STATUSES))
     .select()
     .single();
 

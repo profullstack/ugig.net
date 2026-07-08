@@ -187,6 +187,7 @@ describe("POST /api/payments/coinpayportal/webhook", () => {
         worker_id: "worker-1",
         poster_id: "poster-1",
         amount_usd: 3,
+        status: "sent",
         metadata: { payment_address: "SolAddress" },
       },
       error: null,
@@ -415,6 +416,45 @@ describe("POST /api/payments/coinpayportal/webhook", () => {
     expect(gigInvoiceChain.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ status: "paid" })
     );
+    expect(notifChain.insert).not.toHaveBeenCalled();
+  });
+
+  it("payment.forwarded does not revive a cancelled invoice into paid", async () => {
+    const payload = makeWebhookPayload("payment.forwarded", {
+      payment_id: "cp-inv-cancelled",
+      tx_hash: "abc123",
+      merchant_tx_hash: "def456",
+      currency: "usdc_sol",
+      amount_crypto: "0.5",
+    });
+
+    const gigInvoiceChain = chainResult({
+      data: {
+        id: "inv-cancelled",
+        status: "cancelled",
+        application_id: "app-cancelled",
+        gig_id: "gig-cancelled",
+        worker_id: "worker-cancelled",
+        poster_id: "poster-cancelled",
+        amount_usd: 10,
+        metadata: { cancelled_at: "2026-07-08T00:00:00Z" },
+      },
+      error: null,
+    });
+    const appChain = chainResult({ data: null, error: null });
+    const notifChain = chainResult({ data: null, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_invoices") return gigInvoiceChain;
+      if (table === "applications") return appChain;
+      if (table === "notifications") return notifChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(gigInvoiceChain.update).not.toHaveBeenCalled();
+    expect(appChain.update).not.toHaveBeenCalled();
     expect(notifChain.insert).not.toHaveBeenCalled();
   });
 

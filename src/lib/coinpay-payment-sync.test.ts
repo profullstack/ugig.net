@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { syncBountyPaymentStatus } from "@/lib/coinpay-payment-sync";
+import { syncBountyPaymentStatus, syncGigInvoicePaymentStatus } from "@/lib/coinpay-payment-sync";
 import { getPaymentStatus } from "@/lib/coinpayportal";
 import { onPaymentReceived, onPaymentSent } from "@/lib/reputation-hooks";
 
@@ -41,6 +41,10 @@ function makeSupabase(initialTables: Record<string, Row[]>) {
       }),
       not: vi.fn((field: string, op: string, value: unknown) => {
         if (op === "is" && value === null) filters.push((row) => row[field] !== null);
+        return chain;
+      }),
+      in: vi.fn((field: string, values: unknown[]) => {
+        filters.push((row) => values.includes(row[field]));
         return chain;
       }),
       order: vi.fn(() => chain),
@@ -193,6 +197,54 @@ describe("coinpay payment sync", () => {
       user_id: "creator-1",
       title: "Bounty payment expired",
     });
+  });
+
+  it("does not mark a rejected gig invoice paid when a stale CoinPay payment confirms", async () => {
+    vi.mocked(getPaymentStatus).mockResolvedValue({
+      success: true,
+      payment: {
+        id: "cp-invoice-stale",
+        status: "confirmed",
+        tx_hash: "tx-stale",
+        crypto_amount: "0.5",
+        blockchain: "SOL",
+      },
+    });
+
+    const { supabase, tables } = makeSupabase({
+      gig_invoices: [
+        {
+          id: "invoice-1",
+          application_id: "app-1",
+          gig_id: "gig-1",
+          worker_id: "worker-1",
+          poster_id: "poster-1",
+          status: "rejected",
+          amount_usd: 10,
+          coinpay_invoice_id: "cp-invoice-stale",
+          metadata: { rejection_reason: "duplicate" },
+        },
+      ],
+      applications: [{ id: "app-1", status: "accepted" }],
+      gigs: [{ id: "gig-1", title: "Fix it" }],
+      notifications: [],
+    });
+
+    const result = await syncGigInvoicePaymentStatus(supabase, "cp-invoice-stale");
+
+    expect(result).toMatchObject({
+      changed: false,
+      local_status: "rejected",
+      upstream_status: "confirmed",
+    });
+    expect(tables.gig_invoices[0]).toMatchObject({
+      status: "rejected",
+      metadata: { rejection_reason: "duplicate" },
+    });
+    expect(tables.applications[0]).toMatchObject({ status: "accepted" });
+    expect(tables.notifications).toHaveLength(0);
+    expect(onPaymentSent).not.toHaveBeenCalled();
+    expect(onPaymentReceived).not.toHaveBeenCalled();
   });
 
 });
