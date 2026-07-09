@@ -458,6 +458,264 @@ describe("POST /api/payments/coinpayportal/webhook", () => {
     expect(notifChain.insert).not.toHaveBeenCalled();
   });
 
+  it("escrow.funded transitions a pending escrow and sends funded notifications", async () => {
+    const payload = makeWebhookPayload("escrow.funded", {
+      payment_id: "cp-escrow-pending",
+      status: "funded",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-pending",
+        coinpay_escrow_id: "cp-escrow-pending",
+        status: "pending_payment",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: { id: "escrow-pending" }, error: null });
+    const appChain = chainResult({ data: null, error: null });
+    const gigChain = chainResult({ data: { title: "Escrow bugfix" }, error: null });
+    const notifChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "applications") return appChain;
+      if (table === "gigs") return gigChain;
+      if (table === "notifications") return notifChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "funded" })
+    );
+    expect(escrowUpdateChain.eq).toHaveBeenCalledWith("status", "pending_payment");
+    expect(appChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "in_progress" })
+    );
+    expect(notifChain.insert).toHaveBeenCalledTimes(2);
+  });
+
+  it("escrow.funded does not downgrade an already released escrow", async () => {
+    const payload = makeWebhookPayload("escrow.funded", {
+      payment_id: "cp-escrow-released",
+      status: "funded",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-released",
+        coinpay_escrow_id: "cp-escrow-released",
+        status: "released",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: null, error: null });
+    const appChain = chainResult({ data: null, error: null });
+    const notifChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "applications") return appChain;
+      if (table === "notifications") return notifChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).not.toHaveBeenCalled();
+    expect(appChain.update).not.toHaveBeenCalled();
+    expect(notifChain.insert).not.toHaveBeenCalled();
+  });
+
+  it("escrow.released does not release a pending payment escrow", async () => {
+    const payload = makeWebhookPayload("escrow.released", {
+      payment_id: "cp-escrow-pending",
+      status: "released",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-pending",
+        coinpay_escrow_id: "cp-escrow-pending",
+        status: "pending_payment",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: null, error: null });
+    const appChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "applications") return appChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).not.toHaveBeenCalled();
+    expect(appChain.update).not.toHaveBeenCalled();
+  });
+
+  it("escrow.released transitions a funded escrow and completes the application", async () => {
+    const payload = makeWebhookPayload("escrow.released", {
+      payment_id: "cp-escrow-funded",
+      status: "released",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-funded",
+        coinpay_escrow_id: "cp-escrow-funded",
+        status: "funded",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: { id: "escrow-funded" }, error: null });
+    const appChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "applications") return appChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "released" })
+    );
+    expect(escrowUpdateChain.eq).toHaveBeenCalledWith("status", "funded");
+    expect(appChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completed" })
+    );
+  });
+
+  it("escrow.refunded transitions a funded escrow and notifies the poster", async () => {
+    const payload = makeWebhookPayload("escrow.refunded", {
+      payment_id: "cp-escrow-funded",
+      status: "refunded",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-funded",
+        coinpay_escrow_id: "cp-escrow-funded",
+        status: "funded",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: { id: "escrow-funded" }, error: null });
+    const notifChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "notifications") return notifChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "refunded" })
+    );
+    expect(escrowUpdateChain.in).toHaveBeenCalledWith("status", [
+      "pending_payment",
+      "funded",
+      "disputed",
+    ]);
+    expect(notifChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "poster-escrow",
+        title: "Escrow refunded",
+      })
+    );
+  });
+
+  it("escrow.refunded does not override an already released escrow", async () => {
+    const payload = makeWebhookPayload("escrow.refunded", {
+      payment_id: "cp-escrow-released",
+      status: "refunded",
+    });
+
+    const escrowFetchChain = chainResult({
+      data: {
+        id: "escrow-released",
+        coinpay_escrow_id: "cp-escrow-released",
+        status: "released",
+        application_id: "app-escrow",
+        gig_id: "gig-escrow",
+        worker_id: "worker-escrow",
+        poster_id: "poster-escrow",
+        amount_usd: 20,
+      },
+      error: null,
+    });
+    const escrowUpdateChain = chainResult({ data: null, error: null });
+    const notifChain = chainResult({ data: null, error: null });
+    let escrowCalls = 0;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gig_escrows") {
+        escrowCalls += 1;
+        return escrowCalls === 1 ? escrowFetchChain : escrowUpdateChain;
+      }
+      if (table === "notifications") return notifChain;
+      return chainResult({ data: null, error: null });
+    });
+
+    const res = await POST(makeRequest(payload, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(escrowUpdateChain.update).not.toHaveBeenCalled();
+    expect(notifChain.insert).not.toHaveBeenCalled();
+  });
+
   it("uses service client (not cookie-based auth)", async () => {
     // This test verifies the fix: service client is used for webhooks
     // The mock is set up for createServiceClient, not createClient
