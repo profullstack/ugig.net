@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parsePaginationParam } from "@/lib/api-pagination";
 import { createServiceClient } from "@/lib/supabase/service";
 
 /**
@@ -25,10 +26,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const parsedLimit = parseInt(url.searchParams.get("limit") || "25", 10);
-    const limit = Number.isFinite(parsedLimit)
-      ? Math.min(Math.max(parsedLimit, 1), 50)
-      : 25;
+    const limit = parsePaginationParam(url.searchParams.get("limit"), 25, 1, 50);
 
     const admin = createServiceClient();
 
