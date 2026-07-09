@@ -34,6 +34,7 @@ interface SyncResult {
 const PAYOUT_PENDING_STATUSES = new Set(["pending", "processing", "detected"]);
 const PAYOUT_PAID_STATUSES = new Set(["confirmed", "forwarded"]);
 const PAYOUT_FAILED_STATUSES = new Set(["expired", "failed"]);
+const PAYABLE_GIG_INVOICE_STATUSES = new Set(["sent", "expired"]);
 
 function normalizeStatus(status?: string | null): SyncStatus | string {
   return (status || "pending").toLowerCase();
@@ -377,6 +378,17 @@ export async function syncGigInvoicePaymentStatus(
   const now = new Date().toISOString();
 
   if (PAYOUT_PAID_STATUSES.has(upstreamStatus)) {
+    if (!PAYABLE_GIG_INVOICE_STATUSES.has(existingInvoice.status)) {
+      return {
+        id: existingInvoice.id,
+        coinpay_payment_id: coinpayPaymentId,
+        kind: "gig_invoice",
+        local_status: existingInvoice.status,
+        upstream_status: upstreamStatus,
+        changed: false,
+      };
+    }
+
     const metadata = {
       ...existingMetadata,
       coinpay_status: upstreamStatus,
@@ -395,7 +407,7 @@ export async function syncGigInvoicePaymentStatus(
         updated_at: now,
       })
       .eq("id", existingInvoice.id)
-      .neq("status", "paid")
+      .in("status", Array.from(PAYABLE_GIG_INVOICE_STATUSES))
       .select()
       .maybeSingle();
 
@@ -534,9 +546,20 @@ export async function syncGigInvoicePaymentStatus(
       id: existingInvoice.id,
       coinpay_payment_id: coinpayPaymentId,
       kind: "gig_invoice",
-      local_status: "sent",
+      local_status: existingInvoice.status,
       upstream_status: upstreamStatus,
       changed: Boolean(invoice),
+    };
+  }
+
+  if (!PAYABLE_GIG_INVOICE_STATUSES.has(existingInvoice.status)) {
+    return {
+      id: existingInvoice.id,
+      coinpay_payment_id: coinpayPaymentId,
+      kind: "gig_invoice",
+      local_status: existingInvoice.status,
+      upstream_status: upstreamStatus,
+      changed: false,
     };
   }
 
