@@ -7,6 +7,9 @@ import { parseGitHubIssueUrl } from "@/lib/github-links";
 import { updateIssueComment } from "@/lib/github-app";
 
 const PAYABLE_GIG_INVOICE_STATUSES = new Set(["sent", "expired"]);
+const ESCROW_FUNDABLE_STATUSES = ["pending_payment"] as const;
+const ESCROW_RELEASABLE_STATUSES = ["funded"] as const;
+const ESCROW_REFUNDABLE_STATUSES = ["pending_payment", "funded", "disputed"] as const;
 
 // POST /api/payments/coinpayportal/webhook - Handle CoinPayPortal webhooks
 export async function POST(request: NextRequest) {
@@ -747,6 +750,31 @@ async function updateGigInvoicePaymentMetadata(
 
 // ─── Escrow webhook handlers ───────────────────────────────────────────────
 
+async function transitionEscrowStatus(
+  supabase: ReturnType<typeof createServiceClient>,
+  escrowId: string,
+  allowedStatuses: readonly string[],
+  update: Record<string, unknown>
+): Promise<boolean> {
+  let query = (supabase as any)
+    .from("gig_escrows")
+    .update(update)
+    .eq("id", escrowId);
+
+  query =
+    allowedStatuses.length === 1
+      ? query.eq("status", allowedStatuses[0])
+      : query.in("status", Array.from(allowedStatuses));
+
+  const { data, error } = await query.select("id").single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return true;
+}
+
 async function handleEscrowFunded(
   supabase: ReturnType<typeof createServiceClient>,
   payload: CoinPayWebhookPayload
@@ -766,15 +794,19 @@ async function handleEscrowFunded(
     return;
   }
 
-  // Update escrow status
-  await (supabase as any)
-    .from("gig_escrows")
-    .update({
+  if (!ESCROW_FUNDABLE_STATUSES.includes(escrow.status as any)) return;
+
+  const transitioned = await transitionEscrowStatus(
+    supabase,
+    escrow.id,
+    ESCROW_FUNDABLE_STATUSES,
+    {
       status: "funded",
       funded_at: now,
       updated_at: now,
-    })
-    .eq("id", escrow.id);
+    }
+  );
+  if (!transitioned) return;
 
   // Update application status to in_progress
   await supabase
@@ -835,25 +867,29 @@ async function handleEscrowReleased(
     return;
   }
 
-  // Update if not already released (release route may have already updated)
-  if (escrow.status !== "released") {
-    await (supabase as any)
-      .from("gig_escrows")
-      .update({
-        status: "released",
-        released_at: now,
-        updated_at: now,
-      })
-      .eq("id", escrow.id);
+  // Release route may have already updated this record before the webhook arrives.
+  if (escrow.status === "released") return;
+  if (!ESCROW_RELEASABLE_STATUSES.includes(escrow.status as any)) return;
 
-    await supabase
-      .from("applications")
-      .update({
-        status: "completed" as any,
-        updated_at: now,
-      })
-      .eq("id", escrow.application_id);
-  }
+  const transitioned = await transitionEscrowStatus(
+    supabase,
+    escrow.id,
+    ESCROW_RELEASABLE_STATUSES,
+    {
+      status: "released",
+      released_at: now,
+      updated_at: now,
+    }
+  );
+  if (!transitioned) return;
+
+  await supabase
+    .from("applications")
+    .update({
+      status: "completed" as any,
+      updated_at: now,
+    })
+    .eq("id", escrow.application_id);
 }
 
 async function handleEscrowRefunded(
@@ -874,13 +910,18 @@ async function handleEscrowRefunded(
     return;
   }
 
-  await (supabase as any)
-    .from("gig_escrows")
-    .update({
+  if (!ESCROW_REFUNDABLE_STATUSES.includes(escrow.status as any)) return;
+
+  const transitioned = await transitionEscrowStatus(
+    supabase,
+    escrow.id,
+    ESCROW_REFUNDABLE_STATUSES,
+    {
       status: "refunded",
       updated_at: now,
-    })
-    .eq("id", escrow.id);
+    }
+  );
+  if (!transitioned) return;
 
   // Notify poster
   await supabase.from("notifications").insert({
