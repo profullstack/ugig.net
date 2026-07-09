@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 const MAX_NOTIFICATION_OFFSET = 100_000;
 
@@ -21,14 +22,13 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
-    const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
-    const parsedOffset = parseInt(searchParams.get("offset") || "0", 10);
-    const limit = Number.isFinite(parsedLimit)
-      ? Math.min(Math.max(parsedLimit, 1), 100)
-      : 50;
-    const offset = Number.isFinite(parsedOffset)
-      ? Math.min(Math.max(parsedOffset, 0), MAX_NOTIFICATION_OFFSET)
-      : 0;
+    const limit = parsePaginationParam(searchParams.get("limit"), 50, 1, 100);
+    const offset = parsePaginationParam(
+      searchParams.get("offset"),
+      0,
+      0,
+      MAX_NOTIFICATION_OFFSET
+    );
 
     let query = supabase
       .from("notifications")
