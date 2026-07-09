@@ -185,6 +185,18 @@ describe("GET /api/users/search", () => {
     expect(mockLimit).toHaveBeenCalledWith(10);
   });
 
+  it("uses default limit for partial numeric limit values", async () => {
+    vi.mocked(getAuthContext).mockResolvedValue({
+      user: { id: "user-1", authMethod: "session" },
+      supabase: supabaseClient as any,
+    });
+
+    mockLimit.mockResolvedValue({ data: [], error: null });
+
+    await GET(makeRequest("/api/users/search?q=test&limit=10abc"));
+    expect(mockLimit).toHaveBeenCalledWith(10);
+  });
+
   it.each([
     ["0", 1],
     ["-1", 1],

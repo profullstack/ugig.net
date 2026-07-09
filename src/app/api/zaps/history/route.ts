@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { parsePaginationParam } from "@/lib/api-pagination";
 import { createServiceClient } from "@/lib/supabase/service";
 
 /**
@@ -14,13 +15,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const direction = url.searchParams.get("direction") || "received";
-    const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
-    const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
-    const limit = Number.isFinite(parsedLimit)
-      ? Math.min(Math.max(parsedLimit, 1), 100)
-      : 50;
-    const offset =
-      Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
+    const limit = parsePaginationParam(url.searchParams.get("limit"), 50, 1, 100);
+    const offset = parsePaginationParam(url.searchParams.get("offset"), 0, 0, 100_000);
 
     const admin = createServiceClient();
     const userId = auth.user.id;

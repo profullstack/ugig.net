@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { parsePaginationParam } from "@/lib/api-pagination";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 // GET /api/users/search?q=<query>&limit=10
@@ -12,10 +13,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = (searchParams.get("q") || "").trim();
-    const parsedLimit = parseInt(searchParams.get("limit") || "10", 10);
-    const limit = Number.isFinite(parsedLimit)
-      ? Math.min(Math.max(1, parsedLimit), 20)
-      : 10;
+    const limit = parsePaginationParam(searchParams.get("limit"), 10, 1, 20);
 
     if (!query || query.length < 1) {
       return NextResponse.json({ users: [] });

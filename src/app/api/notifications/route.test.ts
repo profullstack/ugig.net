@@ -75,6 +75,10 @@ describe("GET /api/notifications", () => {
     await expectNotificationRange({ offset: "abc" }, 0, 49);
   });
 
+  it("defaults partial numeric pagination params before querying", async () => {
+    await expectNotificationRange({ offset: "10abc", limit: "5wat" }, 0, 49);
+  });
+
   it("clamps negative offsets to zero", async () => {
     await expectNotificationRange({ offset: "-50", limit: "10" }, 0, 9);
   });

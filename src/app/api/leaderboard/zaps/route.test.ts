@@ -78,6 +78,16 @@ describe("GET /api/leaderboard/zaps", () => {
     expect(json.leaderboard).toHaveLength(2);
   });
 
+  it("falls back to the default limit for partial numeric values", async () => {
+    mockLeaderboardQuery();
+
+    const response = await GET(makeRequest({ limit: "1abc" }));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.leaderboard).toHaveLength(2);
+  });
+
   it("rejects unsupported period values", async () => {
     const response = await GET(makeRequest({ period: "year" }));
     const json = await response.json();
