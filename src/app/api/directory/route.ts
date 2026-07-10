@@ -16,6 +16,7 @@ import {
   escapePostgrestSearchValue,
   sanitizeSearchParams,
 } from "@/lib/security/sanitize";
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || "";
 const MAX_DIRECTORY_PAGE = 10_000;
@@ -38,10 +39,12 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const search = sanitizeSearchParams(url, "search");
     const tag = sanitizeSearchParams(url, "tag");
-    const parsedPage = parseInt(url.searchParams.get("page") || "1", 10);
-    const page = Number.isFinite(parsedPage) && parsedPage > 0
-      ? Math.min(parsedPage, MAX_DIRECTORY_PAGE)
-      : 1;
+    const page = parsePaginationParam(
+      url.searchParams.get("page"),
+      1,
+      1,
+      MAX_DIRECTORY_PAGE
+    );
     const limit = 20;
     const offset = (page - 1) * limit;
 
