@@ -31,22 +31,45 @@ interface BountyListItem {
   } | null;
 }
 
-export default async function BountiesPage() {
+interface BountiesPageProps {
+  searchParams?: Promise<{
+    page?: string;
+  }>;
+}
+
+function parsePageParam(value?: string) {
+  const page = Number(value);
+  return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+}
+
+export default async function BountiesPage({ searchParams }: BountiesPageProps) {
+  const resolvedParams = await searchParams;
+  const page = parsePageParam(resolvedParams?.page);
+  const limit = 20;
+  const offset = (page - 1) * limit;
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, count } = await supabase
     .from("bounties" as any)
     .select(
       `
       id, title, description, payout_usd, payout_currency, payment_coin, max_submissions,
       status, created_at,
       creator:profiles!creator_id (id, username, full_name, avatar_url)
-    `
+    `,
+      { count: "exact" }
     )
     .eq("status", "open")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .range(offset, offset + limit - 1);
 
   const bounties = (data || []) as unknown as BountyListItem[];
+  const totalPages = Math.ceil((count || 0) / limit);
+
+  const buildPaginationUrl = (newPage: number) => {
+    const params = new URLSearchParams();
+    params.set("page", String(newPage));
+    return `/bounties?${params.toString()}`;
+  };
 
   return (
     <>
@@ -62,8 +85,7 @@ export default async function BountiesPage() {
                 <h1 className="text-3xl font-bold">Bounties</h1>
               </div>
               <p className="text-muted-foreground">
-                Complete short tasks for a fixed payout. Answer the form, get
-                approved, get paid.
+                Complete short tasks for a fixed payout. Answer the form, get approved, get paid.
               </p>
             </div>
             <Link href="/bounties/new">
@@ -78,9 +100,7 @@ export default async function BountiesPage() {
             <div className="text-center py-16 bg-card rounded-lg border border-border">
               <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-semibold mb-2">No open bounties yet</h3>
-              <p className="text-muted-foreground mb-6">
-                Be the first to post one.
-              </p>
+              <p className="text-muted-foreground mb-6">Be the first to post one.</p>
               <Link href="/bounties/new">
                 <Button>Post the first bounty</Button>
               </Link>
@@ -94,19 +114,14 @@ export default async function BountiesPage() {
                   className="p-5 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
                 >
                   <h2 className="font-semibold line-clamp-2 mb-2">{b.title}</h2>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                    {b.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{b.description}</p>
                   <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-t border-border pt-3">
                     <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                       <DollarSign className="h-4 w-4" />
                       {formatBountyPayout(b.payout_usd, b.payment_coin)}
                     </span>
                     <span className="text-xs">
-                      by{" "}
-                      {b.creator?.full_name ||
-                        b.creator?.username ||
-                        "Anonymous"}
+                      by {b.creator?.full_name || b.creator?.username || "Anonymous"}
                     </span>
                     {b.max_submissions && (
                       <span className="inline-flex items-center gap-1 text-xs">
@@ -117,6 +132,23 @@ export default async function BountiesPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-4 text-sm">
+              {page > 1 && (
+                <Link href={buildPaginationUrl(page - 1)}>
+                  <Button variant="outline">Previous</Button>
+                </Link>
+              )}
+              <span className="text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages && (
+                <Link href={buildPaginationUrl(page + 1)}>
+                  <Button variant="outline">Next</Button>
+                </Link>
+              )}
             </div>
           )}
         </div>
