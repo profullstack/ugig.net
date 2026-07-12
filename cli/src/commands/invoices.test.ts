@@ -143,4 +143,58 @@ describe("invoices create", () => {
       pr_links: [searchUrl, "https://github.com/org/repo/pull/42"],
     });
   });
+
+  it("rejects invalid amount values before posting", async () => {
+    const { handleError } = await import("../helpers.js");
+
+    await run([
+      "invoices", "create", "gig-123",
+      "--application-id", "app-456",
+      "--amount", "not-a-number",
+      "--payment-currency", "usdc_pol",
+      "--wallet-address", "0xabc",
+    ]);
+
+    expect(mockClient.post).not.toHaveBeenCalled();
+    expect(handleError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("Invalid --amount") }),
+      expect.any(Object)
+    );
+  });
+
+  it("rejects partially numeric amount values before posting", async () => {
+    const { handleError } = await import("../helpers.js");
+
+    await run([
+      "invoices", "create", "gig-123",
+      "--application-id", "app-456",
+      "--amount", "10usd",
+      "--payment-currency", "usdc_pol",
+      "--wallet-address", "0xabc",
+    ]);
+
+    expect(mockClient.post).not.toHaveBeenCalled();
+    expect(handleError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("Invalid --amount") }),
+      expect.any(Object)
+    );
+  });
+
+  it("rejects non-positive line item quantities before posting", async () => {
+    const { handleError } = await import("../helpers.js");
+
+    await run([
+      "invoices", "create", "gig-123",
+      "--application-id", "app-456",
+      "--item", "Bug fix|-2|1",
+      "--payment-currency", "usdc_pol",
+      "--wallet-address", "0xabc",
+    ]);
+
+    expect(mockClient.post).not.toHaveBeenCalled();
+    expect(handleError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("positive quantity") }),
+      expect.any(Object)
+    );
+  });
 });

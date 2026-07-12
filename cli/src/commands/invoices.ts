@@ -134,12 +134,19 @@ export function registerInvoicesCommands(program: Command): void {
         try {
           const items = cmdOpts.item.map((spec) => {
             const [description = "", qty = "1", unitPrice = "", link = ""] = spec.split("|");
+            const quantity = qty.trim() === "" ? 1 : Number(qty);
+            const unitPriceValue = Number(unitPrice);
             const item: Record<string, unknown> = {
               description: description.trim(),
-              quantity: parseFloat(qty) || 1,
-              unit_price: parseFloat(unitPrice),
+              quantity: Number.isFinite(quantity) ? quantity : 1,
+              unit_price: unitPriceValue,
             };
             if (link.trim()) item.link = link.trim();
+            if (!Number.isFinite(item.quantity as number) || (item.quantity as number) <= 0) {
+              throw new Error(
+                `Invalid --item "${spec}" — expected "description|qty|unit_price[|link]" with a positive quantity`
+              );
+            }
             if (!Number.isFinite(item.unit_price as number) || (item.unit_price as number) <= 0) {
               throw new Error(
                 `Invalid --item "${spec}" — expected "description|qty|unit_price[|link]" with a positive unit price`
@@ -158,7 +165,13 @@ export function registerInvoicesCommands(program: Command): void {
             payment_currency: cmdOpts.paymentCurrency,
             merchant_wallet_address: cmdOpts.walletAddress,
           };
-          if (cmdOpts.amount) body.amount = parseFloat(cmdOpts.amount);
+          if (cmdOpts.amount) {
+            const amount = Number(cmdOpts.amount);
+            if (!Number.isFinite(amount) || amount <= 0) {
+              throw new Error(`Invalid --amount "${cmdOpts.amount}" — expected a positive number`);
+            }
+            body.amount = amount;
+          }
           if (items.length > 0) body.items = items;
           if (cmdOpts.prLinks) {
             const prLinks = cmdOpts.prLinks
