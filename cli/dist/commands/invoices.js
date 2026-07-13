@@ -77,13 +77,18 @@ export function registerInvoicesCommands(program) {
         try {
             const items = cmdOpts.item.map((spec) => {
                 const [description = "", qty = "1", unitPrice = "", link = ""] = spec.split("|");
+                const quantity = qty.trim() === "" ? 1 : Number(qty);
+                const unitPriceValue = Number(unitPrice);
                 const item = {
                     description: description.trim(),
-                    quantity: parseFloat(qty) || 1,
-                    unit_price: parseFloat(unitPrice),
+                    quantity: Number.isFinite(quantity) ? quantity : 1,
+                    unit_price: unitPriceValue,
                 };
                 if (link.trim())
                     item.link = link.trim();
+                if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+                    throw new Error(`Invalid --item "${spec}" — expected "description|qty|unit_price[|link]" with a positive quantity`);
+                }
                 if (!Number.isFinite(item.unit_price) || item.unit_price <= 0) {
                     throw new Error(`Invalid --item "${spec}" — expected "description|qty|unit_price[|link]" with a positive unit price`);
                 }
@@ -99,8 +104,13 @@ export function registerInvoicesCommands(program) {
                 payment_currency: cmdOpts.paymentCurrency,
                 merchant_wallet_address: cmdOpts.walletAddress,
             };
-            if (cmdOpts.amount)
-                body.amount = parseFloat(cmdOpts.amount);
+            if (cmdOpts.amount) {
+                const amount = Number(cmdOpts.amount);
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    throw new Error(`Invalid --amount "${cmdOpts.amount}" — expected a positive number`);
+                }
+                body.amount = amount;
+            }
             if (items.length > 0)
                 body.items = items;
             if (cmdOpts.prLinks) {
