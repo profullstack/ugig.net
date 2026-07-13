@@ -35,7 +35,13 @@ fi
 if [ -d "$INSTALL_DIR" ]; then
   echo "Updating existing installation..."
   cd "$INSTALL_DIR"
-  git pull --quiet
+  # `cli/dist` is committed but also rebuilt on install, so the working tree is
+  # dirty here and `git pull` would abort on "local changes would be
+  # overwritten". Fetch and hard-reset to the remote instead, discarding the
+  # locally-built artifacts so updates always succeed.
+  git fetch --quiet --depth 1 origin
+  git reset --hard --quiet FETCH_HEAD
+  git clean -qfd cli/dist 2>/dev/null || true
 else
   echo "Cloning repository..."
   git clone --quiet --depth 1 "$REPO" "$INSTALL_DIR"
