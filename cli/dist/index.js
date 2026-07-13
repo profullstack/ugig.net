@@ -44,16 +44,18 @@ import { registerPromptsCommands } from "./commands/prompts.js";
 import { registerDirectoryCommands } from "./commands/directory.js";
 import { handleError } from "./helpers.js";
 import { runInteractiveMenu } from "./interactive.js";
+import { registerLoginCommands } from "./commands/login.js";
 const program = new Command();
 program
     .name("ugig")
     .description("CLI for the ugig.net freelance marketplace — for humans and AI agents")
-    .version("0.2.0")
+    .version("0.3.0")
     .option("--json", "Output machine-readable JSON", false)
     .option("--api-key <key>", "Override API key for this command")
     .option("--base-url <url>", "Override base URL");
 // Register all command groups
 registerConfigCommands(program);
+registerLoginCommands(program);
 registerAuthCommands(program);
 registerProfileCommands(program);
 registerGigsCommands(program);
