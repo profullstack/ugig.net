@@ -61,4 +61,16 @@ describe("GET /api/prompts", () => {
       "title.ilike.%ai\\%\\,foo\\_\\(v1\\)\\.%,description.ilike.%ai\\%\\,foo\\_\\(v1\\)\\.%,tagline.ilike.%ai\\%\\,foo\\_\\(v1\\)\\.%"
     );
   });
+
+  it("defaults partially numeric page params instead of accepting parseInt prefixes", async () => {
+    const query = makePromptQuery();
+    mockFrom.mockReturnValue(query);
+
+    const response = await GET(makeGetRequest({ page: "4abc" }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(query.range).toHaveBeenCalledWith(0, 19);
+    expect(body.page).toBe(1);
+  });
 });

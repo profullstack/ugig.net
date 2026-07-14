@@ -51,4 +51,16 @@ describe("GET /api/directory", () => {
       "title.ilike.%100\\%\\_demo\\,\\(v1\\.2\\)\\*%,description.ilike.%100\\%\\_demo\\,\\(v1\\.2\\)\\*%"
     );
   });
+
+  it("defaults partially numeric page params instead of accepting parseInt prefixes", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeRequest({ page: "3abc" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+    expect(body.page).toBe(1);
+  });
 });

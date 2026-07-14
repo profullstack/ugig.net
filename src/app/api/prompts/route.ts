@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { promptListingSchema, slugify } from "@/lib/prompts/validation";
 import { scanPrompt } from "@/lib/prompts/security-scan";
+import { parsePaginationParam } from "@/lib/api-pagination";
 
 function escapePostgrestSearch(value: string) {
   return value
@@ -26,8 +27,7 @@ export async function GET(request: NextRequest) {
     const category = url.searchParams.get("category") || "";
     const tag = url.searchParams.get("tag") || "";
     const sort = url.searchParams.get("sort") || "newest";
-    const parsedPage = parseInt(url.searchParams.get("page") || "1", 10);
-    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const page = parsePaginationParam(url.searchParams.get("page"), 1, 1, 100_000);
     const limit = 20;
     const offset = (page - 1) * limit;
 
