@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { verifyCoinPayWebhook } from "@profullstack/stack/coinpay";
 
 const COINPAY_API_URL = "https://coinpayportal.com/api";
 
@@ -159,25 +159,9 @@ export function verifyCoinpayWebhook(
   signatureHeader: string | null,
   secret: string
 ): boolean {
-  if (!signatureHeader) return false;
-  try {
-    const parts = signatureHeader.split(",");
-    const tPart = parts.find((p) => p.startsWith("t="));
-    const vPart = parts.find((p) => p.startsWith("v1="));
-    if (!tPart || !vPart) return false;
-    const timestamp = tPart.slice(2);
-    const sig = vPart.slice(3);
-    const ts = parseInt(timestamp, 10);
-    if (Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false;
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(`${timestamp}.${rawBody}`)
-      .digest("hex");
-    const a = Buffer.from(sig, "hex");
-    const b = Buffer.from(expected, "hex");
-    if (a.length !== b.length) return false;
-    return crypto.timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
+  return verifyCoinPayWebhook({
+    signature: signatureHeader,
+    rawBody,
+    secret,
+  });
 }

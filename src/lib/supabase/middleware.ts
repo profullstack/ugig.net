@@ -1,44 +1,13 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { updateSession as updateSupabaseSession } from "@profullstack/stack/supabase";
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  // Refresh session if expired - required for Server Components.
+  // `disconnectRealtime`: middleware runs on every request and only needs
+  // Auth/REST; skipping this leaks WebSocket state proportional to traffic.
+  const { response, user } = await updateSupabaseSession(request, {
+    disconnectRealtime: true,
   });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // Eagerly disconnect realtime — middleware only needs Auth/REST.
-  // Each createServerClient() call allocates a RealtimeClient with WebSocket
-  // state; since middleware runs on every request, skipping this leaks
-  // memory proportional to traffic (see server.ts for the same fix).
-  supabase.realtime.disconnect();
-
-  // Refresh session if expired - required for Server Components
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   // Protected routes - redirect to login if not authenticated
   const protectedPaths = ["/dashboard", "/profile", "/settings", "/messages"];
@@ -67,5 +36,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return response as NextResponse;
 }

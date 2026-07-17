@@ -1,36 +1,10 @@
-import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createServerSupabase } from "@profullstack/stack/supabase";
 import type { Database } from "@/types/database";
 
-export async function createClient() {
-  const cookieStore = await cookies();
-
-  const client = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing sessions.
-          }
-        },
-      },
-    }
-  );
-
-  // Eagerly disconnect realtime — server-side clients only need REST/Auth.
-  // Each createServerClient() allocates a RealtimeClient with WebSocket state;
-  // disconnecting immediately prevents memory buildup under high request volume.
-  client.realtime.disconnect();
-
-  return client;
+// `disconnectRealtime` — server-side clients only need REST/Auth. Each
+// createServerClient() allocates a RealtimeClient with WebSocket state;
+// disconnecting immediately prevents memory buildup under high request volume.
+export function createClient() {
+  return createServerSupabase<Database>(cookies(), { disconnectRealtime: true });
 }

@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { verifyCoinPayWebhook } from "@profullstack/stack/coinpay";
 
 const COINPAY_API_URL = "https://coinpayportal.com/api";
 
@@ -119,43 +119,11 @@ export function verifyWebhookSignature(
   signatureHeader: string,
   secret: string
 ): boolean {
-  try {
-    // Parse signature header
-    const parts = signatureHeader.split(",");
-    const timestampPart = parts.find((p) => p.startsWith("t="));
-    const signaturePart = parts.find((p) => p.startsWith("v1="));
-
-    if (!timestampPart || !signaturePart) {
-      return false;
-    }
-
-    const timestamp = timestampPart.replace("t=", "");
-    const signature = signaturePart.replace("v1=", "");
-
-    // Reject webhooks older than 300 seconds (check both past and future)
-    const webhookTime = parseInt(timestamp, 10);
-    const currentTime = Math.floor(Date.now() / 1000);
-    if (Math.abs(currentTime - webhookTime) > 300) {
-      console.error("Webhook timestamp out of range");
-      return false;
-    }
-
-    // Compute expected signature: HMAC-SHA256(timestamp.payload, secret)
-    const signedPayload = `${timestamp}.${payload}`;
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(signedPayload)
-      .digest("hex");
-
-    // Timing-safe comparison (use hex encoding for proper byte comparison)
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, "hex"),
-      Buffer.from(expectedSignature, "hex")
-    );
-  } catch (error) {
-    console.error("Signature verification error:", error);
-    return false;
-  }
+  return verifyCoinPayWebhook({
+    signature: signatureHeader,
+    rawBody: payload,
+    secret,
+  });
 }
 
 /**

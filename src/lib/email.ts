@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import { createEmailer, escapeHtml, type Emailer } from "@profullstack/stack/email";
 
 const SENDER_EMAIL = process.env.FROM_EMAIL || process.env.EMAIL_FROM || "notifications@ugig.net";
 const SENDER_NAME = process.env.FROM_EMAIL_NAME || process.env.EMAIL_FROM_NAME;
@@ -15,18 +15,9 @@ function getBaseUrl(): string {
   return PRODUCTION_URL;
 }
 
-function getResendClient(): Resend | null {
+function getEmailer(): Emailer | null {
   if (!process.env.RESEND_API_KEY) return null;
-  return new Resend(process.env.RESEND_API_KEY);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return createEmailer({ resendApiKey: process.env.RESEND_API_KEY });
 }
 
 interface SendEmailParams {
@@ -37,15 +28,15 @@ interface SendEmailParams {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
-  const resend = getResendClient();
-  if (!resend) {
+  const emailer = getEmailer();
+  if (!emailer) {
     console.log("RESEND_API_KEY not configured, skipping email:", { to, subject });
     return { success: true, skipped: true };
   }
 
   try {
     console.log("[email] Sending email:", { to, subject, from: FROM_EMAIL });
-    const { data, error } = await resend.emails.send({
+    const result = await emailer.send({
       from: FROM_EMAIL,
       to,
       subject,
@@ -53,18 +44,18 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
       text,
     });
 
-    if (error) {
-      console.error("[email] Failed to send email:", { to, subject, error });
-      return { success: false, error };
+    if (!result.sent) {
+      console.error("[email] Failed to send email:", { to, subject, error: result.error });
+      return { success: false, error: result.error };
     }
 
     console.log("[email] Email accepted by provider:", {
       to,
       subject,
-      id: data?.id ?? null,
+      id: result.id ?? null,
     });
 
-    return { success: true, data };
+    return { success: true, data: { id: result.id } };
   } catch (error) {
     console.error("[email] Email send error:", { to, subject, error });
     return { success: false, error };
