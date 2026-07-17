@@ -9,6 +9,28 @@ export const metadata = {
   description: "Approve a command-line login request",
 };
 
+async function getCliAuthRequest(
+  code: string,
+): Promise<{ status: string; scope: string; client_name: string | null } | null> {
+  // device_codes isn't in the generated types yet.
+   
+  const db = createServiceClient() as any;
+  const { data: row } = await db
+    .from("device_codes")
+    .select("status, scope, client_name, expires_at")
+    .eq("user_code", code)
+    .maybeSingle();
+  if (!row) {
+    return null;
+  }
+  const expired = new Date(row.expires_at).getTime() < Date.now();
+  return {
+    status: expired ? "expired" : row.status,
+    scope: row.scope,
+    client_name: row.client_name,
+  };
+}
+
 export default async function CliAuthPage({
   searchParams,
 }: {
@@ -28,25 +50,7 @@ export default async function CliAuthPage({
     redirect(`/login?redirect=${encodeURIComponent(target)}`);
   }
 
-  let request: { status: string; scope: string; client_name: string | null } | null = null;
-  if (code) {
-    // device_codes isn't in the generated types yet.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = createServiceClient() as any;
-    const { data: row } = await db
-      .from("device_codes")
-      .select("status, scope, client_name, expires_at")
-      .eq("user_code", code)
-      .maybeSingle();
-    if (row) {
-      const expired = new Date(row.expires_at).getTime() < Date.now();
-      request = {
-        status: expired ? "expired" : row.status,
-        scope: row.scope,
-        client_name: row.client_name,
-      };
-    }
-  }
+  const request = code ? await getCliAuthRequest(code) : null;
 
   return (
     <>
