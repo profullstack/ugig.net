@@ -73,28 +73,43 @@ export async function POST(request: NextRequest) {
     // Check if already applied
     const { data: existingApplication } = await supabase
       .from("applications")
-      .select("id")
+      .select("id, status")
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
       .single();
 
-    if (existingApplication) {
+    // A withdrawn application may be resubmitted. Any other existing status
+    // (pending/reviewing/shortlisted/accepted/rejected) still blocks re-applying.
+    if (existingApplication && existingApplication.status !== "withdrawn") {
       return NextResponse.json(
         { error: "You have already applied to this gig" },
         { status: 400 }
       );
     }
 
-    // Create application
-    const { data: application, error } = await supabase
-      .from("applications")
-      .insert({
-        gig_id,
-        applicant_id: user.id,
-        ...applicationData,
-      })
-      .select()
-      .single();
+    // Create the application, or re-activate a withdrawn one. The
+    // UNIQUE(gig_id, applicant_id) constraint means a prior withdrawn row must
+    // be updated in place rather than inserted a second time.
+    const { data: application, error } = existingApplication
+      ? await supabase
+          .from("applications")
+          .update({
+            ...applicationData,
+            status: "pending",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingApplication.id)
+          .select()
+          .single()
+      : await supabase
+          .from("applications")
+          .insert({
+            gig_id,
+            applicant_id: user.id,
+            ...applicationData,
+          })
+          .select()
+          .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
