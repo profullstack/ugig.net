@@ -162,6 +162,11 @@ describe("POST /api/auth/confirmed", () => {
       expect(res.status).toBe(401);
     });
 
+    it("rejects Unicode secrets with mismatched byte lengths", async () => {
+      const res = await POST(makeRequest(confirmationPayload(), "éest-webhook-secret"));
+      expect(res.status).toBe(401);
+    });
+
     it("returns 500 when AUTH_WEBHOOK_SECRET is not configured", async () => {
       delete process.env.AUTH_WEBHOOK_SECRET;
       const res = await POST(makeRequest(confirmationPayload(), null));

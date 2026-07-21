@@ -6,14 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateAndStoreDid } from "@/lib/auth/did";
-
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-}
+import { timingSafeStringEqual } from "@/lib/security/constant-time";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
@@ -24,7 +19,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
   }
 
-  if (!safeCompare(authHeader, `Bearer ${secret}`) && !safeCompare(authHeader, secret)) {
+  if (
+    !timingSafeStringEqual(authHeader, `Bearer ${secret}`) &&
+    !timingSafeStringEqual(authHeader, secret)
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
