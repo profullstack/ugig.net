@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { InvoicePaymentActions } from "./InvoicePaymentActions";
 import { InvoiceCharges } from "./InvoiceCharges";
 import { SentInvoiceActions } from "./SentInvoiceActions";
+import { BulkPayAccepted } from "./BulkPayAccepted";
 import {
   ArrowLeft,
   ExternalLink,
@@ -284,6 +285,14 @@ export default async function InvoicesDashboardPage({
             );
           })}
         </div>
+
+        {/* Bulk pay — only on the received side, where you're the payer. */}
+        {tab === "received" && (
+          <BulkPayAccepted
+            invoiceIds={accepted.map((i) => i.id)}
+            totalUsd={totalAccepted}
+          />
+        )}
 
         {/* Invoice list */}
         <div>
