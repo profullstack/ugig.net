@@ -315,6 +315,15 @@ describe("ReviewForm", () => {
     fireEvent.click(submitButton);
 
     expect(screen.getByText("Submitting...")).toBeInTheDocument();
+
+    // Let the mocked 100ms request settle before the test ends. Otherwise the
+    // timer outlives the test, vitest tears down jsdom, and the component's
+    // late setIsSubmitting(false) hits React with no `window` — surfacing as
+    // "ReferenceError: window is not defined" in an unrelated file. It only
+    // reproduces under CI timing, so it reads as a random CI failure.
+    await waitFor(() =>
+      expect(screen.queryByText("Submitting...")).not.toBeInTheDocument()
+    );
   });
 
   it("trims comment before sending", async () => {

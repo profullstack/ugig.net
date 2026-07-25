@@ -186,6 +186,13 @@ describe("NotificationBell", () => {
     fireEvent.click(button);
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    // Let the mocked 100ms request settle before the test ends — a timer that
+    // outlives the test fires after vitest tears down jsdom, and the resulting
+    // state update throws "window is not defined" from an unrelated file.
+    await waitFor(() =>
+      expect(screen.queryByText("Loading...")).not.toBeInTheDocument()
+    );
   });
 
   it("marks notification as read when clicked", async () => {
