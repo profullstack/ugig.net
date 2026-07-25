@@ -1,4 +1,4 @@
-import { explorerName, explorerTxUrl } from "@/lib/explorer";
+import { explorerChain, explorerName, explorerTxUrl } from "@/lib/explorer";
 
 /**
  * The on-chain receipt for a paid invoice.
@@ -36,6 +36,32 @@ function str(value: unknown): string | null {
 }
 
 /**
+ * Which chain the payment actually settled on.
+ *
+ * `payment_currency` is not reliable for this: CoinPay reports the *invoice*
+ * currency there, so most settled invoices carry "USD" — a fiat code that
+ * names no chain. The settlement chain is recorded separately where known, and
+ * the receiver's payout currency is the next best witness. Candidates that
+ * don't resolve to a chain (USD, SATS) are skipped rather than trusted, so the
+ * order here is "most authoritative first", not "first non-empty".
+ */
+function settlementCurrency(meta: Record<string, unknown>): string | null {
+  const candidates = [
+    meta.settlement_chain,
+    meta.payment_chain,
+    meta.receiver_payment_currency,
+    meta.payment_currency,
+    meta.posting_coin,
+  ];
+
+  for (const candidate of candidates) {
+    const value = str(candidate);
+    if (value && explorerChain(value)) return value;
+  }
+  return null;
+}
+
+/**
  * Derive the transaction receipt from invoice metadata. Returns an empty list
  * for invoices with no recorded hash — legacy paid invoices, and off-chain
  * settlements, have nothing to link to.
@@ -46,7 +72,7 @@ export function invoiceTransactions(metadata: unknown): InvoiceTransaction[] {
     unknown
   >;
 
-  const currency = str(meta.payment_currency);
+  const currency = settlementCurrency(meta);
   const txHash = str(meta.tx_hash);
   const merchantTxHash = str(meta.merchant_tx_hash);
   const payerTxHash = str(meta.payer_tx_hash);

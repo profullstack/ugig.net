@@ -14,6 +14,7 @@ interface CoinpayStatusPayment {
   merchant_tx_hash?: string | null;
   confirmed_at?: string | null;
   blockchain?: string;
+  crypto_currency?: string;
   currency?: string;
   crypto_amount?: string | number | null;
   amount_crypto?: string | number | null;
@@ -62,6 +63,27 @@ function paymentCurrency(
     payment.blockchain ||
     (typeof existingMetadata.payment_currency === "string"
       ? existingMetadata.payment_currency
+      : null)
+  );
+}
+
+/**
+ * The chain the payment settled on, kept separate from `payment_currency`.
+ *
+ * CoinPay reports the invoice currency in `currency` — usually "USD" — so
+ * `payment_currency` names no chain and cannot resolve a block explorer. The
+ * chain lives in `blockchain` (with `crypto_currency` as a fallback), and the
+ * receipt UI needs it to build a transaction link.
+ */
+function settlementChain(
+  payment: CoinpayStatusPayment,
+  existingMetadata: Record<string, unknown>
+): string | null {
+  return (
+    payment.blockchain ||
+    payment.crypto_currency ||
+    (typeof existingMetadata.settlement_chain === "string"
+      ? existingMetadata.settlement_chain
       : null)
   );
 }
@@ -162,6 +184,7 @@ export async function syncBountyPaymentStatus(
         payment.merchant_tx_hash ?? payment.forward_tx_hash ?? existingMetadata.merchant_tx_hash ?? null,
       paid_at: now,
       payment_currency: paymentCurrency(payment, existingMetadata),
+      settlement_chain: settlementChain(payment, existingMetadata),
       amount_crypto: cryptoAmount(payment) ?? existingMetadata.amount_crypto ?? null,
     };
 
@@ -251,6 +274,7 @@ export async function syncBountyPaymentStatus(
       merchant_tx_hash:
         payment.merchant_tx_hash ?? payment.forward_tx_hash ?? existingMetadata.merchant_tx_hash ?? null,
       payment_currency: paymentCurrency(payment, existingMetadata),
+      settlement_chain: settlementChain(payment, existingMetadata),
       amount_crypto: cryptoAmount(payment) ?? existingMetadata.amount_crypto ?? null,
       expired_at: upstreamStatus === "expired" ? now : existingMetadata.expired_at,
       failed_at: upstreamStatus === "failed" ? now : existingMetadata.failed_at,
@@ -397,6 +421,7 @@ export async function syncGigInvoicePaymentStatus(
         payment.merchant_tx_hash ?? payment.forward_tx_hash ?? existingMetadata.merchant_tx_hash ?? null,
       paid_at: now,
       payment_currency: paymentCurrency(payment, existingMetadata),
+      settlement_chain: settlementChain(payment, existingMetadata),
       amount_crypto: cryptoAmount(payment) ?? existingMetadata.amount_crypto ?? null,
     };
 
@@ -494,6 +519,7 @@ export async function syncGigInvoicePaymentStatus(
       merchant_tx_hash:
         payment.merchant_tx_hash ?? payment.forward_tx_hash ?? existingMetadata.merchant_tx_hash ?? null,
       payment_currency: paymentCurrency(payment, existingMetadata),
+      settlement_chain: settlementChain(payment, existingMetadata),
       amount_crypto: cryptoAmount(payment) ?? existingMetadata.amount_crypto ?? null,
       expired_at: upstreamStatus === "expired" ? now : existingMetadata.expired_at,
       failed_at: upstreamStatus === "failed" ? now : existingMetadata.failed_at,

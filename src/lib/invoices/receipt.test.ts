@@ -68,6 +68,47 @@ describe("invoiceTransactions", () => {
     expect(txs.map((t) => t.role)).toEqual(["payment"]);
   });
 
+  // CoinPay reports the invoice currency in payment_currency, so nearly every
+  // settled invoice carries "USD" there. Trusting it would leave every receipt
+  // without a block explorer link.
+  it("ignores a fiat payment_currency and uses the settlement chain", () => {
+    const [tx] = invoiceTransactions({
+      payment_currency: "USD",
+      settlement_chain: "SOL",
+      tx_hash: "sig123",
+    });
+    expect(tx.explorer_url).toBe("https://solscan.io/tx/sig123");
+    expect(tx.currency).toBe("SOL");
+  });
+
+  it("falls back to the receiver's payout currency when no chain was recorded", () => {
+    const [tx] = invoiceTransactions({
+      payment_currency: "USD",
+      receiver_payment_currency: "sol",
+      tx_hash: "sig123",
+    });
+    expect(tx.explorer_url).toBe("https://solscan.io/tx/sig123");
+  });
+
+  it("prefers the settlement chain over every other witness", () => {
+    const [tx] = invoiceTransactions({
+      settlement_chain: "POL",
+      receiver_payment_currency: "sol",
+      payment_currency: "btc",
+      tx_hash: "0xabc",
+    });
+    expect(tx.explorer_url).toBe("https://polygonscan.com/tx/0xabc");
+  });
+
+  it("still lists a transaction when no field names a chain", () => {
+    const [tx] = invoiceTransactions({
+      payment_currency: "USD",
+      invoice_currency: "SATS",
+      tx_hash: "abc",
+    });
+    expect(tx).toMatchObject({ tx_hash: "abc", explorer_url: null, currency: null });
+  });
+
   it("still lists a transaction when the chain is unknown", () => {
     const [tx] = invoiceTransactions({ tx_hash: "abc", payment_currency: null });
     expect(tx).toMatchObject({ tx_hash: "abc", explorer_url: null, explorer_name: null });
