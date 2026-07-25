@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { syncGigInvoicePaymentStatus } from "@/lib/coinpay-payment-sync";
 import { createServiceClient } from "@/lib/supabase/service";
+import { invoiceTransactions } from "@/lib/invoices/receipt";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function GET(
           coinpay_invoice_id: null,
           pay_url: invoice.pay_url || null,
           metadata: invoice.metadata || {},
+          transactions: invoiceTransactions(invoice.metadata),
         },
       });
     }
@@ -67,6 +69,9 @@ export async function GET(
         coinpay_invoice_id: refreshed?.coinpay_invoice_id || invoice.coinpay_invoice_id,
         pay_url: refreshed?.pay_url || null,
         metadata: refreshed?.metadata || invoice.metadata || {},
+        // Transaction ids + block explorer links, derived once here so every
+        // client (web, CLI, agents) reads settlement proof the same way.
+        transactions: invoiceTransactions(refreshed?.metadata || invoice.metadata),
         updated_at: refreshed?.updated_at || null,
         sync: result,
       },

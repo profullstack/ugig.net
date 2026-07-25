@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { InvoicePaymentActions } from "./InvoicePaymentActions";
 import { InvoiceCharges } from "./InvoiceCharges";
 import { SentInvoiceActions } from "./SentInvoiceActions";
+import { InvoiceTransactionDetails } from "@/components/invoices/InvoiceTransactionDetails";
 import { BulkPayAccepted } from "./BulkPayAccepted";
 import {
   ArrowLeft,
@@ -68,6 +69,7 @@ interface InvoiceRow {
   notes: string | null;
   due_date: string | null;
   rejection_reason: string | null;
+  coinpay_invoice_id: string | null;
   metadata: {
     payment_address?: string | null;
     amount_crypto?: string | number | null;
@@ -77,6 +79,11 @@ interface InvoiceRow {
     replacement_requested_at?: string | null;
     accepted_at?: string | null;
     pr_links?: string[] | null;
+    tx_hash?: string | null;
+    merchant_tx_hash?: string | null;
+    payer_tx_hash?: string | null;
+    payer_tx_explorer_url?: string | null;
+    paid_at?: string | null;
   } | null;
   created_at: string;
   gig: { id: string; title: string } | null;
@@ -139,6 +146,16 @@ function counterpartyName(c: Counterparty | null): string {
 
 function isAwaitingPayment(status: InvoiceRow["status"]) {
   return status === "sent" || status === "expired";
+}
+
+// Paid invoices always get a receipt block (even legacy ones with no hash, so
+// the payment reference is still reachable). Unpaid ones only get it once a
+// transaction has actually been broadcast.
+function hasTransactionReceipt(inv: InvoiceRow): boolean {
+  if (inv.status === "paid") return true;
+  return Boolean(
+    inv.metadata?.tx_hash || inv.metadata?.merchant_tx_hash || inv.metadata?.payer_tx_hash
+  );
 }
 
 // An invoice the payer accepted but hasn't paid yet — the "Accepted" queue.
@@ -391,6 +408,18 @@ export default async function InvoicesDashboardPage({
                         metadata={inv.metadata}
                       />
                     </div>
+
+                    {/* Settlement proof — rendered on both tabs so the client
+                        and the worker see the same transaction ids. */}
+                    {hasTransactionReceipt(inv) && (
+                      <div className="mb-3">
+                        <InvoiceTransactionDetails
+                          metadata={inv.metadata}
+                          coinpayInvoiceId={inv.coinpay_invoice_id}
+                          paidAt={inv.metadata?.paid_at ?? null}
+                        />
+                      </div>
+                    )}
 
                     {inv.metadata?.pr_links && inv.metadata.pr_links.length > 0 && (
                       <div className="mb-3 space-y-1">

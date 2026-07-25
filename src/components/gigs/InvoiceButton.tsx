@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
+import { InvoiceTransactionDetails } from "@/components/invoices/InvoiceTransactionDetails";
 import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 
 interface CoinPayWalletOption {
@@ -70,7 +71,13 @@ interface GigInvoice {
     replacement_requested_at?: string | null;
     pr_links?: string[] | null;
     category?: string | null;
+    tx_hash?: string | null;
+    merchant_tx_hash?: string | null;
+    payer_tx_hash?: string | null;
+    payer_tx_explorer_url?: string | null;
+    paid_at?: string | null;
   } | null;
+  coinpay_invoice_id?: string | null;
   // Line items (present when the invoice was itemized) — used to pre-fill the
   // form when the worker resends a revoked or rejected invoice.
   items?: {
@@ -746,7 +753,18 @@ export function InvoiceButton({
               </Button>
             )}
 
-            {inv.status === "paid" && <p className="text-sm text-green-600">✅ Invoice paid!</p>}
+            {inv.status === "paid" && (
+              <>
+                <p className="text-sm text-green-600">✅ Invoice paid!</p>
+                {/* Same receipt for the worker and the poster — whoever is
+                    looking at this gig can pull up the transaction. */}
+                <InvoiceTransactionDetails
+                  metadata={inv.metadata ?? null}
+                  coinpayInvoiceId={inv.coinpay_invoice_id ?? null}
+                  paidAt={inv.metadata?.paid_at ?? null}
+                />
+              </>
+            )}
           </div>
         ))}
 

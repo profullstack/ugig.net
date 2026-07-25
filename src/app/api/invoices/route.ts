@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { invoiceTransactions } from "@/lib/invoices/receipt";
 
 // GET /api/invoices?role=sent|received|all
 // Returns invoices where the current user is worker (sent) and/or poster (received).
@@ -38,7 +39,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ data: data || [] });
+    // Both the worker and the poster read this endpoint, so the on-chain
+    // receipt travels with every invoice — neither side has to ask the other
+    // for the transaction id.
+    const invoices = ((data || []) as Record<string, unknown>[]).map((invoice) => ({
+      ...invoice,
+      transactions: invoiceTransactions(invoice.metadata),
+    }));
+
+    return NextResponse.json({ data: invoices });
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

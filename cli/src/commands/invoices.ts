@@ -10,6 +10,39 @@ import {
   truncate,
 } from "../output.js";
 
+/** The on-chain receipt the API derives for an invoice. */
+interface InvoiceTransaction {
+  role: string;
+  label: string;
+  tx_hash: string;
+  explorer_url: string | null;
+  explorer_name: string | null;
+  confirmed: boolean;
+}
+
+/**
+ * Print the transaction id(s) and block explorer link for a settled invoice.
+ * The API derives these for whichever party is asking, so the client and the
+ * worker see identical output.
+ */
+function printTransactions(
+  transactions: InvoiceTransaction[] | undefined,
+  opts: OutputOptions
+): void {
+  if (opts.json || !transactions || transactions.length === 0) return;
+  console.log();
+  console.log("  Transactions");
+  for (const tx of transactions) {
+    const suffix = tx.confirmed ? "" : " (awaiting confirmation)";
+    console.log(`    ${tx.label}${suffix}`);
+    console.log(`      ${tx.tx_hash}`);
+    if (tx.explorer_url) {
+      const name = tx.explorer_name ? ` (${tx.explorer_name})` : "";
+      console.log(`      ${tx.explorer_url}${name}`);
+    }
+  }
+}
+
 export function registerInvoicesCommands(program: Command): void {
   const invoices = program.command("invoices").description("Gig invoice management");
 
@@ -273,6 +306,7 @@ export function registerInvoicesCommands(program: Command): void {
             status: string;
             coinpay_invoice_id: string | null;
             metadata: Record<string, unknown>;
+            transactions?: InvoiceTransaction[];
             updated_at: string | null;
           };
         }>(`/api/gigs/${gigId}/invoice/${invoiceId}/payment-status`);
@@ -294,6 +328,7 @@ export function registerInvoicesCommands(program: Command): void {
             data as Record<string, unknown>,
             opts as OutputOptions
           );
+          printTransactions((data as any).transactions, opts as OutputOptions);
         } catch (err) {
           spinner?.fail("Failed");
           handleError(err, opts as OutputOptions);
@@ -328,6 +363,7 @@ export function registerInvoicesCommands(program: Command): void {
                 data as Record<string, unknown>,
                 opts as OutputOptions
               );
+              printTransactions((data as any).transactions, opts as OutputOptions);
             }
           } else {
             await new Promise((r) => setTimeout(r, 10_000));
