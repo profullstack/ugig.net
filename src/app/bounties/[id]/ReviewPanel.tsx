@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
+import { PaymentTransactionDetails } from "@/components/payments/PaymentTransactionDetails";
 
 interface Question {
   id: string;
@@ -41,6 +42,10 @@ interface PaymentDetails {
   payment_currency?: string | null;
   checkout_url?: string | null;
   expires_at?: string | null;
+  tx_hash?: string | null;
+  merchant_tx_hash?: string | null;
+  settlement_chain?: string | null;
+  paid_at?: string | null;
 }
 
 interface ReviewPanelProps {
@@ -72,6 +77,7 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
     let cancelled = false;
     const poll = async () => {
       const changedStatuses: Record<string, Submission["payout_status"]> = {};
+      const freshDetails: Record<string, PaymentDetails> = {};
 
       await Promise.all(
         pollableSubmissions.map(async (submission) => {
@@ -85,6 +91,10 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
             const status = json.data?.payout_status as Submission["payout_status"] | undefined;
             if (status && status !== submission.payout_status) {
               changedStatuses[submission.id] = status;
+              // The settlement hashes arrive with this response. Without
+              // capturing them, the payment-request metadata held here would
+              // shadow the refreshed row and the receipt would render empty.
+              if (json.data?.metadata) freshDetails[submission.id] = json.data.metadata;
             }
           } catch {
             // Payment confirmation is also handled by CoinPay webhooks.
@@ -94,6 +104,9 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
 
       if (cancelled || Object.keys(changedStatuses).length === 0) return;
       setSyncedPayoutStatus((prev) => ({ ...prev, ...changedStatuses }));
+      if (Object.keys(freshDetails).length > 0) {
+        setPaymentDetails((prev) => ({ ...prev, ...freshDetails }));
+      }
       router.refresh();
     };
 
@@ -328,6 +341,16 @@ export function ReviewPanel({ bountyId, payoutUsd, questions, submissions }: Rev
             </Badge>
           )}
         </div>
+
+        {/* Settlement proof. The bounty creator and the submitter both read
+            this panel, so either can verify the payout on-chain. */}
+        {payoutStatus === "paid" && (
+          <PaymentTransactionDetails
+            metadata={details as Record<string, unknown> | null}
+            coinpayInvoiceId={s.coinpay_invoice_id}
+            paidAt={details?.paid_at ?? null}
+          />
+        )}
       </div>
     );
   };

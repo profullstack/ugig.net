@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { syncBountyPaymentStatus } from "@/lib/coinpay-payment-sync";
 import { createServiceClient } from "@/lib/supabase/service";
+import { paymentTransactions } from "@/lib/payments/receipt";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export async function GET(
           payout_status: submission.payout_status,
           coinpay_invoice_id: null,
           metadata: submission.metadata || {},
+          transactions: paymentTransactions(submission.metadata),
         },
       });
     }
@@ -76,6 +78,8 @@ export async function GET(
         pay_url: refreshed?.pay_url || null,
         paid_at: refreshed?.paid_at || null,
         metadata: refreshed?.metadata || submission.metadata || {},
+        // Transaction ids + explorer links, same derivation as gig invoices.
+        transactions: paymentTransactions(refreshed?.metadata || submission.metadata),
         sync: result,
       },
     });

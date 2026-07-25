@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Receipt } from "lucide-react";
-import { invoiceTransactions } from "@/lib/invoices/receipt";
+import { paymentTransactions } from "@/lib/payments/receipt";
 import { shortTxHash } from "@/lib/explorer";
 
-interface InvoiceTransactionDetailsProps {
+interface PaymentTransactionDetailsProps {
   metadata: Record<string, unknown> | null;
   /** CoinPay payment reference, shown when there is no on-chain hash to link. */
   coinpayInvoiceId?: string | null;
@@ -20,13 +20,13 @@ interface InvoiceTransactionDetailsProps {
  * useful if the party chasing the payment can see the same hash as the party
  * who sent it.
  */
-export function InvoiceTransactionDetails({
+export function PaymentTransactionDetails({
   metadata,
   coinpayInvoiceId,
   paidAt,
-}: InvoiceTransactionDetailsProps) {
+}: PaymentTransactionDetailsProps) {
   const [copied, setCopied] = useState<string | null>(null);
-  const transactions = invoiceTransactions(metadata);
+  const transactions = paymentTransactions(metadata);
 
   const paidAtValue =
     paidAt ||

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { InvoiceTransactionDetails } from "./InvoiceTransactionDetails";
+import { PaymentTransactionDetails } from "./PaymentTransactionDetails";
 
-describe("InvoiceTransactionDetails", () => {
+describe("PaymentTransactionDetails", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -10,7 +10,7 @@ describe("InvoiceTransactionDetails", () => {
 
   it("shows the transaction id and a block explorer link for a paid invoice", () => {
     render(
-      <InvoiceTransactionDetails
+      <PaymentTransactionDetails
         metadata={{
           payment_currency: "usdc_pol",
           tx_hash: "0x1234567890abcdef1234567890abcdef",
@@ -33,7 +33,7 @@ describe("InvoiceTransactionDetails", () => {
 
   it("lists both the payment and the payout transaction", () => {
     render(
-      <InvoiceTransactionDetails
+      <PaymentTransactionDetails
         metadata={{
           payment_currency: "btc",
           tx_hash: "aaa111",
@@ -44,13 +44,34 @@ describe("InvoiceTransactionDetails", () => {
     );
 
     expect(screen.getByText("Payment received")).toBeInTheDocument();
-    expect(screen.getByText("Payout to worker")).toBeInTheDocument();
+    expect(screen.getByText("Payout to recipient")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /mempool\.space/i })).toHaveLength(2);
+  });
+
+  // Bounty payouts store the same metadata shape as gig invoices, including
+  // the "USD" payment_currency that names no chain.
+  it("renders a bounty payout receipt from the settlement chain", () => {
+    render(
+      <PaymentTransactionDetails
+        metadata={{
+          payment_currency: "USD",
+          settlement_chain: "SOL",
+          tx_hash: "depositSig",
+          merchant_tx_hash: "payoutSig",
+        }}
+        coinpayInvoiceId="cp-bounty-1"
+      />
+    );
+
+    const links = screen.getAllByRole("link", { name: /View on Solscan/i });
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute("href", "https://solscan.io/tx/depositSig");
+    expect(links[1]).toHaveAttribute("href", "https://solscan.io/tx/payoutSig");
   });
 
   it("flags a payer-broadcast hash as awaiting confirmation", () => {
     render(
-      <InvoiceTransactionDetails
+      <PaymentTransactionDetails
         metadata={{
           payment_currency: "eth",
           payer_tx_hash: "0xbroadcast",
@@ -68,7 +89,7 @@ describe("InvoiceTransactionDetails", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
 
     render(
-      <InvoiceTransactionDetails
+      <PaymentTransactionDetails
         metadata={{
           payment_currency: "eth",
           tx_hash: "0x1234567890abcdef1234567890abcdef",
@@ -85,7 +106,7 @@ describe("InvoiceTransactionDetails", () => {
   });
 
   it("explains a paid invoice with no recorded on-chain transaction", () => {
-    render(<InvoiceTransactionDetails metadata={{}} coinpayInvoiceId="cp-789" />);
+    render(<PaymentTransactionDetails metadata={{}} coinpayInvoiceId="cp-789" />);
 
     expect(
       screen.getByText(/No on-chain transaction was recorded/i)

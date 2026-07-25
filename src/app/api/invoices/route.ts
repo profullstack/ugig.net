@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { invoiceTransactions } from "@/lib/invoices/receipt";
+import { paymentTransactions } from "@/lib/payments/receipt";
 
 // GET /api/invoices?role=sent|received|all
 // Returns invoices where the current user is worker (sent) and/or poster (received).
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // for the transaction id.
     const invoices = ((data || []) as Record<string, unknown>[]).map((invoice) => ({
       ...invoice,
-      transactions: invoiceTransactions(invoice.metadata),
+      transactions: paymentTransactions(invoice.metadata),
     }));
 
     return NextResponse.json({ data: invoices });

@@ -15,7 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
-import { InvoiceTransactionDetails } from "@/components/invoices/InvoiceTransactionDetails";
+import { PaymentTransactionDetails } from "@/components/payments/PaymentTransactionDetails";
 import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 
 interface CoinPayWalletOption {
@@ -758,7 +758,7 @@ export function InvoiceButton({
                 <p className="text-sm text-green-600">✅ Invoice paid!</p>
                 {/* Same receipt for the worker and the poster — whoever is
                     looking at this gig can pull up the transaction. */}
-                <InvoiceTransactionDetails
+                <PaymentTransactionDetails
                   metadata={inv.metadata ?? null}
                   coinpayInvoiceId={inv.coinpay_invoice_id ?? null}
                   paidAt={inv.metadata?.paid_at ?? null}

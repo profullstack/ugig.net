@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { InvoicePaymentActions } from "./InvoicePaymentActions";
 import { InvoiceCharges } from "./InvoiceCharges";
 import { SentInvoiceActions } from "./SentInvoiceActions";
-import { InvoiceTransactionDetails } from "@/components/invoices/InvoiceTransactionDetails";
+import { PaymentTransactionDetails } from "@/components/payments/PaymentTransactionDetails";
 import { BulkPayAccepted } from "./BulkPayAccepted";
 import {
   ArrowLeft,
@@ -413,7 +413,7 @@ export default async function InvoicesDashboardPage({
                         and the worker see the same transaction ids. */}
                     {hasTransactionReceipt(inv) && (
                       <div className="mb-3">
-                        <InvoiceTransactionDetails
+                        <PaymentTransactionDetails
                           metadata={inv.metadata}
                           coinpayInvoiceId={inv.coinpay_invoice_id}
                           paidAt={inv.metadata?.paid_at ?? null}

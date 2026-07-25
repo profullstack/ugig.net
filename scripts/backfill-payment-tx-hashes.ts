@@ -1,23 +1,25 @@
 #!/usr/bin/env npx tsx
 /**
- * Backfill on-chain transaction hashes onto settled gig invoices.
+ * Backfill on-chain transaction hashes onto settled gig invoices and bounty
+ * payouts.
  *
- * Why this exists: invoices settled through the CoinPay status-polling path
- * (`syncGigInvoicePaymentStatus`) recorded `tx_hash: null`, because CoinPay's
- * public `GET /api/payments/{id}` withheld `tx_hash` and `forward_tx_hash`.
- * CoinPay always had both. The public endpoint now returns them, so new
- * settlements are fine — but every invoice paid before that fix carries a null
- * hash and shows no receipt to either party. This copies the hashes across for
- * those rows, once.
+ * Why this exists: payments settled through the CoinPay status-polling path
+ * (`syncGigInvoicePaymentStatus` / `syncBountyPaymentStatus`) recorded
+ * `tx_hash: null`, because CoinPay's public `GET /api/payments/{id}` withheld
+ * `tx_hash` and `forward_tx_hash`. CoinPay always had both. The public endpoint
+ * now returns them, so new settlements are fine — but everything paid before
+ * that fix carries a null hash and shows no receipt to either party. This
+ * copies the hashes, and the settlement chain, across for those rows.
  *
  * Reads CoinPay's database directly rather than its API: the affected rows are
  * already `paid`, so the sync path early-returns and would never re-fetch them.
  *
+ * Safe to re-run — it only fills gaps, and skips rows that are already whole.
  * Dry run by default — pass --apply to write.
  *
  * Usage:
- *   npx tsx scripts/backfill-invoice-tx-hashes.ts            # report only
- *   npx tsx scripts/backfill-invoice-tx-hashes.ts --apply    # write
+ *   npx tsx scripts/backfill-payment-tx-hashes.ts            # report only
+ *   npx tsx scripts/backfill-payment-tx-hashes.ts --apply    # write
  *
  * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (ugig) and
  * COINPAY_SUPABASE_URL, COINPAY_SUPABASE_SERVICE_ROLE_KEY (CoinPay).
@@ -53,7 +55,7 @@ const coinpay = createClient(COINPAY_URL, COINPAY_KEY);
 /** PostgREST caps a single response at 1000 rows; page rather than truncate. */
 const PAGE = 500;
 
-interface InvoiceRow {
+interface SettledRow {
   id: string;
   coinpay_invoice_id: string | null;
   metadata: Record<string, unknown> | null;
@@ -74,23 +76,36 @@ function needsBackfill(metadata: Record<string, unknown> | null): boolean {
   );
 }
 
-async function fetchInvoices(): Promise<InvoiceRow[]> {
-  const rows: InvoiceRow[] = [];
+/** The two tables that settle through CoinPay, with their status columns. */
+const TARGETS = [
+  { table: "gig_invoices", statusColumn: "status", paidValue: "paid", label: "gig invoices" },
+  {
+    table: "bounty_submissions",
+    statusColumn: "payout_status",
+    paidValue: "paid",
+    label: "bounty payouts",
+  },
+] as const;
+
+type Target = (typeof TARGETS)[number];
+
+async function fetchSettledRows(target: Target): Promise<SettledRow[]> {
+  const rows: SettledRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await ugig
-      .from("gig_invoices")
+      .from(target.table)
       .select("id, coinpay_invoice_id, metadata")
-      .eq("status", "paid")
+      .eq(target.statusColumn, target.paidValue)
       .not("coinpay_invoice_id", "is", null)
       .order("created_at", { ascending: true })
       .range(from, from + PAGE - 1);
 
-    if (error) throw new Error(`Failed to read invoices: ${error.message}`);
+    if (error) throw new Error(`Failed to read ${target.table}: ${error.message}`);
     if (!data || data.length === 0) break;
-    rows.push(...(data as unknown as InvoiceRow[]));
+    rows.push(...(data as unknown as SettledRow[]));
     if (data.length < PAGE) break;
   }
-  return rows.filter((inv) => needsBackfill(inv.metadata));
+  return rows.filter((row) => needsBackfill(row.metadata));
 }
 
 interface PaymentRow {
@@ -121,42 +136,41 @@ async function fetchPayments(ids: string[]) {
   return byId;
 }
 
-async function main() {
-  const invoices = await fetchInvoices();
-  console.log(`Paid invoices missing a transaction hash or settlement chain: ${invoices.length}`);
-  if (invoices.length === 0) return;
-
-  const payments = await fetchPayments(
-    invoices.map((inv) => inv.coinpay_invoice_id!).filter(Boolean)
+async function backfill(target: Target): Promise<void> {
+  const rows = await fetchSettledRows(target);
+  console.log(
+    `\n${target.label}: ${rows.length} settled row(s) missing a transaction hash or settlement chain`
   );
+  if (rows.length === 0) return;
+
+  const payments = await fetchPayments(rows.map((row) => row.coinpay_invoice_id!).filter(Boolean));
 
   let updated = 0;
   let unmatched = 0;
-  let noHashUpstream = 0;
+  let nothingUpstream = 0;
   const failures: string[] = [];
 
-  for (const invoice of invoices) {
-    const payment = payments.get(invoice.coinpay_invoice_id!);
+  for (const row of rows) {
+    const payment = payments.get(row.coinpay_invoice_id!);
     if (!payment) {
       unmatched++;
       continue;
     }
     if (!payment.tx_hash && !payment.forward_tx_hash && !payment.chain) {
-      noHashUpstream++;
+      nothingUpstream++;
       continue;
     }
 
     const metadata = {
-      ...(invoice.metadata || {}),
-      // Only fill gaps. A hash already on the invoice was written by the
-      // webhook with the same authority as CoinPay's own row.
-      tx_hash: (invoice.metadata?.tx_hash as string | null) || payment.tx_hash,
+      ...(row.metadata || {}),
+      // Only fill gaps. A hash already recorded came from the webhook, which
+      // has the same authority as CoinPay's own row.
+      tx_hash: (row.metadata?.tx_hash as string | null) || payment.tx_hash,
       merchant_tx_hash:
-        (invoice.metadata?.merchant_tx_hash as string | null) || payment.forward_tx_hash,
+        (row.metadata?.merchant_tx_hash as string | null) || payment.forward_tx_hash,
       // Without this the hashes are unlinkable: `payment_currency` holds the
       // invoice currency ("USD"), which resolves to no block explorer.
-      settlement_chain:
-        (invoice.metadata?.settlement_chain as string | null) || payment.chain,
+      settlement_chain: (row.metadata?.settlement_chain as string | null) || payment.chain,
       tx_backfilled_at: new Date().toISOString(),
     };
 
@@ -166,23 +180,29 @@ async function main() {
     }
 
     const { error } = await ugig
-      .from("gig_invoices")
+      .from(target.table)
       .update({ metadata } as never)
-      .eq("id", invoice.id);
+      .eq("id", row.id);
 
     if (error) {
-      failures.push(`${invoice.id}: ${error.message}`);
+      failures.push(`${row.id}: ${error.message}`);
       continue;
     }
     updated++;
   }
 
-  console.log(`${APPLY ? "Updated" : "Would update"}: ${updated}`);
-  if (unmatched) console.log(`No matching CoinPay payment: ${unmatched}`);
-  if (noHashUpstream) console.log(`CoinPay has no hash either: ${noHashUpstream}`);
+  console.log(`  ${APPLY ? "Updated" : "Would update"}: ${updated}`);
+  if (unmatched) console.log(`  No matching CoinPay payment: ${unmatched}`);
+  if (nothingUpstream) console.log(`  CoinPay has no hash or chain either: ${nothingUpstream}`);
   if (failures.length) {
-    console.log(`Failed: ${failures.length}`);
-    for (const failure of failures) console.log(`  ${failure}`);
+    console.log(`  Failed: ${failures.length}`);
+    for (const failure of failures) console.log(`    ${failure}`);
+  }
+}
+
+async function main() {
+  for (const target of TARGETS) {
+    await backfill(target);
   }
   if (!APPLY) console.log("\nDry run. Re-run with --apply to write.");
 }

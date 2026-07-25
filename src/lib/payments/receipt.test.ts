@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { invoiceTransactions } from "./receipt";
+import { paymentTransactions } from "./receipt";
 
-describe("invoiceTransactions", () => {
+describe("paymentTransactions", () => {
   it("returns the payment and payout transactions with explorer links", () => {
-    const txs = invoiceTransactions({
+    const txs = paymentTransactions({
       payment_currency: "usdc_pol",
       tx_hash: "0xpayment",
       merchant_tx_hash: "0xpayout",
@@ -26,7 +26,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("omits the payout entry when it repeats the payment hash", () => {
-    const txs = invoiceTransactions({
+    const txs = paymentTransactions({
       payment_currency: "btc",
       tx_hash: "abc",
       merchant_tx_hash: "abc",
@@ -35,7 +35,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("marks a payer-broadcast hash as unconfirmed and prefers the wallet's explorer URL", () => {
-    const txs = invoiceTransactions({
+    const txs = paymentTransactions({
       payment_currency: "eth",
       payer_tx_hash: "0xbroadcast",
       payer_tx_explorer_url: "https://etherscan.io/tx/0xbroadcast",
@@ -51,7 +51,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("derives an explorer link for a broadcast hash with no recorded URL", () => {
-    const [tx] = invoiceTransactions({
+    const [tx] = paymentTransactions({
       payment_currency: "sol",
       payer_tx_hash: "sig123",
     });
@@ -60,7 +60,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("drops the broadcast claim once the confirmed hash matches it", () => {
-    const txs = invoiceTransactions({
+    const txs = paymentTransactions({
       payment_currency: "eth",
       tx_hash: "0xsame",
       payer_tx_hash: "0xsame",
@@ -72,7 +72,7 @@ describe("invoiceTransactions", () => {
   // settled invoice carries "USD" there. Trusting it would leave every receipt
   // without a block explorer link.
   it("ignores a fiat payment_currency and uses the settlement chain", () => {
-    const [tx] = invoiceTransactions({
+    const [tx] = paymentTransactions({
       payment_currency: "USD",
       settlement_chain: "SOL",
       tx_hash: "sig123",
@@ -82,7 +82,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("falls back to the receiver's payout currency when no chain was recorded", () => {
-    const [tx] = invoiceTransactions({
+    const [tx] = paymentTransactions({
       payment_currency: "USD",
       receiver_payment_currency: "sol",
       tx_hash: "sig123",
@@ -91,7 +91,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("prefers the settlement chain over every other witness", () => {
-    const [tx] = invoiceTransactions({
+    const [tx] = paymentTransactions({
       settlement_chain: "POL",
       receiver_payment_currency: "sol",
       payment_currency: "btc",
@@ -101,7 +101,7 @@ describe("invoiceTransactions", () => {
   });
 
   it("still lists a transaction when no field names a chain", () => {
-    const [tx] = invoiceTransactions({
+    const [tx] = paymentTransactions({
       payment_currency: "USD",
       invoice_currency: "SATS",
       tx_hash: "abc",
@@ -110,14 +110,14 @@ describe("invoiceTransactions", () => {
   });
 
   it("still lists a transaction when the chain is unknown", () => {
-    const [tx] = invoiceTransactions({ tx_hash: "abc", payment_currency: null });
+    const [tx] = paymentTransactions({ tx_hash: "abc", payment_currency: null });
     expect(tx).toMatchObject({ tx_hash: "abc", explorer_url: null, explorer_name: null });
   });
 
   it("returns nothing for missing, empty, or non-object metadata", () => {
-    expect(invoiceTransactions(null)).toEqual([]);
-    expect(invoiceTransactions({})).toEqual([]);
-    expect(invoiceTransactions("nope")).toEqual([]);
-    expect(invoiceTransactions({ tx_hash: "   " })).toEqual([]);
+    expect(paymentTransactions(null)).toEqual([]);
+    expect(paymentTransactions({})).toEqual([]);
+    expect(paymentTransactions("nope")).toEqual([]);
+    expect(paymentTransactions({ tx_hash: "   " })).toEqual([]);
   });
 });

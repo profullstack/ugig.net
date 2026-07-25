@@ -1,25 +1,28 @@
 import { explorerChain, explorerName, explorerTxUrl } from "@/lib/explorer";
 
 /**
- * The on-chain receipt for a paid invoice.
+ * The on-chain receipt for a settled CoinPay payment — a gig invoice or a
+ * bounty payout. Both store the same hashes in the same metadata shape, so the
+ * derivation is shared.
  *
- * A settled invoice can involve two distinct transactions, and both parties
+ * A settled payment can involve two distinct transactions, and both parties
  * need to be able to look either one up:
  *
  *  - `payment` — the payer's funds landing on the CoinPay deposit address
- *    (`tx_hash`). This is what proves the client paid.
- *  - `payout`  — CoinPay forwarding those funds on to the worker's own wallet
- *    (`merchant_tx_hash`). This is what proves the worker was paid.
+ *    (`tx_hash`). This is what proves the payer paid.
+ *  - `payout`  — CoinPay forwarding those funds on to the recipient's own
+ *    wallet (`merchant_tx_hash`). This is what proves the worker or bounty
+ *    submitter was paid.
  *
- * A third case, `broadcast`, covers invoices paid straight from the payer's
+ * A third case, `broadcast`, covers payments made straight from the payer's
  * wallet extension: the hash is self-reported at broadcast time, before any
  * confirmation, so it is labelled as such rather than presented as settlement.
  */
 
-export type InvoiceTransactionRole = "payment" | "payout" | "broadcast";
+export type PaymentTransactionRole = "payment" | "payout" | "broadcast";
 
-export interface InvoiceTransaction {
-  role: InvoiceTransactionRole;
+export interface PaymentTransaction {
+  role: PaymentTransactionRole;
   label: string;
   tx_hash: string;
   explorer_url: string | null;
@@ -62,11 +65,11 @@ function settlementCurrency(meta: Record<string, unknown>): string | null {
 }
 
 /**
- * Derive the transaction receipt from invoice metadata. Returns an empty list
- * for invoices with no recorded hash — legacy paid invoices, and off-chain
- * settlements, have nothing to link to.
+ * Derive the transaction receipt from a gig invoice's or bounty submission's
+ * metadata. Returns an empty list when no hash was recorded — payments settled
+ * before hashes were captured, and off-chain settlements, have nothing to link.
  */
-export function invoiceTransactions(metadata: unknown): InvoiceTransaction[] {
+export function paymentTransactions(metadata: unknown): PaymentTransaction[] {
   const meta = (metadata && typeof metadata === "object" ? metadata : {}) as Record<
     string,
     unknown
@@ -77,7 +80,7 @@ export function invoiceTransactions(metadata: unknown): InvoiceTransaction[] {
   const merchantTxHash = str(meta.merchant_tx_hash);
   const payerTxHash = str(meta.payer_tx_hash);
 
-  const transactions: InvoiceTransaction[] = [];
+  const transactions: PaymentTransaction[] = [];
 
   if (txHash) {
     transactions.push({
@@ -94,7 +97,7 @@ export function invoiceTransactions(metadata: unknown): InvoiceTransaction[] {
   if (merchantTxHash && merchantTxHash !== txHash) {
     transactions.push({
       role: "payout",
-      label: "Payout to worker",
+      label: "Payout to recipient",
       tx_hash: merchantTxHash,
       explorer_url: explorerTxUrl(currency, merchantTxHash),
       explorer_name: explorerName(currency),
