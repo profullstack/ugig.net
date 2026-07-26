@@ -238,19 +238,59 @@ function normalizeCoinSymbol(value?: string | null): string {
     .replace(/[\s-]+/g, "_");
 }
 
+const COIN_IDENTIFIER_KEYS = [
+  "currency",
+  "cryptocurrency",
+  "code",
+  "symbol",
+  "id",
+  "chain",
+  "network",
+  "blockchain",
+] as const;
+
+/**
+ * Resolve a composite identifier such as "USDC_POL" that names both the coin and
+ * its chain in a single token. CoinPayPortal's OIDC userinfo `wallets` claim uses
+ * this shape (`{ address, chain: "USDC_POL" }`), as do the `cryptocurrency`
+ * columns of merchant_wallets and business_wallets. A composite match wins over a
+ * bare symbol found elsewhere on the record, because it carries the chain too.
+ */
+function compositeCurrencyKey(coin: SupportedCoin): SupportedCurrency | null {
+  for (const key of COIN_IDENTIFIER_KEYS) {
+    const raw = coin[key];
+    if (typeof raw !== "string") continue;
+    const normalized = normalizeCurrencyKey(raw);
+    if (normalized.includes("_") && isSupportedCurrency(normalized)) return normalized;
+  }
+  return null;
+}
+
 export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | null {
+  const composite = compositeCurrencyKey(coin);
+  if (composite) return composite;
+
   const directCurrency =
     normalizeCurrencyKey(coin.currency) ||
     normalizeCurrencyKey(coin.id) ||
     normalizeCurrencyKey(coin.code);
   if (isSupportedCurrency(directCurrency)) return directCurrency;
 
-  const symbol =
+  const rawSymbol =
     normalizeCoinSymbol(coin.symbol) ||
     normalizeCoinSymbol(coin.code) ||
     normalizeCoinSymbol(coin.currency) ||
-    normalizeCoinSymbol(coin.id) || normalizeCoinSymbol(coin.chain);
+    normalizeCoinSymbol(typeof coin.cryptocurrency === "string" ? coin.cryptocurrency : null) ||
+    normalizeCoinSymbol(coin.id) ||
+    normalizeCoinSymbol(coin.chain);
+
+  // "USDC_POLYGON" and friends: the leading part is the symbol, the rest is the
+  // chain. A bare symbol splits to itself with no chain parts, so this is a no-op
+  // for the `{ symbol, chain }` shape returned by /api/get-tokens.
+  const [symbol, ...symbolChainParts] = rawSymbol.split("_");
+
   const chain =
+    symbolChainParts.join("_") ||
     normalizeCoinSymbol(coin.chain) ||
     normalizeCoinSymbol(coin.network) ||
     normalizeCoinSymbol(coin.blockchain);
@@ -271,7 +311,6 @@ export function coinToPaymentCurrency(coin: SupportedCoin): SupportedCurrency | 
     if (chain === "ETH" || chain === "ETHEREUM") return "usdc_eth";
     return "usdc_sol";
   }
-
   return null;
 }
 

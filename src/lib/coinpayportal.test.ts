@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import crypto from "crypto";
 import {
+  coinToPaymentCurrency,
+  getCoinpayGlobalWalletTokens,
   createPayment,
   createInvoice,
   sendInvoice,
@@ -419,5 +421,73 @@ describe("CoinPayPortal invoice API", () => {
         }),
       })
     );
+  });
+});
+
+describe("coinToPaymentCurrency composite identifiers", () => {
+  it("resolves a composite chain token such as USDC_POL", () => {
+    expect(coinToPaymentCurrency({ chain: "USDC_POL" })).toBe("usdc_pol");
+    expect(coinToPaymentCurrency({ chain: "USDT_POL" })).toBe("usdt_pol");
+    expect(coinToPaymentCurrency({ cryptocurrency: "USDC_SOL" })).toBe("usdc_sol");
+  });
+
+  it("still resolves the bare symbol plus separate chain shape", () => {
+    expect(coinToPaymentCurrency({ symbol: "USDT", chain: "POL" })).toBe("usdt_pol");
+    expect(coinToPaymentCurrency({ symbol: "USDC", chain: "ETH" })).toBe("usdc_eth");
+    expect(coinToPaymentCurrency({ symbol: "BTC" })).toBe("btc");
+    expect(coinToPaymentCurrency({ currency: "pol" })).toBe("pol");
+  });
+
+  it("splits a symbol that carries its own chain suffix", () => {
+    expect(coinToPaymentCurrency({ symbol: "USDC-POLYGON" })).toBe("usdc_pol");
+    expect(coinToPaymentCurrency({ symbol: "USDT_ETHEREUM" })).toBe("usdt_eth");
+  });
+
+  it("returns null when nothing identifies the coin", () => {
+    expect(coinToPaymentCurrency({ id: "2d4d2744-a15f-4b60-9b26-8d97a70b07c3" })).toBeNull();
+  });
+});
+
+describe("getCoinpayGlobalWalletTokens via OAuth userinfo", () => {
+  const address = "0xd0f4279fe026eD763bb7619c8ed4ADDEc50BaE4f";
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("normalizes the wallets claim returned by /api/oauth/userinfo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          sub: "ebf95dfc-09f5-4dab-80ab-74bdff9ba71d",
+          wallets: [
+            { address, chain: "USDC_POL", label: "Global", business_id: null },
+            { address, chain: "USDT_POL", label: "ClawedAssistant", business_id: "eca2d5c9" },
+          ],
+        }),
+      })
+    );
+
+    const wallets = await getCoinpayGlobalWalletTokens({ access_token: "cp_at_test" });
+
+    expect(wallets.map((wallet) => wallet.currency)).toEqual(["usdc_pol", "usdt_pol"]);
+    expect(wallets[0].address).toBe(address);
+    expect(wallets[1].label).toBe("ClawedAssistant");
+  });
+
+  it("drops wallets whose address does not match the chain", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          wallets: [{ address: "not-an-address", chain: "USDC_POL" }],
+        }),
+      })
+    );
+
+    await expect(getCoinpayGlobalWalletTokens({ access_token: "cp_at_test" })).resolves.toEqual([]);
   });
 });
