@@ -56,9 +56,20 @@ export function calculateCommission(
   offer: Pick<AffiliateOffer, "commission_rate" | "commission_type" | "commission_flat_sats">,
   saleAmountSats: number
 ): number {
-  if (offer.commission_type === "flat") {
-    return offer.commission_flat_sats || 0;
+  if (!Number.isFinite(saleAmountSats) || saleAmountSats <= 0) {
+    return 0;
   }
+
+  if (offer.commission_type === "flat") {
+    return Number.isFinite(offer.commission_flat_sats) && offer.commission_flat_sats > 0
+      ? offer.commission_flat_sats
+      : 0;
+  }
+
+  if (!Number.isFinite(offer.commission_rate) || offer.commission_rate <= 0) {
+    return 0;
+  }
+
   return Math.floor(saleAmountSats * offer.commission_rate);
 }
 
@@ -66,6 +77,10 @@ export function calculateCommission(
  * Calculate platform fee on a commission (platform takes a cut of the commission, not the sale).
  */
 export function calculatePlatformFee(commissionSats: number): number {
+  if (!Number.isFinite(commissionSats) || commissionSats <= 0) {
+    return 0;
+  }
+
   return Math.floor(commissionSats * AFFILIATE_DEFAULTS.platformFeeRate);
 }
 
@@ -88,6 +103,10 @@ export async function recordConversion(
 
   const existing = await findConversionByPurchaseId(admin, purchaseId);
   if (existing) return existing;
+
+  if (!Number.isFinite(saleAmountSats) || saleAmountSats <= 0) {
+    return { ok: false, error: "Sale amount must be a positive finite number" };
+  }
 
   // Fetch offer
   const { data: offer, error: offerErr } = await (admin as AnySupabase)

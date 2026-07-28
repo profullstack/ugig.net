@@ -33,6 +33,34 @@ describe("calculateCommission", () => {
     );
     expect(result).toBe(0);
   });
+
+  it("returns 0 for non-finite sale amounts", () => {
+    const result = calculateCommission(
+      { commission_rate: 0.20, commission_type: "percentage", commission_flat_sats: 0 },
+      Number.POSITIVE_INFINITY
+    );
+    expect(result).toBe(0);
+  });
+
+  it("returns 0 for non-finite commission settings", () => {
+    expect(
+      calculateCommission(
+        {
+          commission_rate: Number.POSITIVE_INFINITY,
+          commission_type: "percentage",
+          commission_flat_sats: 0,
+        },
+        10000
+      )
+    ).toBe(0);
+
+    expect(
+      calculateCommission(
+        { commission_rate: 0.20, commission_type: "flat", commission_flat_sats: Number.NaN },
+        10000
+      )
+    ).toBe(0);
+  });
 });
 
 describe("calculatePlatformFee", () => {
@@ -46,6 +74,11 @@ describe("calculatePlatformFee", () => {
 
   it("returns 0 for zero commission", () => {
     expect(calculatePlatformFee(0)).toBe(0);
+  });
+
+  it("returns 0 for non-finite commission", () => {
+    expect(calculatePlatformFee(Number.POSITIVE_INFINITY)).toBe(0);
+    expect(calculatePlatformFee(Number.NaN)).toBe(0);
   });
 });
 
@@ -143,6 +176,23 @@ function createAdminMock(options: {
 }
 
 describe("recordConversion", () => {
+  it("rejects non-finite sale amounts before fetching an offer", async () => {
+    const { admin, calls } = createAdminMock();
+
+    const result = await recordConversion(admin as never, {
+      offerId: "offer_1",
+      affiliateId: "affiliate_1",
+      saleAmountSats: Number.POSITIVE_INFINITY,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Sale amount must be a positive finite number",
+    });
+    expect(calls.some((call) => call.table === "affiliate_offers")).toBe(false);
+    expect(calls.some((call) => call.op === "insert")).toBe(false);
+  });
+
   it("returns an existing purchase conversion without inserting or incrementing metrics", async () => {
     const existingConversion = {
       id: "conversion_existing",
