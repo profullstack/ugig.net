@@ -105,6 +105,29 @@ describe("validateOfferInput", () => {
     expect(result.errors.some((e) => e.includes("price_sats"))).toBe(true);
   });
 
+  it("rejects non-finite numeric fields before sanitizing", () => {
+    const priceResult = validateOfferInput({ ...validInput, price_sats: Number.NaN });
+    const rateResult = validateOfferInput({ ...validInput, commission_rate: Number.POSITIVE_INFINITY });
+    const flatResult = validateOfferInput({
+      ...validInput,
+      commission_type: "flat",
+      commission_flat_sats: Number.NaN,
+    });
+    const cookieResult = validateOfferInput({ ...validInput, cookie_days: Number.POSITIVE_INFINITY });
+    const settlementResult = validateOfferInput({ ...validInput, settlement_delay_days: Number.NaN });
+
+    expect(priceResult.ok).toBe(false);
+    expect(priceResult.errors.some((e) => e.includes("price_sats"))).toBe(true);
+    expect(rateResult.ok).toBe(false);
+    expect(rateResult.errors.some((e) => e.includes("Commission rate"))).toBe(true);
+    expect(flatResult.ok).toBe(false);
+    expect(flatResult.errors.some((e) => e.includes("commission_flat_sats"))).toBe(true);
+    expect(cookieResult.ok).toBe(false);
+    expect(cookieResult.errors.some((e) => e.includes("Cookie window"))).toBe(true);
+    expect(settlementResult.ok).toBe(false);
+    expect(settlementResult.errors.some((e) => e.includes("Settlement delay"))).toBe(true);
+  });
+
   it("rejects non-string title, description, and product_url before string sanitizers run", () => {
     const titleResult = validateOfferInput({ ...validInput, title: 123 as any });
     const descriptionResult = validateOfferInput({ ...validInput, description: 123 as any });
