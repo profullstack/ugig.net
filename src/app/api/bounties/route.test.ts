@@ -4,8 +4,13 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-import { GET } from "./route";
+vi.mock("@/lib/auth/get-user", () => ({
+  getAuthContext: vi.fn(),
+}));
+
+import { GET, POST } from "./route";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 function makeReq(url: string) {
   return { nextUrl: new URL(url) } as any;
@@ -57,6 +62,29 @@ describe("GET /api/bounties", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/invalid limit/i);
+  });
+});
+
+describe("POST /api/bounties", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns 400 for malformed JSON without querying Supabase", async () => {
+    const from = vi.fn();
+    (getAuthContext as any).mockResolvedValue({
+      user: { id: "user-1" },
+      supabase: { from },
+    });
+    const request = {
+      json: vi.fn().mockRejectedValue(new SyntaxError("Invalid JSON")),
+    } as any;
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(from).not.toHaveBeenCalled();
   });
 });
 
