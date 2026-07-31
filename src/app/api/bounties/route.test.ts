@@ -4,8 +4,13 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-import { GET } from "./route";
+vi.mock("@/lib/auth/get-user", () => ({
+  getAuthContext: vi.fn(),
+}));
+
+import { GET, POST } from "./route";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 function makeReq(url: string) {
   return { nextUrl: new URL(url) } as any;
@@ -57,6 +62,25 @@ describe("GET /api/bounties", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/invalid limit/i);
+  });
+});
+
+describe("POST /api/bounties", () => {
+  it("returns 400 for malformed JSON body and never calls Supabase", async () => {
+    (getAuthContext as any).mockResolvedValue({
+      user: { id: "u1", email: "a@b.com" },
+      supabase: {},
+    });
+
+    const malformedReq = {
+      json: vi.fn().mockRejectedValue(new Error("Unexpected token")),
+    } as any;
+
+    const res = await POST(malformedReq);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/malformed json/i);
   });
 });
 
