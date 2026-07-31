@@ -85,20 +85,22 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
     input.price_sats = 0;
   }
 
-  if (typeof input.price_sats !== "number" || input.price_sats < 0) {
-    errors.push("price_sats must be a non-negative number");
+  if (typeof input.price_sats !== "number" || !Number.isFinite(input.price_sats) || input.price_sats < 0) {
+    errors.push("price_sats must be a finite non-negative number");
   }
 
   const commissionType = input.commission_type || "percentage";
 
   if (commissionType === "percentage") {
     const commissionRate = input.commission_rate ?? 0.20;
-    if (commissionRate < 0.01 || commissionRate > 0.90) {
+    if (!Number.isFinite(commissionRate) || commissionRate < 0.01 || commissionRate > 0.90) {
       errors.push("Commission rate must be between 1% and 90%");
     }
   } else if (commissionType === "flat") {
     const flatSats = input.commission_flat_sats ?? 0;
-    if (flatSats < 0) {
+    if (!Number.isFinite(flatSats)) {
+      errors.push("commission_flat_sats must be a finite number");
+    } else if (flatSats < 0) {
       errors.push("commission_flat_sats must be non-negative");
     } else if (flatSats < 1) {
       errors.push("Flat commission must be at least 1 sat");
@@ -106,19 +108,22 @@ export function validateOfferInput(input: OfferInput): ValidationResult {
   }
 
   // Also reject negative commission_flat_sats even when type is percentage (#23)
-  if (input.commission_flat_sats !== undefined && input.commission_flat_sats < 0) {
+  if (
+    input.commission_flat_sats !== undefined &&
+    (!Number.isFinite(input.commission_flat_sats) || input.commission_flat_sats < 0)
+  ) {
     if (!errors.some(e => e.includes("commission_flat_sats"))) {
-      errors.push("commission_flat_sats must be non-negative");
+      errors.push("commission_flat_sats must be a finite non-negative number");
     }
   }
 
   const cookieDays = input.cookie_days ?? 30;
-  if (cookieDays < 1 || cookieDays > 365) {
+  if (!Number.isFinite(cookieDays) || cookieDays < 1 || cookieDays > 365) {
     errors.push("Cookie window must be 1-365 days");
   }
 
   const settlementDays = input.settlement_delay_days ?? 7;
-  if (settlementDays < 1 || settlementDays > 90) {
+  if (!Number.isFinite(settlementDays) || settlementDays < 1 || settlementDays > 90) {
     errors.push("Settlement delay must be 1-90 days");
   }
 
