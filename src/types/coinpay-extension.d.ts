@@ -66,7 +66,18 @@ export interface CoinPayProvider {
    */
   payBatch(
     payments: CoinPayBatchPayment[],
-    options?: { onProgress?: (progress: CoinPayProgress) => void }
+    options?: {
+      onProgress?: (progress: CoinPayProgress) => void;
+      /**
+       * Which of the wallet's addresses funds the run. A wallet holds several
+       * per chain and a batch spends exactly one; without this it always spends
+       * the first, so a payer whose money sits on a later address watches every
+       * payment fail for want of funds that are plainly there.
+       *
+       * Supported from extension 0.9.x — older builds ignore it.
+       */
+      from?: string;
+    }
   ): Promise<{ results: CoinPayBatchResult[] }>;
   onProgress(listener: (progress: CoinPayProgress) => void): () => void;
 }
