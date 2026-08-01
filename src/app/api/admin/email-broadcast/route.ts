@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createEmailer } from "@profullstack/stack/email";
+import { getAppUrl } from "@/lib/app-url";
+import {
+  renderBroadcastHtml,
+  renderBroadcastText,
+} from "@/lib/markdown-email";
 
 export const runtime = "nodejs";
 
@@ -63,20 +68,35 @@ export async function POST(req: NextRequest) {
   const auth = await checkAdmin();
   if (!auth.ok) return auth.response;
 
-  let body: { subject?: string; html?: string; text?: string };
+  let body: {
+    subject?: string;
+    markdown?: string;
+    html?: string;
+    text?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { subject, html, text } = body;
-  if (!subject || !html) {
+  const { subject, markdown } = body;
+  if (!subject || (!markdown && !body.html)) {
     return NextResponse.json(
-      { error: "subject and html are required" },
+      { error: "subject and markdown are required" },
       { status: 400 },
     );
   }
+
+  // Render from markdown server-side rather than trusting client-supplied HTML.
+  // `html`/`text` remain accepted for older callers of this endpoint.
+  const baseUrl = getAppUrl(req);
+  const html = markdown
+    ? renderBroadcastHtml({ subject, markdown, baseUrl })
+    : body.html!;
+  const text = markdown
+    ? renderBroadcastText({ subject, markdown, baseUrl })
+    : body.text;
 
   const svc = createServiceClient();
   const emails = await getAllUserEmails(svc);

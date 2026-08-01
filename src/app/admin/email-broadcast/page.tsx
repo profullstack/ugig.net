@@ -23,7 +23,7 @@ export default async function EmailBroadcastPage() {
   if (!me?.is_admin) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 space-y-8">
+    <div className="mx-auto max-w-6xl px-4 py-12 space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <Link
@@ -34,7 +34,8 @@ export default async function EmailBroadcastPage() {
           </Link>
           <h1 className="mt-3 text-3xl font-bold">Email broadcast</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Send a mass email to all registered users.
+            Write in Markdown and preview it before sending to all registered
+            users.
           </p>
         </div>
       </div>
