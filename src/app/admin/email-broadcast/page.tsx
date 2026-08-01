@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/app-url";
 import { EmailBroadcastForm } from "./EmailBroadcastForm";
 
 export const metadata = {
@@ -41,7 +42,7 @@ export default async function EmailBroadcastPage() {
       </div>
 
       <section className="rounded-lg border bg-card p-6">
-        <EmailBroadcastForm />
+        <EmailBroadcastForm baseUrl={getAppUrl()} />
       </section>
     </div>
   );

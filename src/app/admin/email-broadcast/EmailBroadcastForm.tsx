@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAppUrl } from "@/lib/app-url";
 import { renderBroadcastHtml, renderBroadcastText } from "@/lib/markdown-email";
 
 type PreviewMode = "rendered" | "text";
@@ -15,7 +14,7 @@ Write your update in **Markdown**.
 
 > And blockquotes.`;
 
-export function EmailBroadcastForm() {
+export function EmailBroadcastForm({ baseUrl }: { baseUrl: string }) {
   const [recipientCount, setRecipientCount] = useState<number | null>(null);
   const [subject, setSubject] = useState("");
   const [markdown, setMarkdown] = useState("");
@@ -34,7 +33,6 @@ export function EmailBroadcastForm() {
       .catch(() => setRecipientCount(null));
   }, []);
 
-  const baseUrl = useMemo(() => getAppUrl(), []);
   const previewSubject = subject.trim() || "Subject preview";
 
   // Rendered with the same helpers the API uses, so the preview is the email.

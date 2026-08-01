@@ -21,18 +21,18 @@ describe("EmailBroadcastForm", () => {
   });
 
   it("shows the recipient count", async () => {
-    render(<EmailBroadcastForm />);
+    render(<EmailBroadcastForm baseUrl="https://ugig.net" />);
     expect(await screen.findByText(/3 recipients will receive/i)).toBeInTheDocument();
   });
 
   it("prompts for input before anything is typed", () => {
-    render(<EmailBroadcastForm />);
+    render(<EmailBroadcastForm baseUrl="https://ugig.net" />);
     expect(screen.getByText(/start typing to preview/i)).toBeInTheDocument();
   });
 
   it("renders typed markdown into the preview iframe", async () => {
     const user = userEvent.setup();
-    render(<EmailBroadcastForm />);
+    render(<EmailBroadcastForm baseUrl="https://ugig.net" />);
 
     await user.type(screen.getByLabelText(/body/i), "# Hi");
 
@@ -45,7 +45,7 @@ describe("EmailBroadcastForm", () => {
 
   it("switches to a plain-text preview with markdown stripped", async () => {
     const user = userEvent.setup();
-    const { container } = render(<EmailBroadcastForm />);
+    const { container } = render(<EmailBroadcastForm baseUrl="https://ugig.net" />);
 
     await user.type(screen.getByLabelText(/body/i), "**bold**");
     await user.click(screen.getByRole("tab", { name: /plain text/i }));
@@ -60,7 +60,7 @@ describe("EmailBroadcastForm", () => {
     const fetchMock = mockFetch();
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
-    render(<EmailBroadcastForm />);
+    render(<EmailBroadcastForm baseUrl="https://ugig.net" />);
 
     await user.type(screen.getByLabelText(/subject/i), "Hello");
     await user.type(screen.getByLabelText(/body/i), "# Hi");
