@@ -1,4 +1,5 @@
 import { createPayment, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
+import { isCoinpayRateLimitError } from "@/lib/coinpay-throttle";
 import { createServiceClient } from "@/lib/supabase/service";
 
 /**
@@ -27,7 +28,17 @@ export interface InvoicePaymentRequestData {
 
 export type PaymentRequestResult =
   | { ok: true; data: InvoicePaymentRequestData; reused: boolean }
-  | { ok: false; error: string; code: "NO_WALLET" | "PROVIDER" | "PERSIST" };
+  | {
+      ok: false;
+      error: string;
+      code: "NO_WALLET" | "PROVIDER" | "PERSIST" | "RATE_LIMITED";
+      /**
+       * True when nothing about this invoice is wrong and the same call would
+       * likely succeed shortly. The bulk payer surfaces these as retryable
+       * instead of burying them with "not accepted yet" style skips.
+       */
+      retryable?: boolean;
+    };
 
 export function metadataObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -82,7 +93,7 @@ function receivingWallet(metadata: Record<string, unknown>): {
  */
 export async function ensureInvoicePaymentRequest(
   invoice: any,
-  options: { appUrl?: string; businessId?: string } = {}
+  options: { appUrl?: string; businessId?: string; deadline?: number } = {}
 ): Promise<PaymentRequestResult> {
   const metadata = metadataObject(invoice.metadata);
 
@@ -124,6 +135,7 @@ export async function ensureInvoicePaymentRequest(
       currency: wallet.currency as any,
       description: invoice.notes || `Invoice for gig: ${gig?.title || invoice.gig_id}`,
       business_id: businessId,
+      deadline: options.deadline,
       merchant_wallet_address: wallet.address,
       redirect_url: `${appUrl}/dashboard/invoices?tab=received`,
       expires_in: PAYMENT_REQUEST_SECONDS,
@@ -142,6 +154,16 @@ export async function ensureInvoicePaymentRequest(
       },
     });
   } catch (err) {
+    if (isCoinpayRateLimitError(err)) {
+      // The invoice is fine — CoinPay's per-minute budget is spent. Saying so
+      // plainly keeps a whole payroll run from reading as un-payable.
+      return {
+        ok: false,
+        code: "RATE_LIMITED",
+        retryable: true,
+        error: "CoinPay is rate limiting us — retry this one in a minute",
+      };
+    }
     return {
       ok: false,
       code: "PROVIDER",

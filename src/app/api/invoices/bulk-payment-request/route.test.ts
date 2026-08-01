@@ -17,6 +17,7 @@ import { POST } from "./route";
 import { createPayment } from "@/lib/coinpayportal";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import { CoinpayRateLimitError } from "@/lib/coinpay-throttle";
 
 const POSTER_ID = "4f16c625-c37a-4654-82db-e391067cbb13";
 const WORKER_ID = "666cbaba-c6ea-4756-ad44-d6a5b4248f8f";
@@ -231,6 +232,53 @@ describe("POST /api/invoices/bulk-payment-request", () => {
     expect(res.status).toBe(200);
     expect(body.data.payments.map((p: any) => p.id)).toEqual([ID_B]);
     expect(body.data.skipped[0]).toMatchObject({ id: ID_A, reason: "CoinPay is down" });
+  });
+
+  it("marks a rate-limited invoice retryable, not written off", async () => {
+    // The bug this guards: CoinPay limits every /api/ route to 60 requests a
+    // minute per IP, so a bulk run exhausts it mid-batch. Every one of those is
+    // a payable invoice — reporting them like "already paid" or "not accepted"
+    // is how a whole payroll run got reported as un-payable.
+    mockAuth([invoice(ID_A), invoice(ID_B)]);
+    mockPaymentCreation();
+    const succeed = (createPayment as any).getMockImplementation();
+    (createPayment as any).mockImplementation(async (opts: any) => {
+      if (opts.metadata.invoice_id === ID_A) throw new CoinpayRateLimitError();
+      return succeed(opts);
+    });
+
+    const res = await POST(request({ invoice_ids: [ID_A, ID_B] }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.payments.map((p: any) => p.id)).toEqual([ID_B]);
+    expect(body.data.skipped).toHaveLength(1);
+    expect(body.data.skipped[0]).toMatchObject({ id: ID_A, retryable: true });
+    expect(body.data.skipped[0].reason).toMatch(/rate limit/i);
+  });
+
+  it("does not mark a genuine provider rejection retryable", async () => {
+    mockAuth([invoice(ID_A)]);
+    (createPayment as any).mockRejectedValue(new Error("CoinPay create failed 400: bad currency"));
+
+    const res = await POST(request({ invoice_ids: [ID_A] }));
+    const body = await res.json();
+
+    expect(body.data.skipped[0]).toMatchObject({ id: ID_A, retryable: false });
+  });
+
+  it("bounds the batch with one shared deadline so early quotes stay live", async () => {
+    mockAuth([invoice(ID_A), invoice(ID_B)]);
+    mockPaymentCreation();
+
+    await POST(request({ invoice_ids: [ID_A, ID_B] }));
+
+    const deadlines = (createPayment as any).mock.calls.map((c: any[]) => c[0].deadline);
+    expect(deadlines).toHaveLength(2);
+    expect(deadlines[0]).toBeGreaterThan(Date.now());
+    // One deadline for the run, not a fresh budget per invoice — otherwise the
+    // last invoice could still be waiting long after the first quote expired.
+    expect(deadlines[1]).toBe(deadlines[0]);
   });
 
   it("skips an invoice with no quoted crypto amount", async () => {

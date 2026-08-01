@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { isCoinpayRateLimitError } from "@/lib/coinpay-throttle";
 import {
   PAYABLE_INVOICE_STATUSES,
   ensureInvoicePaymentRequest,
@@ -28,9 +29,17 @@ export const dynamic = "force-dynamic";
 // 15-minute expiry clock that must outlast the on-chain sending that follows.
 const MAX_INVOICES = 100;
 
-// Enough concurrency to prepare 62 requests in seconds, low enough to stay
-// friendly to the payment provider's rate limits.
+// Enough concurrency to keep the provider busy. The real throughput limit is
+// the paced client in `coinpay-throttle`, which holds us inside CoinPay's
+// 60-requests-per-minute window rather than sprinting into a wall of 429s.
 const CONCURRENCY = 5;
+
+// How long the whole preparation may take. CoinPay's rolling limit means a
+// large batch has to wait out at least one window, so this cannot be short —
+// but every quote minted at the start is only good for 15 minutes, so it
+// cannot be long either. Anything still unprepared when it elapses comes back
+// as a retryable skip rather than holding the request open.
+const PREPARE_BUDGET_MS = 4 * 60_000;
 
 const bulkPaymentRequestSchema = z.object({
   invoice_ids: z.array(z.string().uuid()).min(1).max(MAX_INVOICES),
@@ -56,6 +65,13 @@ export interface BulkPaymentItem {
 export interface BulkPaymentSkip {
   id: string;
   reason: string;
+  /**
+   * True when the invoice itself is fine and only a transient condition — a
+   * provider rate limit, a dropped connection — stopped it. The UI offers these
+   * as a one-click retry; without the flag they look identical to "already
+   * paid", which is how 30 perfectly payable invoices got written off.
+   */
+  retryable?: boolean;
 }
 
 /** Run tasks with a bounded number in flight, preserving input order. */
@@ -165,15 +181,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payable.push(invoice);
     }
 
+    // One deadline for the whole batch, not one per invoice: otherwise the last
+    // invoice could still be waiting out a rate-limit window long after the
+    // first invoice's quote expired.
+    const deadline = Date.now() + PREPARE_BUDGET_MS;
+
     const prepared = await mapWithConcurrency(payable, CONCURRENCY, async (invoice) => {
       try {
-        const result = await ensureInvoicePaymentRequest(invoice);
-        if (!result.ok) return { invoice, error: result.error };
+        const result = await ensureInvoicePaymentRequest(invoice, { deadline });
+        if (!result.ok) return { invoice, error: result.error, retryable: result.retryable };
         return { invoice, data: result.data, reused: result.reused };
       } catch (err) {
         return {
           invoice,
           error: err instanceof Error ? err.message : "Failed to create payment request",
+          retryable: isCoinpayRateLimitError(err),
         };
       }
     });
@@ -181,7 +203,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const payments: BulkPaymentItem[] = [];
     for (const entry of prepared) {
       if (!("data" in entry) || !entry.data) {
-        skipped.push({ id: entry.invoice.id, reason: entry.error || "Could not be prepared" });
+        skipped.push({
+          id: entry.invoice.id,
+          reason: entry.error || "Could not be prepared",
+          retryable: entry.retryable ?? false,
+        });
         continue;
       }
 

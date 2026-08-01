@@ -1,4 +1,5 @@
 import { verifyCoinPayWebhook } from "@profullstack/stack/coinpay";
+import { coinpayFetch } from "@/lib/coinpay-throttle";
 
 const COINPAY_API_URL = "https://coinpayportal.com/api";
 
@@ -92,7 +93,7 @@ export async function createCoinpayPayment(opts: {
   const { apiKey, merchantId } = getCreds();
   const baseUrl =
     process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
-  const res = await fetch(`${COINPAY_API_URL}/payments/create`, {
+  const res = await coinpayFetch(`${COINPAY_API_URL}/payments/create`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -134,7 +135,7 @@ export async function getCoinpayPaymentStatus(paymentId: string): Promise<{
   tx_hash?: string | null;
 }> {
   const { apiKey } = getCreds();
-  const res = await fetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
+  const res = await coinpayFetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
     cache: "no-store",
   });
