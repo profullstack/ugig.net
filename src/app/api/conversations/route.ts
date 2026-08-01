@@ -67,11 +67,23 @@ export async function GET(request: NextRequest) {
     // Fetch participant profiles and last message for each conversation
     const conversationsWithDetails = await Promise.all(
       (conversations || []).map(async (conv) => {
-        // Get participant profiles
+        // Get participant profiles. A broadcast thread can hold thousands of
+        // participants; hydrating every profile would dominate the inbox load,
+        // so only fetch enough to label the row and report the rest as a count.
+        const participantIdsToHydrate = conv.is_broadcast
+          ? Array.from(
+              new Set(
+                [conv.broadcast_owner_id, user.id].filter(
+                  (id): id is string => !!id
+                )
+              )
+            )
+          : conv.participant_ids;
+
         const { data: participants } = await supabase
           .from("profiles")
           .select("id, username, full_name, avatar_url")
-          .in("id", conv.participant_ids);
+          .in("id", participantIdsToHydrate);
 
         // Get last message
         const { data: lastMessages } = await supabase
@@ -91,6 +103,7 @@ export async function GET(request: NextRequest) {
         return {
           ...conv,
           participants: participants || [],
+          participant_count: conv.participant_ids?.length ?? 0,
           last_message: lastMessages?.[0] || null,
           unread_count: unreadCount || 0,
         };
@@ -187,13 +200,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check for existing conversation between these users for this gig
-      const { data: existingConv } = await supabase
+      // Check for existing conversation between these users for this gig.
+      // Superset match would also hit the gig's "message all applicants"
+      // group thread, so require exactly these two participants.
+      const { data: gigConvs } = await supabase
         .from("conversations")
         .select("*")
         .eq("gig_id", gig_id)
-        .contains("participant_ids", participantIds)
-        .single();
+        .eq("is_broadcast", false)
+        .contains("participant_ids", participantIds);
+
+      const existingConv = (gigConvs ?? []).find(
+        (c) => (c.participant_ids?.length ?? 0) === participantIds.length
+      );
 
       if (existingConv) {
         return NextResponse.json({ data: existingConv });
@@ -217,15 +236,25 @@ export async function POST(request: NextRequest) {
     } else {
       // === DIRECT MESSAGE (no gig context) ===
 
-      // Check for existing direct conversation (gig_id IS NULL)
+      // Check for existing direct conversation (gig_id IS NULL).
+      //
+      // `contains` is a superset test, so it also matches any group thread
+      // holding both users — including broadcast threads, which are likewise
+      // gig_id IS NULL. Excluding broadcasts and requiring exactly the two
+      // participants keeps a DM a DM.
       const { data: existingConvs } = await supabase
         .from("conversations")
         .select("*")
         .is("gig_id", null)
+        .eq("is_broadcast", false)
         .contains("participant_ids", participantIds);
 
-      if (existingConvs && existingConvs.length > 0) {
-        return NextResponse.json({ data: existingConvs[0] });
+      const existingDirect = (existingConvs ?? []).find(
+        (c) => (c.participant_ids?.length ?? 0) === participantIds.length
+      );
+
+      if (existingDirect) {
+        return NextResponse.json({ data: existingDirect });
       }
 
       // Create direct conversation

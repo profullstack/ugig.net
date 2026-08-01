@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import type {
+  CoinPayAccount,
   CoinPayBatchResult,
   CoinPayProgress,
 } from "@/types/coinpay-extension";
@@ -42,6 +43,27 @@ export interface PayableInvoice {
   /** Who is owed, and for what — enough to recognise a row without opening it. */
   label: string;
   amountUsd: number;
+  /** CoinPay currency the worker receives in, e.g. `usdc_sol`. */
+  currency?: string | null;
+  /**
+   * Quoted crypto amount, when a payment request has already been minted.
+   * Absent until one exists, and re-quoted at market when it is — so the row
+   * shows it only when it is a real number rather than implying a live price.
+   */
+  amountCrypto?: string | number | null;
+}
+
+/**
+ * `0.013851 SOL` for a row whose request has been quoted. Returns null when no
+ * quote exists yet — showing a currency with no amount, or an amount derived
+ * from a stale rate, would misrepresent what is about to be sent.
+ */
+function formatCrypto(invoice: PayableInvoice): string | null {
+  const amount = Number(invoice.amountCrypto);
+  if (!invoice.currency || !Number.isFinite(amount) || amount <= 0) return null;
+  const symbol = invoice.currency.split("_")[0]!.toUpperCase();
+  // Six places covers BTC's satoshi and reads sanely for SOL and stablecoins.
+  return `${amount.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")} ${symbol}`;
 }
 
 interface Props {
@@ -79,6 +101,10 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   // normal path require 80 clicks.
   const [selected, setSelected] = useState<Set<string>>(() => new Set(invoiceIds));
   const [showRows, setShowRows] = useState(false);
+  // Cheapest first by default: a wallet that runs dry part-way through
+  // settles the most invoices that way, and the big ones can wait for a
+  // top-up. This drives the actual payment order, not just the display.
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [phase, setPhase] = useState<Phase>("idle");
   const [payments, setPayments] = useState<PreparedPayment[]>([]);
   const [skipped, setSkipped] = useState<SkippedInvoice[]>([]);
@@ -86,6 +112,8 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   const [results, setResults] = useState<CoinPayBatchResult[] | null>(null);
   const [prepared, setPrepared] = useState({ done: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<CoinPayAccount[] | null>(null);
+  const [payFrom, setPayFrom] = useState<string>("");
 
   // The extension injects `window.coinpay` at document_start, but this
   // component can still mount first on a fast navigation — so listen for the
@@ -109,9 +137,20 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     });
   }, [invoiceIds]);
 
+  const orderedInvoices = useMemo(
+    () =>
+      [...invoices].sort((a, b) =>
+        sortDir === "asc" ? a.amountUsd - b.amountUsd : b.amountUsd - a.amountUsd
+      ),
+    [invoices, sortDir]
+  );
+
+  // Derived from the sorted list, so the order the payer sees is the order the
+  // wallet is handed — pay-cheapest-first only means anything if it reaches
+  // `payBatch` that way.
   const selectedIds = useMemo(
-    () => invoiceIds.filter((id) => selected.has(id)),
-    [invoiceIds, selected]
+    () => orderedInvoices.filter((i) => selected.has(i.id)).map((i) => i.id),
+    [orderedInvoices, selected]
   );
   const selectedTotal = useMemo(
     () => invoices.filter((i) => selected.has(i.id)).reduce((sum, i) => sum + i.amountUsd, 0),
@@ -199,6 +238,38 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     setPhase("confirming");
   }, [selectedIds]);
 
+  // The wallet holds several addresses per chain and a batch spends exactly
+  // one. Offer the choice here rather than letting it silently default to the
+  // first, which is how a funded wallet still fails every payment.
+  useEffect(() => {
+    if (phase !== "confirming" || accounts) return;
+    const provider = window.coinpay;
+    if (!provider) return;
+    let cancelled = false;
+    // Idempotent when already connected; only prompts the first time.
+    void provider
+      .connect()
+      .then(({ accounts: list }) => {
+        if (!cancelled) setAccounts(list ?? []);
+      })
+      .catch(() => {
+        // Choosing an address is a convenience — never block the payment on it.
+        if (!cancelled) setAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, accounts]);
+
+  /** Only addresses on chains this batch actually pays from. */
+  const fundingOptions = useMemo(() => {
+    if (!accounts?.length) return [];
+    const needed = new Set(
+      payments.map((p) => (p.chain.split("_").pop() ?? p.chain).toUpperCase())
+    );
+    return accounts.filter((a) => needed.has(a.chain.toUpperCase()));
+  }, [accounts, payments]);
+
   const pay = useCallback(async () => {
     const provider = window.coinpay;
     if (!provider) {
@@ -226,6 +297,8 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
         {
           onProgress: (update) =>
             setProgress((current) => ({ ...current, [update.id]: update })),
+          // Empty means "wallet decides", which is its first address.
+          ...(payFrom ? { from: payFrom } : {}),
         }
       );
 
@@ -256,7 +329,7 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
       setError(err instanceof Error ? err.message : "The wallet rejected the request");
       setPhase(results ? "done" : "confirming");
     }
-  }, [payments, results, router]);
+  }, [payments, results, router, payFrom]);
 
   if (acceptedCount === 0) return null;
 
@@ -342,19 +415,33 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
               />
               {allSelected ? "Deselect all" : "Select all"}
             </label>
-            <button
-              type="button"
-              onClick={() => setShowRows((v) => !v)}
-              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-              aria-expanded={showRows}
-            >
-              {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                aria-label={
+                  sortDir === "asc"
+                    ? "Sort by amount, largest first"
+                    : "Sort by amount, smallest first"
+                }
+              >
+                {sortDir === "asc" ? "Cheapest first ↑" : "Largest first ↓"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRows((v) => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                aria-expanded={showRows}
+              >
+                {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
+              </button>
+            </div>
           </div>
 
           {showRows && (
             <ul className="max-h-64 divide-y divide-border overflow-y-auto">
-              {invoices.map((invoice) => (
+              {orderedInvoices.map((invoice) => (
                 <li key={invoice.id}>
                   <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/50">
                     <input
@@ -364,8 +451,13 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
                       className="h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
                     />
                     <span className="min-w-0 flex-1 truncate">{invoice.label}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      ${invoice.amountUsd.toFixed(2)}
+                    <span className="shrink-0 text-right tabular-nums">
+                      <span className="block">${invoice.amountUsd.toFixed(2)}</span>
+                      {formatCrypto(invoice) && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {formatCrypto(invoice)}
+                        </span>
+                      )}
                     </span>
                   </label>
                 </li>
@@ -389,6 +481,27 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
             </span>
             . Your wallet will show the full list and ask you to approve once.
           </p>
+
+          {fundingOptions.length > 1 && (
+            <label className="block text-xs">
+              <span className="text-muted-foreground">Pay from</span>
+              <select
+                value={payFrom}
+                onChange={(e) => setPayFrom(e.target.value)}
+                className="mt-1 w-full rounded border border-border bg-background p-1.5 font-mono text-xs"
+              >
+                <option value="">Wallet default (first address)</option>
+                {fundingOptions.map((a) => (
+                  <option key={`${a.chain}:${a.address}`} value={a.address}>
+                    {a.chain} · {a.address}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-muted-foreground">
+                Your wallet shows this address&apos;s balance before you approve.
+              </span>
+            </label>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Each payment is quoted at the current market rate and the quotes hold
