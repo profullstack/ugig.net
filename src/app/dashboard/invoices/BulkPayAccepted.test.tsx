@@ -429,6 +429,28 @@ describe("BulkPayAccepted", () => {
     ]);
   });
 
+  it("shows the quoted crypto amount beside the dollar figure", async () => {
+    installWallet();
+    render(
+      <BulkPayAccepted
+        invoices={[
+          { id: "a", label: "Worker A", amountUsd: 1, currency: "usdc_sol", amountCrypto: "0.0138508" },
+          // No quote minted yet — a currency with no amount would imply a live
+          // price we do not have, so the row stays fiat-only.
+          { id: "b", label: "Worker B", amountUsd: 2, currency: "sol", amountCrypto: null },
+        ]}
+        totalUsd={3}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Show 2 invoices/ }));
+
+    expect(screen.getByText("0.013851 USDC")).toBeInTheDocument();
+    expect(screen.getByText("$1.00")).toBeInTheDocument();
+    expect(screen.getByText("$2.00")).toBeInTheDocument();
+    expect(screen.queryByText(/ SOL$/)).not.toBeInTheDocument();
+  });
+
   it("surfaces a preparation failure without opening the wallet", async () => {
     const wallet = installWallet();
     vi.stubGlobal(
