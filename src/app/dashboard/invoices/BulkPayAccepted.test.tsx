@@ -192,6 +192,80 @@ describe("BulkPayAccepted", () => {
     ]);
   });
 
+  /**
+   * A wallet holds several addresses per chain and a batch spends exactly one.
+   * Left to default it spends the first — so a payer whose funds sit on a later
+   * address watches every payment fail for want of money that is plainly there,
+   * with only chain-level errors ("No UTXOs available") to go on.
+   */
+  describe("choosing which address pays", () => {
+    const ACCOUNTS = [
+      { chain: "POL", address: "0xFirstAddressWithNothingInIt", tokens: ["USDC"] },
+      { chain: "POL", address: "0xSecondAddressHoldingTheMoney", tokens: ["USDC"] },
+    ];
+
+    it("sends the chosen address through as `from`", async () => {
+      const wallet = installWallet({
+        connect: vi.fn(async () => ({ accounts: ACCOUNTS })),
+      });
+      render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
+      await openConfirmation();
+
+      const select = await screen.findByRole("combobox");
+      fireEvent.change(select, { target: { value: "0xSecondAddressHoldingTheMoney" } });
+      fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
+
+      await waitFor(() => expect(wallet.payBatch).toHaveBeenCalled());
+      const [, options] = wallet.payBatch.mock.calls[0] as [unknown, { from?: string }];
+      expect(options.from).toBe("0xSecondAddressHoldingTheMoney");
+    });
+
+    it("leaves `from` unset when the payer does not choose", async () => {
+      // Omitted rather than empty: an older extension should behave exactly as
+      // it did before, not receive a blank address to interpret.
+      const wallet = installWallet({
+        connect: vi.fn(async () => ({ accounts: ACCOUNTS })),
+      });
+      render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
+      await openConfirmation();
+      await screen.findByRole("combobox");
+
+      fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
+
+      await waitFor(() => expect(wallet.payBatch).toHaveBeenCalled());
+      const [, options] = wallet.payBatch.mock.calls[0] as [unknown, { from?: string }];
+      expect(options.from).toBeUndefined();
+    });
+
+    it("offers no picker when the wallet has one address", async () => {
+      const wallet = installWallet({
+        connect: vi.fn(async () => ({ accounts: [ACCOUNTS[0]] })),
+      });
+      render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
+      await openConfirmation();
+
+      await waitFor(() => expect(wallet.connect).toHaveBeenCalled());
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("keeps the run approvable when the address list cannot be read", async () => {
+      // Choosing an address is a convenience. If the list cannot be fetched the
+      // panel drops the picker and carries on — it must not strand the payer on
+      // a confirmation screen they can no longer act on.
+      const wallet = installWallet({
+        connect: vi.fn(async () => {
+          throw new Error("locked");
+        }),
+      });
+      render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
+      await openConfirmation();
+
+      await waitFor(() => expect(wallet.connect).toHaveBeenCalled());
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Approve in wallet/ })).toBeEnabled();
+    });
+  });
+
   it("records the broadcast results afterwards", async () => {
     installWallet();
     const fetchMock = mockFetch();

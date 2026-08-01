@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import type {
+  CoinPayAccount,
   CoinPayBatchResult,
   CoinPayProgress,
 } from "@/types/coinpay-extension";
@@ -86,6 +87,8 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   const [results, setResults] = useState<CoinPayBatchResult[] | null>(null);
   const [prepared, setPrepared] = useState({ done: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<CoinPayAccount[] | null>(null);
+  const [payFrom, setPayFrom] = useState<string>("");
 
   // The extension injects `window.coinpay` at document_start, but this
   // component can still mount first on a fast navigation — so listen for the
@@ -199,6 +202,38 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     setPhase("confirming");
   }, [selectedIds]);
 
+  // The wallet holds several addresses per chain and a batch spends exactly
+  // one. Offer the choice here rather than letting it silently default to the
+  // first, which is how a funded wallet still fails every payment.
+  useEffect(() => {
+    if (phase !== "confirming" || accounts) return;
+    const provider = window.coinpay;
+    if (!provider) return;
+    let cancelled = false;
+    // Idempotent when already connected; only prompts the first time.
+    void provider
+      .connect()
+      .then(({ accounts: list }) => {
+        if (!cancelled) setAccounts(list ?? []);
+      })
+      .catch(() => {
+        // Choosing an address is a convenience — never block the payment on it.
+        if (!cancelled) setAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, accounts]);
+
+  /** Only addresses on chains this batch actually pays from. */
+  const fundingOptions = useMemo(() => {
+    if (!accounts?.length) return [];
+    const needed = new Set(
+      payments.map((p) => (p.chain.split("_").pop() ?? p.chain).toUpperCase())
+    );
+    return accounts.filter((a) => needed.has(a.chain.toUpperCase()));
+  }, [accounts, payments]);
+
   const pay = useCallback(async () => {
     const provider = window.coinpay;
     if (!provider) {
@@ -226,6 +261,8 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
         {
           onProgress: (update) =>
             setProgress((current) => ({ ...current, [update.id]: update })),
+          // Empty means "wallet decides", which is its first address.
+          ...(payFrom ? { from: payFrom } : {}),
         }
       );
 
@@ -256,7 +293,7 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
       setError(err instanceof Error ? err.message : "The wallet rejected the request");
       setPhase(results ? "done" : "confirming");
     }
-  }, [payments, results, router]);
+  }, [payments, results, router, payFrom]);
 
   if (acceptedCount === 0) return null;
 
@@ -389,6 +426,27 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
             </span>
             . Your wallet will show the full list and ask you to approve once.
           </p>
+
+          {fundingOptions.length > 1 && (
+            <label className="block text-xs">
+              <span className="text-muted-foreground">Pay from</span>
+              <select
+                value={payFrom}
+                onChange={(e) => setPayFrom(e.target.value)}
+                className="mt-1 w-full rounded border border-border bg-background p-1.5 font-mono text-xs"
+              >
+                <option value="">Wallet default (first address)</option>
+                {fundingOptions.map((a) => (
+                  <option key={`${a.chain}:${a.address}`} value={a.address}>
+                    {a.chain} · {a.address}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-muted-foreground">
+                Your wallet shows this address&apos;s balance before you approve.
+              </span>
+            </label>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Each payment is quoted at the current market rate and the quotes hold
