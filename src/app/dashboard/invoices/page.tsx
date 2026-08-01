@@ -312,6 +312,8 @@ export default async function InvoicesDashboardPage({
                 ? `${counterpartyName(i.worker)} — ${i.gig.title}`
                 : counterpartyName(i.worker),
               amountUsd: Number(i.amount_usd || 0),
+              payeeId: i.worker?.id ?? "unknown",
+              payeeName: counterpartyName(i.worker),
               currency: i.metadata?.payment_currency ?? null,
               amountCrypto: i.metadata?.amount_crypto ?? null,
             }))}

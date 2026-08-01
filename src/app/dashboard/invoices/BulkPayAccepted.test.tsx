@@ -39,9 +39,16 @@ const PREPARED = {
   },
 };
 
-/** The component takes labelled rows now; tests still think in ids. */
+/** The component takes labelled rows now; tests still think in ids. Each id
+ * gets its own payee by default, so filtering can be exercised. */
 function payable(ids: string[]) {
-  return ids.map((id, i) => ({ id, label: `Worker ${i} — Gig ${i}`, amountUsd: 50 }));
+  return ids.map((id, i) => ({
+    id,
+    label: `Worker ${i} — Gig ${i}`,
+    amountUsd: 50,
+    payeeId: `worker-${i}`,
+    payeeName: `Worker ${i}`,
+  }));
 }
 
 /** Install a fake `window.coinpay`, as the extension would. */
@@ -450,9 +457,9 @@ describe("BulkPayAccepted", () => {
     // the prepare call — not just the list on screen.
     installWallet();
     const invoices = [
-      { id: "inv-big", label: "Big", amountUsd: 90 },
-      { id: "inv-small", label: "Small", amountUsd: 1 },
-      { id: "inv-mid", label: "Mid", amountUsd: 20 },
+      { id: "inv-big", label: "Big", amountUsd: 90, payeeId: "w1", payeeName: "Ada" },
+      { id: "inv-small", label: "Small", amountUsd: 1, payeeId: "w2", payeeName: "Grace" },
+      { id: "inv-mid", label: "Mid", amountUsd: 20, payeeId: "w1", payeeName: "Ada" },
     ];
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const ids = JSON.parse(String(init?.body ?? "{}")).invoice_ids as string[];
@@ -508,10 +515,10 @@ describe("BulkPayAccepted", () => {
     render(
       <BulkPayAccepted
         invoices={[
-          { id: "a", label: "Worker A", amountUsd: 1, currency: "usdc_sol", amountCrypto: "0.0138508" },
+          { id: "a", label: "Worker A", amountUsd: 1, payeeId: "w1", payeeName: "Ada", currency: "usdc_sol", amountCrypto: "0.0138508" },
           // No quote minted yet — a currency with no amount would imply a live
           // price we do not have, so the row stays fiat-only.
-          { id: "b", label: "Worker B", amountUsd: 2, currency: "sol", amountCrypto: null },
+          { id: "b", label: "Worker B", amountUsd: 2, payeeId: "w2", payeeName: "Grace", currency: "sol", amountCrypto: null },
         ]}
         totalUsd={3}
       />
@@ -569,5 +576,109 @@ describe("BulkPayAccepted", () => {
 
     expect(await screen.findByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
     expect(wallet.payBatch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Paying everyone at once is the default, but settling up with a single agent
+ * — or in a single coin — should not mean unticking seventy-nine boxes.
+ */
+describe("BulkPayAccepted — filtering", () => {
+  const MIXED = [
+    { id: "a1", label: "Ada — Fix login", amountUsd: 10, payeeId: "ada", payeeName: "Ada", currency: "usdc_sol", amountCrypto: null },
+    { id: "a2", label: "Ada — Ship compiler", amountUsd: 20, payeeId: "ada", payeeName: "Ada", currency: "sol", amountCrypto: null },
+    { id: "g1", label: "Grace — Debug", amountUsd: 30, payeeId: "grace", payeeName: "Grace", currency: "usdc_sol", amountCrypto: null },
+  ];
+
+  beforeEach(() => {
+    mockFetch();
+    installWallet();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    delete (window as any).coinpay;
+  });
+
+  it("selects everyone by default, so paying all of it stays one click", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    expect(screen.getByRole("button", { name: /Pay 3/ })).toBeInTheDocument();
+    expect(screen.getByText(/3 of 3 selected/)).toBeInTheDocument();
+  });
+
+  it("narrows the payment to one agent when that agent is picked", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    fireEvent.change(screen.getByLabelText(/Filter invoices by who gets paid/), {
+      target: { value: "ada" },
+    });
+
+    // Ada has two invoices worth $30 — Grace's $30 must not be in the run.
+    expect(screen.getByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
+    expect(screen.getByText(/2 of 3 selected/)).toBeInTheDocument();
+  });
+
+  it("narrows to a single coin", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    fireEvent.change(screen.getByLabelText(/Filter invoices by coin/), {
+      target: { value: "usdc_sol" },
+    });
+
+    expect(screen.getByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
+  });
+
+  it("combines the two filters", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    fireEvent.change(screen.getByLabelText(/Filter invoices by who gets paid/), {
+      target: { value: "ada" },
+    });
+    fireEvent.change(screen.getByLabelText(/Filter invoices by coin/), {
+      target: { value: "sol" },
+    });
+
+    // Only Ada's SOL invoice survives both.
+    expect(screen.getByRole("button", { name: /Pay 1/ })).toBeInTheDocument();
+  });
+
+  it("restores everyone when the filters are cleared", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    fireEvent.change(screen.getByLabelText(/Filter invoices by who gets paid/), {
+      target: { value: "ada" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Clear filters/ }));
+
+    expect(screen.getByRole("button", { name: /Pay 3/ })).toBeInTheDocument();
+  });
+
+  it("keeps select-all scoped to the filtered rows, never paying a hidden one", () => {
+    render(<BulkPayAccepted invoices={MIXED} totalUsd={60} />);
+
+    fireEvent.change(screen.getByLabelText(/Filter invoices by who gets paid/), {
+      target: { value: "ada" },
+    });
+    // Untick, then re-tick: the toggle must not reach across the filter and
+    // pull Grace's invoice into a run the payer is not looking at.
+    fireEvent.click(screen.getByLabelText(/Deselect all invoices/));
+    expect(screen.getByText(/0 of 3 selected/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Select all invoices/));
+    expect(screen.getByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
+  });
+
+  it("hides the filter bar when there is only one payee and one coin", () => {
+    render(
+      <BulkPayAccepted
+        invoices={[MIXED[0]!]}
+        totalUsd={10}
+      />
+    );
+
+    expect(screen.queryByLabelText(/Filter invoices by who gets paid/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Filter invoices by coin/)).not.toBeInTheDocument();
   });
 });

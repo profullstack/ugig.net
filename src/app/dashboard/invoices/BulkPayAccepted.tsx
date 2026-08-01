@@ -43,6 +43,9 @@ export interface PayableInvoice {
   /** Who is owed, and for what — enough to recognise a row without opening it. */
   label: string;
   amountUsd: number;
+  /** Who gets paid. Drives the payee filter — paying one agent at a time. */
+  payeeId: string;
+  payeeName: string;
   /** CoinPay currency the worker receives in, e.g. `usdc_sol`. */
   currency?: string | null;
   /**
@@ -51,6 +54,16 @@ export interface PayableInvoice {
    * shows it only when it is a real number rather than implying a live price.
    */
   amountCrypto?: string | number | null;
+}
+
+/**
+ * `usdc_sol` → `USDC · SOL`. Keeps the chain visible, since USDC on two chains
+ * is not interchangeable and must not collapse into one filter entry.
+ */
+function coinLabel(currency: string): string {
+  const [symbol, chain] = currency.split("_");
+  const head = (symbol ?? currency).toUpperCase();
+  return chain ? `${head} · ${chain.toUpperCase()}` : head;
 }
 
 /**
@@ -105,6 +118,11 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   // settles the most invoices that way, and the big ones can wait for a
   // top-up. This drives the actual payment order, not just the display.
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Filters, empty meaning unfiltered. The default is everyone and every coin,
+  // because settling the whole list in one confirmation is the common case;
+  // narrowing to a single agent (or a single coin) is the exception.
+  const [payeeFilter, setPayeeFilter] = useState<string>("");
+  const [coinFilter, setCoinFilter] = useState<string>("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [payments, setPayments] = useState<PreparedPayment[]>([]);
   const [skipped, setSkipped] = useState<SkippedInvoice[]>([]);
@@ -145,6 +163,46 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     [invoices, sortDir]
   );
 
+  const visibleInvoices = useMemo(
+    () =>
+      orderedInvoices.filter(
+        (i) =>
+          (!payeeFilter || i.payeeId === payeeFilter) &&
+          (!coinFilter || i.currency === coinFilter)
+      ),
+    [orderedInvoices, payeeFilter, coinFilter]
+  );
+
+  // Filter options carry their own count and total, so the payer can see what
+  // picking one would commit to before picking it.
+  const payeeOptions = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string; count: number; total: number }>();
+    for (const i of invoices) {
+      const row = byId.get(i.payeeId) ?? {
+        id: i.payeeId,
+        name: i.payeeName,
+        count: 0,
+        total: 0,
+      };
+      row.count += 1;
+      row.total += i.amountUsd;
+      byId.set(i.payeeId, row);
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [invoices]);
+
+  const coinOptions = useMemo(() => {
+    const byCode = new Map<string, { code: string; count: number; total: number }>();
+    for (const i of invoices) {
+      if (!i.currency) continue;
+      const row = byCode.get(i.currency) ?? { code: i.currency, count: 0, total: 0 };
+      row.count += 1;
+      row.total += i.amountUsd;
+      byCode.set(i.currency, row);
+    }
+    return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [invoices]);
+
   // Derived from the sorted list, so the order the payer sees is the order the
   // wallet is handed — pay-cheapest-first only means anything if it reaches
   // `payBatch` that way.
@@ -156,7 +214,11 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     () => invoices.filter((i) => selected.has(i.id)).reduce((sum, i) => sum + i.amountUsd, 0),
     [invoices, selected]
   );
-  const allSelected = selectedIds.length === invoiceIds.length && invoiceIds.length > 0;
+  // Select-all applies to what is on screen, not to invoices hidden behind a
+  // filter — ticking a box must never commit money the payer cannot see.
+  const visibleIds = useMemo(() => visibleInvoices.map((i) => i.id), [visibleInvoices]);
+  const allSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
 
   const toggleOne = useCallback((id: string) => {
     setSelected((current) => {
@@ -168,10 +230,37 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   }, []);
 
   const toggleAll = useCallback(() => {
-    setSelected((current) =>
-      current.size === invoiceIds.length ? new Set() : new Set(invoiceIds)
-    );
-  }, [invoiceIds]);
+    setSelected((current) => {
+      const next = new Set(current);
+      if (visibleIds.every((id) => next.has(id))) {
+        for (const id of visibleIds) next.delete(id);
+      } else {
+        for (const id of visibleIds) next.add(id);
+      }
+      return next;
+    });
+  }, [visibleIds]);
+
+  /**
+   * Changing a filter re-points the selection at exactly what the new filter
+   * shows. Picking an agent is a statement of intent — "pay this one" — so it
+   * should take one click, not a filter plus a select-all. Nothing outside the
+   * new view stays selected, so the summary can never bill for a hidden row.
+   */
+  const applyFilters = useCallback(
+    (payee: string, coin: string) => {
+      setPayeeFilter(payee);
+      setCoinFilter(coin);
+      setSelected(
+        new Set(
+          invoices
+            .filter((i) => (!payee || i.payeeId === payee) && (!coin || i.currency === coin))
+            .map((i) => i.id)
+        )
+      );
+    },
+    [invoices]
+  );
 
   /**
    * Mint payment requests for the given invoices (the current selection by
@@ -399,6 +488,60 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
           of what they owe — or testing with a handful — needs the rows. */}
       {phase === "idle" && (
         <div className="mt-3 rounded-lg border border-border bg-background">
+          {(payeeOptions.length > 1 || coinOptions.length > 1) && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+              {payeeOptions.length > 1 && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  Pay
+                  <select
+                    value={payeeFilter}
+                    onChange={(e) => applyFilters(e.target.value, coinFilter)}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+                    aria-label="Filter invoices by who gets paid"
+                  >
+                    <option value="">
+                      everyone ({acceptedCount} · ${totalUsd.toFixed(2)})
+                    </option>
+                    {payeeOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.count} · ${p.total.toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {coinOptions.length > 1 && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  in
+                  <select
+                    value={coinFilter}
+                    onChange={(e) => applyFilters(payeeFilter, e.target.value)}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+                    aria-label="Filter invoices by coin"
+                  >
+                    <option value="">any coin</option>
+                    {coinOptions.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {coinLabel(c.code)} ({c.count} · ${c.total.toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {(payeeFilter || coinFilter) && (
+                <button
+                  type="button"
+                  onClick={() => applyFilters("", "")}
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
               <input
@@ -434,14 +577,14 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
                 className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                 aria-expanded={showRows}
               >
-                {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
+                {showRows ? "Hide invoices" : `Show ${visibleInvoices.length} invoices`}
               </button>
             </div>
           </div>
 
           {showRows && (
             <ul className="max-h-64 divide-y divide-border overflow-y-auto">
-              {orderedInvoices.map((invoice) => (
+              {visibleInvoices.map((invoice) => (
                 <li key={invoice.id}>
                   <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/50">
                     <input
