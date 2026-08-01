@@ -39,6 +39,11 @@ const PREPARED = {
   },
 };
 
+/** The component takes labelled rows now; tests still think in ids. */
+function payable(ids: string[]) {
+  return ids.map((id, i) => ({ id, label: `Worker ${i} — Gig ${i}`, amountUsd: 50 }));
+}
+
 /** Install a fake `window.coinpay`, as the extension would. */
 function installWallet(overrides: Record<string, unknown> = {}) {
   const provider = {
@@ -76,7 +81,7 @@ function mockFetch(handlers: Record<string, unknown> = {}) {
 }
 
 async function openConfirmation() {
-  fireEvent.click(screen.getByRole("button", { name: /Pay all 2/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Pay 2/ }));
   await screen.findByRole("button", { name: /Approve in wallet/ });
 }
 
@@ -93,42 +98,42 @@ describe("BulkPayAccepted", () => {
 
   it("renders nothing when there is nothing accepted to pay", () => {
     installWallet();
-    const { container } = render(<BulkPayAccepted invoiceIds={[]} totalUsd={0} />);
+    const { container } = render(<BulkPayAccepted invoices={[]} totalUsd={0} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it("prompts to install the wallet when the extension is absent", () => {
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
     expect(screen.getByText(/Install the CoinPay wallet/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Pay all/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Pay \\d/ })).not.toBeInTheDocument();
   });
 
   it("offers the bulk action once the wallet is detected", () => {
     installWallet();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
-    expect(screen.getByRole("button", { name: /Pay all 2/ })).toBeInTheDocument();
-    expect(screen.getByText(/2 invoices · \$100\.00/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
+    expect(screen.getByText(/2 of 2 selected/)).toBeInTheDocument();
   });
 
   it("detects a wallet that finishes injecting after mount", async () => {
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
-    expect(screen.queryByRole("button", { name: /Pay all/ })).not.toBeInTheDocument();
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
+    expect(screen.queryByRole("button", { name: /^Pay \\d/ })).not.toBeInTheDocument();
 
     installWallet();
     act(() => {
       window.dispatchEvent(new Event("coinpay#initialized"));
     });
 
-    expect(await screen.findByRole("button", { name: /Pay all 2/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
   });
 
   it("prepares payment requests for the accepted invoices", async () => {
     installWallet();
     const fetchMock = mockFetch();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
     await openConfirmation();
 
@@ -144,7 +149,7 @@ describe("BulkPayAccepted", () => {
 
   it("does not touch the wallet before the user confirms", async () => {
     const wallet = installWallet();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
     await openConfirmation();
 
@@ -162,7 +167,7 @@ describe("BulkPayAccepted", () => {
         },
       },
     });
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
     await openConfirmation();
 
@@ -173,7 +178,7 @@ describe("BulkPayAccepted", () => {
 
   it("hands the prepared payments to the wallet on approval", async () => {
     const wallet = installWallet();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
@@ -190,7 +195,7 @@ describe("BulkPayAccepted", () => {
   it("records the broadcast results afterwards", async () => {
     installWallet();
     const fetchMock = mockFetch();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
@@ -212,7 +217,7 @@ describe("BulkPayAccepted", () => {
 
   it("summarizes a fully successful run", async () => {
     installWallet();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
@@ -239,7 +244,7 @@ describe("BulkPayAccepted", () => {
       })),
     });
     const fetchMock = mockFetch();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
 
@@ -265,7 +270,7 @@ describe("BulkPayAccepted", () => {
         throw new Error("Payment request rejected");
       }),
     });
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
@@ -305,8 +310,8 @@ describe("BulkPayAccepted", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<BulkPayAccepted invoiceIds={many} totalUsd={45} />);
-    fireEvent.click(screen.getByRole("button", { name: /Pay all 45/ }));
+    render(<BulkPayAccepted invoices={payable(many)} totalUsd={45} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pay 45/ }));
 
     await screen.findByRole("button", { name: /Approve in wallet/ });
 
@@ -356,8 +361,8 @@ describe("BulkPayAccepted", () => {
       })
     );
 
-    render(<BulkPayAccepted invoiceIds={many} totalUsd={40} />);
-    fireEvent.click(screen.getByRole("button", { name: /Pay all 40/ }));
+    render(<BulkPayAccepted invoices={payable(many)} totalUsd={40} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pay 40/ }));
 
     // Still reaches the confirmation step with the successful chunks intact,
     // rather than throwing the whole run away.
@@ -371,9 +376,9 @@ describe("BulkPayAccepted", () => {
       "fetch",
       vi.fn(async () => ({ ok: false, json: async () => ({ error: "CoinPay is down" }) }))
     );
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Pay all 2/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pay 2/ }));
 
     expect(await screen.findByText("CoinPay is down")).toBeInTheDocument();
     expect(wallet.payBatch).not.toHaveBeenCalled();
@@ -390,7 +395,7 @@ describe("BulkPayAccepted", () => {
         throw new Error("network down");
       })
     );
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: /Approve in wallet/ }));
@@ -402,12 +407,12 @@ describe("BulkPayAccepted", () => {
 
   it("lets the user back out of the confirmation", async () => {
     const wallet = installWallet();
-    render(<BulkPayAccepted invoiceIds={INVOICE_IDS} totalUsd={100} />);
+    render(<BulkPayAccepted invoices={payable(INVOICE_IDS)} totalUsd={100} />);
     await openConfirmation();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(await screen.findByRole("button", { name: /Pay all 2/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Pay 2/ })).toBeInTheDocument();
     expect(wallet.payBatch).not.toHaveBeenCalled();
   });
 });
