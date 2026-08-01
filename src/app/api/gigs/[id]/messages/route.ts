@@ -80,13 +80,19 @@ export async function POST(
 
     const participantIds = [user.id, gig.poster_id].sort();
 
-    // Check for existing conversation about this gig between these users
-    const { data: existingConv } = await supabase
+    // Check for existing conversation about this gig between these users.
+    // Superset match would also hit the gig's "message all applicants" group
+    // thread, so require exactly these two participants.
+    const { data: gigConvs } = await supabase
       .from("conversations")
-      .select("id")
+      .select("id, participant_ids")
       .eq("gig_id", gigId)
-      .contains("participant_ids", participantIds)
-      .single();
+      .eq("is_broadcast", false)
+      .contains("participant_ids", participantIds);
+
+    const existingConv = (gigConvs ?? []).find(
+      (c) => (c.participant_ids?.length ?? 0) === participantIds.length
+    );
 
     let conversationId: string;
 
