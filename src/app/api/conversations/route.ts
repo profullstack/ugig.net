@@ -67,11 +67,23 @@ export async function GET(request: NextRequest) {
     // Fetch participant profiles and last message for each conversation
     const conversationsWithDetails = await Promise.all(
       (conversations || []).map(async (conv) => {
-        // Get participant profiles
+        // Get participant profiles. A broadcast thread can hold thousands of
+        // participants; hydrating every profile would dominate the inbox load,
+        // so only fetch enough to label the row and report the rest as a count.
+        const participantIdsToHydrate = conv.is_broadcast
+          ? Array.from(
+              new Set(
+                [conv.broadcast_owner_id, user.id].filter(
+                  (id): id is string => !!id
+                )
+              )
+            )
+          : conv.participant_ids;
+
         const { data: participants } = await supabase
           .from("profiles")
           .select("id, username, full_name, avatar_url")
-          .in("id", conv.participant_ids);
+          .in("id", participantIdsToHydrate);
 
         // Get last message
         const { data: lastMessages } = await supabase
@@ -91,6 +103,7 @@ export async function GET(request: NextRequest) {
         return {
           ...conv,
           participants: participants || [],
+          participant_count: conv.participant_ids?.length ?? 0,
           last_message: lastMessages?.[0] || null,
           unread_count: unreadCount || 0,
         };

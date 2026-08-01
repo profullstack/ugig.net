@@ -159,27 +159,36 @@ export type Database = {
       conversations: {
         Row: {
           archived_at: string | null
+          broadcast_audience: string | null
+          broadcast_owner_id: string | null
           created_at: string | null
           gig_id: string | null
           id: string
+          is_broadcast: boolean
           last_message_at: string | null
           participant_ids: string[]
           updated_at: string | null
         }
         Insert: {
           archived_at?: string | null
+          broadcast_audience?: string | null
+          broadcast_owner_id?: string | null
           created_at?: string | null
           gig_id?: string | null
           id?: string
+          is_broadcast?: boolean
           last_message_at?: string | null
           participant_ids: string[]
           updated_at?: string | null
         }
         Update: {
           archived_at?: string | null
+          broadcast_audience?: string | null
+          broadcast_owner_id?: string | null
           created_at?: string | null
           gig_id?: string | null
           id?: string
+          is_broadcast?: boolean
           last_message_at?: string | null
           participant_ids?: string[]
           updated_at?: string | null
