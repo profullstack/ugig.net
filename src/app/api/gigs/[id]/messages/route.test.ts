@@ -210,11 +210,16 @@ describe("POST /api/gigs/[id]/messages - success paths", () => {
           error: null,
         });
       } else if (table === "conversations" && callCount["conversations"] === 1) {
-        // First: lookup existing conversation — found
-        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
-          data: { id: "existing-conv" },
-          error: null,
-        });
+        // First: lookup existing conversation — found. The lookup resolves a
+        // list (not .single()) so the route can reject group/broadcast threads
+        // that merely contain both users; a real 1:1 row holds exactly the two.
+        chain.then = (resolve: (v: unknown) => void) =>
+          Promise.resolve({
+            data: [
+              { id: "existing-conv", participant_ids: ["poster-1", "user-1"] },
+            ],
+            error: null,
+          }).then(resolve);
       } else if (table === "conversations") {
         // Second: update last_message_at
         (chain.eq as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });

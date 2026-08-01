@@ -62,12 +62,20 @@ export async function POST(request: NextRequest) {
     // Find or create a direct conversation (gig_id IS NULL) between sender and recipient
     const participantIds = [user.id, recipientProfile.id].sort();
 
-    const { data: existingConversation } = await supabase
+    // `contains` is a superset test, so it also matches any group thread
+    // holding both users — including broadcast threads, which are likewise
+    // gig_id IS NULL. Excluding broadcasts and requiring exactly the two
+    // participants keeps a DM out of the group discussion.
+    const { data: candidateConversations } = await supabase
       .from("conversations")
       .select("id, participant_ids")
       .is("gig_id", null)
-      .contains("participant_ids", participantIds)
-      .single();
+      .eq("is_broadcast", false)
+      .contains("participant_ids", participantIds);
+
+    const existingConversation = (candidateConversations ?? []).find(
+      (c) => (c.participant_ids?.length ?? 0) === participantIds.length
+    );
 
     let conversationId: string;
 
