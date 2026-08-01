@@ -1,4 +1,5 @@
 import { verifyCoinPayWebhook } from "@profullstack/stack/coinpay";
+import { coinpayFetch, CoinpayRateLimitError } from "@/lib/coinpay-throttle";
 
 const COINPAY_API_URL = "https://coinpayportal.com/api";
 
@@ -50,6 +51,11 @@ export interface CreatePaymentOptions {
   metadata?: Record<string, unknown>;
   business_id?: string;
   merchant_wallet_address?: string;
+  /**
+   * Epoch ms after which this call stops waiting out the provider's rate limit.
+   * Bulk callers pass one shared deadline so the batch stays bounded.
+   */
+  deadline?: number;
 }
 
 export interface CreatePaymentResponse {
@@ -138,33 +144,43 @@ export async function createPayment(options: CreatePaymentOptions): Promise<Crea
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/payments/create`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await coinpayFetch(
+    `${COINPAY_API_URL}/payments/create`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      cache: "no-store",
+      body: JSON.stringify({
+        business_id: merchantId,
+        amount_usd: options.amount_usd,
+        payment_method: "crypto",
+        currency: options.currency,
+        description: options.description,
+        success_url: options.redirect_url || appUrl,
+        cancel_url: options.redirect_url || appUrl,
+        redirect_url: options.redirect_url,
+        expires_at: options.expires_at,
+        expires_in: options.expires_in,
+        webhook_url: `${appUrl}/api/webhooks/coinpay`,
+        merchant_wallet_address: options.merchant_wallet_address,
+        metadata: options.metadata,
+      }),
     },
-    cache: "no-store",
-    body: JSON.stringify({
-      business_id: merchantId,
-      amount_usd: options.amount_usd,
-      payment_method: "crypto",
-      currency: options.currency,
-      description: options.description,
-      success_url: options.redirect_url || appUrl,
-      cancel_url: options.redirect_url || appUrl,
-      redirect_url: options.redirect_url,
-      expires_at: options.expires_at,
-      expires_in: options.expires_in,
-      webhook_url: `${appUrl}/api/webhooks/coinpay`,
-      merchant_wallet_address: options.merchant_wallet_address,
-      metadata: options.metadata,
-    }),
-  });
+    { label: "payments/create", deadline: options.deadline }
+  );
 
   if (!response.ok) {
     const text = await response.text();
     console.error(`[coinpayportal] create payment failed ${response.status}: ${text}`);
+
+    // Already retried and paced by `coinpayFetch`; still limited means the
+    // provider's budget is genuinely exhausted, not that this payment is bad.
+    if (response.status === 429) {
+      throw new CoinpayRateLimitError();
+    }
 
     let message = text;
     try {
@@ -542,7 +558,7 @@ export async function getCoinpayGlobalWalletTokens(
   // and /api/get-tokens endpoints use a different verifier (merchant-login
   // JWT or business API key) and reject OAuth access tokens.
   if (options.access_token) {
-    const response = await fetch(`${COINPAY_API_URL}/oauth/userinfo`, {
+    const response = await coinpayFetch(`${COINPAY_API_URL}/oauth/userinfo`, {
       headers: { Authorization: `Bearer ${options.access_token}` },
       cache: "no-store",
     });
@@ -576,7 +592,7 @@ export async function getCoinpayGlobalWalletTokens(
   let sawSuccessfulResponse = false;
 
   for (const url of urls) {
-    const response = await fetch(url.toString(), {
+    const response = await coinpayFetch(url.toString(), {
       headers: { Authorization: `Bearer ${apiKey}` },
       cache: "no-store",
     });
@@ -626,7 +642,7 @@ export async function getBusinessWalletCurrencies(
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/businesses/${businessId}`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/businesses/${businessId}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -679,7 +695,7 @@ export async function getSupportedCoins(
   if (businessId) url.searchParams.set("business_id", businessId);
   if (options.active_only !== false) url.searchParams.set("active_only", "true");
 
-  const response = await fetch(url.toString(), {
+  const response = await coinpayFetch(url.toString(), {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -739,7 +755,7 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentStatus
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -811,7 +827,7 @@ export async function createEscrow(options: CreateEscrowOptions): Promise<Escrow
 
   const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
 
-  const response = await fetch(`${COINPAY_API_URL}/escrow`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/escrow`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -853,7 +869,7 @@ export async function releaseEscrow(escrowId: string): Promise<EscrowStatusRespo
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/escrow/${escrowId}/release`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/escrow/${escrowId}/release`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -904,7 +920,7 @@ export async function createInvoice(options: CreateInvoiceOptions): Promise<Invo
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/invoices`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/invoices`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -940,7 +956,7 @@ export async function sendInvoice(invoiceId: string): Promise<InvoiceResponse> {
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/invoices/${invoiceId}/send`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/invoices/${invoiceId}/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -966,7 +982,7 @@ export async function getEscrowStatus(escrowId: string): Promise<EscrowStatusRes
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await fetch(`${COINPAY_API_URL}/escrow/${escrowId}`, {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/escrow/${escrowId}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },

@@ -52,6 +52,8 @@ interface PreparedPayment {
 interface SkippedInvoice {
   id: string;
   reason: string;
+  /** Transient — the invoice is payable, preparing it just did not get through. */
+  retryable?: boolean;
 }
 
 type Phase = "idle" | "preparing" | "confirming" | "paying" | "done";
@@ -176,6 +178,7 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
 
   if (acceptedCount === 0) return null;
 
+  const retryableSkips = skipped.filter((s) => s.retryable);
   const sentCount = results?.filter((r) => r.status === "sent").length ?? 0;
   const failedResults = results?.filter((r) => r.status !== "sent") ?? [];
   const labelFor = (id: string) => payments.find((p) => p.id === id)?.label || id;
@@ -265,6 +268,15 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
             </details>
           )}
 
+          {/* A skip the payer can clear by waiting is not the same as one they
+              cannot, so it gets its own action rather than living in the list. */}
+          {retryableSkips.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {retryableSkips.length} of those hit a temporary limit at the payment
+              provider. Prepare them again to add them to this run.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
@@ -275,6 +287,23 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
               <Wallet className="h-4 w-4" />
               Approve in wallet
             </Button>
+            {retryableSkips.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  // Re-prepare the whole set: the already-prepared requests are
+                  // reused as-is, so this costs one provider call per invoice
+                  // that is actually still missing one.
+                  void prepare([
+                    ...payments.map((p) => p.id),
+                    ...retryableSkips.map((s) => s.id),
+                  ])
+                }
+              >
+                Prepare the {retryableSkips.length} that were limited
+              </Button>
+            )}
             <Button type="button" variant="ghost" onClick={() => setPhase("idle")}>
               Cancel
             </Button>
