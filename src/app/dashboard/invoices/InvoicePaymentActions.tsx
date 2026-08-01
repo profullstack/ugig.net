@@ -25,6 +25,11 @@ const CANNED_REJECT_REASONS = [
   "Duplicate invoice.",
 ];
 
+// Base gap between background status refreshes for one invoice row, plus a
+// random spread so a page full of rows does not stampede on the same tick.
+const POLL_INTERVAL_MS = 60_000;
+const POLL_JITTER_MS = 30_000;
+
 interface InvoicePaymentMetadata {
   payment_address?: string | null;
   amount_crypto?: string | number | null;
@@ -129,11 +134,32 @@ export function InvoicePaymentActions({
   useEffect(() => {
     if (status !== "sent" || !paymentAddress) return;
 
-    const interval = window.setInterval(() => {
-      void checkPaymentStatus({ silent: true });
-    }, 5000);
+    // Each of these rows polls independently, so the dashboard's total request
+    // rate is (open invoices ÷ interval). At 80 invoices a 5s interval is ~960
+    // calls a minute against a provider that allows 60 — the polls starve the
+    // actual payments. Settlement arrives by webhook regardless; this poll only
+    // makes an open page update sooner, so it can afford to be slow and lazy:
+    //
+    //   - a much longer interval,
+    //   - jitter, so rows do not all fire on the same tick,
+    //   - and nothing at all while the tab is hidden.
+    const schedule = () =>
+      window.setTimeout(
+        tick,
+        POLL_INTERVAL_MS + Math.random() * POLL_JITTER_MS
+      );
 
-    return () => window.clearInterval(interval);
+    let timer: number;
+
+    function tick() {
+      if (document.visibilityState === "visible") {
+        void checkPaymentStatus({ silent: true });
+      }
+      timer = schedule();
+    }
+
+    timer = schedule();
+    return () => window.clearTimeout(timer);
   }, [checkPaymentStatus, paymentAddress, status]);
 
   const createPaymentRequest = async () => {

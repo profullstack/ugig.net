@@ -746,7 +746,12 @@ export interface PaymentStatusResponse {
 }
 
 /**
- * Get payment status from CoinPayPortal
+ * Get payment status from CoinPayPortal.
+ *
+ * Treated as background work: settlement is delivered authoritatively by
+ * webhook, so a poll is a nice-to-have that must never queue ahead of a payment
+ * someone is waiting on. A dashboard showing 80 open invoices polls every five
+ * seconds; left interactive, that alone outruns the provider's whole budget.
  */
 export async function getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
   const apiKey = process.env.COINPAY_API_KEY;
@@ -755,11 +760,15 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentStatus
     throw new Error("CoinPayPortal credentials not configured");
   }
 
-  const response = await coinpayFetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = await coinpayFetch(
+    `${COINPAY_API_URL}/payments/${paymentId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
-  });
+    { label: "payments/status", background: true }
+  );
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Unknown error" }));

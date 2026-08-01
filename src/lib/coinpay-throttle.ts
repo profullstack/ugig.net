@@ -33,6 +33,13 @@ const MAX_PER_WINDOW = positiveInt(process.env.COINPAY_MAX_REQUESTS_PER_MINUTE, 
 /** Total attempts per call, including the first. */
 const MAX_ATTEMPTS = positiveInt(process.env.COINPAY_MAX_ATTEMPTS, 4);
 
+/**
+ * Fraction of the window background work may consume. Status polls are
+ * disposable — webhooks are the real source of truth for settlement — so they
+ * must leave room for the payment creations a user is actually waiting on.
+ */
+const BACKGROUND_SHARE = 0.5;
+
 /** How long a single call may spend waiting before it gives up. */
 const DEFAULT_BUDGET_MS = 120_000;
 
@@ -89,36 +96,60 @@ export function resetCoinpayThrottle(): void {
 }
 
 /**
- * Take one slot in the rolling window, waiting for the window to roll if the
- * budget is spent. Throws if waiting would run past `deadline`.
+ * Run `fn` with the reservation lock held. The lock guards the *decision* only —
+ * never a sleep. Holding it across a wait would make N waiting callers drain
+ * serially instead of concurrently, so a burst of background polls could park an
+ * interactive request behind minutes of other people's sleeps.
  */
-async function reserveSlot(deadline: number): Promise<void> {
+async function withGate<T>(fn: () => T): Promise<T> {
   const previous = gate;
   let release!: () => void;
   gate = new Promise<void>((resolve) => {
     release = resolve;
   });
   await previous;
-
   try {
-    for (;;) {
-      const now = Date.now();
-      issuedAt = issuedAt.filter((at) => now - at < WINDOW_MS);
-
-      const windowWait = issuedAt.length < MAX_PER_WINDOW ? 0 : issuedAt[0]! + WINDOW_MS - now;
-      const wait = Math.max(windowWait, blockedUntil - now);
-
-      if (wait <= 0) {
-        issuedAt.push(now);
-        return;
-      }
-      if (now + wait > deadline) {
-        throw new CoinpayRateLimitError();
-      }
-      await sleep(Math.min(wait, MAX_SLEEP_MS));
-    }
+    return fn();
   } finally {
     release();
+  }
+}
+
+/**
+ * Try to claim one slot in the rolling window. Returns 0 on success, or the
+ * milliseconds to wait before it is worth trying again.
+ */
+function tryClaim(interactive: boolean): number {
+  const now = Date.now();
+  issuedAt = issuedAt.filter((at) => now - at < WINDOW_MS);
+
+  // Background work may only spend part of the budget. Without this a page
+  // polling 80 invoices every 5s consumes every slot and an actual payment can
+  // never be created — the poll is disposable, the payment is not.
+  const ceiling = interactive ? MAX_PER_WINDOW : Math.floor(MAX_PER_WINDOW * BACKGROUND_SHARE);
+
+  const windowWait = issuedAt.length < ceiling ? 0 : issuedAt[0]! + WINDOW_MS - now;
+  const wait = Math.max(windowWait, blockedUntil - now);
+
+  if (wait <= 0) {
+    issuedAt.push(now);
+    return 0;
+  }
+  return wait;
+}
+
+/**
+ * Take one slot in the rolling window, waiting for the window to roll if the
+ * budget is spent. Throws if waiting would run past `deadline`.
+ */
+async function reserveSlot(deadline: number, interactive: boolean): Promise<void> {
+  for (;;) {
+    const wait = await withGate(() => tryClaim(interactive));
+    if (wait <= 0) return;
+    if (Date.now() + wait > deadline) throw new CoinpayRateLimitError();
+    // Slept outside the lock, so every waiter waits concurrently and they all
+    // re-contend when the window rolls.
+    await sleep(Math.min(wait, MAX_SLEEP_MS));
   }
 }
 
@@ -161,6 +192,14 @@ export interface CoinpayFetchOptions {
   deadline?: number;
   /** Short label for logs, e.g. `payments/create`. */
   label?: string;
+  /**
+   * Disposable work nobody is waiting on — a status poll that will run again in
+   * seconds, where a webhook is the authoritative answer anyway. Background
+   * calls never queue: if no slot is free right now they fail immediately, so a
+   * poll storm cannot delay a payment. They also get a smaller slice of the
+   * window (see `BACKGROUND_SHARE`) and are not retried.
+   */
+  background?: boolean;
 }
 
 /**
@@ -177,11 +216,17 @@ export async function coinpayFetch(
   init?: RequestInit,
   options: CoinpayFetchOptions = {}
 ): Promise<Response> {
-  const deadline = options.deadline ?? Date.now() + DEFAULT_BUDGET_MS;
+  const background = options.background ?? false;
+  // Background work never waits and never retries: it is cheaper to skip a poll
+  // than to hold a slot someone's payment needs. It runs again in seconds.
+  const maxAttempts = background ? 1 : MAX_ATTEMPTS;
+  const deadline = background
+    ? Date.now()
+    : (options.deadline ?? Date.now() + DEFAULT_BUDGET_MS);
   const label = options.label ?? url;
 
   for (let attempt = 1; ; attempt++) {
-    await reserveSlot(deadline);
+    await reserveSlot(deadline, !background);
 
     let response: Response;
     try {
@@ -190,7 +235,7 @@ export async function coinpayFetch(
       // A dropped connection mid-batch is as transient as a 429 and just as
       // wrong to record as "this invoice cannot be paid".
       const wait = backoffMs(attempt);
-      if (attempt >= MAX_ATTEMPTS || Date.now() + wait > deadline) throw err;
+      if (attempt >= maxAttempts || Date.now() + wait > deadline) throw err;
       console.warn(`[coinpay] ${label} attempt ${attempt} failed: ${String(err)}`);
       await sleep(wait);
       continue;
@@ -208,13 +253,13 @@ export async function coinpayFetch(
       blockedUntil = Math.max(blockedUntil, Date.now() + wait);
     }
 
-    if (attempt >= MAX_ATTEMPTS || Date.now() + wait > deadline) return response;
+    if (attempt >= maxAttempts || Date.now() + wait > deadline) return response;
 
     // Drain before sleeping so the socket is not held open for the wait.
     await Promise.resolve(response.text?.()).catch(() => "");
     console.warn(
       `[coinpay] ${label} got ${status}, retrying in ${Math.round(wait)}ms ` +
-        `(attempt ${attempt}/${MAX_ATTEMPTS})`
+        `(attempt ${attempt}/${maxAttempts})`
     );
     await sleep(Math.min(wait, MAX_SLEEP_MS));
   }

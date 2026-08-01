@@ -135,10 +135,16 @@ export async function getCoinpayPaymentStatus(paymentId: string): Promise<{
   tx_hash?: string | null;
 }> {
   const { apiKey } = getCreds();
-  const res = await coinpayFetch(`${COINPAY_API_URL}/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    cache: "no-store",
-  });
+  // Background: the webhook is the authoritative settlement signal, so a poll
+  // must never hold a slot a payment creation needs. See `coinpay-throttle`.
+  const res = await coinpayFetch(
+    `${COINPAY_API_URL}/payments/${paymentId}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: "no-store",
+    },
+    { label: "payments/status", background: true }
+  );
   if (!res.ok) {
     throw new Error(`CoinPay status failed: ${res.status}`);
   }
