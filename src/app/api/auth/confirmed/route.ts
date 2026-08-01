@@ -141,72 +141,23 @@ export async function POST(request: NextRequest) {
 
     // ── Referral reward: 25 sats each on account activation ──
     try {
-      const { data: referral } = await (supabase as any)
-        .from("referrals")
-        .select("referrer_id, reward_paid")
-        .eq("referred_user_id", userId)
-        .eq("status", "registered")
-        .maybeSingle();
-
-      if (referral && !referral.reward_paid) {
-        const REFERRAL_REWARD = 25;
-        const referrerId = referral.referrer_id;
-
-        // Credit referrer
-        const { data: referrerWallet } = await (supabase as any)
-          .from("wallets")
-          .select("balance_sats")
-          .eq("user_id", referrerId)
-          .single();
-
-        if (referrerWallet) {
-          await (supabase as any).from("wallets")
-            .update({ balance_sats: referrerWallet.balance_sats + REFERRAL_REWARD, updated_at: new Date().toISOString() })
-            .eq("user_id", referrerId);
-        } else {
-          await (supabase as any).from("wallets")
-            .insert({ user_id: referrerId, balance_sats: REFERRAL_REWARD });
+      const REFERRAL_REWARD = 25;
+      const { data: rewards, error: rewardError } = await (supabase as any).rpc(
+        "pay_referral_reward",
+        {
+          p_referred_user_id: userId,
+          p_reward_sats: REFERRAL_REWARD,
         }
+      );
 
-        await (supabase as any).from("wallet_transactions").insert({
-          user_id: referrerId,
-          type: "deposit",
-          amount_sats: REFERRAL_REWARD,
-          balance_after: (referrerWallet?.balance_sats ?? 0) + REFERRAL_REWARD,
-          status: "completed",
-          reference_id: userId,
-        });
+      if (rewardError) {
+        throw rewardError;
+      }
 
-        // Credit new user
-        const { data: newUserWallet } = await (supabase as any)
-          .from("wallets")
-          .select("balance_sats")
-          .eq("user_id", userId)
-          .single();
+      const reward = Array.isArray(rewards) ? rewards[0] : rewards;
 
-        if (newUserWallet) {
-          await (supabase as any).from("wallets")
-            .update({ balance_sats: newUserWallet.balance_sats + REFERRAL_REWARD, updated_at: new Date().toISOString() })
-            .eq("user_id", userId);
-        } else {
-          await (supabase as any).from("wallets")
-            .insert({ user_id: userId, balance_sats: REFERRAL_REWARD });
-        }
-
-        await (supabase as any).from("wallet_transactions").insert({
-          user_id: userId,
-          type: "deposit",
-          amount_sats: REFERRAL_REWARD,
-          balance_after: (newUserWallet?.balance_sats ?? 0) + REFERRAL_REWARD,
-          status: "completed",
-          reference_id: referrerId,
-        });
-
-        // Mark reward as paid
-        await (supabase as any).from("referrals")
-          .update({ reward_paid: true })
-          .eq("referred_user_id", userId)
-          .eq("referrer_id", referrerId);
+      if (reward) {
+        const referrerId = reward.referrer_id;
 
         // Notify referrer
         await (supabase as any).from("notifications").insert({
