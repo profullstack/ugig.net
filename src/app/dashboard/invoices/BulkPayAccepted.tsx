@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,9 +37,16 @@ const EXTENSION_URL = "https://coinpayportal.com/extension";
 // promptly even when the provider is pacing us, so the count keeps moving.
 const PREPARE_CHUNK = 20;
 
+export interface PayableInvoice {
+  id: string;
+  /** Who is owed, and for what — enough to recognise a row without opening it. */
+  label: string;
+  amountUsd: number;
+}
+
 interface Props {
-  /** Ids of the accepted-and-unpaid invoices the signed-in user owes. */
-  invoiceIds: string[];
+  /** The accepted-and-unpaid invoices the signed-in user owes. */
+  invoices: PayableInvoice[];
   totalUsd: number;
 }
 
@@ -62,10 +69,16 @@ interface SkippedInvoice {
 
 type Phase = "idle" | "preparing" | "confirming" | "paying" | "done";
 
-export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
-  const acceptedCount = invoiceIds.length;
+export function BulkPayAccepted({ invoices, totalUsd }: Props) {
+  const acceptedCount = invoices.length;
+  const invoiceIds = useMemo(() => invoices.map((i) => i.id), [invoices]);
   const router = useRouter();
   const [hasWallet, setHasWallet] = useState(false);
+  // Everything is selected by default — paying all of them is the common case,
+  // and the checkboxes exist to carve out exceptions rather than to make the
+  // normal path require 80 clicks.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(invoiceIds));
+  const [showRows, setShowRows] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [payments, setPayments] = useState<PreparedPayment[]>([]);
   const [skipped, setSkipped] = useState<SkippedInvoice[]>([]);
@@ -84,14 +97,51 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
     return () => window.removeEventListener("coinpay#initialized", detect);
   }, []);
 
+  // Forget ids that are no longer payable (paid elsewhere, revoked, refreshed
+  // away). Invoices that appear later stay unticked until the payer says so —
+  // never auto-select something they have not seen. Returning the same Set when
+  // nothing changed keeps this from re-rendering on every parent render.
+  useEffect(() => {
+    setSelected((current) => {
+      const known = new Set(invoiceIds);
+      const kept = [...current].filter((id) => known.has(id));
+      return kept.length === current.size ? current : new Set(kept);
+    });
+  }, [invoiceIds]);
+
+  const selectedIds = useMemo(
+    () => invoiceIds.filter((id) => selected.has(id)),
+    [invoiceIds, selected]
+  );
+  const selectedTotal = useMemo(
+    () => invoices.filter((i) => selected.has(i.id)).reduce((sum, i) => sum + i.amountUsd, 0),
+    [invoices, selected]
+  );
+  const allSelected = selectedIds.length === invoiceIds.length && invoiceIds.length > 0;
+
+  const toggleOne = useCallback((id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelected((current) =>
+      current.size === invoiceIds.length ? new Set() : new Set(invoiceIds)
+    );
+  }, [invoiceIds]);
+
   /**
-   * Mint payment requests for the given invoices (all of them by default, or
-   * just the failures when retrying). The server re-checks ownership and
-   * payability, so a stale id here is skipped rather than trusted.
+   * Mint payment requests for the given invoices (the current selection by
+   * default, or just the failures when retrying). The server re-checks
+   * ownership and payability, so a stale id here is skipped rather than trusted.
    */
-  const prepare = useCallback(async (ids: string[] = invoiceIds) => {
+  const prepare = useCallback(async (ids: string[] = selectedIds) => {
     if (ids.length === 0) {
-      setError("No accepted invoices are ready to pay.");
+      setError("Select at least one invoice to pay.");
       return;
     }
 
@@ -147,7 +197,7 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
     }
 
     setPhase("confirming");
-  }, [invoiceIds]);
+  }, [selectedIds]);
 
   const pay = useCallback(async () => {
     const provider = window.coinpay;
@@ -221,20 +271,26 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
         <div>
           <h3 className="flex items-center gap-2 font-semibold">
             <Zap className="h-4 w-4 text-emerald-600" />
-            Pay all accepted invoices
+            Pay accepted invoices
           </h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {acceptedCount} invoice{acceptedCount === 1 ? "" : "s"} · $
-            {totalUsd.toFixed(2)} — one confirmation in your CoinPay wallet.
+            {selectedIds.length} of {acceptedCount} selected · $
+            {selectedTotal.toFixed(2)} of ${totalUsd.toFixed(2)} — one
+            confirmation in your CoinPay wallet.
           </p>
         </div>
 
         {phase === "idle" && (
           <div className="flex shrink-0 items-center gap-2">
             {hasWallet ? (
-              <Button type="button" onClick={() => void prepare()} className="gap-2">
+              <Button
+                type="button"
+                onClick={() => void prepare()}
+                disabled={selectedIds.length === 0}
+                className="gap-2"
+              >
                 <Wallet className="h-4 w-4" />
-                Pay all {acceptedCount}
+                Pay {selectedIds.length}
               </Button>
             ) : (
               <a
@@ -263,6 +319,60 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {error}
         </p>
+      )}
+
+      {/* Which invoices go in the run. Collapsed by default so the common
+          "pay everything" case stays one click, but a payer settling only some
+          of what they owe — or testing with a handful — needs the rows. */}
+      {phase === "idle" && (
+        <div className="mt-3 rounded-lg border border-border bg-background">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                // Partially-selected reads as neither on nor off, and the
+                // browser only exposes that through the DOM property.
+                ref={(el) => {
+                  if (el) el.indeterminate = selectedIds.length > 0 && !allSelected;
+                }}
+                onChange={toggleAll}
+                className="h-4 w-4 cursor-pointer accent-emerald-600"
+                aria-label={allSelected ? "Deselect all invoices" : "Select all invoices"}
+              />
+              {allSelected ? "Deselect all" : "Select all"}
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowRows((v) => !v)}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              aria-expanded={showRows}
+            >
+              {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
+            </button>
+          </div>
+
+          {showRows && (
+            <ul className="max-h-64 divide-y divide-border overflow-y-auto">
+              {invoices.map((invoice) => (
+                <li key={invoice.id}>
+                  <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/50">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(invoice.id)}
+                      onChange={() => toggleOne(invoice.id)}
+                      className="h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{invoice.label}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      ${invoice.amountUsd.toFixed(2)}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {/* Confirmation summary — the last stop before the wallet's own approval. */}

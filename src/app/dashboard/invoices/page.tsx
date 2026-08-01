@@ -306,7 +306,13 @@ export default async function InvoicesDashboardPage({
         {/* Bulk pay — only on the received side, where you're the payer. */}
         {tab === "received" && (
           <BulkPayAccepted
-            invoiceIds={accepted.map((i) => i.id)}
+            invoices={accepted.map((i) => ({
+              id: i.id,
+              label: i.gig?.title
+                ? `${counterpartyName(i.worker)} — ${i.gig.title}`
+                : counterpartyName(i.worker),
+              amountUsd: Number(i.amount_usd || 0),
+            }))}
             totalUsd={totalAccepted}
           />
         )}
