@@ -154,6 +154,106 @@ describe("coinpayFetch", () => {
   });
 });
 
+/**
+ * The failure these guard: a dashboard with 80 open invoices polls status for
+ * every one of them. Those polls must never be able to delay — let alone
+ * indefinitely stall — a payment the user is waiting on.
+ */
+describe("background work vs interactive work", () => {
+  const fetchMock = vi.fn();
+
+  /** Fresh module so `COINPAY_MAX_REQUESTS_PER_MINUTE` is re-read. */
+  async function loadThrottle(perMinute: string) {
+    vi.stubEnv("COINPAY_MAX_REQUESTS_PER_MINUTE", perMinute);
+    vi.resetModules();
+    const throttle = await import("./coinpay-throttle");
+    throttle.resetCoinpayThrottle();
+    return throttle;
+  }
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("a background call fails fast instead of queueing", async () => {
+    const throttle = await loadThrottle("2");
+
+    // Spend the background share (half of 2 = 1).
+    await throttle.coinpayFetch("https://coinpayportal.com/api/payments/x", undefined, {
+      background: true,
+    });
+
+    // The next one must not wait for the window — it gives up immediately.
+    const started = Date.now();
+    await expect(
+      throttle.coinpayFetch("https://coinpayportal.com/api/payments/y", undefined, {
+        background: true,
+      })
+    ).rejects.toBeInstanceOf(throttle.CoinpayRateLimitError);
+
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves budget for interactive work when background floods it", async () => {
+    const throttle = await loadThrottle("4");
+
+    // Background may only take half the window, however hard it tries.
+    const polls = await Promise.allSettled(
+      Array.from({ length: 10 }, (_, i) =>
+        throttle.coinpayFetch(`https://coinpayportal.com/api/payments/${i}`, undefined, {
+          background: true,
+        })
+      )
+    );
+    const wentOut = polls.filter((p) => p.status === "fulfilled").length;
+    expect(wentOut).toBe(2);
+
+    // A payment still gets through, which is the entire point.
+    await expect(
+      throttle.coinpayFetch("https://coinpayportal.com/api/payments/create")
+    ).resolves.toMatchObject({ status: 200 });
+  });
+
+  it("a waiting caller does not hold the lock while it sleeps", async () => {
+    // The regression: the reservation lock used to be held across the sleep, so
+    // one caller waiting out a 60s window blocked every other caller behind it —
+    // including ones that only wanted to fail fast. That is what made bulk pay
+    // hang rather than merely run slow.
+    const throttle = await loadThrottle("2");
+
+    // Fill the window so the next interactive caller has to wait ~60s.
+    await throttle.coinpayFetch("https://coinpayportal.com/api/payments/a");
+    await throttle.coinpayFetch("https://coinpayportal.com/api/payments/b");
+
+    const waiting = throttle.coinpayFetch("https://coinpayportal.com/api/payments/create", undefined, {
+      deadline: Date.now() + 120_000,
+    });
+
+    // While that one sleeps, a background call must still get its own answer
+    // promptly. If the lock were held across the sleep this would hang.
+    const started = Date.now();
+    await expect(
+      throttle.coinpayFetch("https://coinpayportal.com/api/payments/poll", undefined, {
+        background: true,
+      })
+    ).rejects.toBeInstanceOf(throttle.CoinpayRateLimitError);
+    expect(Date.now() - started).toBeLessThan(1_000);
+
+    // Leave no floating rejection behind.
+    void waiting.catch(() => {});
+  });
+});
+
 describe("isCoinpayRateLimitError", () => {
   it("distinguishes a rate limit from a provider rejection", () => {
     expect(isCoinpayRateLimitError(new CoinpayRateLimitError())).toBe(true);

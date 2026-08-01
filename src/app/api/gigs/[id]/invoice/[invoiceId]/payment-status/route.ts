@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { syncGigInvoicePaymentStatus } from "@/lib/coinpay-payment-sync";
+import { isCoinpayRateLimitError } from "@/lib/coinpay-throttle";
 import { createServiceClient } from "@/lib/supabase/service";
 import { paymentTransactions } from "@/lib/payments/receipt";
 
@@ -52,10 +53,19 @@ export async function GET(
     }
 
     const serviceSupabase = createServiceClient() as any;
-    const result = await syncGigInvoicePaymentStatus(
-      serviceSupabase,
-      invoice.coinpay_invoice_id
-    );
+    let result;
+    try {
+      result = await syncGigInvoicePaymentStatus(
+        serviceSupabase,
+        invoice.coinpay_invoice_id
+      );
+    } catch (err) {
+      // Skipping a refresh is not an error worth showing. The provider's
+      // per-minute budget is finite and settlement arrives by webhook anyway,
+      // so fall through and report what we already have.
+      if (!isCoinpayRateLimitError(err)) throw err;
+      result = { skipped: "rate_limited" as const };
+    }
 
     const { data: refreshed } = await (serviceSupabase.from("gig_invoices") as any)
       .select("id, status, coinpay_invoice_id, pay_url, metadata, updated_at")

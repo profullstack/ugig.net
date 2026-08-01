@@ -274,6 +274,97 @@ describe("BulkPayAccepted", () => {
     expect(screen.getByRole("button", { name: /Approve in wallet/ })).toBeInTheDocument();
   });
 
+  it("prepares a large batch in chunks instead of one long request", async () => {
+    // The hang this guards: 80 invoices in a single request sat open long
+    // enough for the connection to drop, so the user saw "Network error" and
+    // the wallet was never given anything to approve.
+    installWallet();
+    const many = Array.from({ length: 45 }, (_, i) => `inv-${i}`);
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const ids = JSON.parse(String(init?.body ?? "{}")).invoice_ids as string[];
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            payments: ids.map((id) => ({
+              id,
+              gig_id: "g",
+              chain: "usdc_pol",
+              to: "0xabc",
+              amount: "1",
+              label: id,
+              amountUsd: 1,
+              expires_at: "2030-01-01T00:00:00Z",
+              reused: false,
+            })),
+            skipped: [],
+            total_usd: ids.length,
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<BulkPayAccepted invoiceIds={many} totalUsd={45} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pay all 45/ }));
+
+    await screen.findByRole("button", { name: /Approve in wallet/ });
+
+    // Several short requests, not one long one, and every invoice accounted for.
+    const calls = fetchMock.mock.calls.filter(([url]) => String(url).includes("bulk-payment-request"));
+    expect(calls.length).toBeGreaterThan(1);
+    const sent = calls.flatMap(([, init]) => JSON.parse(String(init?.body)).invoice_ids);
+    expect(sent).toHaveLength(45);
+    expect(new Set(sent).size).toBe(45);
+    expect(calls.every(([, init]) => JSON.parse(String(init?.body)).invoice_ids.length <= 20)).toBe(true);
+  });
+
+  it("keeps the quotes it already minted when a later chunk fails", async () => {
+    installWallet();
+    const many = Array.from({ length: 40 }, (_, i) => `inv-${i}`);
+    let call = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!String(url).includes("bulk-payment-request")) {
+          return { ok: true, json: async () => ({ data: {} }) };
+        }
+        const ids = JSON.parse(String(init?.body ?? "{}")).invoice_ids as string[];
+        call++;
+        // Second chunk dies the way a dropped connection does.
+        if (call === 2) throw new Error("network down");
+        return {
+          ok: true,
+          json: async () => ({
+            data: {
+              payments: ids.map((id) => ({
+                id,
+                gig_id: "g",
+                chain: "usdc_pol",
+                to: "0xabc",
+                amount: "1",
+                label: id,
+                amountUsd: 1,
+                expires_at: "2030-01-01T00:00:00Z",
+                reused: false,
+              })),
+              skipped: [],
+              total_usd: ids.length,
+            },
+          }),
+        };
+      })
+    );
+
+    render(<BulkPayAccepted invoiceIds={many} totalUsd={40} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pay all 40/ }));
+
+    // Still reaches the confirmation step with the successful chunks intact,
+    // rather than throwing the whole run away.
+    await screen.findByRole("button", { name: /Approve in wallet/ });
+    expect(screen.getByText(/were limited/)).toBeInTheDocument();
+  });
+
   it("surfaces a preparation failure without opening the wallet", async () => {
     const wallet = installWallet();
     vi.stubGlobal(

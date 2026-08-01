@@ -33,6 +33,10 @@ import type {
 
 const EXTENSION_URL = "https://coinpayportal.com/extension";
 
+// Invoices per prepare request. Small enough that each round-trip returns
+// promptly even when the provider is pacing us, so the count keeps moving.
+const PREPARE_CHUNK = 20;
+
 interface Props {
   /** Ids of the accepted-and-unpaid invoices the signed-in user owes. */
   invoiceIds: string[];
@@ -67,6 +71,7 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
   const [skipped, setSkipped] = useState<SkippedInvoice[]>([]);
   const [progress, setProgress] = useState<Record<string, CoinPayProgress>>({});
   const [results, setResults] = useState<CoinPayBatchResult[] | null>(null);
+  const [prepared, setPrepared] = useState({ done: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
 
   // The extension injects `window.coinpay` at document_start, but this
@@ -94,27 +99,54 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
     setError(null);
     setResults(null);
     setProgress({});
+    setPrepared({ done: 0, total: ids.length });
 
-    try {
-      const res = await fetch("/api/invoices/bulk-payment-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_ids: ids }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error || "Could not prepare the payments");
-        setPhase("idle");
-        return;
+    const allPayments: PreparedPayment[] = [];
+    const allSkipped: SkippedInvoice[] = [];
+    // Kept so a run that prepares nothing can still say *why*, in the server's
+    // own words, rather than behind a generic failure message.
+    let lastError: string | null = null;
+
+    // Prepared in chunks rather than one long request. Minting 80 quotes has to
+    // wait out the payment provider's per-minute window, and a single request
+    // that sits open for that long is indistinguishable from a hang — it shows
+    // nothing, and risks the edge proxy closing it. Chunking makes the count
+    // move, keeps every request short, and means a failure part-way through
+    // costs one chunk instead of the whole run.
+    for (let i = 0; i < ids.length; i += PREPARE_CHUNK) {
+      const chunk = ids.slice(i, i + PREPARE_CHUNK);
+      try {
+        const res = await fetch("/api/invoices/bulk-payment-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_ids: chunk }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Could not prepare the payments");
+
+        allPayments.push(...(json.data?.payments || []));
+        allSkipped.push(...(json.data?.skipped || []));
+      } catch (err) {
+        // Quotes already minted are still good, so keep them and mark just this
+        // chunk retryable rather than discarding the whole run.
+        lastError = err instanceof Error ? err.message : "Could not prepare the payments";
+        allSkipped.push(
+          ...chunk.map((id) => ({ id, reason: lastError!, retryable: true }))
+        );
       }
 
-      setPayments(json.data?.payments || []);
-      setSkipped(json.data?.skipped || []);
-      setPhase("confirming");
-    } catch {
-      setError("Network error. Try again.");
-      setPhase("idle");
+      setPayments([...allPayments]);
+      setSkipped([...allSkipped]);
+      setPrepared({ done: Math.min(i + PREPARE_CHUNK, ids.length), total: ids.length });
     }
+
+    if (allPayments.length === 0 && lastError) {
+      setError(lastError);
+      setPhase("idle");
+      return;
+    }
+
+    setPhase("confirming");
   }, [invoiceIds]);
 
   const pay = useCallback(async () => {
@@ -221,7 +253,7 @@ export function BulkPayAccepted({ invoiceIds, totalUsd }: Props) {
         {phase === "preparing" && (
           <span className="inline-flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Preparing payment requests…
+            Preparing payment requests… {prepared.done} of {prepared.total}
           </span>
         )}
       </div>
