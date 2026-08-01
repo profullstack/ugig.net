@@ -370,6 +370,65 @@ describe("BulkPayAccepted", () => {
     expect(screen.getByText(/were limited/)).toBeInTheDocument();
   });
 
+  it("pays cheapest first, and lets you flip to largest first", async () => {
+    // Not cosmetic: a wallet that runs dry part-way through settles the most
+    // invoices when the small ones go first, so the chosen order has to reach
+    // the prepare call — not just the list on screen.
+    installWallet();
+    const invoices = [
+      { id: "inv-big", label: "Big", amountUsd: 90 },
+      { id: "inv-small", label: "Small", amountUsd: 1 },
+      { id: "inv-mid", label: "Mid", amountUsd: 20 },
+    ];
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const ids = JSON.parse(String(init?.body ?? "{}")).invoice_ids as string[];
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            payments: ids.map((id) => ({
+              id,
+              gig_id: "g",
+              chain: "usdc_pol",
+              to: "0xabc",
+              amount: "1",
+              label: id,
+              amountUsd: 1,
+              expires_at: "2030-01-01T00:00:00Z",
+              reused: false,
+            })),
+            skipped: [],
+            total_usd: ids.length,
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<BulkPayAccepted invoices={invoices} totalUsd={111} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pay 3/ }));
+    await screen.findByRole("button", { name: /Approve in wallet/ });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).invoice_ids).toEqual([
+      "inv-small",
+      "inv-mid",
+      "inv-big",
+    ]);
+
+    // Flipping the toggle reverses what the wallet is handed.
+    fireEvent.click(screen.getByRole("button", { name: /Cancel/ }));
+    fireEvent.click(screen.getByRole("button", { name: /largest first/i }));
+    fetchMock.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Pay 3/ }));
+    await screen.findByRole("button", { name: /Approve in wallet/ });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).invoice_ids).toEqual([
+      "inv-big",
+      "inv-mid",
+      "inv-small",
+    ]);
+  });
+
   it("surfaces a preparation failure without opening the wallet", async () => {
     const wallet = installWallet();
     vi.stubGlobal(

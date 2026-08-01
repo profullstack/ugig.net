@@ -79,6 +79,10 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
   // normal path require 80 clicks.
   const [selected, setSelected] = useState<Set<string>>(() => new Set(invoiceIds));
   const [showRows, setShowRows] = useState(false);
+  // Cheapest first by default: a wallet that runs dry part-way through
+  // settles the most invoices that way, and the big ones can wait for a
+  // top-up. This drives the actual payment order, not just the display.
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [phase, setPhase] = useState<Phase>("idle");
   const [payments, setPayments] = useState<PreparedPayment[]>([]);
   const [skipped, setSkipped] = useState<SkippedInvoice[]>([]);
@@ -109,9 +113,20 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
     });
   }, [invoiceIds]);
 
+  const orderedInvoices = useMemo(
+    () =>
+      [...invoices].sort((a, b) =>
+        sortDir === "asc" ? a.amountUsd - b.amountUsd : b.amountUsd - a.amountUsd
+      ),
+    [invoices, sortDir]
+  );
+
+  // Derived from the sorted list, so the order the payer sees is the order the
+  // wallet is handed — pay-cheapest-first only means anything if it reaches
+  // `payBatch` that way.
   const selectedIds = useMemo(
-    () => invoiceIds.filter((id) => selected.has(id)),
-    [invoiceIds, selected]
+    () => orderedInvoices.filter((i) => selected.has(i.id)).map((i) => i.id),
+    [orderedInvoices, selected]
   );
   const selectedTotal = useMemo(
     () => invoices.filter((i) => selected.has(i.id)).reduce((sum, i) => sum + i.amountUsd, 0),
@@ -342,19 +357,33 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
               />
               {allSelected ? "Deselect all" : "Select all"}
             </label>
-            <button
-              type="button"
-              onClick={() => setShowRows((v) => !v)}
-              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-              aria-expanded={showRows}
-            >
-              {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                aria-label={
+                  sortDir === "asc"
+                    ? "Sort by amount, largest first"
+                    : "Sort by amount, smallest first"
+                }
+              >
+                {sortDir === "asc" ? "Cheapest first ↑" : "Largest first ↓"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRows((v) => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                aria-expanded={showRows}
+              >
+                {showRows ? "Hide invoices" : `Show ${acceptedCount} invoices`}
+              </button>
+            </div>
           </div>
 
           {showRows && (
             <ul className="max-h-64 divide-y divide-border overflow-y-auto">
-              {invoices.map((invoice) => (
+              {orderedInvoices.map((invoice) => (
                 <li key={invoice.id}>
                   <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/50">
                     <input
