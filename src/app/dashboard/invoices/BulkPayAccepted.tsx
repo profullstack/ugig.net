@@ -43,6 +43,27 @@ export interface PayableInvoice {
   /** Who is owed, and for what — enough to recognise a row without opening it. */
   label: string;
   amountUsd: number;
+  /** CoinPay currency the worker receives in, e.g. `usdc_sol`. */
+  currency?: string | null;
+  /**
+   * Quoted crypto amount, when a payment request has already been minted.
+   * Absent until one exists, and re-quoted at market when it is — so the row
+   * shows it only when it is a real number rather than implying a live price.
+   */
+  amountCrypto?: string | number | null;
+}
+
+/**
+ * `0.013851 SOL` for a row whose request has been quoted. Returns null when no
+ * quote exists yet — showing a currency with no amount, or an amount derived
+ * from a stale rate, would misrepresent what is about to be sent.
+ */
+function formatCrypto(invoice: PayableInvoice): string | null {
+  const amount = Number(invoice.amountCrypto);
+  if (!invoice.currency || !Number.isFinite(amount) || amount <= 0) return null;
+  const symbol = invoice.currency.split("_")[0]!.toUpperCase();
+  // Six places covers BTC's satoshi and reads sanely for SOL and stablecoins.
+  return `${amount.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")} ${symbol}`;
 }
 
 interface Props {
@@ -430,8 +451,13 @@ export function BulkPayAccepted({ invoices, totalUsd }: Props) {
                       className="h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
                     />
                     <span className="min-w-0 flex-1 truncate">{invoice.label}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      ${invoice.amountUsd.toFixed(2)}
+                    <span className="shrink-0 text-right tabular-nums">
+                      <span className="block">${invoice.amountUsd.toFixed(2)}</span>
+                      {formatCrypto(invoice) && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {formatCrypto(invoice)}
+                        </span>
+                      )}
                     </span>
                   </label>
                 </li>
