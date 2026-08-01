@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ConversationList } from "@/components/messages";
-import { MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, Megaphone } from "lucide-react";
 
 export const metadata = {
   title: "Messages | ugig.net",
@@ -24,14 +26,22 @@ export default async function MessagesPage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <MessageSquare className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-primary/10 rounded-xl">
+                <MessageSquare className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Messages</h1>
+                <p className="text-muted-foreground text-sm">Chat with gig posters and applicants</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">Messages</h1>
-              <p className="text-muted-foreground text-sm">Chat with gig posters and applicants</p>
-            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/messages/broadcast">
+                <Megaphone className="h-4 w-4 mr-2" />
+                Broadcast
+              </Link>
+            </Button>
           </div>
 
           <div className="grid md:grid-cols-[350px_1fr] gap-6">
