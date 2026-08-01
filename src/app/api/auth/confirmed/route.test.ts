@@ -9,9 +9,11 @@ const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
 const mockSingle = vi.fn();
 const mockSelectEq = vi.fn(() => ({ single: mockSingle }));
 const mockSelect = vi.fn(() => ({ eq: mockSelectEq }));
+const mockInsert = vi.fn().mockResolvedValue({ error: null });
+const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null });
 const mockFrom = vi.fn((table: string) => {
   // update chain is only used for profiles DID update
-  return { select: mockSelect, update: mockUpdate };
+  return { select: mockSelect, update: mockUpdate, insert: mockInsert };
 });
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -19,7 +21,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/supabase/service", () => ({
-  createServiceClient: vi.fn(() => ({ from: mockFrom })),
+  createServiceClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
 // ── Email mock ─────────────────────────────────────────────────────
@@ -111,6 +113,8 @@ describe("POST /api/auth/confirmed", () => {
     delete process.env.COINPAY_API_URL;
     delete process.env.COINPAY_REPUTATION_API_KEY;
     mockUpdateEq.mockResolvedValue({ error: null });
+    mockInsert.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: [], error: null });
   });
 
   describe("email confirmation", () => {
@@ -203,6 +207,62 @@ describe("POST /api/auth/confirmed", () => {
       expect(res.status).toBe(400);
       expect(json.error).toBe("Invalid request body");
       expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("referral rewards", () => {
+    it("pays through the atomic referral reward function", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          username: null,
+          full_name: "Referred User",
+          account_type: "human",
+          did: "did:key:zExistingDid",
+        },
+        error: null,
+      });
+      mockRpc.mockResolvedValueOnce({
+        data: [{
+          referrer_id: "referrer-123",
+          referrer_balance: 125,
+          referred_balance: 25,
+        }],
+        error: null,
+      });
+
+      const res = await POST(makeRequest(confirmationPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith("pay_referral_reward", {
+        p_referred_user_id: "user-123",
+        p_reward_sats: 25,
+      });
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: "referrer-123",
+          type: "referral_reward",
+        })
+      );
+    });
+
+    it("does not notify when the referral reward was already paid", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          username: null,
+          full_name: "Referred User",
+          account_type: "human",
+          did: "did:key:zExistingDid",
+        },
+        error: null,
+      });
+
+      const res = await POST(makeRequest(confirmationPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledTimes(1);
+      expect(mockInsert).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "referral_reward" })
+      );
     });
   });
 
