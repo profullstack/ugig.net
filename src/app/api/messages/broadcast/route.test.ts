@@ -47,7 +47,7 @@ function makeServiceClient(options: {
   bounties?: { id: string }[];
   bountySubmissions?: { submitter_id: string }[];
   profilesAll?: { id: string }[];
-  existingConversation?: { id: string } | null;
+  existingConversation?: { id: string; participant_ids: string[] } | null;
   notificationSettings?: Record<string, unknown>[];
 }) {
   const {
@@ -300,7 +300,10 @@ describe("POST /api/messages/broadcast", () => {
     const svc = makeServiceClient({
       gigs: [{ id: "gig-1" }],
       applications: [{ applicant_id: APPLICANT_1 }],
-      existingConversation: { id: CONVERSATION_ID },
+      existingConversation: {
+        id: CONVERSATION_ID,
+        participant_ids: [SENDER, APPLICANT_1],
+      },
     });
 
     mockCreateServiceClient.mockReturnValue(svc as any);
@@ -309,9 +312,30 @@ describe("POST /api/messages/broadcast", () => {
 
     expect((await res.json()).conversation_id).toBe(CONVERSATION_ID);
     expect(svc.__inserted.conversations).toBeUndefined();
-    // Roster refreshed on reuse
     const convUpdates = svc.__updated.conversations as Record<string, unknown>[];
-    expect(convUpdates[0].participant_ids).toBeDefined();
+    expect(convUpdates.some((update) => "participant_ids" in update)).toBe(false);
+  });
+
+  it("creates a separate thread when the audience roster changes", async () => {
+    authAs(SENDER);
+    const svc = makeServiceClient({
+      gigs: [{ id: "gig-1" }],
+      applications: [{ applicant_id: APPLICANT_1 }],
+      existingConversation: {
+        id: CONVERSATION_ID,
+        participant_ids: [SENDER, APPLICANT_2],
+      },
+    });
+
+    mockCreateServiceClient.mockReturnValue(svc as any);
+
+    const res = await POST(postRequest({ content: "new audience", audience: "gig_applicants" }));
+
+    expect(res.status).toBe(200);
+    const convInsert = svc.__inserted.conversations?.[0] as Record<string, unknown>;
+    expect(convInsert.participant_ids).toEqual([APPLICANT_1, SENDER].sort());
+    const convUpdates = svc.__updated.conversations as Record<string, unknown>[];
+    expect(convUpdates.some((update) => "participant_ids" in update)).toBe(false);
   });
 
   it("notifies, webhooks, and emails every recipient", async () => {

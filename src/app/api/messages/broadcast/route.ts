@@ -39,6 +39,12 @@ function forbiddenAudience(audience: BroadcastAudience, admin: boolean): boolean
   return ADMIN_ONLY_AUDIENCES.includes(audience) && !admin;
 }
 
+function hasSameParticipants(existing: string[] | null, current: string[]): boolean {
+  if (!existing || existing.length !== current.length) return false;
+  const existingIds = new Set(existing);
+  return current.every((id) => existingIds.has(id));
+}
+
 // GET /api/messages/broadcast
 // Recipient counts per audience, so the composer can show "will reach N people"
 // before anything is sent. Admin-only audiences are omitted for non-admins.
@@ -116,25 +122,24 @@ export async function POST(request: NextRequest) {
 
     const participantIds = [user.id, ...recipientIds].sort();
 
-    // Reuse the thread for this (owner, audience) pair so repeat broadcasts
-    // stay in one conversation. Looked up by the indexed columns rather than a
-    // participant_ids containment probe, which degrades at broadcast sizes.
-    const { data: existing } = await svc
+    // Reuse a thread only when both the audience key and exact roster match.
+    // Changing participant_ids on an older thread would grant the new roster
+    // access to its entire message history.
+    const { data: existingThreads } = await svc
       .from("conversations")
-      .select("id")
+      .select("id, participant_ids")
       .eq("broadcast_owner_id", user.id)
       .eq("broadcast_audience", audience)
-      .eq("is_broadcast", true)
-      .maybeSingle();
+      .eq("is_broadcast", true);
+
+    const existing = (existingThreads ?? []).find((thread) =>
+      hasSameParticipants(thread.participant_ids, participantIds)
+    );
 
     let conversationId: string;
     if (existing?.id) {
       conversationId = existing.id;
-      // Audiences grow between sends; keep the roster current.
-      await svc
-        .from("conversations")
-        .update({ participant_ids: participantIds, archived_at: null })
-        .eq("id", conversationId);
+      await svc.from("conversations").update({ archived_at: null }).eq("id", conversationId);
     } else {
       const { data: created, error: convError } = await svc
         .from("conversations")
