@@ -20,25 +20,51 @@ export async function GET(
   try {
     const supabase = createServiceClient();
 
-    // Look up the user's profile and LNbits wallet
-    const { data: profile } = await supabase
+    // Look up the user's profile and LNbits wallet.
+    //
+    // Usernames are stored with their original case but Lightning Addresses are
+    // advertised lowercased, so this has to match case-insensitively — comparing
+    // against username.toLowerCase() alone never matches a mixed-case profile.
+    // ilike is only a prefilter (its wildcards are escaped, but the strict
+    // lowercase comparison below is what actually decides the match, so an
+    // over-broad pattern can never resolve to the wrong person).
+    const pattern = username.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const { data: candidates } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('username', username.toLowerCase())
-      .single();
+      .select('id, username')
+      .ilike('username', pattern)
+      .limit(10);
 
-    if (!profile) {
+    const wanted = username.toLowerCase();
+    const matches = (candidates ?? []).filter(
+      (c: { username: string | null }) => c.username?.toLowerCase() === wanted
+    );
+    // Prefer an exact-case match; a handful of usernames differ only by case.
+    const ordered = [
+      ...matches.filter((c: { username: string | null }) => c.username === username),
+      ...matches.filter((c: { username: string | null }) => c.username !== username),
+    ];
+
+    if (ordered.length === 0) {
       return NextResponse.json(
         { status: 'ERROR', reason: `Unknown user: ${username}` },
         { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
-    const { data: lnWallet } = await (supabase
-      .from('user_ln_wallets' as any)
-      .select('invoice_key')
-      .eq('user_id', profile.id)
-      .single() as any);
+    // Where names collide only by case, the one with a wallet is the payee.
+    let lnWallet: { invoice_key?: string } | null = null;
+    for (const candidate of ordered) {
+      const { data } = await (supabase
+        .from('user_ln_wallets' as any)
+        .select('invoice_key')
+        .eq('user_id', candidate.id)
+        .maybeSingle() as any);
+      if (data?.invoice_key) {
+        lnWallet = data;
+        break;
+      }
+    }
 
     if (!lnWallet?.invoice_key) {
       return NextResponse.json(
