@@ -47,6 +47,52 @@ function shannonEntropy(str: string): number {
   }, 0);
 }
 
+// Corroborating randomness signals for the entropy check. Each is deliberately
+// weaker than the standalone patterns above and is never used on its own -- they
+// only gate the entropy branch. Generated strings are unbroken tokens that are
+// consonant-heavy, randomly cased, or carry capital runs; names a human picked use
+// separators or read as words.
+function looksGenerated(str: string): boolean {
+  const hasSeparator = /[_.\-]/.test(str);
+  const lower = str.toLowerCase();
+  const letters = lower.replace(/[^a-z]/g, "");
+  const vowelRatio = letters.length
+    ? letters.replace(/[^aeiou]/g, "").length / letters.length
+    : 1;
+
+  // Case flips between adjacent letters: random generators flip constantly,
+  // CamelCase flips once per word.
+  let caseSwitches = 0;
+  for (let i = 1; i < str.length; i++) {
+    const prev = str[i - 1];
+    const curr = str[i];
+    if (
+      /[a-zA-Z]/.test(prev) &&
+      /[a-zA-Z]/.test(curr) &&
+      (prev === prev.toUpperCase()) !== (curr === curr.toUpperCase())
+    ) {
+      caseSwitches++;
+    }
+  }
+  const caseSwitchRatio = caseSwitches / str.length;
+
+  const longestRun = (s: string, re: RegExp) =>
+    (s.match(re) ?? []).reduce((max, run) => Math.max(max, run.length), 0);
+  // Run over the full string so separators and digits break clusters, matching
+  // check_username_spam() in SQL. 'y' is excluded as a semivowel: counting it turns
+  // readable compounds into false clusters ("watchingmyhuman" -> "ngmyh").
+  const maxConsonantRun = longestRun(lower, /[bcdfghjklmnpqrstvwxz]+/g);
+  const maxUpperRun = longestRun(str, /[A-Z]+/g);
+
+  return (
+    (!hasSeparator && caseSwitchRatio > 0.25) ||
+    (!hasSeparator && vowelRatio < 0.25) ||
+    // 6 rather than 5 because real compounds reach 5 ("northstar" -> "rthst").
+    maxConsonantRun >= 6 ||
+    (!hasSeparator && /[a-z]/.test(str) && maxUpperRun >= 3)
+  );
+}
+
 export function checkSpam(
   username: string,
   fullName?: string | null
@@ -62,8 +108,15 @@ export function checkSpam(
     return { spam: true, reason: "Username appears to be random characters" };
   }
 
-  // High entropy + long username = likely random/bot
-  if (username.length > 12 && shannonEntropy(username) > 4.0) {
+  // High entropy on its own is not evidence of a bot: entropy grows with length and
+  // character diversity, so a long descriptive name scores as high as a generated
+  // one. Require a corroborating randomness signal. Thresholds match
+  // check_username_spam() in SQL, which is what actually sets profiles.is_spam.
+  if (
+    username.length > 10 &&
+    shannonEntropy(username) > 3.8 &&
+    looksGenerated(username)
+  ) {
     return { spam: true, reason: "Username appears randomly generated" };
   }
 
