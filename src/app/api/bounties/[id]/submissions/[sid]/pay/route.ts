@@ -4,6 +4,7 @@ import {
   createPayment,
   getCoinpayGlobalWalletTokens,
   preferredCoinToPaymentCurrency,
+  type SupportedCurrency,
 } from "@/lib/coinpayportal";
 import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
 
@@ -79,6 +80,12 @@ export async function POST(
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const businessId = process.env.COINPAY_MERCHANT_ID;
     const preferredCurrency = preferredCoinToPaymentCurrency(bounty.payment_coin);
+    if (!preferredCurrency) {
+      return NextResponse.json(
+        { error: `Unsupported bounty payment coin: ${String(bounty.payment_coin || "unknown")}` },
+        { status: 400 }
+      );
+    }
 
     // Prefer the submitter's live CoinPay wallet when OAuth is healthy. If the
     // provider OAuth client cannot grant wallet:read, fall back to the matching
@@ -86,7 +93,7 @@ export async function POST(
     // profile. Profile wallet addresses are user-controlled payout coordinates
     // and are already exposed by the profile wallet-address API specifically so
     // payers can use them without an OAuth lookup.
-    type PayoutWallet = { currency: string; address: string; label?: string | null };
+    type PayoutWallet = { currency: SupportedCurrency; address: string; label?: string | null };
     let payoutWallet: PayoutWallet | null = null;
 
     const submitterToken = await getConnectedCoinpayAccessToken(submission.submitter_id);
