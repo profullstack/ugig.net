@@ -8,9 +8,7 @@ import {
 import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
 
 // POST /api/bounties/[id]/submissions/[sid]/pay
-// Creator generates a CoinPay in-app payment for an approved submission,
-// matching the post-#224 gig invoice flow (in-app payment address, not a
-// redirect to a hosted invoice page).
+// Creator generates a CoinPay in-app payment for an approved submission.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; sid: string }> }
@@ -56,8 +54,6 @@ export async function POST(
     }
 
     const metadata = (submission.metadata || {}) as Record<string, unknown>;
-    // Never reopen a completed payout. Old hosted-checkout rows can lack address metadata,
-    // but paid rows must stay terminal even if this endpoint is called directly.
     if (submission.payout_status === "paid") {
       return NextResponse.json(
         { error: "Submission has already been paid" },
@@ -65,10 +61,6 @@ export async function POST(
       );
     }
 
-    // Already invoiced with in-app payment details — return existing details.
-    // Older hosted-checkout invoice rows may have a CoinPay invoice id/pay_url but no address
-    // metadata; let those fall through and create a fresh in-app payment request so creators
-    // are not stuck.
     if (submission.coinpay_invoice_id && metadata.payment_address) {
       return NextResponse.json({
         data: {
@@ -86,38 +78,69 @@ export async function POST(
 
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const businessId = process.env.COINPAY_MERCHANT_ID;
-
-    // Resolve the SUBMITTER's CoinPay receiving wallet so the payout forwards to
-    // the bounty winner — not the platform business wallet. Unlike invoices
-    // (where the worker creates the invoice and picks their wallet), the
-    // submitter isn't present here, so we look up their connected CoinPay
-    // wallets server-side and default to the one matching the bounty's payment
-    // coin, falling back to their first wallet.
-    const submitterToken = await getConnectedCoinpayAccessToken(submission.submitter_id);
-    if (!submitterToken) {
-      return NextResponse.json(
-        {
-          error: "The bounty winner must connect CoinPay before they can be paid",
-          setup_required: true,
-        },
-        { status: 409 }
-      );
-    }
-    const submitterWallets = await getCoinpayGlobalWalletTokens({ access_token: submitterToken });
-    if (submitterWallets.length === 0) {
-      return NextResponse.json(
-        {
-          error: "The bounty winner must add a CoinPay receiving wallet before they can be paid",
-          setup_required: true,
-        },
-        { status: 409 }
-      );
-    }
     const preferredCurrency = preferredCoinToPaymentCurrency(bounty.payment_coin);
-    const payoutWallet =
-      submitterWallets.find((w) => w.currency === preferredCurrency) || submitterWallets[0];
-    const paymentCurrency = payoutWallet.currency;
 
+    // Prefer the submitter's live CoinPay wallet when OAuth is healthy. If the
+    // provider OAuth client cannot grant wallet:read, fall back to the matching
+    // wallet address that the submitter has already stored on their own uGig
+    // profile. Profile wallet addresses are user-controlled payout coordinates
+    // and are already exposed by the profile wallet-address API specifically so
+    // payers can use them without an OAuth lookup.
+    type PayoutWallet = { currency: string; address: string; label?: string | null };
+    let payoutWallet: PayoutWallet | null = null;
+
+    const submitterToken = await getConnectedCoinpayAccessToken(submission.submitter_id);
+    if (submitterToken) {
+      const submitterWallets = await getCoinpayGlobalWalletTokens({ access_token: submitterToken });
+      payoutWallet =
+        submitterWallets.find((w) => w.currency === preferredCurrency) || submitterWallets[0] || null;
+    }
+
+    if (!payoutWallet) {
+      const { data: submitterProfile } = await (supabase as any)
+        .from("profiles")
+        .select("wallet_addresses")
+        .eq("id", submission.submitter_id)
+        .single();
+
+      const storedWallets = Array.isArray(submitterProfile?.wallet_addresses)
+        ? submitterProfile.wallet_addresses
+        : [];
+      const normalizeCurrency = (value: unknown) =>
+        String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normalizedPreferred = normalizeCurrency(preferredCurrency);
+      const storedWallet = storedWallets
+        .filter(
+          (w: any) =>
+            w &&
+            typeof w === "object" &&
+            typeof w.address === "string" &&
+            w.address.trim().length > 0 &&
+            normalizeCurrency(w.currency) === normalizedPreferred
+        )
+        .sort((a: any, b: any) => Number(Boolean(b.is_preferred)) - Number(Boolean(a.is_preferred)))[0];
+
+      if (storedWallet) {
+        payoutWallet = {
+          currency: preferredCurrency,
+          address: storedWallet.address.trim(),
+          label: storedWallet.label || `${storedWallet.currency || bounty.payment_coin} profile wallet`,
+        };
+      }
+    }
+
+    if (!payoutWallet) {
+      return NextResponse.json(
+        {
+          error:
+            "The bounty winner must connect CoinPay or add a matching receiving wallet to their uGig profile before they can be paid",
+          setup_required: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const paymentCurrency = payoutWallet.currency;
     const paymentResult = await createPayment({
       amount_usd: Number(bounty.payout_usd),
       currency: paymentCurrency,
@@ -133,7 +156,7 @@ export async function POST(
         submitter_id: submission.submitter_id,
         payment_currency: paymentCurrency,
         merchant_wallet_address: payoutWallet.address,
-        merchant_wallet_label: payoutWallet.label,
+        merchant_wallet_label: payoutWallet.label || null,
         platform: "ugig.net",
       },
     });
@@ -177,7 +200,7 @@ export async function POST(
           amount_crypto: amountCrypto,
           payment_currency: responseCurrency,
           merchant_wallet_address: payoutWallet.address,
-          merchant_wallet_label: payoutWallet.label,
+          merchant_wallet_label: payoutWallet.label || null,
           checkout_url: checkoutUrl,
           expires_at: expiresAt,
         },
