@@ -1,0 +1,50 @@
+openapi: 3.0.3
+components:
+  schemas:
+    GigInput:
+      type: object
+      required:
+        - title
+        - description
+        - category
+        - skills_required
+        - budget_type
+        - location_type
+        - listing_type
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        skills_required:
+          type: array
+          items:
+            type: string
+        budget_type:
+          type: string
+        location_type:
+          type: string
+        listing_type:
+          type: string
+          enum: [hiring, for_hire]
+          description: "hiring = I want to hire someone, for_hire = I am offering a service"
+    #... other schemas
+paths:
+  /api/gigs:
+    get:
+      summary: List gigs
+      parameters:
+        - name: listing_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [hiring, for_hire, all]
+            default: hiring
+          description: "Filters listings. Default is 'hiring', which hides 'for_hire' listings."
+      responses:
+        '200':
+          description: OK
+  #... other paths
