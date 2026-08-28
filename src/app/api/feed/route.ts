@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { feedFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { getBlockedUserIds, notInFilter } from "@/lib/blocks";
 
 function parsePaginationParam(
   value: string | null,
@@ -46,6 +47,11 @@ export async function GET(request: NextRequest) {
     if (auth) {
       currentUserId = auth.user.id;
     }
+
+    // Hide posts by anyone on either side of a block.
+    const blockedAuthorFilter = notInFilter(
+      await getBlockedUserIds(supabase, currentUserId)
+    );
 
     // Handle "following" sort — requires auth and fetches followed tags
     if (sort === "following") {
@@ -97,6 +103,10 @@ export async function GET(request: NextRequest) {
 
       if (tag) {
         followQuery = followQuery.contains("tags", [tag]);
+      }
+
+      if (blockedAuthorFilter) {
+        followQuery = followQuery.not("author_id", "in", blockedAuthorFilter);
       }
 
       followQuery = followQuery
@@ -168,6 +178,10 @@ export async function GET(request: NextRequest) {
     // Filter by tag
     if (tag) {
       query = query.contains("tags", [tag]);
+    }
+
+    if (blockedAuthorFilter) {
+      query = query.not("author_id", "in", blockedAuthorFilter);
     }
 
     // Apply sorting

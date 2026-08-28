@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
+import { usersAreBlocked } from "@/lib/blocks";
 import { z } from "zod";
 
 const sendMessageSchema = z.object({
@@ -56,6 +57,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Cannot send a message to yourself" },
         { status: 400 }
+      );
+    }
+
+    if (await usersAreBlocked(supabase, user.id, recipientProfile.id)) {
+      return NextResponse.json(
+        { error: "You cannot message this user" },
+        { status: 403 }
       );
     }
 

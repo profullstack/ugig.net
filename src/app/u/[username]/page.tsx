@@ -40,6 +40,8 @@ import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { TestimonialSection } from "@/components/testimonials/TestimonialSection";
 import { CompletedGigs } from "@/components/profile/CompletedGigs";
 import { ProfileActivityStats } from "@/components/profile/ProfileActivityStats";
+import { BlockButton } from "@/components/blocks/BlockButton";
+import { usersAreBlocked } from "@/lib/blocks";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -109,6 +111,46 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
 
   if (error || !profile) {
     notFound();
+  }
+
+  // Block state. The viewer's own blocks are readable directly — RLS exposes
+  // rows where they are the blocker — but the reverse direction is deliberately
+  // hidden, so it goes through the symmetric RPC.
+  let viewerBlockedProfile = false;
+  let viewerIsBlocked = false;
+
+  if (currentUser && currentUser.id !== profile.id) {
+    const { data: ownBlock } = await supabase
+      .from("user_blocks")
+      .select("id")
+      .eq("blocker_id", currentUser.id)
+      .eq("blocked_id", profile.id)
+      .maybeSingle();
+
+    viewerBlockedProfile = !!ownBlock;
+    viewerIsBlocked =
+      !viewerBlockedProfile &&
+      (await usersAreBlocked(supabase, currentUser.id, profile.id));
+  }
+
+  // Blocked by this user: show nothing about them beyond the fact that the
+  // profile is closed. Returning here also skips every query below.
+  if (viewerIsBlocked) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto p-6 bg-card rounded-lg border border-border text-center">
+            <h1 className="text-xl font-semibold mb-2">
+              This profile isn&apos;t available
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              You can&apos;t view @{username}&apos;s profile.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   // Get user's average rating
@@ -241,6 +283,16 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Profile Section */}
           <div className="lg:col-span-2 space-y-6">
+            {viewerBlockedProfile && (
+              <div className="p-4 bg-muted rounded-lg border border-border text-sm">
+                <p className="font-medium">You blocked @{profile.username}.</p>
+                <p className="text-muted-foreground mt-1">
+                  Their posts are hidden from your feed and neither of you can
+                  message the other. Unblock to undo this.
+                </p>
+              </div>
+            )}
+
             {/* Banner Image */}
             <div className="relative w-full h-[200px] sm:h-[250px] rounded-lg overflow-hidden border border-border">
               {profile.banner_url ? (
@@ -304,17 +356,25 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {currentUser && currentUser.id !== profile.id && (
-                        <>
-                          <FollowButton username={profile.username} />
-                          <StartConversationButton
-                            recipientId={profile.id}
-                            variant="outline"
-                            size="sm"
+                      {currentUser &&
+                        currentUser.id !== profile.id &&
+                        (viewerBlockedProfile ? (
+                          <BlockButton
+                            username={profile.username}
+                            initialBlocked
                           />
-                          <ZapButton targetType="profile" targetId={profile.id} recipientId={profile.id} />
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <FollowButton username={profile.username} />
+                            <StartConversationButton
+                              recipientId={profile.id}
+                              variant="outline"
+                              size="sm"
+                            />
+                            <ZapButton targetType="profile" targetId={profile.id} recipientId={profile.id} />
+                            <BlockButton username={profile.username} />
+                          </>
+                        ))}
                       {!currentUser && (
                         <Link href={`/login?redirect=/u/${username}`}>
                           <Button variant="outline" size="sm">
@@ -710,7 +770,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
             />
 
             {/* Contact CTA */}
-            {profile.id !== currentUser?.id && (
+            {profile.id !== currentUser?.id && !viewerBlockedProfile && (
               <div className="p-6 bg-card rounded-lg border border-border">
                 <h2 className="text-lg font-semibold mb-3">Contact</h2>
                 <p className="text-sm text-muted-foreground mb-4">

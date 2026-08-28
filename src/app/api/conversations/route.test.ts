@@ -25,11 +25,16 @@ const NEW_CONV = "00000000-0000-4000-a000-0000000000c9";
  * rejects an unsuitable row rather than relying on the query to exclude it.
  * `appliedFilters` records what the route asked for.
  */
-function makeSupabase(conversationRows: Record<string, unknown>[]) {
+function makeSupabase(
+  conversationRows: Record<string, unknown>[],
+  { blocked = false }: { blocked?: boolean } = {}
+) {
   const appliedFilters: { method: string; args: unknown[] }[] = [];
   const inserted: Record<string, unknown>[] = [];
 
   const client = {
+    // users_are_blocked(), consulted before a conversation is created.
+    rpc: () => Promise.resolve({ data: blocked, error: null }),
     from(table: string) {
       const chain: Record<string, unknown> = {};
 
@@ -209,6 +214,28 @@ describe("POST /api/conversations — gig-scoped", () => {
     const body = await res.json();
 
     expect(body.data.id).toBe(DIRECT_CONV);
+    expect(supabase.__inserted).toHaveLength(0);
+  });
+});
+
+describe("POST /api/conversations — blocking", () => {
+  it("refuses to start a direct conversation with a blocked user", async () => {
+    const supabase = makeSupabase([], { blocked: true });
+    mocks.getAuthContext.mockResolvedValue({ user: { id: ME }, supabase });
+
+    const res = await POST(makeRequest({ recipient_id: THEM }));
+
+    expect(res.status).toBe(403);
+    expect(supabase.__inserted).toHaveLength(0);
+  });
+
+  it("refuses inside a gig too, where both parties have a reason to talk", async () => {
+    const supabase = makeSupabase([], { blocked: true });
+    mocks.getAuthContext.mockResolvedValue({ user: { id: ME }, supabase });
+
+    const res = await POST(makeRequest({ recipient_id: THEM, gig_id: GIG }));
+
+    expect(res.status).toBe(403);
     expect(supabase.__inserted).toHaveLength(0);
   });
 });

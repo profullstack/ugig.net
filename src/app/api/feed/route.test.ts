@@ -5,8 +5,12 @@ import { NextRequest } from "next/server";
 
 const mockFrom = vi.fn();
 
+// The feed asks blocked_user_ids() who to hide; default to nobody blocked.
+const mockRpc = vi.fn(() => Promise.resolve({ data: [], error: null }));
+
 const supabaseClient = {
   from: mockFrom,
+  rpc: mockRpc,
 };
 
 vi.mock("@/lib/supabase/server", () => ({

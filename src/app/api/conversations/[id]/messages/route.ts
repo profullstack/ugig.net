@@ -5,6 +5,7 @@ import { messageSchema } from "@/lib/validations";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
+import { usersAreBlocked } from "@/lib/blocks";
 
 function parseLimit(value: string | null) {
   const parsed = Number(value && value.trim() !== "" ? value : 50);
@@ -136,6 +137,22 @@ export async function POST(
 
     if (!conversation.participant_ids.includes(user.id)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // An existing thread is no way around a block. Only two-party threads are
+    // gated — a group or broadcast thread is not a private channel to any one
+    // participant, so blocking one member does not close it.
+    const otherParticipants = conversation.participant_ids.filter(
+      (id: string) => id !== user.id
+    );
+    if (
+      otherParticipants.length === 1 &&
+      (await usersAreBlocked(supabase, user.id, otherParticipants[0]))
+    ) {
+      return NextResponse.json(
+        { error: "You cannot message this user" },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

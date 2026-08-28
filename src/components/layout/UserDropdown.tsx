@@ -15,6 +15,7 @@ import {
   Zap,
   Mail,
   Link as LinkIcon,
+  Ban,
 } from "lucide-react";
 
 interface UserDropdownProps {
@@ -155,6 +156,14 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
             >
               <LinkIcon className="h-4 w-4" />
               OAuth Connections
+            </Link>
+            <Link
+              href="/settings/blocked"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <Ban className="h-4 w-4" />
+              Blocked Users
             </Link>
             <Link
               href="/dashboard/zaps"

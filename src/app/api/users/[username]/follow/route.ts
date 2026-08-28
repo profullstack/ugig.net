@@ -3,6 +3,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, newFollowerEmail } from "@/lib/email";
 import { getUserDid, onFollowed } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { usersAreBlocked } from "@/lib/blocks";
 
 // POST /api/users/[username]/follow — follow a user
 export async function POST(
@@ -32,6 +33,14 @@ export async function POST(
       return NextResponse.json(
         { error: "You cannot follow yourself" },
         { status: 400 }
+      );
+    }
+
+    // Blocking is symmetric: neither side may follow the other.
+    if (await usersAreBlocked(supabase, user.id, targetProfile.id)) {
+      return NextResponse.json(
+        { error: "You cannot follow this user" },
+        { status: 403 }
       );
     }
 

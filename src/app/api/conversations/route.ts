@@ -3,6 +3,7 @@ import { conversationCreateSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { usersAreBlocked } from "@/lib/blocks";
 
 const ARCHIVE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -159,6 +160,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Recipient not found" },
         { status: 404 }
+      );
+    }
+
+    // A block cuts contact both ways, gig context included.
+    if (await usersAreBlocked(supabase, user.id, recipient_id)) {
+      return NextResponse.json(
+        { error: "You cannot message this user" },
+        { status: 403 }
       );
     }
 

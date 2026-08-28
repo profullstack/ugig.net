@@ -6,8 +6,12 @@ import { GET, POST, DELETE } from "./route";
 
 const mockFrom = vi.fn();
 
+// users_are_blocked() gates the follow; default to no block between the pair.
+const mockRpc = vi.fn(() => Promise.resolve({ data: false, error: null }));
+
 const supabaseClient = {
   from: mockFrom,
+  rpc: mockRpc,
 };
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -241,6 +245,30 @@ describe("POST /api/users/[username]/follow", () => {
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("Already following this user");
+  });
+
+  it("returns 403 and inserts nothing when the pair is blocked", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    mockRpc.mockResolvedValueOnce({ data: true, error: null });
+
+    const profileChain = chainResult({
+      data: { id: "target-456", username: "testuser", full_name: "Test User" },
+      error: null,
+    });
+    const insertChain: Record<string, unknown> = {};
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    insertChain.insert = insert;
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? profileChain : insertChain;
+    });
+
+    const res = await POST(makeRequest("POST"), routeParams);
+
+    expect(res.status).toBe(403);
+    expect(insert).not.toHaveBeenCalled();
   });
 });
 

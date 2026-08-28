@@ -1223,6 +1223,45 @@ export type Database = {
           }
         ];
       };
+      user_blocks: {
+        Row: {
+          id: string;
+          blocker_id: string;
+          blocked_id: string;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          blocker_id: string;
+          blocked_id: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          blocker_id?: string;
+          blocked_id?: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       posts: {
         Row: {
           id: string;
@@ -1641,6 +1680,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      users_are_blocked: {
+        Args: {
+          user_a: string;
+          user_b: string;
+        };
+        Returns: boolean;
+      };
+      blocked_user_ids: {
+        Args: {
+          for_user: string;
+        };
+        Returns: {
+          user_id: string;
+        }[];
+      };
       increment_gig_usage: {
         Args: {
           p_user_id: string;
