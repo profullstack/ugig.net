@@ -20,6 +20,10 @@
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
   --color-ring: #2563eb;
+  /* Chart series. Validated for CVD separation and >=3:1 contrast against the
+     card surface in both modes; see src/components/stats. */
+  --color-chart-cost: #2563eb;
+  --color-chart-work: #eb6834;
   --radius: 0.5rem;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -43,6 +47,9 @@
     --color-destructive: #dc2626;
     --color-destructive-foreground: #ffffff;
     --color-ring: #3b82f6;
+    /* Re-stepped for the dark card surface, not an automatic flip. */
+    --color-chart-cost: #3b82f6;
+    --color-chart-work: #d95926;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
   }

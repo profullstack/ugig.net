@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
 import {
+  BarChart3,
   Briefcase,
   FileText,
   Eye,
@@ -339,6 +340,19 @@ export default async function DashboardPage() {
                 </Link>
 
                 <Link
+                  href="/dashboard/stats"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-purple-500/40 hover:bg-purple-500/5 transition-all duration-200"
+                >
+                  <div className="p-2.5 bg-purple-500/10 rounded-xl w-fit mb-3">
+                    <BarChart3 className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <h3 className="font-medium">Stats</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Productivity vs. cost over any time frame
+                  </p>
+                </Link>
+
+                <Link
                   href="/dashboard/bounties"
                   className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-pink-500/40 hover:bg-pink-500/5 transition-all duration-200"
                 >
@@ -527,6 +541,12 @@ export default async function DashboardPage() {
                   className="block p-2.5 pl-3 rounded-lg bg-primary/10 text-primary font-medium border-l-2 border-primary transition-all duration-150"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  href="/dashboard/stats"
+                  className="block p-2.5 pl-3 rounded-lg hover:bg-muted/50 text-muted-foreground border-l-2 border-transparent hover:border-muted-foreground/30 transition-all duration-150"
+                >
+                  Stats
                 </Link>
                 <Link
                   href="/dashboard/gigs"
