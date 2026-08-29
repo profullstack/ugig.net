@@ -126,6 +126,14 @@ export function UserDropdown({ username, fullName, avatarUrl }: UserDropdownProp
               Dashboard
             </Link>
             <Link
+              href="/teams"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <Users className="h-4 w-4" />
+              Teams
+            </Link>
+            <Link
               href="/profile"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors cursor-pointer"

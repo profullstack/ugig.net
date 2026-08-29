@@ -3,7 +3,11 @@ const { spawnSync } = require("child_process");
 const { cpSync, existsSync, rmSync } = require("fs");
 const { join } = require("path");
 
-const nodeOptions = [process.env.NODE_OPTIONS, "--max-old-space-size=1024"]
+// Build-stage heap only — the deployed container keeps its own smaller cap
+// (NODE_OPTIONS in the Dockerfile's runner stage). At 1024 the "Running
+// TypeScript" step now dies with "Ineffective mark-compacts near heap limit";
+// the project outgrew that ceiling.
+const nodeOptions = [process.env.NODE_OPTIONS, "--max-old-space-size=2048"]
   .filter(Boolean)
   .join(" ");
 
