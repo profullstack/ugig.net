@@ -9,6 +9,8 @@ const mockAuth = vi.fn();
 
 const supabaseClient = {
   from: mockFrom,
+  // users_are_blocked — nobody is blocked in these fixtures.
+  rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
   auth: {
     admin: {
       getUserById: vi.fn().mockResolvedValue({ data: null }),

@@ -3,6 +3,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, videoCallInviteEmail } from "@/lib/email";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import { usersAreBlocked } from "@/lib/blocks";
 
 const createVideoCallSchema = z.object({
   participant_id: z.string().uuid("Invalid participant ID"),
@@ -129,6 +130,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Cannot create a call with yourself" },
         { status: 400 }
+      );
+    }
+
+    // A call invite emails the participant, so a block has to stop it the same
+    // way it stops a DM.
+    if (await usersAreBlocked(supabase, user.id, participant_id)) {
+      return NextResponse.json(
+        { error: "You cannot start a call with this user" },
+        { status: 403 }
       );
     }
 

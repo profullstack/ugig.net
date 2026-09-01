@@ -6,6 +6,7 @@ import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail, mentionInComm
 import { parseMentions } from "@/lib/mentions";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { getBlockedUserIds, usersAreBlocked } from "@/lib/blocks";
 
 const MAX_COMMENT_DEPTH = 4; // 0-indexed, so 5 levels (0,1,2,3,4)
 
@@ -166,6 +167,18 @@ export async function POST(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
+    // Commenting emails the post author, so a block has to stop it the same way
+    // it stops a DM.
+    if (
+      post.author_id !== user.id &&
+      (await usersAreBlocked(supabase, user.id, post.author_id))
+    ) {
+      return NextResponse.json(
+        { error: "You cannot comment on this post" },
+        { status: 403 }
+      );
+    }
+
     // If replying, verify parent exists and check depth
     let parentDepth = -1;
     let parentComment: { id: string; post_id: string; parent_id: string | null; depth: number; author_id: string; content: string } | null = null;
@@ -197,6 +210,17 @@ export async function POST(
             error: `Maximum comment depth of ${MAX_COMMENT_DEPTH + 1} levels reached.`,
           },
           { status: 400 }
+        );
+      }
+
+      // The reply emails the parent's author, who may not be the post author.
+      if (
+        pc.author_id !== user.id &&
+        (await usersAreBlocked(supabase, user.id, pc.author_id))
+      ) {
+        return NextResponse.json(
+          { error: "You cannot reply to this comment" },
+          { status: 403 }
         );
       }
 
@@ -367,9 +391,15 @@ export async function POST(
         .select("id, username, full_name")
         .in("username", mentionedUsernames);
 
+      // An @mention is the one path here that reaches someone who was never
+      // part of the thread, so a block has to be filtered out rather than
+      // rejected — the rest of the comment is still legitimate.
+      const blockedIds = new Set(await getBlockedUserIds(supabase, user.id));
+
       if (mentionedProfiles && mentionedProfiles.length > 0) {
         for (const mentionedUser of mentionedProfiles) {
           if (notifiedUserIds.has(mentionedUser.id)) continue;
+          if (blockedIds.has(mentionedUser.id)) continue;
           notifiedUserIds.add(mentionedUser.id);
 
           void supabase

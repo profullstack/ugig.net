@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { usersAreBlocked } from "@/lib/blocks";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -67,6 +68,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "You cannot apply to your own gig" },
         { status: 400 }
+      );
+    }
+
+    // An application emails the poster and opens a thread with them, so a block
+    // has to stop it the same way it stops a DM.
+    if (await usersAreBlocked(supabase, user.id, gig.poster_id)) {
+      return NextResponse.json(
+        { error: "You cannot apply to this gig" },
+        { status: 403 }
       );
     }
 

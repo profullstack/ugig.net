@@ -15,6 +15,8 @@ const mockLimit = vi.fn();
 
 const supabaseClient = {
   from: mockFrom,
+  // users_are_blocked — nobody is blocked in these fixtures.
+  rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
 };
 
 const mockGetUserById = vi.fn();
