@@ -3,6 +3,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, newMessageEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { z } from "zod";
 
 const bodySchema = z.object({
@@ -78,11 +79,18 @@ export async function POST(
       return NextResponse.json({ error: appsError.message }, { status: 400 });
     }
 
+    // A message-all is a fan-out, so a block drops that one applicant rather
+    // than rejecting the whole send.
+    const blockedIds = new Set(await getBlockedUserIds(svc, user.id));
+
     const applicantIds = Array.from(
       new Set(
         (applications ?? [])
           .map((a) => a.applicant_id as string)
-          .filter((id): id is string => !!id && id !== user.id)
+          .filter(
+            (id): id is string =>
+              !!id && id !== user.id && !blockedIds.has(id)
+          )
       )
     );
 

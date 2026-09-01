@@ -7,6 +7,14 @@ const mockFrom = vi.fn();
 
 const supabaseClient = {
   from: mockFrom,
+  // Nobody is blocked in these fixtures. The two block RPCs return different
+  // shapes, so dispatch on the name rather than returning one value for both.
+  rpc: vi.fn((fn: string) =>
+    Promise.resolve({
+      data: fn === "blocked_user_ids" ? [] : false,
+      error: null,
+    })
+  ),
 };
 
 vi.mock("@/lib/supabase/server", () => ({

@@ -8,6 +8,8 @@ const mockFrom = vi.fn();
 
 const supabaseClient = {
   from: mockFrom,
+  // users_are_blocked — nobody is blocked in these fixtures.
+  rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
 };
 
 vi.mock("@/lib/supabase/server", () => ({

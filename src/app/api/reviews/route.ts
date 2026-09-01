@@ -7,6 +7,7 @@ import { sendEmail, reviewReceivedEmail } from "@/lib/email";
 import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { parsePaginationParam } from "@/lib/api-pagination";
+import { usersAreBlocked } from "@/lib/blocks";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -144,6 +145,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "You cannot review yourself" },
         { status: 400 }
+      );
+    }
+
+    // A review emails the reviewee and lands on their public profile, so a
+    // block has to stop it the same way it stops a DM.
+    if (await usersAreBlocked(supabase, user.id, reviewee_id)) {
+      return NextResponse.json(
+        { error: "You cannot review this user" },
+        { status: 403 }
       );
     }
 

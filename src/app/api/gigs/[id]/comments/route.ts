@@ -7,6 +7,7 @@ import { sanitizeContent } from "@/lib/sanitize";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { usersAreBlocked } from "@/lib/blocks";
 
 // GET /api/gigs/[id]/comments - List comments for a gig
 export async function GET(
@@ -122,6 +123,18 @@ export async function POST(
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
     }
 
+    // A question on someone's gig emails them, so blocking has to stop it the
+    // same way it stops a DM. Symmetric: neither side may reach the other.
+    if (
+      gig.poster_id !== user.id &&
+      (await usersAreBlocked(supabase, user.id, gig.poster_id))
+    ) {
+      return NextResponse.json(
+        { error: "You cannot comment on this gig" },
+        { status: 403 }
+      );
+    }
+
     // If replying, verify parent exists and belongs to this gig
     // Also enforce one level of nesting (parent must be a top-level comment)
     if (parent_id) {
@@ -149,6 +162,18 @@ export async function POST(
         return NextResponse.json(
           { error: "Cannot reply to a reply. Only one level of nesting is allowed." },
           { status: 400 }
+        );
+      }
+
+      // The reply emails the parent's author, who may be a different person
+      // from the gig poster checked above.
+      if (
+        parentComment.author_id !== user.id &&
+        (await usersAreBlocked(supabase, user.id, parentComment.author_id))
+      ) {
+        return NextResponse.json(
+          { error: "You cannot reply to this comment" },
+          { status: 403 }
         );
       }
     }

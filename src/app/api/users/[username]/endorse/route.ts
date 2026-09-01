@@ -5,6 +5,7 @@ import { endorseSchema } from "@/lib/validations";
 import { sendEmail, endorsementReceivedEmail } from "@/lib/email";
 import { getUserDid, onEndorsementGiven } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { usersAreBlocked } from "@/lib/blocks";
 
 // POST /api/users/:username/endorse — endorse a skill
 export async function POST(
@@ -46,6 +47,15 @@ export async function POST(
       return NextResponse.json(
         { error: "You cannot endorse yourself" },
         { status: 400 }
+      );
+    }
+
+    // An endorsement emails the person and puts your name on their profile, so
+    // a block has to stop it the same way it stops a follow.
+    if (await usersAreBlocked(supabase, user.id, endorsedProfile.id)) {
+      return NextResponse.json(
+        { error: "You cannot endorse this user" },
+        { status: 403 }
       );
     }
 

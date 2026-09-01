@@ -156,6 +156,8 @@ function makeServiceClient(options: {
 
   return {
     from: vi.fn((table: string) => builder(table)),
+    // blocked_user_ids — nobody is blocked in these fixtures.
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     auth: {
       admin: {
         listUsers: vi.fn().mockResolvedValue({

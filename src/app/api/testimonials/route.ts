@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendEmail } from "@/lib/email";
+import { usersAreBlocked } from "@/lib/blocks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -165,6 +166,19 @@ export async function POST(request: NextRequest) {
       notifyUserId = profile_id;
       targetLabel = "your profile";
       notificationLink = "/dashboard/testimonials";
+    }
+
+    // A testimonial emails whoever it names, so a block has to stop it the same
+    // way it stops a DM. Checked once here because the branches above settle on
+    // a single recipient.
+    if (
+      notifyUserId !== user.id &&
+      (await usersAreBlocked(serviceClient, user.id, notifyUserId))
+    ) {
+      return NextResponse.json(
+        { error: "You cannot leave a testimonial for this user" },
+        { status: 403 }
+      );
     }
 
     // Any testimonial tied to a gig auto-approves (including gig+profile worker reviews)

@@ -13,6 +13,7 @@ import {
   resolveAudience,
   type BroadcastAudience,
 } from "@/lib/broadcast/audiences";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 export const runtime = "nodejs";
 
@@ -110,11 +111,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "That audience is admin only" }, { status: 403 });
     }
 
-    const { recipientIds, totalMatched, truncated } = await resolveAudience(svc, {
+    const audienceResult = await resolveAudience(svc, {
       audience,
       senderId: user.id,
       statuses,
     });
+    const { totalMatched, truncated } = audienceResult;
+
+    // A broadcast is a fan-out, so a block drops that one person rather than
+    // rejecting the whole send.
+    const blockedIds = new Set(await getBlockedUserIds(svc, user.id));
+    const recipientIds = audienceResult.recipientIds.filter(
+      (id) => !blockedIds.has(id)
+    );
 
     if (recipientIds.length === 0) {
       return NextResponse.json({ error: "No recipients match that audience" }, { status: 400 });
