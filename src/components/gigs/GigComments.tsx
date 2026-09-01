@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { MessageSquare, Reply, Edit2, Trash2, Send, X } from "lucide-react";
 import { ZapButton } from "@/components/zaps/ZapButton";
 import { Button } from "@/components/ui/button";
@@ -174,24 +175,42 @@ export function GigComments({ gigId, currentUserId, gigOwnerId }: GigCommentsPro
   ) => {
     const isEditing = editingId === comment.id;
     const author = comment.author;
+    const displayName = author?.full_name || author?.username || "Unknown";
+    const profileHref = author?.username
+      ? `/u/${encodeURIComponent(author.username)}`
+      : null;
+
+    const avatar = (
+      <Image
+        src={author?.avatar_url || "/default-avatar.svg"}
+        alt={displayName}
+        width={isReply ? 32 : 40}
+        height={isReply ? 32 : 40}
+        className={`${isReply ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover flex-shrink-0`}
+      />
+    );
 
     return (
       <div
         key={comment.id}
         className={`flex gap-3 ${isReply ? "ml-10 pt-3" : ""}`}
       >
-        <Image
-          src={author?.avatar_url || "/default-avatar.svg"}
-          alt={author?.full_name || author?.username || "User"}
-          width={isReply ? 32 : 40}
-          height={isReply ? 32 : 40}
-          className={`${isReply ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover flex-shrink-0`}
-        />
+        {profileHref ? (
+          <Link href={profileHref} className="flex-shrink-0">
+            {avatar}
+          </Link>
+        ) : (
+          avatar
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm">
-              {author?.full_name || author?.username || "Unknown"}
-            </span>
+            {profileHref ? (
+              <Link href={profileHref} className="font-medium text-sm hover:underline">
+                {displayName}
+              </Link>
+            ) : (
+              <span className="font-medium text-sm">{displayName}</span>
+            )}
             {comment.author_id === gigOwnerId && (
               <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                 Poster
