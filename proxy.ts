@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { gate } from "@/lib/crawl-gateway";
 
 const REDIRECTS: Record<string, string> = {
   // Pages now exist at /api-docs, /cli-docs, /openapi, /employers
@@ -106,6 +107,12 @@ function getClientIp(request: NextRequest): string {
 }
 
 export async function proxy(request: NextRequest) {
+  // Crawl gateway first: AI training crawlers get 402 Payment Required (or
+  // the sales page at /crawl) unless they present a paid pass. People,
+  // Googlebot and retrieval crawlers fall through to everything below.
+  const answer = await gate(request);
+  if (answer) return answer;
+
   const ip = getClientIp(request);
   const method = request.method;
   const path = request.nextUrl.pathname;
@@ -195,8 +202,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - static assets by extension (images, fonts, scripts, media)
+     * API routes stay covered on purpose: a training crawler hitting the
+     * API gets 402 from the crawl gateway like everywhere else.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|woff|woff2|ttf|otf|mp3|mp4|webmanifest)$).*)",
   ],
 };

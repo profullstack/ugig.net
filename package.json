@@ -41,6 +41,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
     "@profullstack/stack": "^0.1.0",
+    "@profullstack/x402-gateway": "^0.1.0",
     "@stripe/stripe-js": "^8.6.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
