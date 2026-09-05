@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { gate, gateway } from "./crawl-gateway";
+import { gate, gateway, hasSupabaseSession } from "./crawl-gateway";
 import { GET as robots } from "@/app/robots.txt/route";
 import { proxy } from "@/proxy";
 
@@ -107,7 +107,6 @@ describe("crawl gateway", () => {
 
   it("passes people and retrieval crawlers through", async () => {
     const welcome = [
-      CHROME,
       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
       "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)",
       "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-SearchBot/1.0; +Claude-SearchBot@anthropic.com)",
@@ -116,6 +115,63 @@ describe("crawl gateway", () => {
     for (const ua of welcome) {
       expect(await gate(request("/gigs/anything", ua)), ua).toBeUndefined();
     }
+    expect(await gate(request("/gigs/anything", CHROME, { "sec-fetch-mode": "navigate" }))).toBeUndefined();
+  });
+});
+
+describe("crawlers that do not say who they are", () => {
+  const GOOGLEBOT_EVERGREEN =
+    "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/145.0.0.0 Safari/537.36";
+  const SESSION_COOKIE = "sb-abcdefghijklmnop-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJ4In0";
+
+  it("refuses the OVH VPS fleet by the edge's last-hop address with 403", async () => {
+    const res = await gate(
+      request("/gigs/anything", CHROME, {
+        "sec-fetch-mode": "navigate",
+        "x-forwarded-for": "203.0.113.9, 51.38.20.30",
+      }),
+    );
+    expect(res?.status).toBe(403);
+    expect(res?.headers.get("content-type")).toMatch(/^text\/plain/);
+  });
+
+  it("does not let a client step around the denylist by seeding x-forwarded-for", async () => {
+    const res = await gate(
+      request("/gigs/anything", CHROME, {
+        "sec-fetch-mode": "navigate",
+        "x-forwarded-for": "51.38.20.30, 203.0.113.9",
+      }),
+    );
+    expect(res).toBeUndefined();
+  });
+
+  it("charges a Chrome UA that lacks Sec-Fetch-Mode", async () => {
+    const res = await gate(request("/gigs/x", CHROME));
+    expect(res?.status).toBe(402);
+  });
+
+  it("passes a Chrome UA that sends Sec-Fetch-Mode", async () => {
+    expect(await gate(request("/gigs/x", CHROME, { "sec-fetch-mode": "navigate" }))).toBeUndefined();
+  });
+
+  it("never charges a signed-in visitor, whatever the client looks like", async () => {
+    expect(await gate(request("/gigs/x", CHROME, { cookie: SESSION_COOKIE }))).toBeUndefined();
+    expect(
+      await gate(request("/gigs/x", CHROME, { cookie: `theme=dark; sb-abcdefghijklmnop-auth-token.0=chunk; sb-abcdefghijklmnop-auth-token.1=chunk` })),
+    ).toBeUndefined();
+  });
+
+  it("recognises only a real session cookie", () => {
+    const withCookie = (cookie: string) => new Request("https://ugig.net/", { headers: { cookie } });
+    expect(hasSupabaseSession(withCookie(SESSION_COOKIE))).toBe(true);
+    expect(hasSupabaseSession(withCookie("sb-abcdefghijklmnop-auth-token.0=chunk"))).toBe(true);
+    expect(hasSupabaseSession(withCookie("sb-abcdefghijklmnop-auth-token-code-verifier=pkce"))).toBe(false);
+    expect(hasSupabaseSession(withCookie("theme=dark; referral_code=abc"))).toBe(false);
+    expect(hasSupabaseSession(new Request("https://ugig.net/"))).toBe(false);
+  });
+
+  it("passes Googlebot's evergreen Chrome UA, which sends no Sec-Fetch-Mode", async () => {
+    expect(await gate(request("/gigs/x", GOOGLEBOT_EVERGREEN))).toBeUndefined();
   });
 });
 
@@ -129,7 +185,7 @@ describe("proxy composition", () => {
 
   it("hands a person's request on to the session middleware", async () => {
     updateSession.mockClear();
-    const res = await proxy(request("/gigs/anything", CHROME));
+    const res = await proxy(request("/gigs/anything", CHROME, { "sec-fetch-mode": "navigate" }));
     expect(res?.status).toBe(200);
     expect(updateSession).toHaveBeenCalledTimes(1);
   });
