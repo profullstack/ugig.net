@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { gate, gateway } from "./crawl-gateway";
 import { GET as robots } from "@/app/robots.txt/route";
-import { proxy } from "../../proxy";
+import { proxy } from "@/proxy";
 
 // proxy.ts refreshes the Supabase session after the gateway; stub it so the
 // composition test proves the order without a Supabase client.
