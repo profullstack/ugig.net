@@ -7,7 +7,8 @@
 User-agent: *
 Allow: /*
 
-Training: allow
-Retention: allow
-Commercial-Use: allow
+# Training crawls are paid: $1 buys a day of access. See https://ugig.net/crawl
+Training: disallow
+Retention: disallow
+Commercial-Use: disallow
 Rate-Limit-RPS: 10

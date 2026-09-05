@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /dashboard/
-Disallow: /settings/
-Disallow: /conversations/
-Disallow: /profile/edit
-
-Sitemap: https://ugig.net/sitemap.xml
