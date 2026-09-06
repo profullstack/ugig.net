@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
 import { getAppUrl } from "@/lib/app-url";
+import { logIdentityEvent } from "@/lib/coinpay-disconnect";
 
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 const USERINFO_URL = "https://coinpayportal.com/api/oauth/userinfo";
@@ -152,7 +153,31 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (existingIdentity && existingIdentity.user_id !== savedState.userId) {
-        return redirectWithClearedState(`${connectUrl}?coinpay=already_linked`);
+        // Name the profile that holds the link (#537). "already_linked" alone
+        // was a dead end: the owner could not tell which of their profiles had
+        // claimed it, so they had no way to go and release it. The caller has
+        // just completed an authorization for this exact CoinPay account, so
+        // they have proven they own the identity — and a ugig username is
+        // public regardless.
+        const { data: holder } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", existingIdentity.user_id)
+          .maybeSingle();
+
+        void logIdentityEvent(supabase, {
+          userId: savedState.userId,
+          provider: "coinpay",
+          providerUserId: sub,
+          event: "link_rejected",
+          email,
+          metadata: { held_by_user_id: existingIdentity.user_id },
+        });
+
+        const holderParam = holder?.username
+          ? `&linked_to=${encodeURIComponent(holder.username)}`
+          : "";
+        return redirectWithClearedState(`${connectUrl}?coinpay=already_linked${holderParam}`);
       }
 
       if (existingIdentity) {
@@ -173,6 +198,14 @@ export async function GET(request: NextRequest) {
           metadata: identityMetadata,
         });
       }
+
+      void logIdentityEvent(supabase, {
+        userId: savedState.userId,
+        provider: "coinpay",
+        providerUserId: sub,
+        event: existingIdentity ? "reconnected" : "connected",
+        email,
+      });
 
       return redirectWithClearedState(`${connectUrl}?coinpay=connected`);
     }

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { submitAnswersSchema, validateAnswers, BountyQuestion } from "@/lib/bounties";
+import {
+  submitAnswersSchema,
+  validateAnswers,
+  formatSubmitAnswersError,
+  BountyQuestion,
+} from "@/lib/bounties";
 
 // GET /api/bounties/[id]/submissions — creator sees all, submitter sees own
 export async function GET(
@@ -67,7 +72,7 @@ export async function POST(
     const parsed = submitAnswersSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: formatSubmitAnswersError(parsed.error) },
         { status: 400 }
       );
     }
