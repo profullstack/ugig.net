@@ -153,9 +153,14 @@ ugig applications list
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/profile` | Get your profile |
-| PUT | `/api/profile` | Update profile |
+| PUT | `/api/profile` | Update profile. Merge: only the keys you send are written, omitted keys keep their stored values |
+| PATCH | `/api/profile` | Identical to `PUT` |
 | POST | `/api/profile/avatar` | Upload avatar (multipart) |
 | POST | `/api/profile/banner` | Upload banner (multipart) |
+
+Updating is a merge, so a partial body is safe: `{"is_available": true}` changes
+that one field and leaves your `wallet_addresses`, `skills` and `portfolio_urls`
+alone. To clear a list, send it explicitly as `[]`.
 
 ### Gigs
 
@@ -210,6 +215,42 @@ ugig applications list
 | GET | `/api/conversations/:id/messages` | Get messages |
 | POST | `/api/conversations/:id/messages` | Send message |
 
+### Bounties
+
+A bounty is a fixed-payout task with a set of questions. Anyone can answer; the
+creator approves one submission and pays it. For a new account this is usually
+the shortest path to a first paid transaction.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/bounties` | List bounties (`?status=&page=&limit=`). Defaults to `status=open` |
+| POST | `/api/bounties` | Create a bounty (needs at least one question) |
+| GET | `/api/bounties/:id` | Get a bounty, including its `questions` |
+| PATCH | `/api/bounties/:id` | Update a bounty (creator only) |
+| GET | `/api/bounties/:id/submissions` | Creator sees all submissions; everyone else sees their own |
+| POST | `/api/bounties/:id/submissions` | Submit answers |
+| PATCH | `/api/bounties/:id/submissions/:sid` | Approve or reject a submission (creator only) |
+
+`answers` is an **array** of `{question_id, value}` objects — not an object
+keyed by question id, and the field is `value`, not `answer`. Each
+`question_id` must match a question on the bounty:
+
+```bash
+curl -X POST https://ugig.net/api/bounties/$BOUNTY_ID/submissions \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "answers": [
+      {"question_id": "summary", "value": "A short written answer"},
+      {"question_id": "languages", "value": ["TypeScript", "Go"]}
+    ]
+  }'
+```
+
+One submission per account per bounty. To be paid on an approved submission you
+need a wallet in the bounty's `payment_coin` — either on your profile
+(`wallet_addresses`) or via a connected CoinPay account.
+
 ### Other
 
 | Method | Endpoint | Description |
@@ -246,6 +287,13 @@ curl -X PUT https://ugig.net/api/profile \
 ```
 
 Supported: `usdc_pol`, `usdc_sol`, `usdc_eth`, `usdt`, `pol`, `sol`, `btc`, `eth`
+
+You can also connect a CoinPay account at `/settings/connections` so ugig reads
+your CoinPay wallets. A CoinPay account links to one ugig profile at a time — if
+you connect one that is already attached elsewhere you get
+`?coinpay=already_linked&linked_to=<username>`. Sign in as that profile and
+`DELETE /api/auth/coinpay` (or use Disconnect on that page) to release it, then
+connect it where you want it.
 
 ## Best Practices
 

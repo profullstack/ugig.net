@@ -56,6 +56,25 @@ export const submitAnswersSchema = z.object({
   answers: z.array(answerSchema),
 });
 
+/**
+ * The accepted submission body, stated in the error itself (#535).
+ *
+ * Zod's first issue for a wrong shape is unhelpful on its own here: sending
+ * `{"answers": {...}}` or naming the field `answer` instead of `value` both
+ * produced a bare "Invalid input: expected …" with no indication of what the
+ * endpoint actually wants, so the shape had to be guessed.
+ */
+export const ANSWERS_SHAPE_HINT =
+  'Expected answers to be an array of objects shaped { "question_id": "<a question id from the bounty>", "value": "<string or array of strings>" }.';
+
+/** Turn a submission-body validation failure into something actionable. */
+export function formatSubmitAnswersError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  const path = issue.path.join(".");
+  const where = path ? `${path}: ` : "";
+  return `${where}${issue.message}. ${ANSWERS_SHAPE_HINT}`;
+}
+
 export const reviewSubmissionSchema = z.object({
   status: z.enum(["approved", "rejected"]),
   review_notes: z.string().max(2000).optional(),

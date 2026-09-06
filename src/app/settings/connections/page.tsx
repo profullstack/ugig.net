@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { buttonVariants } from "@/components/ui/button";
 import { CheckCircle2, ExternalLink, LinkIcon, RefreshCw } from "lucide-react";
+import { DisconnectCoinpayButton } from "./DisconnectCoinpayButton";
 
 export const metadata = {
   title: "OAuth Connections | ugig.net",
@@ -15,9 +16,16 @@ function metadataObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
-function statusMessage(status?: string) {
+function statusMessage(status?: string, linkedTo?: string) {
   if (status === "connected") return "CoinPay connected.";
-  if (status === "already_linked") return "That CoinPay account is already connected to another ugig account.";
+  if (status === "already_linked") {
+    // Name the profile holding the link and say how to release it (#537).
+    // "already connected to another ugig account" left the owner with nowhere
+    // to go: no way to learn which account, and no way to take it back.
+    return linkedTo
+      ? `That CoinPay account is already connected to the ugig profile "${linkedTo}". Sign in as ${linkedTo}, disconnect CoinPay there, then connect it here.`
+      : "That CoinPay account is already connected to another ugig profile. Sign in to that profile and disconnect CoinPay there, then connect it here.";
+  }
   if (status === "expired") return "CoinPay connection expired. Try again.";
   return null;
 }
@@ -25,7 +33,7 @@ function statusMessage(status?: string) {
 export default async function OAuthConnectionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ coinpay?: string }>;
+  searchParams: Promise<{ coinpay?: string; linked_to?: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -51,7 +59,7 @@ export default async function OAuthConnectionsPage({
     typeof metadata.connected_at === "string" ? metadata.connected_at : coinpayIdentity?.updated_at || null;
   const tokenExpiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
   const params = await searchParams;
-  const message = statusMessage(params.coinpay);
+  const message = statusMessage(params.coinpay, params.linked_to);
 
   return (
     <div className="min-h-screen">
@@ -88,13 +96,20 @@ export default async function OAuthConnectionsPage({
               </p>
             </div>
 
-            <Link
-              href="/api/auth/coinpay?mode=connect&redirect=/settings/connections"
-              className={buttonVariants({ size: "sm", className: "gap-2 shrink-0" })}
-            >
-              {coinpayIdentity ? <RefreshCw className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
-              {coinpayIdentity ? "Reconnect" : "Connect CoinPay"}
-            </Link>
+            <div className="flex flex-col items-stretch gap-2 shrink-0 sm:items-end">
+              <Link
+                href="/api/auth/coinpay?mode=connect&redirect=/settings/connections"
+                className={buttonVariants({ size: "sm", className: "gap-2 shrink-0" })}
+              >
+                {coinpayIdentity ? <RefreshCw className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+                {coinpayIdentity ? "Reconnect" : "Connect CoinPay"}
+              </Link>
+              {coinpayIdentity && (
+                <DisconnectCoinpayButton
+                  account={coinpayIdentity.email || "this CoinPay account"}
+                />
+              )}
+            </div>
           </div>
 
           {coinpayIdentity ? (

@@ -31,6 +31,10 @@
     { "name": "Gig Comments", "description": "Questions and answers on gigs" },
     { "name": "Applications", "description": "Apply to gigs and manage applications" },
     { "name": "Saved Gigs", "description": "Save and unsave gigs" },
+    {
+      "name": "Bounties",
+      "description": "Fixed-payout tasks: post one, answer its questions, approve and pay a submission"
+    },
     { "name": "Feed", "description": "Community feed of posts" },
     { "name": "Posts", "description": "Create, update, delete, and vote on posts" },
     { "name": "Post Comments", "description": "Comments on community posts" },
@@ -72,6 +76,133 @@
           "error": { "type": "string" }
         },
         "required": ["error"]
+      },
+      "BountyQuestion": {
+        "type": "object",
+        "required": ["id", "type", "label"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Your own identifier for the question. Submissions reference it as `question_id`."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["short_text", "long_text", "multiple_choice"],
+            "description": "A `multiple_choice` question must also carry `options`, and an answer to it must be one of them."
+          },
+          "label": { "type": "string", "maxLength": 500 },
+          "required": { "type": "boolean", "default": true },
+          "options": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 200 },
+            "description": "Allowed values, for `multiple_choice` questions."
+          }
+        }
+      },
+      "BountyAnswer": {
+        "type": "object",
+        "required": ["question_id", "value"],
+        "description": "One answer to one question. The field is `value` — `answer` is not accepted.",
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "description": "The `id` of a question on the bounty."
+          },
+          "value": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ],
+            "description": "A string for `short_text` and `long_text`. For `multiple_choice`, a string or an array of strings drawn from the question's `options`."
+          }
+        }
+      },
+      "BountyInput": {
+        "type": "object",
+        "required": ["title", "description", "payout_usd", "questions"],
+        "properties": {
+          "title": { "type": "string", "minLength": 3, "maxLength": 200 },
+          "description": { "type": "string", "minLength": 10, "maxLength": 10000 },
+          "payout_usd": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 100000,
+            "description": "What the approved submission is paid, in USD."
+          },
+          "payout_currency": { "type": "string", "default": "USD" },
+          "payment_coin": {
+            "type": "string",
+            "maxLength": 16,
+            "nullable": true,
+            "description": "Coin the payout settles in, e.g. `SOL`. The approved submitter needs a wallet in this currency to be paid."
+          },
+          "max_submissions": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "nullable": true,
+            "description": "The bounty closes automatically once this many submissions arrive."
+          },
+          "closes_at": { "type": "string", "format": "date-time" },
+          "github_issue_url": {
+            "type": "string",
+            "description": "A GitHub issue this bounty funds. When the ugig GitHub App is installed on the repo, a status comment is posted on the issue."
+          },
+          "questions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": { "$ref": "#/components/schemas/BountyQuestion" },
+            "description": "At least one question is required."
+          }
+        }
+      },
+      "Bounty": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "payout_usd": { "type": "number" },
+          "payout_currency": { "type": "string" },
+          "payment_coin": { "type": "string", "nullable": true },
+          "max_submissions": { "type": "integer", "nullable": true },
+          "status": { "type": "string", "enum": ["open", "paused", "closed"] },
+          "closes_at": { "type": "string", "format": "date-time", "nullable": true },
+          "questions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BountyQuestion" }
+          },
+          "creator": { "$ref": "#/components/schemas/ProfileSummary" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BountySubmission": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "bounty_id": { "type": "string", "format": "uuid" },
+          "submitter_id": { "type": "string", "format": "uuid" },
+          "answers": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BountyAnswer" }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"],
+            "description": "Review state. Only an approved submission can be paid."
+          },
+          "payout_status": {
+            "type": "string",
+            "enum": ["unpaid", "invoiced", "paid", "rejected"],
+            "description": "Payment state, tracked separately from review state."
+          },
+          "review_notes": { "type": "string", "nullable": true },
+          "submitter": { "$ref": "#/components/schemas/ProfileSummary" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
       },
       "Pagination": {
         "type": "object",
@@ -952,6 +1083,49 @@
         }
       }
     },
+    "/api/auth/coinpay": {
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Disconnect CoinPay from this profile",
+        "description": "Release the CoinPay account linked to the authenticated profile, and delete the access and refresh tokens ugig stored for it. A CoinPay account can be linked to only one ugig profile at a time, so this is how you free one up to connect it somewhere else — connecting an already-linked account returns `?coinpay=already_linked&linked_to=<username>` naming the profile that holds it. Only your own link can be released; there is no way to detach another profile's. The link is frozen while a payout that depends on it is in flight.",
+        "operationId": "disconnectCoinpay",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "responses": {
+          "200": {
+            "description": "CoinPay disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "disconnected": { "type": "boolean" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "No CoinPay account is connected to this profile",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "409": {
+            "description": "A bounty payout or invoice is still in flight — retry once it settles",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/session": {
       "get": {
         "tags": ["Auth"],
@@ -1015,7 +1189,7 @@
       "put": {
         "tags": ["Profile"],
         "summary": "Update my profile",
-        "description": "Update the authenticated user's profile fields.",
+        "description": "Update the authenticated user's profile. This is a MERGE: only the keys present in the request body are written, and any key you omit keeps its stored value. To clear a list — including `wallet_addresses` — send it explicitly as `[]`. `PATCH` behaves identically.",
         "operationId": "updateProfile",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "requestBody": {
@@ -1024,7 +1198,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["username"],
+                "description": "Send only the fields you are changing. Omitted fields are left as they are.",
                 "properties": {
                   "username": { "type": "string", "minLength": 3, "maxLength": 30 },
                   "full_name": { "type": "string", "maxLength": 100, "nullable": true },
@@ -1048,7 +1222,8 @@
                   "wallet_addresses": {
                     "type": "array",
                     "items": { "$ref": "#/components/schemas/WalletAddress" },
-                    "maxItems": 10
+                    "maxItems": 10,
+                    "description": "Your payout addresses. Omitting this field leaves them untouched; sending `[]` clears them."
                   },
                   "rate_type": {
                     "type": "string",
@@ -3019,6 +3194,401 @@
           },
           "403": {
             "description": "Not the comment author",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties": {
+      "get": {
+        "tags": ["Bounties"],
+        "summary": "List bounties",
+        "description": "Public list of bounties. A bounty is a fixed-payout task with a set of questions: anyone may submit answers, and the creator approves one submission and pays it. This is usually the shortest path from a new account to a first paid transaction.",
+        "operationId": "listBounties",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["open", "paused", "closed"], "default": "open" },
+            "description": "Which bounties to return. Omitting it means `open`, so paused and closed bounties are not returned unless asked for."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "description": "Page number. Must be a positive integer."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "description": "Results per page. Values above 100 are capped at 100."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounties with pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Bounty" } },
+                    "pagination": {
+                      "type": "object",
+                      "description": "Note the snake_case `total_pages` here — this route does not use the camelCase `Pagination` shape returned elsewhere.",
+                      "properties": {
+                        "page": { "type": "integer" },
+                        "limit": { "type": "integer" },
+                        "total": { "type": "integer" },
+                        "total_pages": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status, page, or limit",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Bounties"],
+        "summary": "Create a bounty",
+        "description": "Create a bounty. Every bounty needs at least one question — submitters answer these, and the answers are what you review before approving a payout.",
+        "operationId": "createBounty",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/BountyInput" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bounty created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Bounty" } }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties/{id}": {
+      "get": {
+        "tags": ["Bounties"],
+        "summary": "Get a bounty",
+        "description": "A single bounty, including its `questions` array. Read this before submitting: each answer must carry the `id` of a question defined here.",
+        "operationId": "getBounty",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Bounty" } }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bounty not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Bounties"],
+        "summary": "Update a bounty",
+        "description": "Creator only. Every field is optional — send just the ones you are changing. Setting `status` to `closed` stops new submissions.",
+        "operationId": "updateBounty",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  { "$ref": "#/components/schemas/BountyInput" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": { "type": "string", "enum": ["open", "paused", "closed"] }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bounty updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Bounty" } }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "403": {
+            "description": "Not the bounty creator",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties/{id}/submissions": {
+      "get": {
+        "tags": ["Bounties"],
+        "summary": "List submissions for a bounty",
+        "description": "The bounty creator sees every submission. Everyone else sees only their own.",
+        "operationId": "listBountySubmissions",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/BountySubmission" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "Bounty not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Bounties"],
+        "summary": "Submit to a bounty",
+        "description": "Answer the bounty's questions. `answers` is an ARRAY of `{ question_id, value }` objects — not an object keyed by question id, and the value field is named `value`, not `answer`. Every required question needs a non-empty answer, each `question_id` must match a question on the bounty, and a `multiple_choice` answer must be one of that question's `options`. One submission per account per bounty.",
+        "operationId": "createBountySubmission",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["answers"],
+                "properties": {
+                  "answers": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/BountyAnswer" },
+                    "description": "One entry per question you are answering."
+                  }
+                },
+                "example": {
+                  "answers": [
+                    { "question_id": "summary", "value": "A short written answer" },
+                    { "question_id": "languages", "value": ["TypeScript", "Go"] }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Submission created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/BountySubmission" } }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed answers, a missing required answer, the bounty is not open, the submission cap is reached, or you are the creator",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "Bounty not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "409": {
+            "description": "You have already submitted to this bounty",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties/{id}/submissions/{sid}": {
+      "patch": {
+        "tags": ["Bounties"],
+        "summary": "Approve or reject a submission",
+        "description": "Creator only. Approving a submission is what makes it payable.",
+        "operationId": "reviewBountySubmission",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Submission id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["approved", "rejected"] },
+                  "review_notes": { "type": "string", "maxLength": 2000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submission reviewed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/BountySubmission" } }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "403": {
+            "description": "Not the bounty creator",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "Bounty or submission not found",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
             }

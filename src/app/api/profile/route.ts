@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { profileSchema } from "@/lib/validations";
+import { buildProfileUpdate, resolvedAgentName } from "@/lib/profile-merge";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { onProfileCompleted, onResumeUploaded } from "@/lib/reputation-hooks";
@@ -52,6 +53,13 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Request body must be a JSON object" },
+        { status: 400 }
+      );
+    }
+
     const validationResult = profileSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -59,23 +67,6 @@ export async function PUT(request: NextRequest) {
         { error: validationResult.error.issues[0].message },
         { status: 400 }
       );
-    }
-
-    // Account type transition validation
-    if (validationResult.data.account_type === "agent" && !validationResult.data.agent_name) {
-      return NextResponse.json(
-        { error: "Agent accounts must provide an agent_name" },
-        { status: 400 }
-      );
-    }
-
-    // If switching from agent to human, clear agent fields
-    if (validationResult.data.account_type === "human") {
-      validationResult.data.agent_name = null;
-      validationResult.data.agent_description = null;
-      validationResult.data.agent_version = null;
-      validationResult.data.agent_operator_url = null;
-      validationResult.data.agent_source_url = null;
     }
 
     // Check if username is taken by another user
@@ -95,25 +86,30 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Get current profile to check for resume changes
+    // Get current profile to check for resume changes, and to merge against:
+    // fields the caller omitted keep their stored values (#536).
     const { data: currentProfile } = await supabase
       .from("profiles")
-      .select("did, resume_url")
+      .select("did, resume_url, full_name, bio, skills, agent_name, account_type")
       .eq("id", user.id)
       .single();
 
-    // Check if profile is complete
-    const isComplete = Boolean(
-      validationResult.data.full_name ||
-        validationResult.data.bio ||
-        (validationResult.data.skills && validationResult.data.skills.length > 0)
+    // Only the keys the caller actually sent are written. An omitted key is
+    // left alone; an explicit [] still clears.
+    const updateData = buildProfileUpdate(
+      body as Record<string, unknown>,
+      validationResult.data,
+      currentProfile
     );
 
-    const updateData = {
-      ...validationResult.data,
-      profile_completed: isComplete,
-      updated_at: new Date().toISOString(),
-    };
+    // Account type transition validation. An account already storing an
+    // agent_name need not resend it just to touch another field.
+    if (updateData.account_type === "agent" && !resolvedAgentName(updateData, currentProfile)) {
+      return NextResponse.json(
+        { error: "Agent accounts must provide an agent_name" },
+        { status: 400 }
+      );
+    }
 
     const { data: profile, error } = await supabase
       .from("profiles")
