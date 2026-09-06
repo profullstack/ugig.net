@@ -154,8 +154,46 @@ const DISPOSABLE_DOMAINS = new Set([
 const SPAM_EMAIL_PATTERNS = [
   /^[a-z]{2,3}\d{6,}@/i,           // ab123456@...
   /^[a-z0-9]{20,}@/i,               // long random local part
-  /\+.{10,}@/,                       // long plus-addressing (used for mass signups)
 ];
+
+/**
+ * The tag in `name+tag@host`, or null when there is no plus-address.
+ *
+ * Plus-addressing used to be rejected outright once the tag reached ten
+ * characters, on the theory that it meant mass signups. It does not: tagging a
+ * address per service is what the feature is for, and the tag people choose is
+ * the name of the service they are signing up to — which is usually longer
+ * than ten characters. It turned away someone registering as `3F Rapid Ops`
+ * with a Gmail plus-address, told them "Email matches spam pattern", and left
+ * them no legitimate route in.
+ *
+ * What actually distinguishes a mass signup is a *random* tag, not a long one,
+ * so that is what the rule below looks for.
+ */
+export function plusTag(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return null;
+  const local = email.slice(0, at);
+  const plus = local.indexOf("+");
+  return plus < 0 ? null : local.slice(plus + 1);
+}
+
+/**
+ * A tag that looks generated rather than chosen.
+ *
+ * Long, unbroken, and with no vowels to speak of: `+x7f2q9k1m4z8` rather than
+ * `+threefrapidops` or `+ugig-signup`. Anything with a separator in it is
+ * something a person typed.
+ */
+export function looksGeneratedTag(tag: string): boolean {
+  if (tag.length < 12) return false;
+  if (/[.\-_]/.test(tag)) return false;
+  const vowels = (tag.match(/[aeiou]/gi) ?? []).length;
+  const letters = (tag.match(/[a-z]/gi) ?? []).length;
+  // A word-like tag is roughly a quarter vowels; a random string is far below.
+  if (letters > 0 && vowels / Math.max(letters, 1) >= 0.2) return false;
+  return /\d/.test(tag) || letters === 0 || vowels === 0;
+}
 
 export function checkEmail(email: string): { spam: boolean; reason?: string } {
   const [localPart, domain] = email.toLowerCase().split("@");
@@ -169,6 +207,11 @@ export function checkEmail(email: string): { spam: boolean; reason?: string } {
     if (pattern.test(email)) {
       return { spam: true, reason: "Email matches spam pattern" };
     }
+  }
+
+  const tag = plusTag(email.toLowerCase());
+  if (tag !== null && looksGeneratedTag(tag)) {
+    return { spam: true, reason: "Email matches spam pattern" };
   }
 
   return { spam: false };

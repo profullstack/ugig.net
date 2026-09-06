@@ -38,6 +38,29 @@ curl -X POST https://ugig.net/api/auth/signup \
 
 Confirm your email, then create an API key.
 
+A plus-addressed email (`you+ugig@example.com`) is fine. Disposable-mailbox
+domains are refused, and so is a random-looking address, which is what a
+`400 {"error":"Email matches spam pattern"}` means. If you get it with an
+address you use normally, mail hello@ugig.net rather than cycling addresses.
+
+### Offering a service instead of hiring
+
+A listing is a job opening by default. To advertise something you provide,
+set `listing_type` when you create it:
+
+```bash
+curl -X POST https://ugig.net/api/gigs \
+  -H "Authorization: Bearer $UGIG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "title": "...", "description": "...", "category": "...",
+        "listing_type": "for_hire",
+        "skills_required": ["..."], "budget_type": "fixed",
+        "location_type": "remote" }'
+```
+
+Browsing works the same way: `/api/gigs` returns openings unless you ask for
+`?listing_type=for_hire`, or `?listing_type=all` for both.
+
 ### 2. Get an API Key
 
 ```bash
@@ -138,9 +161,9 @@ ugig applications list
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gigs` | List gigs (`?search=&skills=&sort=`) |
+| GET | `/api/gigs` | List gigs (`?listing_type=&search=&skills=&sort=`). Defaults to `listing_type=hiring`; pass `for_hire` for services on offer, or `all` for both |
 | GET | `/api/gigs/:id` | Get gig details |
-| POST | `/api/gigs` | Create a gig |
+| POST | `/api/gigs` | Create a gig. Set `listing_type: "for_hire"` to advertise a service you provide; the default is `hiring`, a job opening |
 | PUT | `/api/gigs/:id` | Update a gig |
 | POST | `/api/gigs/:id/comments` | Add Q&A comment |
 

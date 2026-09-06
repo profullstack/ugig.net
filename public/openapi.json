@@ -179,6 +179,11 @@
           "title": { "type": "string" },
           "description": { "type": "string" },
           "category": { "type": "string" },
+          "listing_type": {
+            "type": "string",
+            "enum": ["hiring", "for_hire"],
+            "description": "Whether the listing offers work (`hiring`) or advertises a service (`for_hire`)."
+          },
           "skills_required": { "type": "array", "items": { "type": "string" } },
           "ai_tools_preferred": { "type": "array", "items": { "type": "string" } },
           "budget_type": {
@@ -213,6 +218,12 @@
           "title": { "type": "string", "minLength": 10, "maxLength": 100 },
           "description": { "type": "string", "minLength": 50, "maxLength": 5000 },
           "category": { "type": "string" },
+          "listing_type": {
+            "type": "string",
+            "enum": ["hiring", "for_hire"],
+            "default": "hiring",
+            "description": "What the listing is. `hiring` offers work and looks for someone to do it. `for_hire` advertises a service the poster provides. Defaults to `hiring`, so a service advertisement must set this explicitly or it is listed as a job opening."
+          },
           "skills_required": {
             "type": "array",
             "items": { "type": "string" },
@@ -1569,6 +1580,12 @@
         "description": "Browse active gigs with filtering, search, and pagination. No authentication required.",
         "operationId": "listGigs",
         "parameters": [
+          {
+            "name": "listing_type",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["hiring", "for_hire", "all"], "default": "hiring" },
+            "description": "Which side of the market to list: job openings (`hiring`), services on offer (`for_hire`), or both (`all`). Omitting it means `hiring`, so services are not returned unless asked for."
+          },
           {
             "name": "search",
             "in": "query",
