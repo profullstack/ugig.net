@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { messageSchema } from "@/lib/validations";
 import { sendEmail, newMessageEmail } from "@/lib/email";
@@ -248,10 +248,11 @@ export async function POST(
 
       if (shouldSendEmail) {
         // Check notification settings
-        const supabaseAdmin = createAdminClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        // The memoised service client, not a fresh createClient(): a client
+        // built per request keeps a RealtimeClient (and, with default auth
+        // options, a token refresh interval) alive after the response is
+        // sent. See lib/auth/api-key.ts.
+        const supabaseAdmin = createServiceClient();
 
         const emailEnabled = await isEmailNotificationEnabled(
           supabaseAdmin, recipientId, "email_new_message"

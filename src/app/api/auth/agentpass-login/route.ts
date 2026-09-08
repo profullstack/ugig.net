@@ -14,11 +14,18 @@ import { sendEmail } from "@/lib/email";
 import { generateApiKey, hashApiKey, getKeyPrefix } from "@/lib/api-keys";
 
 function getAdminSupabase() {
-  return createClient(
+  const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+  // Every Supabase client in the app disconnects realtime: createClient()
+  // allocates a RealtimeClient holding WebSocket state, and a client built per
+  // request is a per-request resource that outlives its request. This route
+  // cannot use the memoised createServiceClient() because it reads tables that
+  // are not in the generated Database types. See lib/auth/api-key.ts.
+  admin.realtime.disconnect();
+  return admin;
 }
 
 export async function POST(request: NextRequest) {
