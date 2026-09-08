@@ -4,10 +4,23 @@ const rpcMock = vi.fn();
 const verifyApiKeyMock = vi.fn();
 const getKeyPrefixMock = vi.fn((k: string) => k.slice(0, 16));
 
+// Totals across the whole file. Deliberately not vi.fn() call counts:
+// clearAllMocks() resets those between tests, and both figures here describe
+// the process lifetime rather than a single test.
+const clients = { created: 0, disconnected: 0 };
+
 vi.mock("@supabase/supabase-js", () => ({
-  createClient: vi.fn(() => ({
-    rpc: rpcMock,
-  })),
+  createClient: vi.fn(() => {
+    clients.created += 1;
+    return {
+      rpc: rpcMock,
+      realtime: {
+        disconnect: () => {
+          clients.disconnected += 1;
+        },
+      },
+    };
+  }),
 }));
 
 vi.mock("@/lib/api-keys", () => ({
@@ -60,5 +73,30 @@ describe("authenticateApiKey", () => {
   it("rejects non-API-key Bearer tokens", async () => {
     const result = await authenticateApiKey("Bearer eyJhbGciOi...", null);
     expect(result).toBeNull();
+  });
+
+  // authenticateApiKey runs on every API-key-authenticated request. It used to
+  // build a Supabase client per call, and each one kept a RealtimeClient (plus,
+  // under default auth options, a token-refresh interval) alive after the
+  // response was sent -- a per-request resource outliving its request, which is
+  // what drove the production heap to its 1GB cap and OOMed the container.
+  // Going back to a per-call createClient() would make this count climb with
+  // the number of authentications instead of staying at one.
+  it("does not build a Supabase client per authentication", async () => {
+    const before = clients.created;
+
+    await authenticateApiKey(null, "ugig_live_abc123");
+    await authenticateApiKey(null, "ugig_live_abc123");
+    await authenticateApiKey(null, "ugig_live_abc123");
+
+    expect(clients.created - before).toBe(0);
+    expect(clients.created).toBeLessThanOrEqual(1);
+  });
+
+  // A client that keeps its RealtimeClient connected holds WebSocket state for
+  // the life of the process, which is the other half of the same leak.
+  it("disconnects realtime on every client it builds", () => {
+    expect(clients.created).toBeGreaterThan(0);
+    expect(clients.disconnected).toBe(clients.created);
   });
 });

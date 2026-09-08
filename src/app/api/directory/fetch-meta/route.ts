@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 import OpenAI from "openai";
 import crypto from "crypto";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 /**
  * POST /api/directory/fetch-meta
@@ -264,7 +262,9 @@ async function captureScreenshot(url: string): Promise<string> {
     const urlHash = crypto.createHash("md5").update(url).digest("hex");
     const filePath = `${urlHash}/${Date.now()}.png`;
 
-    const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    // The memoised service client, not a fresh createClient(): see
+    // lib/auth/api-key.ts for why a per-request client leaks.
+    const sb = createServiceClient();
     const { error } = await sb.storage
       .from("directory-screenshots")
       .upload(filePath, imageBuffer, {

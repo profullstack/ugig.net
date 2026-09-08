@@ -1,6 +1,5 @@
-import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getKeyPrefix, verifyApiKey } from "@/lib/api-keys";
-import type { Database } from "@/types/database";
 
 import type { ApiKeyScope } from "@/lib/api-keys";
 
@@ -56,11 +55,19 @@ export async function authenticateApiKey(
 
   const keyPrefix = getKeyPrefix(rawKey);
 
-  // Use the service role client to bypass RLS for API key lookups
-  const supabaseAdmin = createSupabaseAdmin<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  // Use the service role client to bypass RLS for API key lookups.
+  //
+  // This must be the memoised client from lib/supabase/service, never a fresh
+  // createClient(): this function runs on every API-key-authenticated request,
+  // and a client built here per call is a per-request resource that outlives
+  // its request. Each one allocates a RealtimeClient holding WebSocket state,
+  // and the default `autoRefreshToken: true` starts a token-refresh interval
+  // that nothing ever stops. Under sustained agent traffic that is a heap leak
+  // that ends in "FATAL ERROR: ... JavaScript heap out of memory". Every other
+  // Supabase client in the app already disconnects realtime for this reason
+  // (lib/supabase/server.ts, lib/supabase/middleware.ts, authenticateWithToken);
+  // this call site was the one that did not.
+  const supabaseAdmin = createServiceClient();
 
   // Look up candidate keys by prefix
   const { data: candidates, error } = await supabaseAdmin.rpc(

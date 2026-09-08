@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 import type Stripe from "stripe";
 
 // Lazy admin client for webhook handling (bypasses RLS)
 // Create admin client for webhook handling (bypasses RLS) — lazy init
 function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  // The memoised service client, not a fresh createClient(): see
+  // lib/auth/api-key.ts for why a per-request client leaks.
+  return createServiceClient();
 }
 
 export async function POST(request: NextRequest) {
