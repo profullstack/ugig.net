@@ -4,7 +4,8 @@ import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { buttonVariants } from "@/components/ui/button";
-import { CheckCircle2, ExternalLink, LinkIcon, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, LinkIcon, RefreshCw } from "lucide-react";
+import { coinpayLinkCanReadWallets } from "@/lib/coinpay-oauth";
 import { DisconnectCoinpayButton } from "./DisconnectCoinpayButton";
 
 export const metadata = {
@@ -58,6 +59,10 @@ export default async function OAuthConnectionsPage({
   const connectedAt =
     typeof metadata.connected_at === "string" ? metadata.connected_at : coinpayIdentity?.updated_at || null;
   const tokenExpiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
+  // A link whose token lacks wallet:read exists but cannot do the one job this
+  // connection is for. Say so here rather than letting the invoice form be the
+  // first place the user finds out.
+  const needsReconnect = Boolean(coinpayIdentity) && !coinpayLinkCanReadWallets(metadata);
   const params = await searchParams;
   const message = statusMessage(params.coinpay, params.linked_to);
 
@@ -83,10 +88,16 @@ export default async function OAuthConnectionsPage({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold">CoinPay</h2>
-                {coinpayIdentity && (
+                {coinpayIdentity && !needsReconnect && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700">
                     <CheckCircle2 className="h-3 w-3" />
                     Connected
+                  </span>
+                )}
+                {needsReconnect && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    <AlertTriangle className="h-3 w-3" />
+                    Reconnect required
                   </span>
                 )}
               </div>
@@ -111,6 +122,14 @@ export default async function OAuthConnectionsPage({
               )}
             </div>
           </div>
+
+          {needsReconnect && (
+            <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+              This CoinPay account is linked, but the link was granted without permission to
+              read your wallet addresses, so ugig cannot send invoices with it. Click
+              Reconnect above to re-authorize — nothing else on your account changes.
+            </div>
+          )}
 
           {coinpayIdentity ? (
             <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
