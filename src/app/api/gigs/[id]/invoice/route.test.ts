@@ -14,6 +14,7 @@ vi.mock("@/lib/coinpayportal", () => ({
 
 vi.mock("@/lib/coinpay-oauth", () => ({
   getConnectedCoinpayAccessToken: vi.fn(),
+  getCoinpayLink: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/get-user", () => ({
@@ -55,7 +56,7 @@ import {
   getCoinpayGlobalWalletTokens,
   resolveSupportedPaymentCurrency,
 } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
 import { getPullRequestMergeState } from "@/lib/github-app";
 
@@ -149,6 +150,10 @@ describe("POST /api/gigs/[id]/invoice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (getConnectedCoinpayAccessToken as any).mockResolvedValue("coinpay-access-token");
+    (getCoinpayLink as any).mockResolvedValue({
+      state: "connected",
+      accessToken: "coinpay-access-token",
+    });
     (getCoinpayGlobalWalletTokens as any).mockResolvedValue([
       {
         currency: "sol",
@@ -243,6 +248,82 @@ describe("POST /api/gigs/[id]/invoice", () => {
     (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
     const res = await POST(req({ application_id: APP_ID, amount: 100 }), params);
     expect(res.status).toBe(400);
+  });
+
+  /**
+   * "Connect" and "reconnect" are different instructions.
+   *
+   * A worker whose CoinPay link predates the wallet:read scope is connected and
+   * cannot invoice. Telling them to connect describes something they have
+   * already done, so they check, see a connection, and try again: a loop with
+   * no exit. #553 taught the connections page the difference; an agent calling
+   * this API never sees that page, so the sentence here is its only
+   * instruction.
+   */
+  describe("when CoinPay cannot be used", () => {
+    const gig = { id: GIG_ID, title: "Test Gig", poster_id: POSTER_ID, payment_coin: "SOL" };
+    const application = {
+      id: APP_ID,
+      applicant_id: WORKER_ID,
+      status: "accepted",
+      proposed_rate: 150,
+    };
+
+    function authAsWorker() {
+      const sb = mockSupabase({
+        gigs: {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+        },
+        applications: {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: application, error: null }),
+        },
+        gig_invoices: mockInvoiceTable({ insertResult: null }),
+      });
+      (getAuthContext as any).mockResolvedValue({ user: { id: WORKER_ID }, supabase: sb });
+    }
+
+    const body = () =>
+      req({
+        application_id: APP_ID,
+        amount: 150,
+        payment_currency: "sol",
+        merchant_wallet_address: "So11111111111111111111111111111111111111112",
+      });
+
+    it("says reconnect, not connect, for a link that exists but lacks the scope", async () => {
+      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", accessToken: null });
+      authAsWorker();
+
+      const res = await POST(body(), params);
+      expect(res.status).toBe(409);
+
+      const json = await res.json();
+      expect(json.coinpay_link_state).toBe("needs_reconnect");
+      expect(json.error).toMatch(/reconnect/i);
+      // The exact sentence that sent the reporter in circles.
+      expect(json.error).not.toBe("Connect your CoinPay account before sending an invoice");
+      // And the steps must lead with reconnecting, not with connecting.
+      expect(json.setup_instructions[0]).toMatch(/reconnect/i);
+      // Still an OAuth round trip, so a client offering the button keeps working.
+      expect(json.oauth_required).toBe(true);
+    });
+
+    it("still says connect when there is no link at all", async () => {
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      authAsWorker();
+
+      const res = await POST(body(), params);
+      expect(res.status).toBe(409);
+
+      const json = await res.json();
+      expect(json.coinpay_link_state).toBe("none");
+      expect(json.error).toBe("Connect your CoinPay account before sending an invoice");
+      expect(json.setup_instructions[0]).not.toMatch(/reconnect/i);
+    });
   });
 
   it("creates a pending invoice with the worker's CoinPay receiving wallet", async () => {

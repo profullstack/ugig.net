@@ -19,6 +19,7 @@ vi.mock("@/lib/coinpayportal", () => ({
 
 vi.mock("@/lib/coinpay-oauth", () => ({
   getConnectedCoinpayAccessToken: vi.fn(),
+  getCoinpayLink: vi.fn(),
 }));
 
 vi.mock("@/lib/email", () => ({
@@ -152,7 +153,7 @@ import {
   getCoinpayGlobalWalletTokens,
   preferredCoinToPaymentCurrency,
 } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
 
 function req(body?: unknown) {
   return { json: () => Promise.resolve(body) } as any;
@@ -166,6 +167,7 @@ describe("invoice money path (sats gig, end to end)", () => {
       (v: string | null) => v?.toLowerCase() || null
     );
     (getConnectedCoinpayAccessToken as any).mockResolvedValue("token");
+    (getCoinpayLink as any).mockResolvedValue({ state: "connected", accessToken: "token" });
     (getCoinpayGlobalWalletTokens as any).mockResolvedValue([
       { currency: "sol", cryptocurrency: "SOL", label: "Solana", address: SOL_ADDRESS },
     ]);
