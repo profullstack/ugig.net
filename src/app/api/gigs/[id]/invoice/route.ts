@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, getAuthContext } from "@/lib/auth/get-user";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 import {
   findCoinpayGlobalWallet,
   getCoinpayGlobalWalletTokens,
@@ -92,6 +92,20 @@ const COINPAY_WALLET_SETUP_INSTRUCTIONS = [
   "Open CoinPayPortal and create or unlock your web wallet.",
   "Copy the receiving address for each coin you want to use.",
   "Paste those addresses into Settings > Global Wallet Addresses in CoinPay, then refresh the invoice form.",
+];
+
+/**
+ * The same steps, for a link that exists and is missing a permission.
+ *
+ * "Connect your CoinPay account" is the wrong instruction for somebody who
+ * already has: it describes something they have done, so they check, see a
+ * connection, and try again. The first step has to name reconnecting, and say
+ * why, or the loop has no exit.
+ */
+const COINPAY_RECONNECT_INSTRUCTIONS = [
+  "Reconnect CoinPay from OAuth Connections. Your existing link was authorised before ugig needed permission to read your wallet addresses, so it cannot be used to invoice.",
+  "Reconnecting re-authorises the same account. Nothing else about it changes and your gigs are untouched.",
+  "Then check Settings > Global Wallet Addresses in CoinPay has an address for each coin you want to use.",
 ];
 
 function countSinglePullRequestLinks(links: string[]) {
@@ -442,20 +456,35 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const workerCoinpayToken = await getConnectedCoinpayAccessToken(workerId);
-    if (!workerCoinpayToken) {
+    const workerCoinpayLink = await getCoinpayLink(workerId);
+    if (workerCoinpayLink.accessToken === null) {
+      // "Connect" and "reconnect" are different instructions, and handing the
+      // wrong one to somebody who is already connected is a loop with no exit:
+      // they check, see a connection, and try again. See getCoinpayLink.
+      const reconnect = workerCoinpayLink.state === "needs_reconnect";
       return NextResponse.json(
         {
           error: isWorker
-            ? "Connect your CoinPay account before sending an invoice"
-            : "The worker must connect CoinPay before this invoice can be created",
+            ? reconnect
+              ? "Reconnect your CoinPay account before sending an invoice. It is connected, but it was authorised before ugig needed permission to read your wallet addresses."
+              : "Connect your CoinPay account before sending an invoice"
+            : reconnect
+              ? "The worker must reconnect CoinPay before this invoice can be created. Their link predates the wallet permission ugig needs."
+              : "The worker must connect CoinPay before this invoice can be created",
+          // Still an OAuth round trip for the worker either way: reconnecting
+          // is the same authorise flow, so a client that keys on this flag to
+          // offer the button keeps working.
           oauth_required: isWorker,
+          coinpay_link_state: workerCoinpayLink.state,
           setup_required: true,
-          setup_instructions: COINPAY_WALLET_SETUP_INSTRUCTIONS,
+          setup_instructions: reconnect
+            ? COINPAY_RECONNECT_INSTRUCTIONS
+            : COINPAY_WALLET_SETUP_INSTRUCTIONS,
         },
         { status: 409 }
       );
     }
+    const workerCoinpayToken = workerCoinpayLink.accessToken;
 
     const workerWallets = await getCoinpayGlobalWalletTokens({ access_token: workerCoinpayToken });
     if (workerWallets.length === 0) {

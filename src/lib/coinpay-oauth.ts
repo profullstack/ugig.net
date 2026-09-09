@@ -84,7 +84,46 @@ async function refreshCoinpayToken(
   }
 }
 
+/**
+ * Why a CoinPay link cannot be used, when it cannot.
+ *
+ * "none" and "needs_reconnect" are different problems with different fixes,
+ * and telling them apart is the whole point of this type. #553 taught the
+ * connections page the difference; every API that gates on CoinPay needs it
+ * too, because an agent calling the API never sees that page and the sentence
+ * it gets back is the only instruction it will ever have.
+ */
+export type CoinpayLinkState = "none" | "needs_reconnect" | "connected";
+
+export interface CoinpayLink {
+  state: CoinpayLinkState;
+  /** Present only when state is "connected". */
+  accessToken: string | null;
+}
+
+/**
+ * The user's CoinPay link, and what is wrong with it.
+ *
+ * Deliberately reports "needs_reconnect" for a link that exists and cannot
+ * read wallets, rather than folding it into "not connected". That fold is what
+ * produced the bug: a user with a pre-wallet:read token was told to connect an
+ * account they had already connected, did nothing different because nothing
+ * looked wrong, and hit the same wall again.
+ */
+export async function getCoinpayLink(userId: string): Promise<CoinpayLink> {
+  const token = await resolveCoinpayToken(userId);
+  return token.accessToken === null
+    ? { state: token.hadIdentity ? "needs_reconnect" : "none", accessToken: null }
+    : { state: "connected", accessToken: token.accessToken };
+}
+
 export async function getConnectedCoinpayAccessToken(userId: string): Promise<string | null> {
+  return (await resolveCoinpayToken(userId)).accessToken;
+}
+
+async function resolveCoinpayToken(
+  userId: string
+): Promise<{ accessToken: string | null; hadIdentity: boolean }> {
   const serviceSupabase = createServiceClient();
   const { data } = await (serviceSupabase as any)
     .from("oauth_identities")
@@ -95,14 +134,18 @@ export async function getConnectedCoinpayAccessToken(userId: string): Promise<st
     .limit(1)
     .maybeSingle();
 
+  // Whether a link exists at all is the fact the caller cannot recover later,
+  // so it travels with the token rather than being inferred from its absence.
+  const hadIdentity = Boolean(data);
+
   const metadata = metadataObject(data?.metadata);
   const accessToken =
     typeof metadata.access_token === "string" ? metadata.access_token.trim() : "";
 
   // Tokens issued without wallet:read can't read the user's global wallets via
-  // /api/oauth/userinfo. Treat them as disconnected so the UI prompts the user
+  // /api/oauth/userinfo. Treat them as unusable so the caller prompts the user
   // to reconnect CoinPay — the connections page uses the same predicate.
-  if (!coinpayLinkCanReadWallets(metadata)) return null;
+  if (!coinpayLinkCanReadWallets(metadata)) return { accessToken: null, hadIdentity };
 
   // Proactively refresh if the token is expired or about to expire.
   const expiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
@@ -112,11 +155,11 @@ export async function getConnectedCoinpayAccessToken(userId: string): Promise<st
     const refreshToken = typeof metadata.refresh_token === "string" ? metadata.refresh_token.trim() : "";
     if (refreshToken && data?.id) {
       const refreshed = await refreshCoinpayToken(refreshToken, data.id);
-      if (refreshed) return refreshed;
+      if (refreshed) return { accessToken: refreshed, hadIdentity };
     }
     // Refresh failed — the stored token is likely unusable; signal reconnect needed.
-    return null;
+    return { accessToken: null, hadIdentity };
   }
 
-  return accessToken;
+  return { accessToken, hadIdentity };
 }
