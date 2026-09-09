@@ -4,7 +4,25 @@ function metadataObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
-const REQUIRED_COINPAY_SCOPE = "wallet:read";
+export const REQUIRED_COINPAY_SCOPE = "wallet:read";
+
+/**
+ * Does this stored CoinPay link carry the scope we need to read wallets?
+ *
+ * The connection UI and the invoice gate have to answer this the same way. They
+ * did not: the UI called any `oauth_identities` row "Connected", while invoicing
+ * additionally required `wallet:read` and rejected the link without it. A user
+ * whose token lacked the scope saw a green "Connected" badge and
+ * "Connect your CoinPay account before sending an invoice" from the same
+ * account, with no way to reconcile the two.
+ */
+export function coinpayLinkCanReadWallets(metadata: unknown): boolean {
+  const meta = metadataObject(metadata);
+  const accessToken = typeof meta.access_token === "string" ? meta.access_token.trim() : "";
+  if (!accessToken) return false;
+  const scope = typeof meta.scope === "string" ? meta.scope : "";
+  return scope.split(/\s+/).filter(Boolean).includes(REQUIRED_COINPAY_SCOPE);
+}
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 // Refresh if token expires within 5 minutes
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
@@ -80,14 +98,11 @@ export async function getConnectedCoinpayAccessToken(userId: string): Promise<st
   const metadata = metadataObject(data?.metadata);
   const accessToken =
     typeof metadata.access_token === "string" ? metadata.access_token.trim() : "";
-  if (!accessToken) return null;
 
-  // Tokens issued before wallet:read was added to the OAuth scope can't read
-  // the user's global wallets via /api/oauth/userinfo. Treat them as
-  // disconnected so the UI prompts the user to reconnect CoinPay.
-  const scope = typeof metadata.scope === "string" ? metadata.scope : "";
-  const scopes = scope.split(/\s+/).filter(Boolean);
-  if (!scopes.includes(REQUIRED_COINPAY_SCOPE)) return null;
+  // Tokens issued without wallet:read can't read the user's global wallets via
+  // /api/oauth/userinfo. Treat them as disconnected so the UI prompts the user
+  // to reconnect CoinPay — the connections page uses the same predicate.
+  if (!coinpayLinkCanReadWallets(metadata)) return null;
 
   // Proactively refresh if the token is expired or about to expire.
   const expiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
