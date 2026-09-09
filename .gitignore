@@ -51,3 +51,6 @@ supabase/.temp/
 # Local agent/editor config — never a repo artifact, and it was committed
 # as a symlink to one machine's home directory, broken for everyone else.
 .claude
+
+# Written by the Socket patch postinstall; not source.
+.socket/

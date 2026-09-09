@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { gate } from "@/lib/crawl-gateway";
+import { meter } from "@/lib/throttle";
 
 const REDIRECTS: Record<string, string> = {
   // Pages now exist at /api-docs, /cli-docs, /openapi, /employers
@@ -112,6 +113,14 @@ export async function proxy(request: NextRequest) {
   // Googlebot and retrieval crawlers fall through to everything below.
   const answer = await gate(request);
   if (answer) return answer;
+
+  // Then the site-wide allowance, which meters every route: 100 requests a
+  // minute per caller, and going over is answered 402 with the same offer the
+  // gate makes rather than 429. The polling cache further down is a different
+  // tool -- it spares the database a repeat poll it already answered -- and it
+  // only ever knew about four endpoints. Nothing counted a page route at all.
+  const overLimit = await meter(request);
+  if (overLimit) return overLimit;
 
   const ip = getClientIp(request);
   const method = request.method;
