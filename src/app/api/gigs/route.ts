@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        poster:profiles!poster_id (
+        poster:profiles!poster_id${account_type ? "!inner" : ""} (
           id,
           username,
           full_name,
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (account_type) {
-      query = query.eq("poster:profiles!poster_id.account_type", account_type);
+      query = query.eq("poster.account_type", account_type);
     }
 
     // Apply sorting
