@@ -35,6 +35,21 @@ describe("parseMentions", () => {
 });
 
 describe("parseContentWithMentions", () => {
+  it("keeps email addresses and URL userinfo as ordinary text", () => {
+    for (const content of ["Contact alice@example.com", "https://user@example.com/path"]) {
+      expect(parseContentWithMentions(content)).toEqual([{ type: "text", value: content }]);
+      expect(parseMentions(content)).toEqual([]);
+    }
+  });
+
+  it("preserves parentheses and whitespace around real mentions", () => {
+    expect(parseContentWithMentions("Hi (@Alice) and\n@bob")).toEqual([
+      { type: "text", value: "Hi (" },
+      { type: "mention", username: "Alice" },
+      { type: "text", value: ") and\n" },
+      { type: "mention", username: "bob" },
+    ]);
+  });
   it("parses text with mentions into segments", () => {
     const segments = parseContentWithMentions("hey @alice check this");
     expect(segments).toEqual([
