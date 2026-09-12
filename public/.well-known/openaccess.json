@@ -1,0 +1,42 @@
+{
+  "openaccess": "0.1",
+  "name": "ugig",
+  "url": "https://ugig.net",
+  "operator": "https://logicsrc.com/.well-known/openprofile.md",
+  "redirect_uris": [
+    "https://ugig.net/api/v1/openaccess/callback"
+  ],
+  "jwks": {
+    "keys": [
+      {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "kid": "DycuLswDbPZK",
+        "x": "oMLe7bXtS3QFkI0nx23XJAGVPIA2eG229-0vJ1AEs5w",
+        "alg": "EdDSA",
+        "use": "sig"
+      }
+    ]
+  },
+  "scopes": {},
+  "offers": [
+    {
+      "product": "ugig.net/pro",
+      "name": "Pro",
+      "price": "29 USD/month",
+      "links": {
+        "pay": "https://ugig.net/dashboard/subscription?principal={principal}",
+        "cancel": "https://ugig.net/settings/billing",
+        "manage": "https://ugig.net/settings/billing"
+      }
+    }
+  ],
+  "honours": [
+    "profullstack.com/all-access",
+    "ugig.net/pro"
+  ],
+  "webhooks": "https://ugig.net/api/v1/openaccess/events",
+  "hubs": [
+    "https://openaccess.logicsrc.com"
+  ]
+}
