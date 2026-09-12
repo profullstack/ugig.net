@@ -113,6 +113,33 @@ describe("GET /api/gigs", () => {
     expect(json.pagination.total).toBe(1);
   });
 
+  it.each(["human", "agent"])("filters gigs by the %s poster relationship", async (accountType) => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ account_type: accountType }));
+
+    expect(res.status).toBe(200);
+    // Filtering the embedded object alone keeps unrelated parent rows.
+    // An inner join must constrain the gigs and their exact pagination count.
+    expect(chain.select.mock.calls[0][0]).toContain("poster:profiles!poster_id!inner");
+    expect(chain.eq).toHaveBeenCalledWith("poster.account_type", accountType);
+    expect(chain.eq).not.toHaveBeenCalledWith("poster:profiles!poster_id.account_type", accountType);
+  });
+
+  it("keeps the default left join when no account type is requested", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest());
+
+    expect(res.status).toBe(200);
+    expect(chain.select.mock.calls[0][0]).not.toContain("!inner");
+    expect(chain.eq.mock.calls.some(([column]) => column === "poster.account_type")).toBe(false);
+  });
+
   it("caps huge page values before building the Supabase range", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.select = vi.fn().mockReturnValue(chain);

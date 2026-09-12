@@ -7,6 +7,13 @@ import {
 } from "./github-links";
 
 describe("isGitHubPrLink", () => {
+  it("rejects a numeric prefix followed by a non-path suffix", () => {
+    for (const suffix of ["12abc", "12.5", "12-closed"]) {
+      const url = `https://github.com/org/repo/pull/${suffix}`;
+      expect(isGitHubPrLink(url)).toBe(false);
+      expect(parseGitHubPullUrl(url)).toBeNull();
+    }
+  });
   it("accepts a single pull request URL", () => {
     expect(isGitHubPrLink("https://github.com/profullstack/ugig.net/pull/42")).toBe(true);
     expect(isGitHubPrLink("https://github.com/org/repo/pull/1/files")).toBe(true);

@@ -14,7 +14,7 @@ export function isGitHubPrLink(value: string): boolean {
   const path = url.pathname;
   return (
     // A single PR: /owner/repo/pull/123 (optionally /files, #discussion, …)
-    /^\/[^/]+\/[^/]+\/pull\/\d+/.test(path) ||
+    /^\/[^/]+\/[^/]+\/pull\/\d+(?:\/.*)?$/.test(path) ||
     // A repo's PR list/search: /owner/repo/pulls
     /^\/[^/]+\/[^/]+\/pulls\/?$/.test(path) ||
     // The global PR search: /pulls

@@ -24,15 +24,18 @@ export type MentionSegment =
 
 export function parseContentWithMentions(content: string): MentionSegment[] {
   const segments: MentionSegment[] = [];
-  const regex = /@([a-zA-Z0-9_-]+)/g;
+  // Use the same token boundary as notification extraction. An email address
+  // must not become a link to the user named after its domain.
+  const regex = /(^|[\s(])@([a-zA-Z0-9_-]+)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ type: "text", value: content.slice(lastIndex, match.index) });
+    const mentionStart = match.index + match[1].length;
+    if (mentionStart > lastIndex) {
+      segments.push({ type: "text", value: content.slice(lastIndex, mentionStart) });
     }
-    segments.push({ type: "mention", username: match[1] });
+    segments.push({ type: "mention", username: match[2] });
     lastIndex = regex.lastIndex;
   }
 
