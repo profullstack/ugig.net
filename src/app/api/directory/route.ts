@@ -20,6 +20,8 @@ import { parsePaginationParam } from "@/lib/api-pagination";
 
 const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || "";
 const MAX_DIRECTORY_PAGE = 10_000;
+const DEFAULT_DIRECTORY_LIMIT = 20;
+const MAX_DIRECTORY_LIMIT = 50;
 
 const createListingSchema = z.object({
   title: z.string().min(1).max(100),
@@ -45,7 +47,12 @@ export async function GET(request: NextRequest) {
       1,
       MAX_DIRECTORY_PAGE
     );
-    const limit = 20;
+    const limit = parsePaginationParam(
+      url.searchParams.get("limit"),
+      DEFAULT_DIRECTORY_LIMIT,
+      1,
+      MAX_DIRECTORY_LIMIT
+    );
     const offset = (page - 1) * limit;
 
     const supabase = await createClient();
