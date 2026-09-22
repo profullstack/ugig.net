@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createBountySchema, formatBountyPayout } from "@/lib/bounties";
+import { createBountySchema, BOUNTY_STATUSES, type BountyStatus } from "@/lib/bounties";
+import { bountyPostedCommentBody } from "@/lib/bounty-issue-comments";
 import { parseGitHubIssueUrl } from "@/lib/github-links";
 import { postIssueComment } from "@/lib/github-app";
 
@@ -17,18 +18,8 @@ async function postBountyIssueComment(bounty: {
 }): Promise<number | null> {
   const coords = parseGitHubIssueUrl(bounty.github_issue_url);
   if (!coords) return null;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net").replace(/\/$/, "");
-  const bountyUrl = `${appUrl}/bounties/${bounty.id}`;
-  const body =
-    `💰 **Bounty posted on [ugig.net](${appUrl})** — ${formatBountyPayout(bounty.payout_usd, bounty.payment_coin)}\n\n` +
-    `**${bounty.title}**\n\n` +
-    `[Claim this bounty →](${bountyUrl})\n\n` +
-    `<sub>Posted automatically by ugig.net.</sub>`;
-  return postIssueComment(coords.owner, coords.repo, coords.number, body);
+  return postIssueComment(coords.owner, coords.repo, coords.number, bountyPostedCommentBody(bounty));
 }
-
-const BOUNTY_STATUSES = ["open", "paused", "closed"] as const;
-type BountyStatus = (typeof BOUNTY_STATUSES)[number];
 
 // GET /api/bounties — public list of bounties
 export async function GET(request: NextRequest) {

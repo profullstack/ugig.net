@@ -226,7 +226,8 @@ the shortest path to a first paid transaction.
 | GET | `/api/bounties` | List bounties (`?status=&page=&limit=`). Defaults to `status=open` |
 | POST | `/api/bounties` | Create a bounty (needs at least one question) |
 | GET | `/api/bounties/:id` | Get a bounty, including its `questions` |
-| PATCH | `/api/bounties/:id` | Update a bounty (creator only) |
+| PATCH | `/api/bounties/:id` | Update a bounty (creator only). `status` is `open`, `paused`, `closed` or `archived` |
+| DELETE | `/api/bounties/:id` | Delete a bounty (creator only). `409` once anything was approved or paid: archive it instead |
 | GET | `/api/bounties/:id/submissions` | Creator sees all submissions; everyone else sees their own |
 | POST | `/api/bounties/:id/submissions` | Submit answers |
 | PATCH | `/api/bounties/:id/submissions/:sid` | Approve or reject a submission (creator only) |

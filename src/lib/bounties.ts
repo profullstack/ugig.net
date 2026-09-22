@@ -43,9 +43,45 @@ export const createBountySchema = z.object({
   questions: z.array(questionSchema).min(1).max(20),
 });
 
+/**
+ * Every bounty status. `archived` keeps the bounty and its submissions but
+ * hides it from the public list, the public detail page and the creator's
+ * active dashboard list; it is the reversible alternative to deleting.
+ */
+export const BOUNTY_STATUSES = ["open", "paused", "closed", "archived"] as const;
+export type BountyStatus = (typeof BOUNTY_STATUSES)[number];
+
 export const updateBountySchema = createBountySchema.partial().extend({
-  status: z.enum(["open", "paused", "closed"]).optional(),
+  status: z.enum(BOUNTY_STATUSES).optional(),
 });
+
+/**
+ * Why a bounty cannot be hard-deleted, or null when it can.
+ *
+ * Deleting cascades to `bounty_submissions`, which is where invoices and
+ * payouts are recorded. Once a submission has been approved (money owed) or
+ * invoiced/paid (money moved) the rows are financial history and the bounty
+ * must be archived instead. Pending and rejected submissions do not block.
+ */
+export function bountyDeleteBlockReason(
+  submissions: Array<{ status: string; payout_status: string }>
+): string | null {
+  const paid = submissions.filter(
+    (s) => s.payout_status === "paid" || s.payout_status === "invoiced"
+  ).length;
+  const owed = submissions.filter(
+    (s) => s.status === "approved" && s.payout_status === "unpaid"
+  ).length;
+  if (paid === 0 && owed === 0) return null;
+  const parts: string[] = [];
+  if (paid > 0) {
+    parts.push(`${paid} paid or invoiced submission${paid === 1 ? "" : "s"}`);
+  }
+  if (owed > 0) {
+    parts.push(`${owed} approved submission${owed === 1 ? "" : "s"} still unpaid`);
+  }
+  return `This bounty has ${parts.join(" and ")}. Payment records are kept, so it cannot be deleted; archive it instead.`;
+}
 
 export const answerSchema = z.object({
   question_id: z.string(),

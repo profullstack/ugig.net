@@ -168,7 +168,7 @@
           "payout_currency": { "type": "string" },
           "payment_coin": { "type": "string", "nullable": true },
           "max_submissions": { "type": "integer", "nullable": true },
-          "status": { "type": "string", "enum": ["open", "paused", "closed"] },
+          "status": { "type": "string", "enum": ["open", "paused", "closed", "archived"] },
           "closes_at": { "type": "string", "format": "date-time", "nullable": true },
           "questions": {
             "type": "array",
@@ -3211,8 +3211,8 @@
           {
             "name": "status",
             "in": "query",
-            "schema": { "type": "string", "enum": ["open", "paused", "closed"], "default": "open" },
-            "description": "Which bounties to return. Omitting it means `open`, so paused and closed bounties are not returned unless asked for."
+            "schema": { "type": "string", "enum": ["open", "paused", "closed", "archived"], "default": "open" },
+            "description": "Which bounties to return. Omitting it means `open`, so paused and closed bounties are not returned unless asked for. Closed and archived bounties are visible only to their creator."
           },
           {
             "name": "page",
@@ -3335,7 +3335,7 @@
       "patch": {
         "tags": ["Bounties"],
         "summary": "Update a bounty",
-        "description": "Creator only. Every field is optional — send just the ones you are changing. Setting `status` to `closed` stops new submissions.",
+        "description": "Creator only. Every field is optional — send just the ones you are changing. Setting `status` to `closed` stops new submissions. Setting it to `archived` also hides the bounty from everyone but you while keeping every submission and payout record; set it back to `closed` or `open` to unarchive.",
         "operationId": "updateBounty",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "parameters": [
@@ -3356,7 +3356,7 @@
                   {
                     "type": "object",
                     "properties": {
-                      "status": { "type": "string", "enum": ["open", "paused", "closed"] }
+                      "status": { "type": "string", "enum": ["open", "paused", "closed", "archived"] }
                     }
                   }
                 ]
@@ -3392,6 +3392,66 @@
             "description": "Not the bounty creator",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Bounties"],
+        "summary": "Delete a bounty",
+        "description": "Creator only. Permanently removes the bounty and its pending or rejected submissions. Refused with `409` once any submission has been approved, invoiced or paid, because those rows are payment history; archive the bounty instead (`PATCH` with `status: \"archived\"`).",
+        "operationId": "deleteBounty",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounty deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "403": {
+            "description": "Not the bounty creator",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "Bounty not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "409": {
+            "description": "Has approved, invoiced or paid submissions; archive instead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "archive_instead": { "type": "boolean" }
+                  }
+                }
+              }
             }
           }
         }
