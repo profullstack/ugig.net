@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // --- Homepage screenshot via Microlink ---
+    // --- Homepage screenshot ---
     let screenshot_url = "";
     try {
       screenshot_url = await captureScreenshot(url);
@@ -217,47 +217,18 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Capture a homepage screenshot via Microlink API and upload to Supabase storage.
+ * Capture a homepage screenshot and upload it to Supabase storage.
+ *
+ * Rasterly is the provider when RASTERLY_API_KEY is set; Microlink stays as a
+ * keyless fallback so screenshots keep working if the key is missing or the
+ * render fails (the rasterly free tier is 100 renders/month).
  */
 async function captureScreenshot(url: string): Promise<string> {
-  const microlinkUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url`;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  let imageBuffer = await renderWithRasterly(url);
+  if (!imageBuffer) imageBuffer = await renderWithMicrolink(url);
+  if (!imageBuffer || imageBuffer.length === 0) return "";
 
   try {
-    const res = await fetch(microlinkUrl, {
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) return "";
-
-    // The embed=screenshot.url mode redirects to the image directly
-    const contentType = res.headers.get("content-type") || "";
-
-    let imageBuffer: Buffer;
-
-    if (contentType.startsWith("image/")) {
-      // Direct image response (embed mode)
-      imageBuffer = Buffer.from(await res.arrayBuffer());
-    } else {
-      // JSON response — extract screenshot URL and fetch the image
-      const data = await res.json();
-      const screenshotUrl =
-        data?.data?.screenshot?.url || data?.screenshot?.url;
-      if (!screenshotUrl) return "";
-
-      const imgRes = await fetch(screenshotUrl, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!imgRes.ok) return "";
-      imageBuffer = Buffer.from(await imgRes.arrayBuffer());
-    }
-
-    if (imageBuffer.length === 0) return "";
-
     // Upload to Supabase storage
     const urlHash = crypto.createHash("md5").update(url).digest("hex");
     const filePath = `${urlHash}/${Date.now()}.png`;
@@ -281,8 +252,72 @@ async function captureScreenshot(url: string): Promise<string> {
     return publicUrl;
   } catch {
     return "";
-  } finally {
-    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Render via rasterly.dev, which returns the PNG bytes directly.
+ */
+async function renderWithRasterly(url: string): Promise<Buffer | null> {
+  const apiKey = process.env.RASTERLY_API_KEY;
+  if (!apiKey) return null;
+
+  const endpoint = `https://api.rasterly.dev/v1/screenshot?url=${encodeURIComponent(
+    url
+  )}&format=png&width=1280&height=800`;
+
+  try {
+    const res = await fetch(endpoint, {
+      headers: { "X-Api-Key": apiKey },
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (!res.ok) return null;
+    if (!(res.headers.get("content-type") || "").startsWith("image/")) return null;
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > 0 ? buf : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fallback render via the keyless Microlink API.
+ */
+async function renderWithMicrolink(url: string): Promise<Buffer | null> {
+  const microlinkUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url`;
+
+  try {
+    const res = await fetch(microlinkUrl, {
+      signal: AbortSignal.timeout(10000),
+      redirect: "follow",
+    });
+
+    if (!res.ok) return null;
+
+    // The embed=screenshot.url mode redirects to the image directly
+    const contentType = res.headers.get("content-type") || "";
+
+    if (contentType.startsWith("image/")) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      return buf.length > 0 ? buf : null;
+    }
+
+    // JSON response — extract screenshot URL and fetch the image
+    const data = await res.json();
+    const screenshotUrl = data?.data?.screenshot?.url || data?.screenshot?.url;
+    if (!screenshotUrl) return null;
+
+    const imgRes = await fetch(screenshotUrl, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!imgRes.ok) return null;
+
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    return buf.length > 0 ? buf : null;
+  } catch {
+    return null;
   }
 }
 
