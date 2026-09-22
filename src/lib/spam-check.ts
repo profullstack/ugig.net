@@ -151,8 +151,24 @@ const DISPOSABLE_DOMAINS = new Set([
   "guerrillamail.org", "harakirimail.com", "mailforspam.com",
 ]);
 
+/**
+ * Local parts that are random rather than chosen.
+ *
+ * There used to be a second rule here, `/^[a-z]{2,3}\d{6,}@/i`, meant to catch
+ * `ab123456@`. It caught people instead. Initials followed by digits is one of
+ * the most ordinary ways a real address is formed — a birth year, a phone
+ * fragment, digits of pi — and the shape alone says nothing about who typed it.
+ * It blocked a reporter's long-established personal Gmail address with nothing
+ * but "Email matches spam pattern" and no route back in.
+ *
+ * Unlike a username, an email address is not something a blocked signup can
+ * simply pick differently, so a false positive here is a closed door rather than
+ * an inconvenience. The same reasoning retired the plus-tag length rule below,
+ * and corroboration replaced shape in checkSpam (#531): what marks a generated
+ * address is randomness, which the length rule already covers, not the presence
+ * of digits after letters.
+ */
 const SPAM_EMAIL_PATTERNS = [
-  /^[a-z]{2,3}\d{6,}@/i,           // ab123456@...
   /^[a-z0-9]{20,}@/i,               // long random local part
 ];
 
