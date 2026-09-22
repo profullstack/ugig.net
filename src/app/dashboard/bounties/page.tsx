@@ -12,14 +12,15 @@ import {
   Clock,
   XCircle,
 } from "lucide-react";
-import { formatBountyPayout } from "@/lib/bounties";
+import { formatBountyPayout, type BountyStatus } from "@/lib/bounties";
+import { BountyActions } from "@/components/bounties/BountyActions";
 
 export const metadata = {
   title: "My Bounties | ugig.net",
   description: "Manage bounties you've posted or submitted to",
 };
 
-type TabKey = "created" | "submitted";
+type TabKey = "created" | "archived" | "submitted";
 
 export default async function DashboardBountiesPage({
   searchParams,
@@ -35,7 +36,8 @@ export default async function DashboardBountiesPage({
   }
 
   const tabParam = (await searchParams).tab;
-  const tab: TabKey = tabParam === "submitted" ? "submitted" : "created";
+  const tab: TabKey =
+    tabParam === "submitted" ? "submitted" : tabParam === "archived" ? "archived" : "created";
 
   // Bounties I've created
   const { data: createdData } = await (supabase as any)
@@ -43,18 +45,22 @@ export default async function DashboardBountiesPage({
     .select("id, title, payout_usd, payment_coin, max_submissions, status, created_at")
     .eq("creator_id", user.id)
     .order("created_at", { ascending: false });
-  const created = (createdData || []) as Array<{
+  const allCreated = (createdData || []) as Array<{
     id: string;
     title: string;
     payout_usd: number;
     payment_coin: string | null;
     max_submissions: number | null;
-    status: string;
+    status: BountyStatus;
     created_at: string;
   }>;
+  // Archived bounties keep their records but live on their own tab.
+  const created = allCreated.filter((b) => b.status !== "archived");
+  const archived = allCreated.filter((b) => b.status === "archived");
+  const shown = tab === "archived" ? archived : created;
 
   // Submission counts per bounty I created (best-effort, single query)
-  const createdIds = created.map((b) => b.id);
+  const createdIds = allCreated.map((b) => b.id);
   const submissionStats: Record<
     string,
     { total: number; pending: number; approved_unpaid: number }
@@ -136,6 +142,18 @@ export default async function DashboardBountiesPage({
           >
             Bounties I posted ({created.length})
           </Link>
+          {archived.length > 0 && (
+            <Link
+              href="/dashboard/bounties?tab=archived"
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === "archived"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Archived ({archived.length})
+            </Link>
+          )}
           <Link
             href="/dashboard/bounties?tab=submitted"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -148,42 +166,55 @@ export default async function DashboardBountiesPage({
           </Link>
         </div>
 
-        {tab === "created" ? (
-          created.length === 0 ? (
+        {tab !== "submitted" ? (
+          shown.length === 0 ? (
             <div className="text-center py-16 bg-card rounded-lg border border-border">
               <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No bounties yet</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {tab === "archived" ? "No archived bounties" : "No bounties yet"}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Post your first bounty to start collecting submissions.
+                {tab === "archived"
+                  ? "Archived bounties keep their submissions and payouts but stay out of the way."
+                  : "Post your first bounty to start collecting submissions."}
               </p>
-              <Link href="/bounties/new">
-                <Button>Post a bounty</Button>
-              </Link>
+              {tab !== "archived" && (
+                <Link href="/bounties/new">
+                  <Button>Post a bounty</Button>
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {created.map((b) => {
+              {shown.map((b) => {
                 const stat = submissionStats[b.id] || {
                   total: 0,
                   pending: 0,
                   approved_unpaid: 0,
                 };
                 return (
-                  <Link
+                  <div
                     key={b.id}
-                    href={`/bounties/${b.id}`}
-                    className="block p-4 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
+                    className="p-4 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <div>
-                        <p className="font-medium">{b.title}</p>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/bounties/${b.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {b.title}
+                        </Link>
                         <p className="text-xs text-muted-foreground">
                           Posted {new Date(b.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="capitalize">
-                        {b.status}
-                      </Badge>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="secondary" className="capitalize">
+                          {b.status}
+                        </Badge>
+                        <BountyActions bountyId={b.id} status={b.status} hideEdit />
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground mt-2">
                       <span className="inline-flex items-center gap-1 text-sm text-foreground font-medium">
@@ -205,7 +236,7 @@ export default async function DashboardBountiesPage({
                         </span>
                       )}
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

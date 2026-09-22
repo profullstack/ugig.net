@@ -9,12 +9,13 @@ import {
   Users,
   Clock,
   Lock,
-  Pencil,
   Github,
+  Archive,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
-import { formatBountyPayout } from "@/lib/bounties";
+import { formatBountyPayout, type BountyStatus } from "@/lib/bounties";
+import { BountyActions } from "@/components/bounties/BountyActions";
 import { SubmitForm } from "./SubmitForm";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -28,7 +29,7 @@ interface BountyDetail {
   payment_coin: string | null;
   max_submissions: number | null;
   github_issue_url: string | null;
-  status: "open" | "paused" | "closed";
+  status: BountyStatus;
   questions: {
     id: string;
     type: "short_text" | "long_text" | "multiple_choice";
@@ -126,6 +127,16 @@ export default async function BountyDetailPage({
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
+            {isCreator && bounty.status === "archived" && (
+              <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/40 text-sm">
+                <Archive className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  This bounty is archived. Only you can see it, and it is not
+                  accepting submissions. Every submission and payout record is
+                  kept. Unarchive it from the actions menu to bring it back.
+                </p>
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 {bounty.status !== "open" && (
@@ -226,12 +237,7 @@ export default async function BountyDetailPage({
               subtitle="Per approved submission"
               topRight={
                 isCreator ? (
-                  <Link href={`/bounties/${bounty.id}/edit`}>
-                    <Button size="sm" variant="outline" className="gap-1.5">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                  </Link>
+                  <BountyActions bountyId={bounty.id} status={bounty.status} />
                 ) : null
               }
             >
