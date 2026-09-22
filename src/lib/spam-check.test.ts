@@ -98,8 +98,21 @@ describe("checkEmail", () => {
     expect(checkEmail(email).spam).toBe(false);
   });
 
+  // Initials followed by digits is one of the most ordinary shapes a real
+  // address takes, and it used to be a hard block with no appeal: a reporter's
+  // years-old personal address was refused as "Email matches spam pattern".
+  // An address is not something a blocked signup can just pick differently.
   it.each([
-    ["ab123456@example.com", "letters then a long digit run"],
+    ["abc123456789@example.com", "the shape reported as blocked"],
+    ["ab123456@example.com", "two initials and a digit run"],
+    ["jsm19850612@example.com", "initials and a date of birth"],
+    ["kp4155550143@example.com", "initials and a phone fragment"],
+    ["xy31415926535@example.com", "initials and digits of pi"],
+  ])("allows email: %s (%s)", (email) => {
+    expect(checkEmail(email).spam).toBe(false);
+  });
+
+  it.each([
     ["x7f2q9k1m4z8p3w6r5t0@example.com", "long random local part"],
     ["someone+x7f2q9k1m4z8@gmail.com", "generated-looking tag"],
     ["someone@mailinator.com", "disposable domain"],
