@@ -63,4 +63,39 @@ describe("GET /api/directory", () => {
     expect(chain.range).toHaveBeenCalledWith(0, 19);
     expect(body.page).toBe(1);
   });
+
+  it("honours limit instead of always returning 20 rows", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeRequest({ limit: "5" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chain.range).toHaveBeenCalledWith(0, 4);
+    expect(body.per_page).toBe(5);
+  });
+
+  it("offsets by the requested limit when paging", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    await GET(makeRequest({ limit: "5", page: "3" }));
+
+    expect(chain.range).toHaveBeenCalledWith(10, 14);
+  });
+
+  it("clamps limit to the allowed range and defaults when absent", async () => {
+    const chain = chainResult({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    await GET(makeRequest({ limit: "9999" }));
+    expect(chain.range).toHaveBeenCalledWith(0, 49);
+
+    await GET(makeRequest({ limit: "0" }));
+    expect(chain.range).toHaveBeenCalledWith(0, 0);
+
+    await GET(makeRequest());
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+  });
 });

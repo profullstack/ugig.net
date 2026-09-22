@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { toHttpUrl } from "@/lib/meta-url";
 import OpenAI from "openai";
 import crypto from "crypto";
 
@@ -101,26 +102,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!logo_url) {
-      const faviconHref = extractFavicon(html);
-      if (faviconHref) {
-        try {
-          logo_url = new URL(faviconHref, url).href;
-        } catch {
-          logo_url = faviconHref;
-        }
-      }
+      // A page may declare <link rel="icon" href="data:,"> to suppress the
+      // favicon request. That parses as a valid URL, so it has to be rejected
+      // by scheme or it reaches the directory and renders as a broken image.
+      logo_url = toHttpUrl(extractFavicon(html), url);
     }
 
     if (!logo_url && ogImage) {
-      try {
-        logo_url = new URL(ogImage, url).href;
-      } catch {
-        logo_url = ogImage;
-      }
+      logo_url = toHttpUrl(ogImage, url);
     }
 
     if (!logo_url) {
-      logo_url = `${parsedUrl.origin}/favicon.ico`;
+      // Only fall back to /favicon.ico if the site actually serves one.
+      const icoFallback = `${parsedUrl.origin}/favicon.ico`;
+      if (await urlExists(icoFallback)) logo_url = icoFallback;
     }
 
     // --- Banner detection ---
@@ -342,6 +337,22 @@ function extractMeta(html: string, attr: string): string {
 function extractTitle(html: string): string {
   const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   return match ? decodeEntities(match[1].trim()) : "";
+}
+
+/**
+ * HEAD a URL to see whether it is actually served.
+ */
+async function urlExists(candidate: string): Promise<boolean> {
+  try {
+    const res = await fetch(candidate, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(3000),
+      redirect: "follow",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 function extractFavicon(html: string): string {
