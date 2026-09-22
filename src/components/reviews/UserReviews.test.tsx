@@ -262,6 +262,13 @@ describe("UserReviews", () => {
     fireEvent.click(screen.getByText("Load more reviews"));
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    // The deferred response resolves 100ms from now. Let it land before the
+    // test ends: otherwise loadMore's setReviews runs after jsdom teardown and
+    // vitest reports an unhandled "window is not defined" for the whole run.
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
+    });
   });
 
   it("appends new reviews to existing ones", async () => {
