@@ -49,8 +49,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Hide posts by anyone on either side of a block.
+    // Ask through the auth context's client: `blocked_user_ids` is not granted
+    // to anon, so the cookie client cannot run it for an API-key caller.
     const blockedAuthorFilter = notInFilter(
-      await getBlockedUserIds(supabase, currentUserId)
+      auth ? await getBlockedUserIds(auth.supabase, auth.user.id) : []
     );
 
     // Handle "following" sort — requires auth and fetches followed tags

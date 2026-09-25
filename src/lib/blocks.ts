@@ -63,3 +63,34 @@ export function notInFilter(ids: string[]): string | null {
   if (ids.length === 0) return null;
   return `(${ids.join(",")})`;
 }
+
+/**
+ * Blocked ids for the viewer of a server-rendered page, resolved from the
+ * session cookie. Returns an empty array for a logged-out visitor: blocking is
+ * a per-viewer filter, so the public view of a listing is unchanged.
+ */
+export async function getSessionBlockedIds(supabase: Client): Promise<string[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return getBlockedUserIds(supabase, user?.id ?? null);
+}
+
+/**
+ * Drop rows whose author is on either side of a block. `column` is the row's
+ * author column (gigs.poster_id, posts.author_id, profiles.id, ...). A no-op
+ * when there is nothing to exclude, so callers can apply it unconditionally.
+ *
+ * Only safe on a NOT NULL author column: PostgREST renders this as SQL `NOT IN`,
+ * which is NULL — and therefore drops the row — for a null author.
+ */
+export function excludeBlocked<Q>(query: Q, column: string, blockedIds: string[]): Q {
+  const filter = notInFilter(blockedIds);
+  if (!filter) return query;
+  return (query as { not: (c: string, op: string, v: string) => Q }).not(
+    column,
+    "in",
+    filter
+  );
+}

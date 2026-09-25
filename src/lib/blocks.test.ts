@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { usersAreBlocked, getBlockedUserIds, notInFilter } from "./blocks";
+import {
+  usersAreBlocked,
+  getBlockedUserIds,
+  notInFilter,
+  getSessionBlockedIds,
+  excludeBlocked,
+} from "./blocks";
 
 const A = "00000000-0000-4000-a000-00000000000a";
 const B = "00000000-0000-4000-a000-00000000000b";
@@ -80,5 +86,48 @@ describe("notInFilter", () => {
 
   it("wraps ids in the PostgREST list form", () => {
     expect(notInFilter([A, B])).toBe(`(${A},${B})`);
+  });
+});
+
+describe("getSessionBlockedIds", () => {
+  it("looks up the signed-in viewer's blocks", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ user_id: B }],
+      error: null,
+    });
+    const client = {
+      rpc,
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: A } } }) },
+    } as unknown as SupabaseClient<Database>;
+
+    await expect(getSessionBlockedIds(client)).resolves.toEqual([B]);
+    expect(rpc).toHaveBeenCalledWith("blocked_user_ids", { for_user: A });
+  });
+
+  it("returns nothing for a logged-out visitor, leaving the public view intact", async () => {
+    const rpc = vi.fn();
+    const client = {
+      rpc,
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
+    } as unknown as SupabaseClient<Database>;
+
+    await expect(getSessionBlockedIds(client)).resolves.toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("excludeBlocked", () => {
+  it("adds a NOT IN filter on the author column", () => {
+    const query = { not: vi.fn().mockReturnValue("filtered") };
+
+    expect(excludeBlocked(query, "poster_id", [A, B])).toBe("filtered");
+    expect(query.not).toHaveBeenCalledWith("poster_id", "in", `(${A},${B})`);
+  });
+
+  it("is a no-op when there is nothing to exclude", () => {
+    const query = { not: vi.fn() };
+
+    expect(excludeBlocked(query, "poster_id", [])).toBe(query);
+    expect(query.not).not.toHaveBeenCalled();
   });
 });

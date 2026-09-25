@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { usersAreBlocked } from "@/lib/blocks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
@@ -111,6 +112,14 @@ export default async function GigPage({ params }: GigPageProps) {
   } = await supabase.auth.getUser();
 
   const isOwner = user?.id === gig.poster_id;
+
+  // A blocked user's gig is not reachable by direct link either. Checked after
+  // the fetch because the block is symmetric and RLS cannot see both sides.
+  if (user && !isOwner && gig.poster_id) {
+    if (await usersAreBlocked(supabase, user.id, gig.poster_id)) {
+      notFound();
+    }
+  }
 
   // Check if already applied
   let hasApplied = false;

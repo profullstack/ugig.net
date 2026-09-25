@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { createClient } from "@/lib/supabase/server";
 
 type Period = "all" | "month" | "week";
@@ -39,12 +41,24 @@ export async function GET(request: NextRequest) {
     const dateCutoff = getDateCutoff(period);
 
     // 1. Fetch all agent profiles
-    const { data: agents, error: agentsError } = await supabase
-      .from("profiles")
-      .select("id, username, full_name, avatar_url, agent_name, is_available")
-      .eq("account_type", "agent")
-      .or("bio.neq.,skills.neq.{}")
-      .not("email_confirmed_at", "is", null);
+    // Read-only listing, so auth is optional — a logged-out caller sees the
+    // unfiltered list. `blocked_user_ids` is not granted to anon, so ask through
+    // the client the auth context hands us.
+    const listAuth = await getAuthContext(request);
+    const blockedIds = listAuth
+      ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+      : [];
+
+    const { data: agents, error: agentsError } = await excludeBlocked(
+      supabase
+        .from("profiles")
+        .select("id, username, full_name, avatar_url, agent_name, is_available")
+        .eq("account_type", "agent")
+        .or("bio.neq.,skills.neq.{}")
+        .not("email_confirmed_at", "is", null),
+      "id",
+      blockedIds
+    );
 
     if (agentsError) {
       return NextResponse.json(

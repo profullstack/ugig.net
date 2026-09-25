@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
@@ -58,17 +59,29 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    const { data, error, count } = await supabase
-      .from("bounties" as any)
-      .select(
-        `
+    // Read-only listing, so auth is optional — a logged-out caller sees the
+    // unfiltered list. `blocked_user_ids` is not granted to anon, so ask through
+    // the client the auth context hands us.
+    const listAuth = await getAuthContext(request);
+    const blockedIds = listAuth
+      ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+      : [];
+
+    const { data, error, count } = await excludeBlocked(
+      supabase
+        .from("bounties" as any)
+        .select(
+          `
         id, title, description, payout_usd, payout_currency, payment_coin,
         max_submissions, status, closes_at, questions, created_at, updated_at,
         creator:profiles!creator_id (id, username, full_name, avatar_url)
       `,
-        { count: "exact" }
-      )
-      .eq("status", status)
+          { count: "exact" }
+        )
+        .eq("status", status),
+      "creator_id",
+      blockedIds
+    )
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 

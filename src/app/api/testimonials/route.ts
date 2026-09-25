@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendEmail } from "@/lib/email";
-import { usersAreBlocked } from "@/lib/blocks";
+import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,12 +18,21 @@ export async function GET(request: NextRequest) {
 
     const serviceClient = createServiceClient();
 
-    const { data, error } = await serviceClient
-      .from("testimonials")
-      .select("id, rating, content, status, created_at, author_id")
-      .eq("gig_id", gigId)
-      .eq("status", "approved")
-      .order("created_at", { ascending: false });
+    // Hide testimonials written by anyone on either side of a block.
+    const listAuth = await getAuthContext(request);
+    const blockedIds = listAuth
+      ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+      : [];
+
+    const { data, error } = await excludeBlocked(
+      serviceClient
+        .from("testimonials")
+        .select("id, rating, content, status, created_at, author_id")
+        .eq("gig_id", gigId)
+        .eq("status", "approved"),
+      "author_id",
+      blockedIds
+    ).order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

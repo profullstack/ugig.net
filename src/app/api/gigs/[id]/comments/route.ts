@@ -7,7 +7,7 @@ import { sanitizeContent } from "@/lib/sanitize";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
-import { usersAreBlocked } from "@/lib/blocks";
+import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 
 // GET /api/gigs/[id]/comments - List comments for a gig
 export async function GET(
@@ -17,6 +17,14 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
+
+    // Hide comments by anyone on either side of a block. Read-only, so auth is
+    // optional — a logged-out caller sees the whole thread. `blocked_user_ids`
+    // is not granted to anon, so ask through the auth context's client.
+    const viewerAuth = await getAuthContext(request);
+    const blockedIds = viewerAuth
+      ? await getBlockedUserIds(viewerAuth.supabase, viewerAuth.user.id)
+      : [];
 
     // Verify gig exists
     const { data: gig, error: gigError } = await supabase
@@ -30,20 +38,24 @@ export async function GET(
     }
 
     // Fetch all comments for this gig with author info
-    const { data: comments, error } = await supabase
-      .from("gig_comments")
-      .select(
+    const { data: comments, error } = await excludeBlocked(
+      supabase
+        .from("gig_comments")
+        .select(
+          `
+          *,
+          author:profiles!author_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
         `
-        *,
-        author:profiles!author_id (
-          id,
-          username,
-          full_name,
-          avatar_url
         )
-      `
-      )
-      .eq("gig_id", id)
+        .eq("gig_id", id),
+      "author_id",
+      blockedIds
+    )
       .order("created_at", { ascending: true });
 
     if (error) {

@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionBlockedIds, excludeBlocked } from "@/lib/blocks";
 import { Header } from "@/components/layout/Header";
 import { CreatePostForm } from "@/components/feed/CreatePostForm";
 import { FeedSortTabs } from "@/components/feed/FeedSortTabs";
@@ -98,6 +99,13 @@ async function FeedContent({ searchParams }: FeedPageProps) {
       )
       .overlaps("tags", followedTags);
 
+    // Hide posts by anyone on either side of a block.
+    followQuery = excludeBlocked(
+      followQuery,
+      "author_id",
+      await getSessionBlockedIds(supabase)
+    );
+
     if (tag) {
       followQuery = followQuery.contains("tags", [tag]);
     }
@@ -177,6 +185,9 @@ async function FeedContent({ searchParams }: FeedPageProps) {
     `,
       { count: "exact" }
     );
+
+  // Hide posts by anyone on either side of a block.
+  query = excludeBlocked(query, "author_id", await getSessionBlockedIds(supabase));
 
   if (tag) {
     query = query.contains("tags", [tag]);

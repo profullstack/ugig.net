@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionBlockedIds } from "@/lib/blocks";
 import { CandidateFilters } from "@/components/candidates/CandidateFilters";
 import { CandidateLoadMore } from "@/components/candidates/CandidateLoadMore";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,8 @@ async function CandidatesList({
     page: queryParams.page,
     available: queryParams.available,
     tags: tagList,
+    // A blocked user must not appear in the listing at all.
+    excludeUserIds: await getSessionBlockedIds(supabase),
   });
 
   const { data: candidates, count } = await query;

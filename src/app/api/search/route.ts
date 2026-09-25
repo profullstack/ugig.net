@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 
 type SearchType = "gigs" | "agents" | "posts" | "all";
 
@@ -44,6 +46,13 @@ export async function GET(request: NextRequest) {
     const escaped = escapePostgrestSearchValue(query);
     const pattern = `%${escaped}%`;
 
+    // Nothing authored by anyone on either side of a block is searchable.
+    // Read-only, so auth is optional — a logged-out caller searches everything.
+    const auth = await getAuthContext(request);
+    const blockedIds = auth
+      ? await getBlockedUserIds(auth.supabase, auth.user.id)
+      : [];
+
     const results: Record<string, unknown> = {};
 
     // Search gigs
@@ -51,10 +60,11 @@ export async function GET(request: NextRequest) {
       const gigLimit = type === "all" ? 5 : limit;
       const gigOffset = type === "all" ? 0 : offset;
 
-      let gigQuery = supabase
-        .from("gigs")
-        .select(
-          `
+      let gigQuery = excludeBlocked(
+        supabase
+          .from("gigs")
+          .select(
+            `
           *,
           poster:profiles!poster_id (
             id,
@@ -64,12 +74,15 @@ export async function GET(request: NextRequest) {
             account_type
           )
         `,
-          { count: "exact" }
-        )
-        .eq("status", "active")
-        .or(
-          `title.ilike.${pattern},description.ilike.${pattern},skills_required.cs.{"${escaped}"}`
-        )
+            { count: "exact" }
+          )
+          .eq("status", "active")
+          .or(
+            `title.ilike.${pattern},description.ilike.${pattern},skills_required.cs.{"${escaped}"}`
+          ),
+        "poster_id",
+        blockedIds
+      )
         .order("created_at", { ascending: false })
         .range(gigOffset, gigOffset + gigLimit - 1);
 
@@ -77,10 +90,11 @@ export async function GET(request: NextRequest) {
 
       if (gigsError) {
         // Fallback: try without array containment (skills_required)
-        const fallback = await supabase
-          .from("gigs")
-          .select(
-            `
+        const fallback = await excludeBlocked(
+          supabase
+            .from("gigs")
+            .select(
+              `
             *,
             poster:profiles!poster_id (
               id,
@@ -90,10 +104,13 @@ export async function GET(request: NextRequest) {
               account_type
             )
           `,
-            { count: "exact" }
-          )
-          .eq("status", "active")
-          .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+              { count: "exact" }
+            )
+            .eq("status", "active")
+            .or(`title.ilike.${pattern},description.ilike.${pattern}`),
+          "poster_id",
+          blockedIds
+        )
           .order("created_at", { ascending: false })
           .range(gigOffset, gigOffset + gigLimit - 1);
 
@@ -120,14 +137,18 @@ export async function GET(request: NextRequest) {
       const agentLimit = type === "all" ? 5 : limit;
       const agentOffset = type === "all" ? 0 : offset;
 
-      const { data: rawAgents, count: agentsCount } = await supabase
-        .from("profiles")
-        .select("id, username, full_name, avatar_url, bio", { count: "exact" })
-        .or("bio.neq.,skills.neq.{}")
-        .not("email_confirmed_at", "is", null)
-        .or(
-          `username.ilike.${pattern},full_name.ilike.${pattern},bio.ilike.${pattern}`
-        )
+      const { data: rawAgents, count: agentsCount } = await excludeBlocked(
+        supabase
+          .from("profiles")
+          .select("id, username, full_name, avatar_url, bio", { count: "exact" })
+          .or("bio.neq.,skills.neq.{}")
+          .not("email_confirmed_at", "is", null)
+          .or(
+            `username.ilike.${pattern},full_name.ilike.${pattern},bio.ilike.${pattern}`
+          ),
+        "id",
+        blockedIds
+      )
         .order("last_active_at", { ascending: false })
         .range(agentOffset, agentOffset + agentLimit - 1);
 
@@ -151,10 +172,11 @@ export async function GET(request: NextRequest) {
       const postLimit = type === "all" ? 5 : limit;
       const postOffset = type === "all" ? 0 : offset;
 
-      let postQuery = supabase
-        .from("posts")
-        .select(
-          `
+      let postQuery = excludeBlocked(
+        supabase
+          .from("posts")
+          .select(
+            `
           *,
           author:profiles!author_id (
             id,
@@ -164,9 +186,12 @@ export async function GET(request: NextRequest) {
             account_type
           )
         `,
-          { count: "exact" }
-        )
-        .or(`content.ilike.${pattern}`)
+            { count: "exact" }
+          )
+          .or(`content.ilike.${pattern}`),
+        "author_id",
+        blockedIds
+      )
         .order("created_at", { ascending: false })
         .range(postOffset, postOffset + postLimit - 1);
 

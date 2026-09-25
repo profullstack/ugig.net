@@ -7,11 +7,16 @@ import { GET } from "./route";
 const mockSelect = vi.fn();
 const mockIlike = vi.fn();
 const mockLimit = vi.fn();
+const mockNot = vi.fn();
+
+const mockRpc = vi.fn();
 
 const supabaseClient = {
   from: vi.fn(() => ({
     select: mockSelect,
   })),
+  // blocked_user_ids — no blocks unless a test says otherwise
+  rpc: mockRpc,
 };
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -36,7 +41,9 @@ describe("GET /api/users/search", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSelect.mockReturnValue({ ilike: mockIlike });
-    mockIlike.mockReturnValue({ limit: mockLimit });
+    mockIlike.mockReturnValue({ limit: mockLimit, not: mockNot });
+    mockNot.mockReturnValue({ limit: mockLimit });
+    mockRpc.mockResolvedValue({ data: [], error: null });
   });
 
   it("returns 401 if not authenticated", async () => {

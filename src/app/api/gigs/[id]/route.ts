@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gigSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { usersAreBlocked } from "@/lib/blocks";
 
 // GET /api/gigs/[id] - Get a single gig
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -37,6 +38,18 @@ export async function GET(
       .single();
 
     if (error || !gig) {
+      return NextResponse.json({ error: "Gig not found" }, { status: 404 });
+    }
+
+    // A blocked poster's gig reads as missing rather than hidden, so the 404 says
+    // nothing about who blocked whom.
+    const auth = await getAuthContext(request);
+    if (
+      auth &&
+      gig.poster_id &&
+      auth.user.id !== gig.poster_id &&
+      (await usersAreBlocked(auth.supabase, auth.user.id, gig.poster_id))
+    ) {
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
     }
 

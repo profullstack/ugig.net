@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
@@ -57,6 +58,14 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Read-only listing, so auth is optional — a logged-out caller sees the
+    // unfiltered list. `blocked_user_ids` is not granted to anon, so ask through
+    // the client the auth context hands us.
+    const listAuth = await getAuthContext(request);
+    const blockedIds = listAuth
+      ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+      : [];
+
     let query = supabase
       .from("project_listings" as any)
       .select(
@@ -79,6 +88,9 @@ export async function GET(request: NextRequest) {
 
     query = query.order("created_at", { ascending: false });
     query = query.range(offset, offset + limit - 1);
+
+    // Hide listings by anyone on either side of a block.
+    query = excludeBlocked(query, "user_id", blockedIds);
 
     const { data: listings, count, error } = await query;
 

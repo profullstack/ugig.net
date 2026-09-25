@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionBlockedIds, excludeBlocked } from "@/lib/blocks";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Target, DollarSign, Users, Plus } from "lucide-react";
@@ -48,17 +49,22 @@ export default async function BountiesPage({ searchParams }: BountiesPageProps) 
   const limit = 20;
   const offset = (page - 1) * limit;
   const supabase = await createClient();
-  const { data, count } = await supabase
-    .from("bounties" as any)
-    .select(
-      `
+  const blockedIds = await getSessionBlockedIds(supabase);
+  const { data, count } = await excludeBlocked(
+    supabase
+      .from("bounties" as any)
+      .select(
+        `
       id, title, description, payout_usd, payout_currency, payment_coin, max_submissions,
       status, created_at,
       creator:profiles!creator_id (id, username, full_name, avatar_url)
     `,
-      { count: "exact" }
-    )
-    .eq("status", "open")
+        { count: "exact" }
+      )
+      .eq("status", "open"),
+    "creator_id",
+    blockedIds
+  )
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 

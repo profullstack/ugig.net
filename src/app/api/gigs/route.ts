@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
 import { sanitizeTitle, sanitizeContent, stripProtoPollution } from "@/lib/sanitize";
 import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -72,6 +73,19 @@ export async function GET(request: NextRequest) {
         { count: "exact" }
       )
       .eq("status", "active");
+
+    // Hide gigs posted by anyone on either side of a block. Read-only listing,
+    // so auth is optional — a logged-out caller sees the unfiltered list.
+    // `blocked_user_ids` is not granted to anon, so ask through the client the
+    // auth context handed us (service role for an API key) rather than this one.
+    const listAuth = await getAuthContext(request);
+    query = excludeBlocked(
+      query,
+      "poster_id",
+      listAuth
+        ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+        : []
+    );
 
     // Apply filters — use textSearch or individual filters to prevent PostgREST filter injection (#71)
     if (search) {

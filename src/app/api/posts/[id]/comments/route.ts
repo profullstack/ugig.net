@@ -6,7 +6,7 @@ import { sendEmail, newPostCommentEmail, newPostCommentReplyEmail, mentionInComm
 import { parseMentions } from "@/lib/mentions";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
-import { getBlockedUserIds, usersAreBlocked } from "@/lib/blocks";
+import { getBlockedUserIds, usersAreBlocked, excludeBlocked } from "@/lib/blocks";
 
 const MAX_COMMENT_DEPTH = 4; // 0-indexed, so 5 levels (0,1,2,3,4)
 
@@ -74,6 +74,14 @@ export async function GET(
     const { id } = await params;
     const supabase = await createClient();
 
+    // Hide comments by anyone on either side of a block. Read-only, so auth is
+    // optional — a logged-out caller sees the whole thread. `blocked_user_ids`
+    // is not granted to anon, so ask through the auth context's client.
+    const viewerAuth = await getAuthContext(request);
+    const blockedIds = viewerAuth
+      ? await getBlockedUserIds(viewerAuth.supabase, viewerAuth.user.id)
+      : [];
+
     // Verify post exists
     const { data: post, error: postError } = await supabase
       .from("posts")
@@ -86,20 +94,24 @@ export async function GET(
     }
 
     // Fetch all comments for this post with author info
-    const { data: comments, error } = await supabase
-      .from("post_comments")
-      .select(
+    const { data: comments, error } = await excludeBlocked(
+      supabase
+        .from("post_comments")
+        .select(
+          `
+          *,
+          author:profiles!author_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
         `
-        *,
-        author:profiles!author_id (
-          id,
-          username,
-          full_name,
-          avatar_url
         )
-      `
-      )
-      .eq("post_id", id)
+        .eq("post_id", id),
+      "author_id",
+      blockedIds
+    )
       .order("created_at", { ascending: true });
 
     if (error) {

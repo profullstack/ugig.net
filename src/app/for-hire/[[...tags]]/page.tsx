@@ -10,6 +10,7 @@ import { Header } from "@/components/layout/Header";
 import { AdUnit } from "@/components/AdUnit";
 import { parsePageParam } from "@/lib/pagination";
 import { fetchGigs } from "@/lib/gigs/fetch-gigs";
+import { getSessionBlockedIds } from "@/lib/blocks";
 import type { GigCardData } from "@/components/gigs/GigCard";
 import { Briefcase } from "lucide-react";
 
@@ -74,6 +75,9 @@ async function GigsList({
   const page = parsePageParam(queryParams.page);
   const limit = 20;
 
+  // A blocked user must not appear in the listing at all.
+  const blockedIds = await getSessionBlockedIds(supabase);
+
   const { gigs, count } = await fetchGigs(supabase, {
     listingType: "for_hire",
     filters: {
@@ -85,6 +89,7 @@ async function GigsList({
     sort: queryParams.sort,
     page,
     limit,
+    excludeUserIds: blockedIds,
   });
 
   if (!gigs || gigs.length === 0) {
