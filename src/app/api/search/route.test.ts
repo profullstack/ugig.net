@@ -13,6 +13,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(supabaseClient)),
 }));
 
+// The block filter asks the auth context who the viewer is. Default to a
+// logged-out caller: nothing is filtered, so these cases are unaffected.
+vi.mock("@/lib/auth/get-user", () => ({
+  getAuthContext: vi.fn(() => Promise.resolve(null)),
+}));
+
 import { GET } from "./route";
 
 // ── Helpers ────────────────────────────────────────────────────────

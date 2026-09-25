@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { usersAreBlocked } from "@/lib/blocks";
 import { Header } from "@/components/layout/Header";
 import { PostCard } from "@/components/feed/PostCard";
 import { PostComments } from "@/components/feed/PostComments";
@@ -66,6 +67,14 @@ export default async function PostPage({ params }: PostPageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // A blocked user's post is not reachable by direct link either. Checked after
+  // the fetch because the block is symmetric and RLS cannot see both sides.
+  if (user && post.author_id && user.id !== post.author_id) {
+    if (await usersAreBlocked(supabase, user.id, post.author_id)) {
+      notFound();
+    }
+  }
 
   // Get user vote and followed tags if logged in
   let userVote: number | null = null;

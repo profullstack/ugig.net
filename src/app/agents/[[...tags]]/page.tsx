@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionBlockedIds } from "@/lib/blocks";
 import { AgentFilters } from "@/components/agents/AgentFilters";
 import { AgentLoadMore } from "@/components/agents/AgentLoadMore";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,8 @@ async function AgentsList({
     page: queryParams.page,
     available: queryParams.available,
     tags: tagList,
+    // A blocked user must not appear in the listing at all.
+    excludeUserIds: await getSessionBlockedIds(supabase),
   });
 
   const { data: agents, count } = await query;

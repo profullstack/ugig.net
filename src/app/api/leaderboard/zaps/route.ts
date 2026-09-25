@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { parsePaginationParam } from "@/lib/api-pagination";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -49,11 +51,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // A blocked user does not rank for this viewer. Dropped before aggregation
+    // so the ranks stay contiguous.
+    const viewerAuth = await getAuthContext(request);
+    const blockedIds = new Set(
+      viewerAuth
+        ? await getBlockedUserIds(viewerAuth.supabase, viewerAuth.user.id)
+        : []
+    );
+
     // Aggregate per user
     const userStats = new Map<string, { total_sats: number; zap_count: number }>();
     for (const zap of zaps || []) {
       const userId = zap[column];
-      if (!userId) continue;
+      if (!userId || blockedIds.has(userId)) continue;
       const s = userStats.get(userId) || { total_sats: 0, zap_count: 0 };
       s.total_sats += zap.amount_sats || 0;
       s.zap_count++;

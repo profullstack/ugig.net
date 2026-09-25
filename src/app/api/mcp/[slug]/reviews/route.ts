@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mcpReviewSchema } from "@/lib/mcp/validation";
@@ -15,6 +16,14 @@ export async function GET(
     const { slug } = await params;
     const supabase = await createClient();
 
+    // Hide comments by anyone on either side of a block. Read-only, so auth is
+    // optional — a logged-out caller sees the whole thread. `blocked_user_ids`
+    // is not granted to anon, so ask through the auth context's client.
+    const viewerAuth = await getAuthContext(request);
+    const blockedIds = viewerAuth
+      ? await getBlockedUserIds(viewerAuth.supabase, viewerAuth.user.id)
+      : [];
+
     // Get listing ID from slug
     const { data: listing } = await supabase
       .from("mcp_listings" as any)
@@ -26,12 +35,16 @@ export async function GET(
       return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
     }
 
-    const { data: reviews, error } = await supabase
-      .from("mcp_reviews" as any)
-      .select(
-        `*, reviewer:profiles!reviewer_id (id, username, full_name, avatar_url)`
-      )
-      .eq("listing_id", (listing as any).id)
+    const { data: reviews, error } = await excludeBlocked(
+      supabase
+        .from("mcp_reviews" as any)
+        .select(
+          `*, reviewer:profiles!reviewer_id (id, username, full_name, avatar_url)`
+        )
+        .eq("listing_id", (listing as any).id),
+      "reviewer_id",
+      blockedIds
+    )
       .order("created_at", { ascending: false });
 
     if (error) {

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
+import { excludeBlocked } from "@/lib/blocks";
 import { BOOST_ACTIVE_MS } from "@/lib/boost";
 
 // Shared gig-listing fetch used by /gigs and /for-hire. Beyond the usual filters
@@ -33,6 +34,11 @@ export interface FetchGigsOptions {
   sort?: string;
   page: number;
   limit: number;
+  /**
+   * Poster ids to hide from this viewer — the blocked-user list. Applied to the
+   * count queries too, so pagination matches what is actually shown.
+   */
+  excludeUserIds?: string[];
 }
 
 export interface FetchGigsResult {
@@ -83,7 +89,7 @@ function applyFilters(query: GigQuery, filters: GigListFilters): GigQuery {
 
 export async function fetchGigs(
   supabase: SupabaseClient,
-  { listingType, filters, sort, page, limit }: FetchGigsOptions
+  { listingType, filters, sort, page, limit, excludeUserIds = [] }: FetchGigsOptions
 ): Promise<FetchGigsResult> {
   const base = (opts?: { select?: string; head?: boolean }): GigQuery => {
     const query = supabase
@@ -94,7 +100,7 @@ export async function fetchGigs(
       })
       .eq("status", "active")
       .eq("listing_type", listingType);
-    return applyFilters(query, filters);
+    return excludeBlocked(applyFilters(query, filters), "poster_id", excludeUserIds);
   };
 
   const offset = (page - 1) * limit;

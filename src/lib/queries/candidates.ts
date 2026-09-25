@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
+import { excludeBlocked } from "@/lib/blocks";
 
 const MAX_PAGE = 100_000;
 
@@ -9,6 +10,8 @@ export interface CandidatesQueryParams {
   page?: string;
   available?: string;
   tags?: string[];
+  /** Profile ids to hide from this viewer — the blocked-user list. */
+  excludeUserIds?: string[];
 }
 
 function parsePage(value?: string) {
@@ -22,7 +25,7 @@ export function buildCandidatesQuery(
   supabase: SupabaseClient,
   params: CandidatesQueryParams
 ) {
-  const { q, sort, page, available, tags = [] } = params;
+  const { q, sort, page, available, tags = [], excludeUserIds = [] } = params;
 
   let query = supabase
     .from("profiles")
@@ -30,6 +33,8 @@ export function buildCandidatesQuery(
     .neq("account_type", "agent")
     .not("email_confirmed_at", "is", null)
     .eq("is_spam", false);
+
+  query = excludeBlocked(query, "id", excludeUserIds);
 
   if (q) {
     const safeQuery = escapePostgrestSearchValue(q);

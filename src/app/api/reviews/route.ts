@@ -7,7 +7,7 @@ import { sendEmail, reviewReceivedEmail } from "@/lib/email";
 import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { parsePaginationParam } from "@/lib/api-pagination";
-import { usersAreBlocked } from "@/lib/blocks";
+import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -94,6 +94,15 @@ export async function GET(request: NextRequest) {
     if (gigId) {
       query = query.eq("gig_id", gigId);
     }
+
+    // Hide a review when either party is on either side of a block: neither the
+    // blocked user's words nor their name should surface.
+    const listAuth = await getAuthContext(request);
+    const blockedIds = listAuth
+      ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
+      : [];
+    query = excludeBlocked(query, "reviewer_id", blockedIds);
+    query = excludeBlocked(query, "reviewee_id", blockedIds);
 
     const { data: reviews, error, count } = await query;
 

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionBlockedIds, excludeBlocked } from "@/lib/blocks";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,9 @@ async function PromptList({ searchParams }: { searchParams: PromptsPageProps["se
       { count: "exact" }
     )
     .eq("status", "active");
+
+  // A blocked user must not appear in the listing at all.
+  query = excludeBlocked(query, "seller_id", await getSessionBlockedIds(supabase));
 
   if (queryParams.search) {
     const safeSearch = escapePostgrestSearchValue(queryParams.search);

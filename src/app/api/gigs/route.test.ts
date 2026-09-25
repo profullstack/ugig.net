@@ -52,7 +52,7 @@ function makeRequest(body: Record<string, unknown>) {
 
 function chainResult(result: { data: unknown; error: unknown }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ["select", "insert", "upsert", "eq", "single", "gte", "lte", "overlaps", "or", "order", "range"]) {
+  for (const m of ["select", "insert", "upsert", "eq", "not", "single", "gte", "lte", "overlaps", "or", "order", "range"]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   chain.single.mockResolvedValue(result);
@@ -236,6 +236,46 @@ describe("GET /api/gigs", () => {
     );
     expect(listingTypeCall).toBeDefined();
     expect(listingTypeCall![1]).toBe("hiring");
+  });
+
+  it("hides gigs posted by a blocked user", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "viewer-1", authMethod: "session" },
+      supabase: supabaseClient as never,
+    });
+    mockRpc.mockResolvedValueOnce({
+      data: [{ user_id: "blocked-1" }, { user_id: "blocked-2" }],
+      error: null,
+    });
+
+    const res = await GET(makeGetRequest());
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("blocked_user_ids", {
+      for_user: "viewer-1",
+    });
+    expect(chain.not).toHaveBeenCalledWith(
+      "poster_id",
+      "in",
+      "(blocked-1,blocked-2)"
+    );
+  });
+
+  it("leaves the listing unfiltered for a logged-out caller", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    mockGetAuthContext.mockResolvedValue(null);
+
+    const res = await GET(makeGetRequest());
+
+    expect(res.status).toBe(200);
+    expect(chain.not).not.toHaveBeenCalled();
   });
 
   it("returns error on invalid filters", async () => {
