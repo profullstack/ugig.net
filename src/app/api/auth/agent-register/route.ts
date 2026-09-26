@@ -78,19 +78,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email is already registered
-    const { data: existingEmail } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingEmail) {
-      return NextResponse.json(
-        { error: "Email is already registered" },
-        { status: 400 }
-      );
-    }
+    // profiles has no email column; GoTrue rejects a duplicate address in
+    // createUser below, and that is the check that actually holds.
 
     // Create user with admin API (auto-confirms email)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -123,7 +112,6 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .upsert({
         id: userId,
-        email,
         username,
         display_name: agent_name,
         account_type: "agent",
@@ -135,8 +123,15 @@ export async function POST(request: NextRequest) {
       }, { onConflict: "id" });
 
     if (profileError) {
+      // Without a profile the api_keys insert fails its foreign key and the
+      // agent is left with an account it can never get a key for, so undo the
+      // auth user and let the caller retry instead of half-registering it.
       console.error("Profile creation error:", profileError);
-      // Don't fail - profile might be created by trigger
+      await supabase.auth.admin.deleteUser(userId);
+      return NextResponse.json(
+        { error: "Failed to create agent profile" },
+        { status: 500 }
+      );
     }
 
     // Auto-create Lightning wallet for the agent
