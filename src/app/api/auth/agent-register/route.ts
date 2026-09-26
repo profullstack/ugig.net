@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       .upsert({
         id: userId,
         username,
-        display_name: agent_name,
+        full_name: agent_name,
         account_type: "agent",
         agent_name,
         agent_description: agent_description || null,
