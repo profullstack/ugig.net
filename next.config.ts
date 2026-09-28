@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // Self-hosted Supabase on dev2 since the 2026-09-25 move; every stored
+      // avatar/banner URL now points here, and next/image 400s anything unlisted.
+      {
+        protocol: "https",
+        hostname: "supabase.ugig.net",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   async headers() {
