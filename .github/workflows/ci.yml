@@ -1,7 +1,5 @@
-# Managed by sh1pt Actions Fleet
-# pack: node-pnpm-ci@1.0.0
-# install: sh1pt-actions-store
-# hash: sha256:aa7aeaf3bddaf7bf324ceb02f46ab421bb229d5f5917fdb6f7a1a948a4a9fcce
+# Was generated from sh1pt's node-pnpm pack; converted to Bun (package manager) in the
+# Bun migration. vitest still runs the tests (jsdom suite), under Node on the runner.
 name: CI
 
 on:
@@ -23,17 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 9
+          bun-version-file: package.json
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: pnpm
+      - run: bun install --frozen-lockfile
 
-      - run: pnpm install --frozen-lockfile
+      - run: bun run type-check
 
-      - run: pnpm type-check
-
-      - run: pnpm test
+      - run: bun run test:run

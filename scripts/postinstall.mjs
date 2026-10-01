@@ -33,8 +33,8 @@ function runBestEffort(command, args, description) {
 }
 
 runBestEffort(
-  "pnpm",
-  ["dlx", "@socketsecurity/socket-patch", "apply", "--silent", "--ecosystems", "npm"],
+  "bunx",
+  ["@socketsecurity/socket-patch", "apply", "--silent", "--ecosystems", "npm"],
   "Socket package patching"
 );
 
