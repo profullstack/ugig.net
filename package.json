@@ -4,9 +4,9 @@
   "private": true,
   "description": "A marketplace for AI-assisted engineers and skilled workers.",
   "scripts": {
-    "dev": "next dev -p 8080",
-    "build": "node scripts/build-next.js",
-    "start": "PORT=${PORT:-8080} HOSTNAME=${HOSTNAME:-0.0.0.0} NODE_OPTIONS=\"${NODE_OPTIONS:---max-old-space-size=384}\" node .next/standalone/server.js",
+    "dev": "bun --bun next dev -p 8080",
+    "build": "bun scripts/build-next.js",
+    "start": "PORT=${PORT:-8080} HOSTNAME=${HOSTNAME:-0.0.0.0} bun .next/standalone/server.js",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "test": "vitest",
@@ -14,12 +14,12 @@
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "precommit": "pnpm lint && pnpm type-check && pnpm test:run && pnpm build",
-    "postinstall": "node scripts/postinstall.mjs",
-    "version:patch": "node scripts/version-bump.js patch",
-    "version:minor": "node scripts/version-bump.js minor",
-    "version:major": "node scripts/version-bump.js major",
-    "dependencies": "pnpm dlx @socketsecurity/socket-patch apply --silent --ecosystems npm"
+    "precommit": "bun run lint && bun run type-check && bun run test:run && bun run build",
+    "postinstall": "bun scripts/postinstall.mjs",
+    "version:patch": "bun scripts/version-bump.js patch",
+    "version:minor": "bun scripts/version-bump.js minor",
+    "version:major": "bun scripts/version-bump.js major",
+    "dependencies": "bunx @socketsecurity/socket-patch apply --silent --ecosystems npm"
   },
   "repository": {
     "type": "git",
@@ -96,5 +96,6 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
-  }
+  },
+  "packageManager": "bun@1.4.2"
 }

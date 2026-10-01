@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 const { spawnSync } = require("child_process");
 const { cpSync, existsSync, rmSync } = require("fs");
 const { join } = require("path");
@@ -11,7 +11,10 @@ const nodeOptions = [process.env.NODE_OPTIONS, "--max-old-space-size=2048"]
   .filter(Boolean)
   .join(" ");
 
-const result = spawnSync("next", ["build"], {
+// Next builds on Bun (`bun --bun next build`), the runtime the image serves with.
+// The heap cap above only applies when this falls back to Node (no Bun).
+const isBun = typeof process.versions.bun === "string";
+const result = spawnSync(isBun ? process.execPath : "next", isBun ? ["--bun", "next", "build"] : ["build"], {
   stdio: "inherit",
   shell: true,
   env: {
