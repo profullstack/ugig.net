@@ -1,0 +1,48 @@
+name: API contract
+
+# Fails a PR whose public/openapi.json change would break a client built
+# against master: the ugig SDK/CLI/MCP and every agent calling the API.
+# An intentional break ships by adding the `api-breaking` label, which still
+# prints the report but does not fail.
+
+on:
+  pull_request:
+    paths:
+      - public/openapi.json
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Diff against ${{ github.base_ref }}
+        env:
+          FAIL_ON: ${{ contains(github.event.pull_request.labels.*.name, 'api-breaking') && 'never' || 'breaking' }}
+        shell: bash
+        run: |
+          status=0
+          npx -y @profullstack/sh1pt-openapi@^0.3.5 diff \
+            "origin/${{ github.base_ref }}:public/openapi.json" public/openapi.json \
+            --fail-on "$FAIL_ON" --all > "$RUNNER_TEMP/api-diff.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/api-diff.txt"
+          { echo '### API contract'; echo '```'; cat "$RUNNER_TEMP/api-diff.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" = 1 ]; then
+            echo "::error::Breaking API change. If it is intentional, add the api-breaking label to this PR."
+          fi
+          exit "$status"
