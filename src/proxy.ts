@@ -7,20 +7,23 @@ const REDIRECTS: Record<string, string> = {
   // Pages now exist at /api-docs, /cli-docs, /openapi, /employers
 };
 
-// ── Polling throttle ─────────────────────────────────────────────
-// Endpoints that get polled heavily by clients with the page open.
-// Throttle: only let one request through per IP+path every 30s.
-// Others get a lightweight cached response (no DB hit).
-const THROTTLED_PATHS = [
+// ── Polled endpoints ─────────────────────────────────────────────
+// Endpoints that get polled by clients with the page open. They are NOT
+// cached here. A proxy only ever sees NextResponse.next() -- a body-less
+// "carry on to the route" signal -- never what the route answers, so the
+// body cache that used to live here stored an empty string and handed every
+// repeat poll inside 30s an empty 200 (WalletBalance showed "—", the wallet
+// page's JSON parse threw, the bell lost its count). It was also keyed by IP
+// alone, so had it ever worked it would have replayed one member's wallet and
+// notifications to another behind the same NAT. Load is bounded by the
+// site-wide meter (src/lib/throttle.ts); /api/funding/total, the one public
+// and global endpoint, memoises its own answer in the route.
+const POLLED_PATHS = [
   "/api/wallet/balance",
   "/api/wallet/transactions",
   "/api/notifications",
   "/api/funding/total",
 ];
-const THROTTLE_WINDOW_MS = 30_000;
-const THROTTLE_MAX_ENTRIES = 5_000;
-const THROTTLE_MAX_BODY_BYTES = 64 * 1024; // 64 KiB cap per cached body
-const throttleMap = new Map<string, { ts: number; body: string }>();
 
 // ── Polling abuse detection ─────────────────────────────────────
 // If an IP hits throttled endpoints for >8 hours continuously,
@@ -71,15 +74,11 @@ function checkPollingAbuse(ip: string): boolean {
 }
 
 // Cleanup stale entries every 60s
-let lastThrottleCleanup = Date.now();
-function cleanupThrottle() {
+let lastCleanup = Date.now();
+function cleanupAbuseTracker() {
   const now = Date.now();
-  if (now - lastThrottleCleanup < 60_000) return;
-  lastThrottleCleanup = now;
-  for (const [key, entry] of throttleMap) {
-    if (now - entry.ts > THROTTLE_WINDOW_MS * 2) throttleMap.delete(key);
-  }
-  // Also clean abuse tracker
+  if (now - lastCleanup < 60_000) return;
+  lastCleanup = now;
   for (const [ip, entry] of abuseTracker) {
     if (now - entry.lastSeen > ABUSE_COOLDOWN_MS * 2) abuseTracker.delete(ip);
   }
@@ -140,11 +139,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(redirect, request.url), 301);
   }
 
-  // Throttle heavy polling endpoints — 1 request per IP+path per 30s
-  if (method === "GET" && THROTTLED_PATHS.includes(path)) {
-    cleanupThrottle();
+  // Polled endpoints: refuse an IP that has polled for >8 hours straight.
+  // Everything else goes on to the route, which answers per user.
+  if (method === "GET" && POLLED_PATHS.includes(path)) {
+    cleanupAbuseTracker();
 
-    // Block IPs that poll continuously for >8 hours
     if (checkPollingAbuse(ip)) {
       return new NextResponse(
         JSON.stringify({ error: "Too many requests. Please refresh the page." }),
@@ -158,21 +157,6 @@ export async function proxy(request: NextRequest) {
         },
       );
     }
-
-    const key = `${ip}:${path}`;
-    const cached = throttleMap.get(key);
-    const now = Date.now();
-    if (cached && now - cached.ts < THROTTLE_WINDOW_MS) {
-      // Return cached response without hitting the app
-      return new NextResponse(cached.body, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Throttled": "true",
-          "Cache-Control": "private, max-age=30",
-        },
-      });
-    }
   }
 
   // Log with real client IP (not proxy IP)
@@ -180,22 +164,7 @@ export async function proxy(request: NextRequest) {
     console.log(`[${method}] ${path} — ${ip}`);
   }
 
-  // After the response, cache it for throttled endpoints
   const response = await updateSession(request);
-
-  if (method === "GET" && THROTTLED_PATHS.includes(path) && response.status === 200) {
-    try {
-      const cloned = response.clone();
-      const body = await cloned.text();
-      // Skip caching oversized payloads to protect memory
-      if (body.length <= THROTTLE_MAX_BODY_BYTES) {
-        throttleMap.set(`${ip}:${path}`, { ts: Date.now(), body });
-        enforceMapCap(throttleMap, THROTTLE_MAX_ENTRIES);
-      }
-    } catch {
-      // Don't break if we can't cache
-    }
-  }
 
   const ref = request.nextUrl.searchParams.get('ref');
   if (ref) {

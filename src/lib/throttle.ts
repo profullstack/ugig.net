@@ -2,11 +2,9 @@
  * The site-wide allowance: a hundred requests a minute, per caller, on every
  * route. Going over is answered 402 with the crawl gateway's offer, not 429.
  *
- * WHY. Nothing here metered a page route. The polling cache below it in
- * proxy.ts is a different tool for a different job -- it serves a repeat
- * poller a cached body so the database is spared, and it only knows about
- * four endpoints. A caller walking the job listings has never been counted at
- * all.
+ * WHY. Nothing here metered a page route. proxy.ts only knew about four
+ * polled endpoints, and a caller walking the job listings has never been
+ * counted at all.
  *
  * That is the shape that failed on coinpayportal on 2026-09-08: a headless
  * browser found a route nobody had listed and walked 19,000 of its URLs a day
@@ -44,9 +42,10 @@ export const throttle = createThrottle({
     /* Sign-in stays address-bucketed, or a guess buys the member budget. */
     { path: '/api/auth/', limit: 10, credential: false },
     /*
-     * The polled endpoints are already served from proxy.ts's cache when they
-     * repeat inside 30s, so a client with the page open costs the app nothing
-     * and should not be refused for keeping it open.
+     * The polled endpoints: a client with the page open polls every 15-60s
+     * and should not be refused for keeping it open. Each poll reaches the
+     * route (proxy.ts cannot cache a route's body); /api/funding/total
+     * memoises its own global answer.
      */
     { path: '/api/wallet/balance', limit: 600 },
     { path: '/api/wallet/transactions', limit: 600 },
