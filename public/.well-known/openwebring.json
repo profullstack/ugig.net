@@ -1,0 +1,6 @@
+{
+  "openwebring": "0.1",
+  "site": { "url": "https://ugig.net/", "name": "ugig.net" },
+  "made_by": "both",
+  "rings": [{ "ring": "https://rssamplifier.com/ring/profullstack", "slug": "ugig-blog" }]
+}
