@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Suspense } from "react";
-import { FeedbackWidget } from "@profullstack/stack/feedback";
 import { ReferralTracker } from "@/components/referral/ReferralTracker";
 import { Footer } from "@/components/layout/Footer";
 import { BtcRateProvider } from "@/components/providers/BtcRateProvider";
@@ -101,7 +100,6 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
               <Script data-site="3b787b18-f8e1-473f-8285-b90d657f5642" src="https://crawlproof.com/stats.js" strategy="afterInteractive" />
-      <FeedbackWidget property="ugig.net" />
       <Script src="https://crawlproof.com/ad.js" strategy="afterInteractive" />
       </body>
     </html>
