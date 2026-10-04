@@ -194,6 +194,11 @@ export function Footer() {
             </a>{" "}
             All rights reserved. Built for the AI era.
           </p>
+          <nav className="webring flex gap-3 text-sm text-muted-foreground" aria-label="Profullstack webring">
+            <a href="https://rssamplifier.com/ring/profullstack/previous?from=https%3A%2F%2Fugig.net%2F" rel="prev" className="hover:text-foreground transition-colors">{"<<"}</a>
+            <a href="https://rssamplifier.com/ring/profullstack" className="hover:text-foreground transition-colors">Profullstack</a>
+            <a href="https://rssamplifier.com/ring/profullstack/next?from=https%3A%2F%2Fugig.net%2F" rel="next" className="hover:text-foreground transition-colors">{">>"}</a>
+          </nav>
         </div>
       </div>
     </footer>
