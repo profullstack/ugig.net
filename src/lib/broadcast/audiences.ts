@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HELD_COLUMN } from "@/lib/limits";
 
 // Supabase's generated types don't cover every table we touch here (bounties
 // were added later), so the resolver takes a loosely-typed service client.
@@ -81,7 +82,11 @@ async function gigApplicantIds(
 
   const ids: string[] = [];
   for (const batch of chunk(gigIds, ID_CHUNK)) {
-    let query = svc.from("applications").select("applicant_id").in("gig_id", batch);
+    let query = svc
+      .from("applications")
+      .select("applicant_id")
+      .in("gig_id", batch)
+      .is(HELD_COLUMN, null);
     if (statuses && statuses.length > 0) {
       query = query.in("status", statuses);
     }

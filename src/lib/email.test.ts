@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  gigExpiredEmail,
   passwordResetEmail,
   referralInviteEmail,
   signupConfirmationEmail,
@@ -175,5 +176,33 @@ describe("passwordResetEmail", () => {
     expect(result.text).toContain(
       "https://ugig.net/auth/confirm?token_hash=abc&type=recovery&next=%2Freset-password"
     );
+  });
+});
+
+describe("gigExpiredEmail", () => {
+  beforeEach(() => {
+    vi.stubEnv("APP_URL", "https://ugig.net");
+  });
+
+  it("links to the gig page's renew button with the renew window", () => {
+    const r = gigExpiredEmail({ posterName: "Pat", gigTitle: "Build a CLI", gigId: "g1", applicantCount: 2, renewDays: 60 });
+    expect(r.subject).toContain("Build a CLI");
+    expect(r.html).toContain("/gigs/g1#renew");
+    expect(r.html).toContain("Renew for 60 days");
+    expect(r.text).toContain("/gigs/g1#renew");
+    expect(r.html).not.toContain("/gig/g1");
+    expect(r.text).toContain("2 applications");
+  });
+
+  it("defaults to 30 days and handles zero applications", () => {
+    const r = gigExpiredEmail({ posterName: "Pat", gigTitle: "T", gigId: "g1", applicantCount: 0 });
+    expect(r.text).toContain("another 30 days");
+    expect(r.text).toContain("didn't receive any applications");
+  });
+
+  it("escapes the poster name and gig title in the HTML", () => {
+    const r = gigExpiredEmail({ posterName: "<b>x</b>", gigTitle: "<script>1</script>", gigId: "g1", applicantCount: 1 });
+    expect(r.html).not.toContain("<script>1</script>");
+    expect(r.html).toContain("&lt;script&gt;");
   });
 });

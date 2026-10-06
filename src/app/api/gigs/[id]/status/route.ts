@@ -4,6 +4,7 @@ import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, gigFilledEmail } from "@/lib/email";
 import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
+import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -25,7 +26,7 @@ export async function PATCH(
     // Check ownership and get current status
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id, status, created_at, title, poster:profiles!poster_id(full_name, username)")
+      .select("poster_id, status, created_at, title, listing_type, poster:profiles!poster_id(full_name, username)")
       .eq("id", id)
       .single();
 
@@ -50,8 +51,21 @@ export async function PATCH(
     const newStatus = validationResult.data.status;
     const oldStatus = existingGig.status;
 
+    const isActivation = newStatus === "active" && oldStatus !== "active";
+
+    // An ad going live is held to the same caps as a new one (PRD 03).
+    if (isActivation && existingGig.listing_type === "for_hire") {
+      const activation = await checkForHireAdActivation(
+        supabase,
+        user.id,
+        existingGig.title || "",
+        id
+      );
+      if (!activation.ok) return limitResponse(activation);
+    }
+
     // If transitioning from non-active to active, check usage limit
-    if (newStatus === "active" && oldStatus !== "active") {
+    if (isActivation) {
       const { data: subscription } = await supabase
         .from("subscriptions")
         .select("plan")
@@ -100,6 +114,9 @@ export async function PATCH(
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
+        // Re-activating restarts the listing window, so a gig the expiry cron
+        // paused is not paused again on its next run.
+        ...(isActivation ? { expires_at: computeExpiresAt(existingGig.listing_type) } : {}),
       })
       .eq("id", id)
       .select()

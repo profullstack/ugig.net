@@ -19,6 +19,7 @@ import {
   Target,
 } from "lucide-react";
 import { FundingDashboard } from "@/components/funding/FundingDashboard";
+import { HELD_COLUMN } from "@/lib/limits";
 
 export const metadata = {
   title: "Dashboard | ugig.net",
@@ -112,6 +113,7 @@ export default async function DashboardPage() {
     `
     )
     .eq("gig.poster_id", user.id)
+    .is(HELD_COLUMN, null)
     .order("created_at", { ascending: false })
     .limit(5);
 

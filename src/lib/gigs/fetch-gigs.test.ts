@@ -100,3 +100,11 @@ describe("fetchGigs block filtering", () => {
     expect(filtered.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("fetchGigs status filter", () => {
+  it("lists only active gigs, so a gig paused by expiry drops out of /gigs and /for-hire", async () => {
+    const { supabase, chain } = clientWith({ data: [], count: 0 });
+    await fetchGigs(supabase, baseOptions);
+    expect(chain.eq as ReturnType<typeof vi.fn>).toHaveBeenCalledWith("status", "active");
+  });
+});

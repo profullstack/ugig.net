@@ -135,6 +135,11 @@ export const gigs = {
       method: "POST",
     }),
 
+  renew: (id: string) =>
+    request(`/api/gigs/${id}/renew`, {
+      method: "POST",
+    }),
+
   getMy: () => request("/api/gigs/my"),
 };
 

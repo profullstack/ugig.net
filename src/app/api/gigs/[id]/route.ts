@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gigSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { usersAreBlocked } from "@/lib/blocks";
+import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 
 // GET /api/gigs/[id] - Get a single gig
 export async function GET(
@@ -89,7 +90,7 @@ export async function PUT(
     // Check ownership
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id")
+      .select("poster_id, status, listing_type, title")
       .eq("id", id)
       .single();
 
@@ -111,10 +112,30 @@ export async function PUT(
       );
     }
 
+    // The edit form can publish or re-activate a gig through PUT, so an ad
+    // going live (or a live ad getting a new title or type) meets the same
+    // caps as POST /api/gigs, and activation restarts the expiry window.
+    const update = validationResult.data;
+    const nextStatus = update.status ?? existingGig.status;
+    const nextListingType = update.listing_type ?? existingGig.listing_type;
+    const nextTitle = update.title ?? existingGig.title ?? "";
+    const isActivation = nextStatus === "active" && existingGig.status !== "active";
+    if (
+      nextStatus === "active" &&
+      nextListingType === "for_hire" &&
+      (isActivation ||
+        existingGig.listing_type !== "for_hire" ||
+        (update.title !== undefined && update.title !== existingGig.title))
+    ) {
+      const activation = await checkForHireAdActivation(supabase, user.id, nextTitle, id);
+      if (!activation.ok) return limitResponse(activation);
+    }
+
     const { data: gig, error } = await supabase
       .from("gigs")
       .update({
-        ...validationResult.data,
+        ...update,
+        ...(isActivation ? { expires_at: computeExpiresAt(nextListingType) } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)

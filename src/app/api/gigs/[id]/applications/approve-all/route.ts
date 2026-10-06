@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
+import { HELD_COLUMN } from "@/lib/limits";
 
 // POST /api/gigs/[id]/applications/approve-all
 // Approves all pending applications for a gig in one shot.
@@ -31,6 +32,7 @@ export async function POST(
       .update({ status: "accepted" })
       .eq("gig_id", gigId)
       .eq("status", "pending")
+      .is(HELD_COLUMN, null)
       .select("id");
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });

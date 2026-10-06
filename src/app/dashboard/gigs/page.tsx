@@ -13,6 +13,8 @@ import { ApproveAllButton } from "@/components/gigs/ApproveAllButton";
 import { Plus, ArrowLeft, Eye, Users, Briefcase, Archive, Rocket } from "lucide-react";
 import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
 import { isGigBoosted } from "@/lib/boost";
+import { HELD_COLUMN, expiryDaysFor, isGigExpired } from "@/lib/limits";
+import { RenewGigButton } from "@/components/gigs/RenewGigButton";
 
 export const metadata = {
   title: "My Gigs | ugig.net",
@@ -77,6 +79,7 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
       )
       .in("gig_id", visibleGigIds)
       .eq("status", "pending")
+      .is(HELD_COLUMN, null)
       .order("created_at", { ascending: false });
 
     for (const app of (pendingApps as unknown as (PendingApplication & { gig_id: string })[]) || []) {
@@ -185,15 +188,29 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                         <span className="text-muted-foreground">
                           Posted {new Date(gig.created_at).toLocaleDateString()}
                         </span>
+                        {gig.status === "active" && gig.expires_at && (
+                          <span className="text-muted-foreground">
+                            Expires {new Date(gig.expires_at).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <GigActions
-                      gigId={gig.id}
-                      status={gig.status}
-                      createdAt={gig.created_at}
-                      boostedAt={gig.boosted_at}
-                    />
+                    <div className="flex flex-col items-end gap-2">
+                      <GigActions
+                        gigId={gig.id}
+                        status={gig.status}
+                        createdAt={gig.created_at}
+                        boostedAt={gig.boosted_at}
+                      />
+                      <RenewGigButton
+                        gigId={gig.id}
+                        days={expiryDaysFor(gig.listing_type)}
+                        expired={isGigExpired(gig)}
+                        size="sm"
+                        className="w-48"
+                      />
+                    </div>
                   </div>
 
                   {(pendingByGig[gig.id]?.length ?? 0) > 0 && (

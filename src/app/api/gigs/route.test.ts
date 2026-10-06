@@ -35,6 +35,16 @@ vi.mock("@/lib/activity", () => ({
   logActivity: (...args: unknown[]) => mockLogActivity(...args),
 }));
 
+const { mockAdRate, mockAdActivation } = vi.hoisted(() => ({
+  mockAdRate: vi.fn(),
+  mockAdActivation: vi.fn(),
+}));
+vi.mock("@/lib/limits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/limits")>()),
+  checkForHireAdRate: mockAdRate,
+  checkForHireAdActivation: mockAdActivation,
+}));
+
 import { GET, POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
 
@@ -83,6 +93,8 @@ const validGigBody = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockAdRate.mockResolvedValue({ ok: true });
+  mockAdActivation.mockResolvedValue({ ok: true });
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -219,6 +231,16 @@ describe("GET /api/gigs", () => {
       (call: unknown[]) => call[0] === "listing_type" && call[1] === "for_hire"
     );
     expect(listingTypeCall).toBeTruthy();
+  });
+
+  it("lists only active gigs (an expired gig is paused, so it drops out)", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    await GET(makeGetRequest());
+
+    expect(chain.eq).toHaveBeenCalledWith("status", "active");
   });
 
   it("defaults to listing_type=hiring when not provided", async () => {
@@ -403,5 +425,91 @@ describe("POST /api/gigs", () => {
     const res = await POST(makeRequest(validGigBody));
     expect(res.status).toBe(400);
     expect(mockLogActivity).not.toHaveBeenCalled();
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+//  POST /api/gigs: expiry + for-hire ad caps
+// ════════════════════════════════════════════════════════════════════
+
+describe("POST /api/gigs - expiry and ad caps", () => {
+  function setupInsert(inserts: Record<string, unknown>[]) {
+    const subChain = chainResult({ data: { plan: "pro" }, error: null });
+    const insertChain = chainResult({ data: { id: "gig-9", title: "T" }, error: null });
+    insertChain.insert.mockImplementation((payload: Record<string, unknown>) => {
+      inserts.push(payload);
+      return insertChain;
+    });
+    mockFrom.mockImplementation((table: string) => (table === "subscriptions" ? subChain : insertChain));
+  }
+
+  it("sets expires_at 30 days out on an active hiring gig and skips the ad checks", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    const before = Date.now();
+
+    const res = await POST(makeRequest(validGigBody));
+    expect(res.status).toBe(201);
+    const expires = new Date(inserts[0].expires_at as string).getTime();
+    expect(expires - before).toBeGreaterThanOrEqual(30 * 86400_000 - 5000);
+    expect(expires - before).toBeLessThanOrEqual(30 * 86400_000 + 5000);
+    expect(mockAdRate).not.toHaveBeenCalled();
+    expect(mockAdActivation).not.toHaveBeenCalled();
+  });
+
+  it("sets expires_at 60 days out on an active for_hire ad after both ad checks pass", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    const before = Date.now();
+
+    const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
+    expect(res.status).toBe(201);
+    const expires = new Date(inserts[0].expires_at as string).getTime();
+    expect(expires - before).toBeGreaterThanOrEqual(60 * 86400_000 - 5000);
+    expect(mockAdRate).toHaveBeenCalledWith(supabaseClient, "user-1");
+    expect(mockAdActivation).toHaveBeenCalledWith(supabaseClient, "user-1", validGigBody.title);
+  });
+
+  it("leaves expires_at unset on a draft and only applies the daily ad rate", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+
+    const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire", status: "draft" }));
+    expect(res.status).toBe(201);
+    expect(inserts[0].expires_at).toBeUndefined();
+    expect(mockAdRate).toHaveBeenCalled();
+    expect(mockAdActivation).not.toHaveBeenCalled();
+  });
+
+  it("refuses an 11th ad in 24h with 429 + Retry-After and inserts nothing", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    mockAdRate.mockResolvedValue({
+      ok: false,
+      status: 429,
+      error: "You can post at most 10 for-hire ads in 24 hours.",
+      retryAfterSeconds: 7200,
+    });
+
+    const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("7200");
+    expect((await res.json()).error).toContain("10 for-hire ads");
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("refuses a near-duplicate ad title with 409", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    mockAdActivation.mockResolvedValue({ ok: false, status: 409, error: "duplicate title" });
+
+    const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
+    expect(res.status).toBe(409);
+    expect(inserts).toHaveLength(0);
   });
 });

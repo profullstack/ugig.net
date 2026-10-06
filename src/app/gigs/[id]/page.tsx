@@ -25,6 +25,8 @@ import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPromp
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { CloseGigButton } from "@/components/gigs/CloseGigButton";
 import { MarkFilledButton } from "@/components/gigs/MarkFilledButton";
+import { RenewGigButton } from "@/components/gigs/RenewGigButton";
+import { expiryDaysFor, isGigExpired } from "@/lib/limits";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { SatsRangeToUsd } from "@/components/gigs/SatsToUsd";
@@ -545,6 +547,11 @@ export default async function GigPage({ params }: GigPageProps) {
                         View Applications ({gig.applications_count})
                       </Button>
                     </Link>
+                    <RenewGigButton
+                      gigId={id}
+                      days={expiryDaysFor(gig.listing_type)}
+                      expired={isGigExpired(gig)}
+                    />
                     {!isForHire && (
                       <MarkFilledButton gigId={id} status={gig.status} hiredCount={acceptedCount} />
                     )}

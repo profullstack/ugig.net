@@ -311,6 +311,7 @@ export type Database = {
           updated_at: string;
           boosted_at: string | null;
           ranked_at: string | null;
+          expires_at: string | null;
         };
         Insert: {
           id?: string;
@@ -335,6 +336,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -359,6 +361,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          expires_at?: string | null;
         };
         Relationships: [
           {
@@ -392,6 +395,7 @@ export type Database = {
             | "paid";
           created_at: string;
           updated_at: string;
+          metadata: Json | null;
         };
         Insert: {
           id?: string;
@@ -414,6 +418,7 @@ export type Database = {
             | "paid";
           created_at?: string;
           updated_at?: string;
+          metadata?: Json | null;
         };
         Update: {
           id?: string;
@@ -436,6 +441,7 @@ export type Database = {
             | "paid";
           created_at?: string;
           updated_at?: string;
+          metadata?: Json | null;
         };
         Relationships: [
           {

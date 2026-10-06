@@ -5,6 +5,7 @@ import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { z } from "zod";
+import { HELD_COLUMN } from "@/lib/limits";
 
 const bodySchema = z.object({
   content: z
@@ -70,7 +71,8 @@ export async function POST(
     let appsQuery = svc
       .from("applications")
       .select("applicant_id")
-      .eq("gig_id", gigId);
+      .eq("gig_id", gigId)
+      .is(HELD_COLUMN, null);
     if (statuses && statuses.length > 0) {
       appsQuery = appsQuery.in("status", statuses);
     }

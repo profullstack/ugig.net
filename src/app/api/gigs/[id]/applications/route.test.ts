@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
@@ -47,7 +47,17 @@ vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { mockCheckApplicationLimits } = vi.hoisted(() => ({
+  mockCheckApplicationLimits: vi.fn(),
+}));
+vi.mock("@/lib/limits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/limits")>()),
+  checkApplicationLimits: mockCheckApplicationLimits,
+}));
+
 import { getAuthContext } from "@/lib/auth/get-user";
+import { sendEmail } from "@/lib/email";
+import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +84,7 @@ function chainResult(result: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockCheckApplicationLimits.mockResolvedValue({ ok: true, held: false });
 });
 
 // ── Tests ──────────────────────────────────────────────────────────
@@ -227,5 +238,112 @@ describe("POST /api/gigs/[id]/applications - success paths", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("already applied");
+  });
+});
+
+// ── Application caps + spam hold (PRD 02) ───────────────────────────
+
+describe("POST /api/gigs/[id]/applications - limits", () => {
+  const LETTER = "I have shipped this kind of work before and can start this week. ".repeat(2);
+
+  function setup(inserts: Record<string, unknown>[]) {
+    mockFrom.mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "insert", "eq", "single", "contains", "order"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { poster_id: "poster-1", status: "active", title: "Test Gig", poster: null },
+          error: null,
+        });
+      } else if (table === "applications") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+        (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((payload: Record<string, unknown>) => {
+          inserts.push(payload);
+          (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { id: "app-new" }, error: null });
+          return chain;
+        });
+      } else {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      }
+      return chain;
+    });
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+  }
+
+  it("returns 429 with Retry-After at the daily cap", async () => {
+    const inserts: Record<string, unknown>[] = [];
+    setup(inserts);
+    mockCheckApplicationLimits.mockResolvedValue({
+      ok: false,
+      status: 429,
+      error: "New agent accounts can send at most 20 applications in 24 hours.",
+      retryAfterSeconds: 3600,
+    });
+    const res = await POST(makeRequest({ cover_letter: LETTER }), routeParams);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("3600");
+    expect(inserts).toHaveLength(0);
+    expect(mockCheckApplicationLimits).toHaveBeenCalledWith(supabaseClient, "user-1", LETTER);
+  });
+
+  it("returns 409 for a duplicate cover letter", async () => {
+    const inserts: Record<string, unknown>[] = [];
+    setup(inserts);
+    mockCheckApplicationLimits.mockResolvedValue({ ok: false, status: 409, error: "Tailor it." });
+    const res = await POST(makeRequest({ cover_letter: LETTER }), routeParams);
+    expect(res.status).toBe(409);
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("holds a spam-flagged applicant's application without notifying the poster", async () => {
+    const inserts: Record<string, unknown>[] = [];
+    setup(inserts);
+    mockCheckApplicationLimits.mockResolvedValue({ ok: true, held: true });
+    const res = await POST(makeRequest({ cover_letter: LETTER }), routeParams);
+    expect(res.status).toBe(201);
+    expect(inserts[0].metadata).toEqual({ held: "spam_review" });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(dispatchWebhookAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/gigs/[id]/applications - held applications", () => {
+  it("leaves applications held for spam review out of the poster's list", async () => {
+    const isCalls: unknown[][] = [];
+    mockFrom.mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "single", "order", "is"]) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+      (chain.is as ReturnType<typeof vi.fn>).mockImplementation((...args: unknown[]) => {
+        isCalls.push(args);
+        return chain;
+      });
+      if (table === "gigs") {
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: { poster_id: "poster-1", title: "Test Gig" },
+          error: null,
+        });
+      } else {
+        (chain.order as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+      }
+      return chain;
+    });
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "poster-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/gigs/00000000-0000-4000-a000-000000000001/applications"),
+      routeParams
+    );
+    expect(res.status).toBe(200);
+    expect(isCalls).toContainEqual(["metadata->>held", null]);
   });
 });

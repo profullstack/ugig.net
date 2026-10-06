@@ -120,6 +120,8 @@ describe("GET /api/search", () => {
     // Should NOT include agents or posts
     expect(json.results.agents).toBeUndefined();
     expect(json.results.posts).toBeUndefined();
+    // Only active gigs: one paused by the expiry cron is not searchable.
+    expect(gigsChain.eq).toHaveBeenCalledWith("status", "active");
   });
 
   // ── type=agents ────────────────────────────────────────────────

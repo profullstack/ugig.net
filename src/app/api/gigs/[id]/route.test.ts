@@ -24,6 +24,12 @@ vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: vi.fn(),
 }));
 
+const { mockAdActivation } = vi.hoisted(() => ({ mockAdActivation: vi.fn() }));
+vi.mock("@/lib/limits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/limits")>()),
+  checkForHireAdActivation: mockAdActivation,
+}));
+
 import { getAuthContext } from "@/lib/auth/get-user";
 import type { AuthContext } from "@/lib/auth/get-user";
 const mockGetAuthContext = vi.mocked(getAuthContext);
@@ -406,5 +412,104 @@ describe("DELETE /api/gigs/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.message).toBe("Gig deleted successfully");
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+//  PUT /api/gigs/[id]: activation through the edit form
+// ════════════════════════════════════════════════════════════════════
+
+describe("PUT /api/gigs/[id] - expiry and ad caps", () => {
+  const authContext = {
+    user: { id: "owner-1", authMethod: "session" as const },
+    supabase: supabaseClient,
+  } as unknown as AuthContext;
+
+  function setup(existing: Record<string, unknown>, updates: Record<string, unknown>[]) {
+    let calls = 0;
+    mockFrom.mockImplementation(() => {
+      calls++;
+      const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+      for (const m of ["select", "eq", "update", "single"]) chain[m] = vi.fn(() => chain);
+      if (calls === 1) {
+        chain.single.mockResolvedValue({ data: existing, error: null });
+      } else {
+        chain.update.mockImplementation((payload: Record<string, unknown>) => {
+          updates.push(payload);
+          return chain;
+        });
+        chain.single.mockResolvedValue({ data: { id: "test-gig-id" }, error: null });
+      }
+      return chain;
+    });
+    mockGetAuthContext.mockResolvedValue(authContext);
+  }
+
+  const draftAd = { poster_id: "owner-1", status: "draft", listing_type: "for_hire", title: "Logo design" };
+
+  beforeEach(() => {
+    mockAdActivation.mockReset();
+    mockAdActivation.mockResolvedValue({ ok: true });
+  });
+
+  it("publishing an ad runs the ad checks and sets a 60-day expiry", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup(draftAd, updates);
+    const before = Date.now();
+
+    const res = await PUT(makeRequest("PUT", { status: "active" }), routeParams);
+    expect(res.status).toBe(200);
+    expect(mockAdActivation).toHaveBeenCalledWith(supabaseClient, "owner-1", "Logo design", "test-gig-id");
+    const expires = new Date(updates[0].expires_at as string).getTime();
+    expect(Math.abs(expires - before - 60 * 86400_000)).toBeLessThan(5000);
+  });
+
+  it("refuses to publish a duplicate ad (409) and does not update", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup(draftAd, updates);
+    mockAdActivation.mockResolvedValue({ ok: false, status: 409, error: "duplicate" });
+
+    const res = await PUT(makeRequest("PUT", { status: "active" }), routeParams);
+    expect(res.status).toBe(409);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("re-checks a live ad whose title changes, without resetting its expiry", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...draftAd, status: "active" }, updates);
+
+    const res = await PUT(makeRequest("PUT", { title: "A brand new ad title here" }), routeParams);
+    expect(res.status).toBe(200);
+    expect(mockAdActivation).toHaveBeenCalledWith(
+      supabaseClient,
+      "owner-1",
+      "A brand new ad title here",
+      "test-gig-id"
+    );
+    expect(updates[0]).not.toHaveProperty("expires_at");
+  });
+
+  it("does not run the ad checks on a description edit of a live ad", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...draftAd, status: "active" }, updates);
+
+    const res = await PUT(
+      makeRequest("PUT", { description: "A longer description that is comfortably over the fifty character minimum." }),
+      routeParams
+    );
+    expect(res.status).toBe(200);
+    expect(mockAdActivation).not.toHaveBeenCalled();
+  });
+
+  it("publishing a hiring gig sets a 30-day expiry and skips the ad checks", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...draftAd, listing_type: "hiring" }, updates);
+    const before = Date.now();
+
+    const res = await PUT(makeRequest("PUT", { status: "active" }), routeParams);
+    expect(res.status).toBe(200);
+    expect(mockAdActivation).not.toHaveBeenCalled();
+    const expires = new Date(updates[0].expires_at as string).getTime();
+    expect(Math.abs(expires - before - 30 * 86400_000)).toBeLessThan(5000);
   });
 });
