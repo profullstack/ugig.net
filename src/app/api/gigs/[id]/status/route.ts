@@ -7,7 +7,7 @@ import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 
 const statusUpdateSchema = z.object({
-  status: z.enum(["draft", "active", "paused", "closed", "filled"]),
+  status: z.enum(["draft", "active", "paused", "closed", "filled", "archived"]),
 });
 
 // PATCH /api/gigs/[id]/status - Update gig status

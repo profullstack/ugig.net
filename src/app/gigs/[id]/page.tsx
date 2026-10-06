@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: GigPageProps): Promise<Metada
 
   const { data: gig } = await supabase
     .from("gigs")
-    .select("title, description, listing_type")
+    .select("title, description, listing_type, status")
     .eq("id", id)
     .single();
 
@@ -68,6 +68,8 @@ export async function generateMetadata({ params }: GigPageProps): Promise<Metada
     alternates: { canonical: url },
     openGraph: { title, description, url, type: "article" },
     twitter: { card: "summary_large_image", title, description },
+    // Archived gigs stay reachable by link but leave search engines.
+    ...(gig.status === "archived" ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -390,6 +392,12 @@ export default async function GigPage({ params }: GigPageProps) {
             </div>
 
             {/* Auto-suggest: Add to Portfolio when gig is completed */}
+            {gig.status === "archived" && (
+              <div className="mb-6 rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+                This listing is archived and no longer accepting applications.
+              </div>
+            )}
+
             {isOwner && gig.status === "filled" && (
               <AddToPortfolioPrompt gigId={id} gigTitle={gig.title} />
             )}
@@ -551,6 +559,8 @@ export default async function GigPage({ params }: GigPageProps) {
                       gigId={id}
                       days={expiryDaysFor(gig.listing_type)}
                       expired={isGigExpired(gig)}
+                      archived={gig.status === "archived"}
+                      restoresToDraft={gig.archived_from_status === "draft"}
                     />
                     {!isForHire && (
                       <MarkFilledButton gigId={id} status={gig.status} hiredCount={acceptedCount} />

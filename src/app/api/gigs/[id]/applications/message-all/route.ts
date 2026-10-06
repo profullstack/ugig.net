@@ -72,7 +72,9 @@ export async function POST(
       .from("applications")
       .select("applicant_id")
       .eq("gig_id", gigId)
-      .is(HELD_COLUMN, null);
+      .is(HELD_COLUMN, null)
+      // Archived applications (stale, closed gig, spam) are not messaged.
+      .neq("status", "archived");
     if (statuses && statuses.length > 0) {
       appsQuery = appsQuery.in("status", statuses);
     }

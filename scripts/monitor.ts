@@ -45,6 +45,12 @@ const tasks: Task[] = [
     lastRun: 0,
   },
   {
+    name: "archive-stale",
+    endpoint: "/api/cron/archive-stale",
+    intervalMs: 24 * 60 * 60 * 1000, // daily
+    lastRun: 0,
+  },
+  {
     name: "affiliate-payouts",
     endpoint: "/api/cron/affiliate-payouts",
     intervalMs: 24 * 60 * 60 * 1000, // daily

@@ -108,6 +108,7 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
     in_progress: "bg-blue-500/10 text-blue-600",
     completed: "bg-green-500/10 text-green-600",
     paid: "bg-green-500/10 text-green-600",
+    archived: "bg-gray-500/10 text-gray-500",
   };
 
   // Group applications
@@ -131,7 +132,8 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
       }
     }
   }
-  const withdrawnApps = applications?.filter((a) => a.status === "withdrawn") || [];
+  const withdrawnApps =
+    applications?.filter((a) => a.status === "withdrawn" || a.status === "archived") || [];
 
   const activeApps = [...pendingApps, ...reviewingApps, ...shortlistedApps];
   const completedApps = [...acceptedApps, ...rejectedApps, ...withdrawnApps];

@@ -303,13 +303,17 @@ export type Database = {
           duration: string | null;
           location_type: "remote" | "onsite" | "hybrid";
           location: string | null;
-          status: "draft" | "active" | "paused" | "closed" | "filled";
+          status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type: "hiring" | "for_hire";
           applications_count: number;
           views_count: number;
           created_at: string;
           updated_at: string;
           boosted_at: string | null;
+          last_activity_at: string | null;
+          archived_at: string | null;
+          archived_reason: string | null;
+          archived_from_status: string | null;
           ranked_at: string | null;
           expires_at: string | null;
         };
@@ -329,13 +333,17 @@ export type Database = {
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
-          status?: "draft" | "active" | "paused" | "closed" | "filled";
+          status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type?: "hiring" | "for_hire";
           applications_count?: number;
           views_count?: number;
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          last_activity_at?: string | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
           expires_at?: string | null;
         };
         Update: {
@@ -354,13 +362,17 @@ export type Database = {
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
-          status?: "draft" | "active" | "paused" | "closed" | "filled";
+          status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type?: "hiring" | "for_hire";
           applications_count?: number;
           views_count?: number;
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          last_activity_at?: string | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
           expires_at?: string | null;
         };
         Relationships: [
@@ -392,10 +404,14 @@ export type Database = {
             | "withdrawn"
             | "in_progress"
             | "completed"
-            | "paid";
+            | "paid"
+            | "archived";
           created_at: string;
           updated_at: string;
           metadata: Json | null;
+          archived_at: string | null;
+          archived_reason: string | null;
+          archived_from_status: string | null;
         };
         Insert: {
           id?: string;
@@ -415,10 +431,14 @@ export type Database = {
             | "withdrawn"
             | "in_progress"
             | "completed"
-            | "paid";
+            | "paid"
+            | "archived";
           created_at?: string;
           updated_at?: string;
           metadata?: Json | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
         };
         Update: {
           id?: string;
@@ -438,10 +458,14 @@ export type Database = {
             | "withdrawn"
             | "in_progress"
             | "completed"
-            | "paid";
+            | "paid"
+            | "archived";
           created_at?: string;
           updated_at?: string;
           metadata?: Json | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
         };
         Relationships: [
           {
@@ -1750,7 +1774,7 @@ export type Database = {
     };
     Enums: {
       account_type: "human" | "agent";
-      gig_status: "draft" | "active" | "paused" | "closed" | "filled";
+      gig_status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
       budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | "bounty";
       location_type: "remote" | "onsite" | "hybrid";
       application_status:
@@ -1762,7 +1786,8 @@ export type Database = {
         | "withdrawn"
         | "in_progress"
         | "completed"
-        | "paid";
+        | "paid"
+        | "archived";
       subscription_status:
         | "active"
         | "canceled"

@@ -9,6 +9,9 @@ import { logActivity } from "@/lib/activity";
 import { usersAreBlocked } from "@/lib/blocks";
 import { checkApplicationLimits, heldMetadata, limitResponse } from "@/lib/limits";
 
+// An applicant may resubmit over a row in one of these statuses.
+const REAPPLYABLE_STATUSES = new Set(["withdrawn", "archived"]);
+
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
   try {
@@ -89,9 +92,10 @@ export async function POST(request: NextRequest) {
       .eq("applicant_id", user.id)
       .single();
 
-    // A withdrawn application may be resubmitted. Any other existing status
-    // (pending/reviewing/shortlisted/accepted/rejected) still blocks re-applying.
-    if (existingApplication && existingApplication.status !== "withdrawn") {
+    // A withdrawn or archived application may be resubmitted. Any other
+    // existing status (pending/reviewing/shortlisted/accepted/rejected) still
+    // blocks re-applying.
+    if (existingApplication && !REAPPLYABLE_STATUSES.has(existingApplication.status)) {
       return NextResponse.json(
         { error: "You have already applied to this gig" },
         { status: 400 }
@@ -108,7 +112,7 @@ export async function POST(request: NextRequest) {
     if (!limits.ok) return limitResponse(limits);
     const held = heldMetadata(limits.held);
 
-    // Create the application, or re-activate a withdrawn one. The
+    // Create the application, or re-activate a withdrawn/archived one. The
     // UNIQUE(gig_id, applicant_id) constraint means a prior withdrawn row must
     // be updated in place rather than inserted a second time.
     const { data: application, error } = existingApplication

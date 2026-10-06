@@ -119,7 +119,7 @@ export const gigs = {
       body: JSON.stringify(data),
     }),
 
-  updateStatus: (id: string, status: "draft" | "active" | "paused" | "closed" | "filled") =>
+  updateStatus: (id: string, status: "draft" | "active" | "paused" | "closed" | "filled" | "archived") =>
     request(`/api/gigs/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),

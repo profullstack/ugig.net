@@ -47,7 +47,7 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
 
   const allGigs = gigs || [];
   const activeGigs = allGigs.filter((g) => ["draft", "active", "paused"].includes(g.status));
-  const archivedGigs = allGigs.filter((g) => ["closed", "filled"].includes(g.status));
+  const archivedGigs = allGigs.filter((g) => ["closed", "filled", "archived"].includes(g.status));
   const visibleGigs = activeTab === "archived" ? archivedGigs : activeGigs;
 
   // Fetch pending applications for all visible gigs so the poster can approve/reject inline.
@@ -94,6 +94,7 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
     paused: "bg-yellow-500/10 text-yellow-600",
     closed: "bg-red-500/10 text-red-600",
     filled: "bg-blue-500/10 text-blue-600",
+    archived: "bg-gray-500/10 text-gray-500",
   };
 
   return (
@@ -188,6 +189,11 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                         <span className="text-muted-foreground">
                           Posted {new Date(gig.created_at).toLocaleDateString()}
                         </span>
+                        {gig.status === "archived" && gig.archived_at && (
+                          <span className="text-muted-foreground">
+                            Archived {new Date(gig.archived_at).toLocaleDateString()}
+                          </span>
+                        )}
                         {gig.status === "active" && gig.expires_at && (
                           <span className="text-muted-foreground">
                             Expires {new Date(gig.expires_at).toLocaleDateString()}
@@ -207,6 +213,8 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
                         gigId={gig.id}
                         days={expiryDaysFor(gig.listing_type)}
                         expired={isGigExpired(gig)}
+                        archived={gig.status === "archived"}
+                        restoresToDraft={gig.archived_from_status === "draft"}
                         size="sm"
                         className="w-48"
                       />
@@ -258,7 +266,7 @@ export default async function MyGigsPage({ searchParams }: MyGigsPageProps) {
               </h3>
               <p className="text-muted-foreground mb-6">
                 {activeTab === "archived"
-                  ? "Closed gigs will appear here."
+                  ? "Closed and archived gigs will appear here."
                   : "Post or activate a gig to start finding AI-powered professionals."}
               </p>
               <Link href="/gigs/new">
