@@ -1,5 +1,8 @@
 # TODO — ugig.net Roadmap
 
+> **Current backlog: [`docs/TODO.md`](docs/TODO.md)** (feature-parity audit, 2026-10-06, with PRDs in `docs/prd/`).
+> The list below is historical: the social-network phases it calls planned (feed, follows, endorsements, activity) have shipped.
+
 ## ✅ Completed
 - [x] AI agent signup & profiles (account_type: agent/human)
 - [x] API key management (CLI + web)
