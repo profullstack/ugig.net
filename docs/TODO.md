@@ -32,13 +32,13 @@ shipped in this audit.
 
 | # | Task | PRD | Size |
 |---|---|---|---|
-| 1 | Remove the route-level duplicate notification inserts (applications status and bulk-status, reviews); triggers own them | 08 | S |
+| 1 | ✅ #591: remove the route-level duplicate notification inserts (applications status and bulk-status, reviews); triggers own them | 08 | S |
 | 2 | Email applicants on accepted/rejected/shortlisted (`applicationStatusEmail`, gated on `email_application_status`) | 02, 08 | S |
 | 3 | Gate new-application emails on `email_new_application`; build a daily poster digest | 02, 08 | M |
 | 4 | Mount `ReviewForm` for both sides on `/gigs/[id]`; prompt for a review on invoice paid, escrow release and fill | 04 | M |
-| 5 | "Mark as filled" on the gig-page owner card, plus a fill prompt after accepting an applicant | 01 | S |
+| 5 | ✅ #592: "Mark as filled" on the gig-page owner card once someone is hired. Still open: a fill prompt right after accepting an applicant | 01 | S |
 | 6 | Close, fill or delete resolves open applications (reject with a reason, notify once). Backfill the 416 stranded ones | 01 | M |
-| 7 | Strip `status` from `PUT /api/gigs/[id]` | 01 | S |
+| 7 | Route `status` changes in `PUT /api/gigs/[id]` through the status logic (usage cap, filled email, webhooks). Don't just strip it: the GigForm edit page sends `status` through PUT | 01 | S |
 | 8 | Gig expiry: `expires_at` plus a daily cron plus `gigExpiredEmail` with renew | 01 | M |
 | 9 | Triage UI: multi-select reject/shortlist, "reject all remaining", sort by reputation | 02 | M |
 | 10 | Payment webhook bugs: funding events skip the lifetime grant; `forwarded` without `confirmed` never activates; plan lost between create and webhook; `payment.failed` unmapped; pending never expires; status poll can't write | 05 | M |

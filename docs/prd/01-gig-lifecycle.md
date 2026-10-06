@@ -55,9 +55,10 @@ Prod, 2026-10-06: 0 of 1,944 gigs have ever been `filled`. 97 are `closed`.
    `metadata.reason = 'gig_closed' | 'gig_filled'`. The applicant gets one in-app
    notification (and email, subject to PRD 08). Delete becomes a soft delete (or is
    refused once anyone is hired), so applicants are told.
-5. **One status path.** Strip `status` from `PUT /api/gigs/[id]`. Status only
-   changes through `PATCH /api/gigs/[id]/status`, so the usage check, emails,
-   webhooks and requirement 4 all run.
+5. **One status path.** `PUT /api/gigs/[id]` must apply the same rules as
+   `PATCH /api/gigs/[id]/status` when the body has `status`: usage check, emails,
+   webhooks and requirement 4. Extract a shared `changeGigStatus()`. Don't simply
+   strip the field, because the GigForm edit page sends `status` through PUT.
 6. **Backfill.** Once requirements 1-5 ship, run a one-off script that:
    - marks a gig `filled` when it is `active`, `listing_type=hiring`, has a paid
      invoice, and has had no new applications for 30 days;
