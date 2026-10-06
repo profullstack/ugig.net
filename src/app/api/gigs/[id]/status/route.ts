@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, gigFilledEmail } from "@/lib/email";
 import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
+import { rejectOpenApplications } from "@/lib/application-resolution";
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -133,6 +136,38 @@ export async function PATCH(
       new_status: newStatus,
     });
 
+    // Closing or filling a gig resolves its open applications: everything
+    // still pending/reviewing/shortlisted becomes rejected with a reason, so
+    // applicants are not left waiting on a gig that is gone. The DB trigger
+    // notifies each one in-app; the email below is gated per applicant.
+    let resolvedApplications = 0;
+    if (
+      (newStatus === "closed" || newStatus === "filled") &&
+      oldStatus !== newStatus
+    ) {
+      try {
+        const resolved = await rejectOpenApplications(
+          supabase,
+          id,
+          newStatus === "filled" ? "gig_filled" : "gig_closed"
+        );
+        resolvedApplications = resolved.length;
+        const poster = existingGig.poster as { full_name: string | null; username: string | null } | null;
+        emailApplicantsAboutStatusInBackground(
+          resolved.map((app) => ({
+            applicationId: app.id,
+            applicantId: app.applicant_id,
+            gigId: id,
+            gigTitle: existingGig.title || "a gig",
+            posterName: poster?.full_name || poster?.username || "The client",
+            status: "rejected",
+          }))
+        );
+      } catch (err) {
+        console.error("[gig-status] failed to resolve open applications:", err);
+      }
+    }
+
     // Send email when gig is filled
     if (newStatus === "filled" && oldStatus !== "filled") {
       // Get count of accepted applications
@@ -149,7 +184,10 @@ export async function PATCH(
 
       const poster = existingGig.poster as { full_name: string | null; username: string | null } | null;
 
-      if (posterEmail) {
+      if (
+        posterEmail &&
+        (await isEmailNotificationEnabled(adminClient, user.id, "email_gig_updates"))
+      ) {
         void sendEmail({
           to: posterEmail,
           ...gigFilledEmail({
@@ -158,11 +196,12 @@ export async function PATCH(
             gigId: id,
             hiredCount: hiredCount || 0,
           }),
+          unsubscribe: { userId: user.id, setting: "email_gig_updates" },
         });
       }
     }
 
-    return NextResponse.json({ gig });
+    return NextResponse.json({ gig, resolved_applications: resolvedApplications });
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

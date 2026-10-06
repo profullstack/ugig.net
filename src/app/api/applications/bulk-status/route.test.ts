@@ -7,6 +7,12 @@ vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: (...args: unknown[]) => mockGetAuthContext(...args),
 }));
 
+vi.mock("@/lib/application-emails", () => ({
+  emailApplicantsAboutStatusInBackground: vi.fn(),
+}));
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
+const mockEmailApplicants = vi.mocked(emailApplicantsAboutStatusInBackground);
+
 const mockFrom = vi.fn();
 
 function makeRequest(body: string) {
@@ -83,5 +89,85 @@ describe("PUT /api/applications/bulk-status", () => {
     expect(applicationsIn).toHaveBeenCalledWith("id", [existingId, missingId]);
     expect(applicationsUpdate).not.toHaveBeenCalled();
     expect(notificationsInsert).not.toHaveBeenCalled();
+  });
+
+  describe("applicant status emails", () => {
+    const idA = "11111111-1111-4111-8111-111111111111";
+    const idB = "22222222-2222-4222-8222-222222222222";
+    const gig = {
+      id: "gig-1",
+      poster_id: "poster-1",
+      title: "Landing page",
+      poster: { full_name: "Pat Poster", username: "pat" },
+    };
+
+    function setup(rows: { id: string; applicant_id: string; status: string }[], updatedIds: string[]) {
+      const applicationsIn = vi.fn().mockResolvedValue({
+        data: rows.map((r) => ({ ...r, gig_id: "gig-1", gig })),
+        error: null,
+      });
+      const updateSelect = vi.fn().mockResolvedValue({
+        data: updatedIds.map((id) => ({ id })),
+        error: null,
+      });
+      const update = vi.fn(() => ({ in: vi.fn(() => ({ select: updateSelect })) }));
+      const notificationsInsert = vi.fn().mockResolvedValue({ error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "applications") {
+          return { select: vi.fn(() => ({ in: applicationsIn })), update };
+        }
+        if (table === "notifications") return { insert: notificationsInsert };
+        throw new Error(`Unexpected table: ${table}`);
+      });
+      return { notificationsInsert };
+    }
+
+    it("emails applicants whose status changed to rejected, and inserts no notifications", async () => {
+      const { notificationsInsert } = setup(
+        [
+          { id: idA, applicant_id: "worker-a", status: "pending" },
+          { id: idB, applicant_id: "worker-b", status: "rejected" },
+        ],
+        [idA, idB]
+      );
+
+      const res = await PUT(
+        makeRequest(JSON.stringify({ application_ids: [idA, idB], status: "rejected" }))
+      );
+
+      expect(res.status).toBe(200);
+      // The DB trigger owns the in-app notification for rejected.
+      expect(notificationsInsert).not.toHaveBeenCalled();
+      expect(mockEmailApplicants).toHaveBeenCalledTimes(1);
+      // worker-b was already rejected, so only worker-a hears about it.
+      expect(mockEmailApplicants).toHaveBeenCalledWith([
+        {
+          applicationId: idA,
+          applicantId: "worker-a",
+          gigId: "gig-1",
+          gigTitle: "Landing page",
+          posterName: "Pat Poster",
+          status: "rejected",
+        },
+      ]);
+    });
+
+    it("hands shortlisted changes to the email too", async () => {
+      setup([{ id: idA, applicant_id: "worker-a", status: "reviewing" }], [idA]);
+
+      await PUT(makeRequest(JSON.stringify({ application_ids: [idA], status: "shortlisted" })));
+
+      expect(mockEmailApplicants).toHaveBeenCalledWith([
+        expect.objectContaining({ applicantId: "worker-a", status: "shortlisted" }),
+      ]);
+    });
+
+    it("skips applications the update did not touch", async () => {
+      setup([{ id: idA, applicant_id: "worker-a", status: "pending" }], []);
+
+      await PUT(makeRequest(JSON.stringify({ application_ids: [idA], status: "accepted" })));
+
+      expect(mockEmailApplicants).toHaveBeenCalledWith([]);
+    });
   });
 });

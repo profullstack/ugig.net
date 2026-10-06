@@ -43,6 +43,11 @@ vi.mock("@/lib/email", () => ({
   })),
 }));
 
+const mockEmailEnabled = vi.fn().mockResolvedValue(true);
+vi.mock("@/lib/notification-settings", () => ({
+  isEmailNotificationEnabled: (...args: unknown[]) => mockEmailEnabled(...args),
+}));
+
 vi.mock("@/lib/reputation-hooks", () => ({
   getUserDid: vi.fn().mockResolvedValue("did:test:123"),
   onFollowed: vi.fn(),
@@ -54,6 +59,7 @@ vi.mock("@/lib/activity", () => ({
 }));
 
 import { getAuthContext } from "@/lib/auth/get-user";
+import { sendEmail } from "@/lib/email";
 import type { AuthContext } from "@/lib/auth/get-user";
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
@@ -87,6 +93,7 @@ function chainResult(result: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockEmailEnabled.mockResolvedValue(true);
   mockAdminGetUserById.mockResolvedValue({
     data: { user: { email: "target@example.com" } },
   });
@@ -194,6 +201,45 @@ describe("POST /api/users/[username]/follow", () => {
         referenceType: "user",
       })
     );
+  });
+
+  function setupSuccessfulFollow() {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    const profileChain = chainResult({
+      data: { id: "target-456", username: "testuser", full_name: "Test User", did: null },
+      error: null,
+    });
+    const insertChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    const followerChain = chainResult({ data: { username: "me", full_name: "Me" }, error: null });
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return profileChain;
+      if (callCount === 2) return insertChain;
+      return followerChain;
+    });
+    mockServiceFrom.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+  }
+
+  it("emails the followed user with an email_new_follower unsubscribe", async () => {
+    setupSuccessfulFollow();
+    const res = await POST(makeRequest("POST"), routeParams);
+    expect(res.status).toBe(201);
+    expect(mockEmailEnabled).toHaveBeenCalledWith(mockServiceClient, "target-456", "email_new_follower");
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "target@example.com",
+        unsubscribe: { userId: "target-456", setting: "email_new_follower" },
+      })
+    );
+  });
+
+  it("does not email a user who turned email_new_follower off", async () => {
+    setupSuccessfulFollow();
+    mockEmailEnabled.mockResolvedValue(false);
+    const res = await POST(makeRequest("POST"), routeParams);
+    expect(res.status).toBe(201);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("does not log activity when follow fails", async () => {

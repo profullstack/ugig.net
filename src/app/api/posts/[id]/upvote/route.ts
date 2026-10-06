@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { sendEmail, upvoteMilestoneEmail } from "@/lib/email";
@@ -120,7 +121,10 @@ export async function POST(
         const { data: authorAuth } = await adminClient.auth.admin.getUserById(post.author_id);
         const authorEmail = authorAuth?.user?.email;
 
-        if (authorEmail) {
+        if (
+          authorEmail &&
+          (await isEmailNotificationEnabled(adminClient, post.author_id, "email_upvote_milestone"))
+        ) {
           void sendEmail({
             to: authorEmail,
             ...upvoteMilestoneEmail({
@@ -129,6 +133,7 @@ export async function POST(
               postId,
               milestone: crossedMilestone,
             }),
+            unsubscribe: { userId: post.author_id, setting: "email_upvote_milestone" },
           });
         }
       }

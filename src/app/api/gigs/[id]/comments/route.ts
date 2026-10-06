@@ -5,6 +5,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { gigCommentSchema } from "@/lib/validations";
 import { sanitizeContent } from "@/lib/sanitize";
 import { sendEmail, newGigCommentEmail, newGigCommentReplyEmail } from "@/lib/email";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getUserDid, onCommentCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
@@ -263,7 +264,10 @@ export async function POST(
           .then(() => {}, () => {});
 
         // Send email notification
-        if (parentAuthorAuth?.user?.email) {
+        if (
+          parentAuthorAuth?.user?.email &&
+          (await isEmailNotificationEnabled(svc, parentComment.author_id, "email_new_comment"))
+        ) {
           const { data: parentAuthorProfile } = await supabase
             .from("profiles")
             .select("full_name, username")
@@ -281,6 +285,7 @@ export async function POST(
           void sendEmail({
             to: parentAuthorAuth.user.email,
             ...emailContent,
+            unsubscribe: { userId: parentComment.author_id, setting: "email_new_comment" },
           });
         }
       }
@@ -306,7 +311,10 @@ export async function POST(
           .then(() => {}, () => {});
 
         // Send email notification
-        if (posterAuth?.user?.email) {
+        if (
+          posterAuth?.user?.email &&
+          (await isEmailNotificationEnabled(svc, gig.poster_id, "email_new_comment"))
+        ) {
           const posterName =
             poster?.full_name || poster?.username || "there";
           const emailContent = newGigCommentEmail({
@@ -319,6 +327,7 @@ export async function POST(
           void sendEmail({
             to: posterAuth.user.email,
             ...emailContent,
+            unsubscribe: { userId: gig.poster_id, setting: "email_new_comment" },
           });
         }
       }

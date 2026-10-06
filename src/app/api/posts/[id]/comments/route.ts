@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { postCommentSchema } from "@/lib/validations";
@@ -324,7 +325,10 @@ export async function POST(
       );
       const parentAuthorEmail = parentAuthorAuth?.user?.email;
 
-      if (parentAuthorEmail) {
+      if (
+        parentAuthorEmail &&
+        (await isEmailNotificationEnabled(adminClient, parentComment.author_id, "email_new_comment"))
+      ) {
         const { data: parentAuthorProfile } = await supabase
           .from("profiles")
           .select("full_name, username")
@@ -344,6 +348,7 @@ export async function POST(
           subject: emailContent.subject,
           html: emailContent.html,
           text: emailContent.text,
+          unsubscribe: { userId: parentComment.author_id, setting: "email_new_comment" },
         }).catch(() => {});
       }
     }
@@ -371,7 +376,10 @@ export async function POST(
       );
       const postAuthorEmail = postAuthorAuth?.user?.email;
 
-      if (postAuthorEmail) {
+      if (
+        postAuthorEmail &&
+        (await isEmailNotificationEnabled(adminClient, post.author_id, "email_new_comment"))
+      ) {
         const { data: postAuthorProfile } = await supabase
           .from("profiles")
           .select("full_name, username")
@@ -391,6 +399,7 @@ export async function POST(
           subject: emailContent.subject,
           html: emailContent.html,
           text: emailContent.text,
+          unsubscribe: { userId: post.author_id, setting: "email_new_comment" },
         }).catch(() => {});
       }
     }
@@ -431,7 +440,10 @@ export async function POST(
           );
           const mentionedEmail = mentionedAuth?.user?.email;
 
-          if (mentionedEmail) {
+          if (
+            mentionedEmail &&
+            (await isEmailNotificationEnabled(adminClient, mentionedUser.id, "email_mention"))
+          ) {
             const emailContent = mentionInCommentEmail({
               recipientName: mentionedUser.full_name || mentionedUser.username || "there",
               mentionerName: commenterName,
@@ -444,6 +456,7 @@ export async function POST(
               subject: emailContent.subject,
               html: emailContent.html,
               text: emailContent.text,
+              unsubscribe: { userId: mentionedUser.id, setting: "email_mention" },
             }).catch(() => {});
           }
         }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { endorseSchema } from "@/lib/validations";
@@ -181,7 +182,10 @@ export async function POST(
           const { data: authUser } = await supabase.auth.admin.getUserById(
             endorsedProfile.id
           );
-          if (authUser?.user?.email) {
+          if (
+            authUser?.user?.email &&
+            (await isEmailNotificationEnabled(supabase, endorsedProfile.id, "email_endorsement_received"))
+          ) {
             const emailContent = endorsementReceivedEmail({
               endorsedName,
               endorserName,
@@ -192,6 +196,7 @@ export async function POST(
             await sendEmail({
               to: authUser.user.email,
               ...emailContent,
+              unsubscribe: { userId: endorsedProfile.id, setting: "email_endorsement_received" },
             });
           }
         }

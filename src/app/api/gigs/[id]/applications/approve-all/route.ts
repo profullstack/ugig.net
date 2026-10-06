@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { HELD_COLUMN } from "@/lib/limits";
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
 
 // POST /api/gigs/[id]/applications/approve-all
 // Approves all pending applications for a gig in one shot.
@@ -19,7 +20,7 @@ export async function POST(
     // Verify the caller is the gig poster
     const { data: gig } = await svc
       .from("gigs")
-      .select("poster_id")
+      .select("poster_id, title, poster:profiles!poster_id(full_name, username)")
       .eq("id", gigId)
       .single();
 
@@ -33,9 +34,22 @@ export async function POST(
       .eq("gig_id", gigId)
       .eq("status", "pending")
       .is(HELD_COLUMN, null)
-      .select("id");
+      .select("id, applicant_id");
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Email each accepted applicant (gated on email_application_status).
+    const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
+    emailApplicantsAboutStatusInBackground(
+      (data ?? []).map((app) => ({
+        applicationId: app.id,
+        applicantId: app.applicant_id,
+        gigId,
+        gigTitle: gig.title || "a gig",
+        posterName: poster?.full_name || poster?.username || "The client",
+        status: "accepted",
+      }))
+    );
 
     return NextResponse.json({ approved: (data ?? []).length });
   } catch {

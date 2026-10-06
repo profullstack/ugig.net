@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gigSchema } from "@/lib/validations";
-import { getAuthContext } from "@/lib/auth/get-user";
+import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
+import {
+  HIRED_APPLICATION_STATUSES,
+  OPEN_APPLICATION_STATUSES,
+} from "@/lib/application-status";
+import { HELD_COLUMN } from "@/lib/limits";
 import { usersAreBlocked } from "@/lib/blocks";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 
@@ -171,7 +176,7 @@ export async function DELETE(
     // Check ownership
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id")
+      .select("poster_id, title")
       .eq("id", id)
       .single();
 
@@ -183,10 +188,83 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // The service client sees every application and invoice on the gig
+    // regardless of RLS, and is the only writer allowed to insert
+    // notifications for other users.
+    const svc = createServiceClient();
+
+    // A gig with a hire or an unpaid invoice is someone's live work: deleting
+    // it would cascade away the record they need to get paid.
+    const { count: hiredCount, error: hiredError } = await svc
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("gig_id", id)
+      .in("status", [...HIRED_APPLICATION_STATUSES]);
+
+    if (hiredError) {
+      return NextResponse.json({ error: hiredError.message }, { status: 500 });
+    }
+    if ((hiredCount ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "This gig has a hired worker, so it can't be deleted. Close it or mark it filled instead.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // gig_invoices is not in the hand-maintained Database types.
+    const { count: unpaidInvoices, error: invoiceError } = await (svc as any)
+      .from("gig_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("gig_id", id)
+      .eq("status", "sent");
+
+    if (invoiceError) {
+      return NextResponse.json({ error: invoiceError.message }, { status: 500 });
+    }
+    if ((unpaidInvoices ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "This gig has an unpaid invoice, so it can't be deleted. Pay or reject the invoice first.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Everyone still waiting on this gig gets one in-app notice. Read the
+    // open applications now: they are deleted along with the gig.
+    const { data: openApplications } = await svc
+      .from("applications")
+      .select("id, applicant_id")
+      .eq("gig_id", id)
+      .in("status", [...OPEN_APPLICATION_STATUSES])
+      .is(HELD_COLUMN, null);
+
+    const gigTitle = existingGig.title || "A gig you applied to";
+    const notifications = (openApplications ?? []).map((app) => ({
+      user_id: app.applicant_id,
+      type: "application_status" as const,
+      title: "Gig removed",
+      body: `"${gigTitle}" was removed by the poster, so your application is closed.`,
+      data: { gig_id: id, application_id: app.id, status: "gig_removed" },
+    }));
+
     const { error } = await supabase.from("gigs").delete().eq("id", id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Sent only once the delete has succeeded, so a failed delete never tells
+    // anyone their application is closed.
+    if (notifications.length > 0) {
+      const { error: notifyError } = await svc.from("notifications").insert(notifications);
+      if (notifyError) {
+        console.error("[gig-delete] failed to notify applicants:", notifyError);
+      }
     }
 
     return NextResponse.json({ message: "Gig deleted successfully" });

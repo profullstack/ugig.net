@@ -135,6 +135,7 @@ describe("expireGigs", () => {
     expect(first.text).toContain("/gigs/1#renew");
     expect(first.text).toContain("Renew it for another 30 days");
     expect(first.text).toContain("3 applications");
+    expect(first.unsubscribe).toEqual({ userId: "poster-1", setting: "email_gig_updates" });
     // An ad renews for 60.
     expect(mockSendEmail.mock.calls[1][0].text).toContain("another 60 days");
   });

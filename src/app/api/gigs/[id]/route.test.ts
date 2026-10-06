@@ -20,8 +20,31 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(supabaseClient)),
 }));
 
+// Service client: per-table queues of results, one shifted per .from() call.
+const svcResults: Record<string, unknown[]> = {};
+const svcCalls: { table: string; chain: Record<string, ReturnType<typeof vi.fn>> }[] = [];
+function svcThenable(result: unknown) {
+  const chain: Record<string, ReturnType<typeof vi.fn>> & { then?: unknown } = {};
+  for (const m of ["select", "insert", "eq", "in", "neq", "is"]) {
+    chain[m] = vi.fn(() => chain);
+  }
+  chain.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+    Promise.resolve(result).then(resolve, reject);
+  return chain;
+}
+const svcClient = {
+  from: vi.fn((table: string) => {
+    const queue = svcResults[table] ?? [];
+    const result = queue.length > 0 ? queue.shift() : { data: null, error: null, count: 0 };
+    const chain = svcThenable(result);
+    svcCalls.push({ table, chain: chain as Record<string, ReturnType<typeof vi.fn>> });
+    return chain;
+  }),
+};
+
 vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: vi.fn(),
+  createServiceClient: vi.fn(() => svcClient),
 }));
 
 const { mockAdActivation } = vi.hoisted(() => ({ mockAdActivation: vi.fn() }));
@@ -65,6 +88,8 @@ function chainResult(result: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  for (const k of Object.keys(svcResults)) delete svcResults[k];
+  svcCalls.length = 0;
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -412,6 +437,109 @@ describe("DELETE /api/gigs/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.message).toBe("Gig deleted successfully");
+  });
+
+  function ownerThenDelete(deleteResult: { error: unknown } = { error: null }) {
+    const ownerChain = chainResult({ data: { poster_id: userId, title: "Logo design" }, error: null });
+    const deleteChain: Record<string, ReturnType<typeof vi.fn>> = {};
+    for (const m of ["delete", "eq"]) {
+      deleteChain[m] = vi.fn().mockReturnValue(deleteChain);
+    }
+    (deleteChain.eq as ReturnType<typeof vi.fn>).mockResolvedValue(deleteResult);
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? ownerChain : deleteChain;
+    });
+    return deleteChain;
+  }
+
+  it("refuses with 409 when the gig has a hired application", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    const deleteChain = ownerThenDelete();
+    svcResults.applications = [{ count: 1, error: null }];
+
+    const res = await DELETE(makeRequest("DELETE"), routeParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toMatch(/hired/);
+    expect(deleteChain.delete).not.toHaveBeenCalled();
+    const hiredQuery = svcCalls.find((c) => c.table === "applications")!;
+    expect(hiredQuery.chain.in).toHaveBeenCalledWith("status", [
+      "accepted",
+      "in_progress",
+      "completed",
+      "paid",
+    ]);
+    expect(svcCalls.some((c) => c.table === "notifications")).toBe(false);
+  });
+
+  it("refuses with 409 when the gig has an unpaid sent invoice", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    const deleteChain = ownerThenDelete();
+    svcResults.applications = [{ count: 0, error: null }];
+    svcResults.gig_invoices = [{ count: 2, error: null }];
+
+    const res = await DELETE(makeRequest("DELETE"), routeParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toMatch(/unpaid invoice/);
+    expect(deleteChain.delete).not.toHaveBeenCalled();
+    const invoiceQuery = svcCalls.find((c) => c.table === "gig_invoices")!;
+    expect(invoiceQuery.chain.eq).toHaveBeenCalledWith("status", "sent");
+  });
+
+  it("notifies each open applicant once in-app after deleting", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    const deleteChain = ownerThenDelete();
+    svcResults.applications = [
+      { count: 0, error: null },
+      {
+        data: [
+          { id: "app-1", applicant_id: "applicant-1" },
+          { id: "app-2", applicant_id: "applicant-2" },
+        ],
+        error: null,
+      },
+    ];
+    svcResults.gig_invoices = [{ count: 0, error: null }];
+    svcResults.notifications = [{ error: null }];
+
+    const res = await DELETE(makeRequest("DELETE"), routeParams);
+
+    expect(res.status).toBe(200);
+    expect(deleteChain.delete).toHaveBeenCalled();
+    const openQuery = svcCalls.filter((c) => c.table === "applications")[1];
+    expect(openQuery.chain.in).toHaveBeenCalledWith("status", ["pending", "reviewing", "shortlisted"]);
+    expect(openQuery.chain.is).toHaveBeenCalledWith("metadata->>held", null);
+    const notify = svcCalls.find((c) => c.table === "notifications")!;
+    expect(notify.chain.insert).toHaveBeenCalledTimes(1);
+    const rows = notify.chain.insert.mock.calls[0][0] as Record<string, unknown>[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      user_id: "applicant-1",
+      type: "application_status",
+      data: { gig_id: "test-gig-id", application_id: "app-1", status: "gig_removed" },
+    });
+    expect(rows[0].body).toContain("Logo design");
+    expect(rows[0].body).toContain("removed");
+  });
+
+  it("does not notify anyone when the delete itself fails", async () => {
+    mockGetAuthContext.mockResolvedValue(authContext);
+    ownerThenDelete({ error: { message: "boom" } });
+    svcResults.applications = [
+      { count: 0, error: null },
+      { data: [{ id: "app-1", applicant_id: "applicant-1" }], error: null },
+    ];
+    svcResults.gig_invoices = [{ count: 0, error: null }];
+
+    const res = await DELETE(makeRequest("DELETE"), routeParams);
+
+    expect(res.status).toBe(400);
+    expect(svcCalls.some((c) => c.table === "notifications")).toBe(false);
   });
 });
 

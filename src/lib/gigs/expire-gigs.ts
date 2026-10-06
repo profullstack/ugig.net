@@ -105,6 +105,7 @@ export async function expireGigs(
         applicantCount: gig.applications_count ?? 0,
         renewDays: expiryDaysFor(gig.listing_type),
       }),
+      unsubscribe: { userId: gig.poster_id, setting: "email_gig_updates" },
     });
     if (sent && (sent as { success?: boolean }).success === false) {
       result.email_failed++;

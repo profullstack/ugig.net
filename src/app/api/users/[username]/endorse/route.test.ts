@@ -41,11 +41,17 @@ vi.mock("@/lib/reputation-hooks", () => ({
   onEndorsementGiven: vi.fn(),
 }));
 
+const mockEmailEnabled = vi.fn().mockResolvedValue(true);
+vi.mock("@/lib/notification-settings", () => ({
+  isEmailNotificationEnabled: (...args: unknown[]) => mockEmailEnabled(...args),
+}));
+
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(),
 }));
 
 import { getAuthContext } from "@/lib/auth/get-user";
+import { sendEmail } from "@/lib/email";
 import type { AuthContext } from "@/lib/auth/get-user";
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
@@ -259,6 +265,54 @@ describe("POST /api/users/:username/endorse", () => {
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.data.skill).toBe("React");
+  });
+
+  function setupApiKeyEndorsement() {
+    mockGetAuthContext.mockResolvedValue({
+      ...authContext,
+      user: { ...(authContext as unknown as { user: Record<string, unknown> }).user, authMethod: "api_key" },
+    } as unknown as AuthContext);
+    supabaseClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: { email: "endorsed@example.test" } },
+    });
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1)
+        return chainResult({
+          data: { id: endorsedUserId, username: "testuser", full_name: "Test User", skills: ["React"] },
+          error: null,
+        });
+      if (callCount === 2)
+        return chainResult({
+          data: { id: "end-1", skill: "React", endorser: { id: userId } },
+          error: null,
+        });
+      return chainResult({ data: { full_name: "Endorser", username: "endorser", did: null }, error: null });
+    });
+  }
+
+  it("emails the endorsed user with an email_endorsement_received unsubscribe", async () => {
+    setupApiKeyEndorsement();
+    const res = await POST(makeRequest("POST", { skill: "React" }), routeParams);
+    expect(res.status).toBe(201);
+    expect(mockEmailEnabled).toHaveBeenCalledWith(expect.anything(), endorsedUserId, "email_endorsement_received");
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "endorsed@example.test",
+        unsubscribe: { userId: endorsedUserId, setting: "email_endorsement_received" },
+      })
+    );
+    supabaseClient.auth.admin.getUserById.mockResolvedValue({ data: null });
+  });
+
+  it("does not email when email_endorsement_received is off", async () => {
+    setupApiKeyEndorsement();
+    mockEmailEnabled.mockResolvedValueOnce(false);
+    const res = await POST(makeRequest("POST", { skill: "React" }), routeParams);
+    expect(res.status).toBe(201);
+    expect(sendEmail).not.toHaveBeenCalled();
+    supabaseClient.auth.admin.getUserById.mockResolvedValue({ data: null });
   });
 
   it("returns 409 when duplicate endorsement", async () => {

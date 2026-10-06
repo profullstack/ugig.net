@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { triggerNotifiesStatus } from "@/lib/application-status";
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
 
 const bulkStatusSchema = z.object({
   application_ids: z.array(z.string().uuid()).min(1).max(50),
@@ -56,9 +57,12 @@ export async function PUT(request: NextRequest) {
         id,
         applicant_id,
         gig_id,
+        status,
         gig:gigs (
           id,
-          poster_id
+          poster_id,
+          title,
+          poster:profiles!poster_id (full_name, username)
         )
       `
       )
@@ -132,6 +136,29 @@ export async function PUT(request: NextRequest) {
     if (notifications.length > 0) {
       await supabase.from("notifications").insert(notifications);
     }
+
+    // Email applicants whose status actually changed (gated per applicant on
+    // email_application_status). Fire-and-forget.
+    const updatedIds = new Set((updatedApplications ?? []).map((a) => a.id));
+    emailApplicantsAboutStatusInBackground(
+      applications
+        .filter((app) => updatedIds.has(app.id) && app.status !== status)
+        .map((app) => {
+          const gig = (Array.isArray(app.gig) ? app.gig[0] : app.gig) as {
+            title?: string | null;
+            poster?: { full_name: string | null; username: string | null } | { full_name: string | null; username: string | null }[] | null;
+          } | null;
+          const poster = Array.isArray(gig?.poster) ? gig?.poster[0] : gig?.poster;
+          return {
+            applicationId: app.id,
+            applicantId: app.applicant_id,
+            gigId: app.gig_id,
+            gigTitle: gig?.title || "a gig",
+            posterName: poster?.full_name || poster?.username || "The client",
+            status,
+          };
+        })
+    );
 
     return NextResponse.json({
       updated: updatedApplications?.length || 0,

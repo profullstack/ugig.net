@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
@@ -323,7 +324,11 @@ export async function POST(request: NextRequest) {
     const { data: revieweeAuth } = await adminClient.auth.admin.getUserById(reviewee_id);
     const revieweeEmail = revieweeAuth?.user?.email;
 
-    if (revieweeEmail && gig) {
+    if (
+      revieweeEmail &&
+      gig &&
+      (await isEmailNotificationEnabled(adminClient, reviewee_id, "email_review_received"))
+    ) {
       void sendEmail({
         to: revieweeEmail,
         ...reviewReceivedEmail({
@@ -334,6 +339,7 @@ export async function POST(request: NextRequest) {
           rating,
           comment,
         }),
+        unsubscribe: { userId: reviewee_id, setting: "email_review_received" },
       });
     }
 

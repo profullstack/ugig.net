@@ -357,6 +357,11 @@ describe("POST /api/messages/broadcast", () => {
     expect(dispatchWebhookAsync).toHaveBeenCalledTimes(2);
     expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(body.emailed).toBe(2);
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        unsubscribe: { userId: APPLICANT_1, setting: "email_new_message" },
+      })
+    );
   });
 
   it("skips email for recipients who opted out of message emails", async () => {

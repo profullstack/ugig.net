@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { sendEmail, newFollowerEmail } from "@/lib/email";
 import { getUserDid, onFollowed } from "@/lib/reputation-hooks";
@@ -104,7 +105,10 @@ export async function POST(
     );
     const targetEmail = targetAuth?.user?.email;
 
-    if (targetEmail) {
+    if (
+      targetEmail &&
+      (await isEmailNotificationEnabled(adminClient, targetProfile.id, "email_new_follower"))
+    ) {
       const emailContent = newFollowerEmail({
         recipientName:
           targetProfile.full_name || targetProfile.username,
@@ -116,6 +120,7 @@ export async function POST(
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
+        unsubscribe: { userId: targetProfile.id, setting: "email_new_follower" },
       }).catch(() => {});
     }
 

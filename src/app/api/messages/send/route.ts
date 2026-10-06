@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
           sendEmail({
             to: recipientEmail,
             ...emailContent,
+            unsubscribe: { userId: recipientProfile.id, setting: "email_new_message" },
           }).catch((err) =>
             console.error("Failed to send message notification email:", err)
           );
