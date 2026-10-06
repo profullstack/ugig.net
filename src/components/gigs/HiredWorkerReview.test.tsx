@@ -66,7 +66,7 @@ describe("HiredWorkerReview", () => {
     expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 
-  it("shows Leave Review button for each worker", () => {
+  it("shows Write Testimonial button for each worker", () => {
     render(
       <HiredWorkerReview
         gigId="gig-1"
@@ -76,10 +76,10 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    expect(screen.getAllByText("Leave Review")).toHaveLength(2);
+    expect(screen.getAllByText("Write Testimonial")).toHaveLength(2);
   });
 
-  it("shows Review submitted for already reviewed workers", () => {
+  it("shows Testimonial posted for already reviewed workers", () => {
     render(
       <HiredWorkerReview
         gigId="gig-1"
@@ -89,11 +89,11 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    expect(screen.getByText("Review submitted")).toBeInTheDocument();
-    expect(screen.getAllByText("Leave Review")).toHaveLength(1);
+    expect(screen.getByText("Testimonial posted")).toBeInTheDocument();
+    expect(screen.getAllByText("Write Testimonial")).toHaveLength(1);
   });
 
-  it("expands review form when clicking Leave Review", () => {
+  it("expands review form when clicking Write Testimonial", () => {
     render(
       <HiredWorkerReview
         gigId="gig-1"
@@ -103,7 +103,7 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Leave Review"));
+    fireEvent.click(screen.getByText("Write Testimonial"));
 
     expect(screen.getByPlaceholderText(/How was your experience working with Jane Doe/)).toBeInTheDocument();
     expect(screen.getByText("Submit Review")).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Leave Review"));
+    fireEvent.click(screen.getByText("Write Testimonial"));
     fireEvent.click(screen.getByTestId("set-rating"));
     fireEvent.change(screen.getByPlaceholderText(/How was your experience/), {
       target: { value: "Excellent developer!" },
@@ -132,7 +132,7 @@ describe("HiredWorkerReview", () => {
     fireEvent.click(screen.getByText("Submit Review"));
 
     await waitFor(() => {
-      expect(screen.getByText("Review submitted")).toBeInTheDocument();
+      expect(screen.getByText("Testimonial posted")).toBeInTheDocument();
     });
 
     expect(global.fetch).toHaveBeenCalledWith("/api/testimonials", {
@@ -162,7 +162,7 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Leave Review"));
+    fireEvent.click(screen.getByText("Write Testimonial"));
     fireEvent.click(screen.getByTestId("set-rating"));
     fireEvent.change(screen.getByPlaceholderText(/How was your experience/), {
       target: { value: "Good work" },
@@ -184,11 +184,11 @@ describe("HiredWorkerReview", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Leave Review"));
+    fireEvent.click(screen.getByText("Write Testimonial"));
     expect(screen.getByText("Cancel")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Cancel"));
     expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
-    expect(screen.getByText("Leave Review")).toBeInTheDocument();
+    expect(screen.getByText("Write Testimonial")).toBeInTheDocument();
   });
 });

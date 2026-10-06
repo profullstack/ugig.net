@@ -121,6 +121,34 @@ describe("NotificationBell", () => {
     expect(screen.getByText("New Application")).toBeInTheDocument();
   });
 
+  it("links a review_request to the review form on the gig page", async () => {
+    vi.mocked(notificationsApi.list).mockResolvedValue({
+      data: {
+        notifications: [
+          {
+            id: "notif-rr",
+            user_id: "user-123",
+            type: "review_request",
+            title: "Rate @alice for Logo design",
+            body: "How did it go? Your rating shows on their profile.",
+            data: { gig_id: "gig-9", reviewee_id: "alice-id", link: "/gigs/gig-9#review" },
+            read_at: null,
+            created_at: "2024-01-15T10:30:00Z",
+          },
+        ],
+        unread_count: 1,
+      },
+      error: null,
+    });
+
+    render(<NotificationBell />);
+    await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button"));
+
+    const link = screen.getByText("Rate @alice for Logo design").closest("a");
+    expect(link).toHaveAttribute("href", "/gigs/gig-9#review");
+  });
+
   it("shows 'Mark all read' button when there are unread notifications", async () => {
     render(<NotificationBell />);
 

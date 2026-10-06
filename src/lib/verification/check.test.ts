@@ -7,12 +7,16 @@ function createMockSupabase({
   profile = { id: "user-1", verified: false, created_at: "2024-01-01T00:00:00Z" } as { id: string; verified: boolean; created_at: string } | null,
   profileError = null as { message: string } | null,
   completedGigsCount = 0 as number | null,
+  applications = undefined as { id: string; gig: { status: string } | null }[] | undefined,
+  paidInvoices = [] as { application_id: string }[],
   reviews = [] as { rating: number }[] | null,
   updateError = null as { message: string } | null,
 }: {
   profile?: { id: string; verified: boolean; created_at: string } | null;
   profileError?: { message: string } | null;
   completedGigsCount?: number | null;
+  applications?: { id: string; gig: { status: string } | null }[];
+  paidInvoices?: { application_id: string }[];
   reviews?: { rating: number }[] | null;
   updateError?: { message: string } | null;
 } = {}) {
@@ -46,14 +50,28 @@ function createMockSupabase({
         }
       }
       if (table === "applications") {
+        // completedGigsCount is shorthand for N hired applications on filled gigs
+        const apps =
+          applications ??
+          Array.from({ length: completedGigsCount ?? 0 }, (_, i) => ({
+            id: `app-${i}`,
+            gig: { status: "filled" },
+          }));
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               in: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({
-                  count: completedGigsCount,
-                }),
+                order: vi.fn().mockResolvedValue({ data: apps }),
               }),
+            }),
+          }),
+        };
+      }
+      if (table === "gig_invoices") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: paidInvoices }),
             }),
           }),
         };
@@ -83,6 +101,54 @@ beforeEach(() => {
 });
 
 describe("checkAutoVerification", () => {
+  it("counts a hired application with a paid invoice as completed even when the gig is not filled", async () => {
+    const supabase = createMockSupabase({
+      applications: [
+        { id: "a1", gig: { status: "active" } },
+        { id: "a2", gig: { status: "active" } },
+        { id: "a3", gig: { status: "closed" } },
+      ],
+      paidInvoices: [{ application_id: "a1" }, { application_id: "a2" }, { application_id: "a3" }, { application_id: "a1" }],
+      reviews: [{ rating: 5 }],
+    });
+
+    const result = await checkAutoVerification(supabase, "user-1");
+
+    expect(result.criteria.completedGigs.value).toBe(3);
+    expect(result.eligible).toBe(true);
+  });
+
+  it("counts filled-gig and paid-invoice applications together, once each", async () => {
+    const supabase = createMockSupabase({
+      applications: [
+        { id: "a1", gig: { status: "filled" } },
+        { id: "a2", gig: { status: "active" } },
+        { id: "a3", gig: { status: "active" } },
+        { id: "a4", gig: { status: "filled" } },
+      ],
+      paidInvoices: [{ application_id: "a2" }, { application_id: "a4" }],
+      reviews: [{ rating: 5 }],
+    });
+
+    const result = await checkAutoVerification(supabase, "user-1");
+
+    // a1 (filled), a2 (paid), a4 (filled + paid, counted once); a3 is neither
+    expect(result.criteria.completedGigs.value).toBe(3);
+  });
+
+  it("does not count a hired application on an unfilled gig with no paid invoice", async () => {
+    const supabase = createMockSupabase({
+      applications: [{ id: "a1", gig: { status: "active" } }],
+      paidInvoices: [],
+      reviews: [{ rating: 5 }],
+    });
+
+    const result = await checkAutoVerification(supabase, "user-1");
+
+    expect(result.criteria.completedGigs.value).toBe(0);
+    expect(result.criteria.completedGigs.met).toBe(false);
+  });
+
   it("returns eligible=true when all criteria are met", async () => {
     const supabase = createMockSupabase({
       profile: { id: "user-1", verified: false, created_at: "2024-01-01T00:00:00Z" },
@@ -281,8 +347,19 @@ describe("autoVerifyUser", () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 in: vi.fn().mockReturnValue({
-                  eq: vi.fn().mockResolvedValue({ count: 5 }),
+                  order: vi.fn().mockResolvedValue({
+                    data: Array.from({ length: 5 }, (_, i) => ({ id: `app-${i}`, gig: { status: "filled" } })),
+                  }),
                 }),
+              }),
+            }),
+          };
+        }
+        if (table === "gig_invoices") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ data: [] }),
               }),
             }),
           };
@@ -349,8 +426,19 @@ describe("autoVerifyUser", () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 in: vi.fn().mockReturnValue({
-                  eq: vi.fn().mockResolvedValue({ count: 5 }),
+                  order: vi.fn().mockResolvedValue({
+                    data: Array.from({ length: 5 }, (_, i) => ({ id: `app-${i}`, gig: { status: "filled" } })),
+                  }),
                 }),
+              }),
+            }),
+          };
+        }
+        if (table === "gig_invoices") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ data: [] }),
               }),
             }),
           };

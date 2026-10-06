@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { getCompletedApplications } from "@/lib/completed-work";
 import { buildProfileMetadata } from "@/lib/seo/profile-metadata";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
@@ -43,7 +45,6 @@ import { CompletedGigs } from "@/components/profile/CompletedGigs";
 import { ProfileActivityStats } from "@/components/profile/ProfileActivityStats";
 import { BlockButton } from "@/components/blocks/BlockButton";
 import { usersAreBlocked } from "@/lib/blocks";
-import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -217,15 +218,14 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     hasExistingTestimonial = (existing && existing.length > 0) || false;
   }
 
-  // Get completed gigs (where this user was the accepted applicant)
-  const { data: completedApps } = await supabase
-    .from("applications")
-    .select("id, gig_id, updated_at, status, gig:gigs!gig_id(id, title, budget_type, budget_min, poster_id, poster:profiles!poster_id(username, full_name))")
-    .eq("applicant_id", profile.id)
-    .in("status", HIRED_APPLICATION_STATUSES)
-    .order("updated_at", { ascending: false });
+  // Completed gigs: hired applications with a paid invoice or on a filled gig
+  // (src/lib/completed-work.ts, the same rule auto-verification uses). Read
+  // with the service client because applications and invoices are RLS-scoped
+  // to the two parties, which hid this list from every other visitor. Only
+  // gig titles and poster names leave this query.
+  const completedApps = await getCompletedApplications(createServiceClient(), profile.id);
 
-  const completedGigsList = (completedApps || []).map((app: any) => ({
+  const completedGigsList = completedApps.map((app) => ({
     id: app.id,
     gig_id: app.gig?.id || app.gig_id,
     gig_title: app.gig?.title || "Untitled Gig",
@@ -233,7 +233,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     gig_budget_min: app.gig?.budget_min || null,
     poster_username: app.gig?.poster?.username || "unknown",
     poster_full_name: app.gig?.poster?.full_name || null,
-    completed_at: app.updated_at,
+    completed_at: app.updated_at || "",
   }));
 
   // Check which gigs the current user already left testimonials for

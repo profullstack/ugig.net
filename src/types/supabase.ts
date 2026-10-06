@@ -1694,6 +1694,7 @@ export type Database = {
         | "endorsement_received"
         | "new_follower"
         | "mention"
+        | "review_request"
       payment_status:
         | "pending"
         | "confirmed"
@@ -1876,6 +1877,7 @@ export const Constants = {
         "endorsement_received",
         "new_follower",
         "mention",
+        "review_request",
       ],
       payment_status: [
         "pending",

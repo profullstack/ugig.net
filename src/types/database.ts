@@ -809,7 +809,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title: string;
           body: string | null;
           data: Json;
@@ -830,7 +831,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title: string;
           body?: string | null;
           data?: Json;
@@ -851,7 +853,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title?: string;
           body?: string | null;
           data?: Json;
@@ -1772,7 +1775,8 @@ export type Database = {
         | "new_comment"
         | "new_follower"
         | "endorsement_received"
-            | "mention";
+        | "mention"
+        | "review_request";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
       verification_type: "manual" | "auto" | "premium";

@@ -119,7 +119,7 @@ export function HiredWorkerReview({
               {/* Review status / button */}
               {submitted.has(worker.id) ? (
                 <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-                  <Star className="h-3 w-3" /> Review submitted
+                  <Star className="h-3 w-3" /> Testimonial posted
                 </p>
               ) : reviewingWorkerId === worker.id ? (
                 <div className="mt-3 space-y-3 p-3 bg-muted/30 rounded-lg">
@@ -168,7 +168,7 @@ export function HiredWorkerReview({
                   onClick={() => setReviewingWorkerId(worker.id)}
                 >
                   <Star className="h-3 w-3" />
-                  Leave Review
+                  Write Testimonial
                 </Button>
               )}
             </div>

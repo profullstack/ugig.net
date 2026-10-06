@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendEmail } from "@/lib/email";
 import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
+import { syncTestimonialToReview } from "@/lib/reviews/sync-testimonial-review";
 
 export async function GET(request: NextRequest) {
   try {
@@ -219,6 +220,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // The testimonial's star rating counts like any review: copy it into
+    // `reviews`, the one table profile stars, the leaderboard and
+    // auto-verification read (src/lib/reviews/sync-testimonial-review.ts).
+    const reviewSync = await syncTestimonialToReview(serviceClient, {
+      gigId: gig_id,
+      authorId: user.id,
+      profileId: profile_id,
+      rating,
+      content,
+    });
+
     // Send notification + email
     try {
       const { data: authorProfile } = await serviceClient
@@ -230,14 +242,20 @@ export async function POST(request: NextRequest) {
       const authorName = authorProfile?.full_name || authorProfile?.username || "Someone";
       const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
 
-      // In-app notification
-      await serviceClient.from("notifications").insert({
-        user_id: notifyUserId,
-        type: "review_received",
-        title: `${authorName} left a ${rating}-star testimonial on ${targetLabel}`,
-        message: content.trim().slice(0, 200),
-        link: notificationLink,
-      });
+      // In-app notification. When a review row was just created for the same
+      // person, the on_new_review trigger has already notified them; a second
+      // one here would be a duplicate.
+      const reviewTriggerNotified =
+        reviewSync.synced && reviewSync.created && reviewSync.revieweeId === notifyUserId;
+      if (!reviewTriggerNotified) {
+        await serviceClient.from("notifications").insert({
+          user_id: notifyUserId,
+          type: "review_received",
+          title: `${authorName} left a ${rating}-star testimonial on ${targetLabel}`,
+          body: content.trim().slice(0, 200),
+          data: { testimonial_id: data.id, reviewer_id: user.id, gig_id: gig_id || null, link: notificationLink },
+        });
+      }
 
       // Email notification
       const { data: profileOwnerAuth } = await serviceClient.auth.admin.getUserById(notifyUserId);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "./StarRating";
@@ -26,6 +26,8 @@ export function ReviewForm({
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Unique per form: the gig page renders one form per person to review.
+  const commentId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,11 +83,11 @@ export function ReviewForm({
       </div>
 
       <div>
-        <label htmlFor="comment" className="block text-sm font-medium mb-2">
+        <label htmlFor={commentId} className="block text-sm font-medium mb-2">
           Review (optional)
         </label>
         <Textarea
-          id="comment"
+          id={commentId}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Share your experience working with this person..."
