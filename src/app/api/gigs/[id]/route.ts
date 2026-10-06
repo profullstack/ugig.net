@@ -9,6 +9,7 @@ import {
 import { HELD_COLUMN } from "@/lib/limits";
 import { usersAreBlocked } from "@/lib/blocks";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
+import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
 // GET /api/gigs/[id] - Get a single gig
 export async function GET(
@@ -135,6 +136,13 @@ export async function PUT(
       const activation = await checkForHireAdActivation(supabase, user.id, nextTitle, id);
       if (!activation.ok) return limitResponse(activation);
     }
+    // Activating through an edit counts against the free cap like PATCH /status
+    if (isActivation) {
+      const allowance = await getGigPostAllowance(supabase, user.id);
+      if (!allowance.allowed) {
+        return NextResponse.json({ error: GIG_POST_LIMIT_MESSAGE }, { status: 403 });
+      }
+    }
 
     const { data: gig, error } = await supabase
       .from("gigs")
@@ -149,6 +157,10 @@ export async function PUT(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (isActivation) {
+      await recordGigPost(supabase, user.id);
     }
 
     return NextResponse.json({ gig });

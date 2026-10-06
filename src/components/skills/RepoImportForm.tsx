@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { SKILL_CATEGORIES } from "@/lib/constants";
+import { SKILL_CATEGORIES, SKILL_FEE_RATES } from "@/lib/constants";
+import { SellerFeeNotice } from "@/components/marketplace/FeeNotices";
 import {
   Loader2,
   Github,
@@ -240,6 +241,9 @@ export function RepoImportForm() {
                 className="w-36 h-8 text-sm"
                 placeholder="0 = free"
               />
+            </div>
+            <div className="basis-full">
+              <SellerFeeNotice priceSats={Math.max(0, parseInt(globalPrice) || 0)} rates={SKILL_FEE_RATES} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>

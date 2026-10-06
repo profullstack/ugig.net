@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { useDialog } from "@/components/providers/DialogProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subscriptions as subscriptionsApi } from "@/lib/api";
-import { PLANS } from "@/lib/stripe";
+import {
+  FUNDING_LIFETIME_THRESHOLD_USD,
+  PAID_PERKS,
+  PLANS,
+  PRICE_RAILS_COPY,
+  formatUsd,
+  hasPaidAccess,
+  type CoinPayPlan,
+} from "@/lib/plans";
 import {
   ArrowLeft,
   Check,
@@ -40,12 +48,17 @@ function SubscriptionPageContent() {
     text: string;
   } | null>(null);
 
-  // Check for success/canceled params from Stripe redirect
+  // Return from checkout: CoinPay sends ?payment=success
   useEffect(() => {
     const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
 
-    if (success) {
+    if (searchParams.get("payment") === "success") {
+      setMessage({
+        type: "success",
+        text: "Payment received. Your plan activates as soon as CoinPay confirms it on-chain.",
+      });
+    } else if (success) {
       setMessage({
         type: "success",
         text: "Your subscription has been activated! Welcome to Pro.",
@@ -72,32 +85,6 @@ function SubscriptionPageContent() {
     fetchSubscription();
   }, []);
 
-  const handleUpgrade = async () => {
-    setIsProcessing(true);
-    setMessage(null);
-
-    try {
-      const result = await subscriptionsApi.createCheckout();
-      if (result.error) {
-        setMessage({ type: "error", text: result.error });
-        return;
-      }
-
-      const data = result.data as { sessionId: string; url: string };
-
-      // Redirect to Stripe checkout
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setMessage({ type: "error", text: "Failed to get checkout URL" });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Failed to start checkout" });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleManageBilling = async () => {
     setIsProcessing(true);
 
@@ -119,9 +106,11 @@ function SubscriptionPageContent() {
     }
   };
 
-  const handleLifetimeUpgrade = async () => {
+  // Checkout through CoinPay (crypto), the only payment rail.
+  const handleCryptoCheckout = async (plan: CoinPayPlan) => {
     setIsProcessing(true);
     setMessage(null);
+    const failure = `Failed to start ${plan} checkout`;
 
     try {
       const res = await fetch("/api/payments/coinpayportal/create", {
@@ -129,14 +118,14 @@ function SubscriptionPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "subscription",
-          plan: "lifetime",
+          plan,
           currency: "usdc_pol",
         }),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage({ type: "error", text: data.error || "Failed to start lifetime checkout" });
+        setMessage({ type: "error", text: data.error || failure });
         return;
       }
 
@@ -146,7 +135,7 @@ function SubscriptionPageContent() {
         setMessage({ type: "error", text: "Failed to get checkout URL" });
       }
     } catch {
-      setMessage({ type: "error", text: "Failed to start lifetime checkout" });
+      setMessage({ type: "error", text: failure });
     } finally {
       setIsProcessing(false);
     }
@@ -220,11 +209,12 @@ function SubscriptionPageContent() {
     );
   }
 
-  const isPro =
-    ["pro", "lifetime"].includes(subscription?.plan || "") &&
-    ["active", "trialing"].includes(subscription?.status || "");
+  const isPro = hasPaidAccess(subscription);
   const isLifetime = subscription?.plan === "lifetime" && subscription?.status === "active";
   const isCanceling = subscription?.cancel_at_period_end;
+  // Card Pro is a Stripe subscription (cancel / manage in Stripe). Crypto Pro is
+  // prepaid through CoinPay: nothing renews it, so it is extended by paying again.
+  const isStripeManaged = Boolean(subscription?.stripe_subscription_id);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -265,17 +255,30 @@ function SubscriptionPageContent() {
             <Crown className="h-6 w-6 text-primary" />
             <div>
               <p className="font-medium">
-                {isLifetime ? "You&apos;re on the Lifetime plan" : "You&apos;re on the Pro plan"}
+                {isLifetime ? "You\u2019re on the Lifetime plan" : "You\u2019re on the Pro plan"}
               </p>
               {!isLifetime && subscription?.current_period_end && (
                 <p className="text-sm text-muted-foreground">
-                  {isCanceling ? "Cancels" : "Renews"} on{" "}
+                  {isStripeManaged ? (isCanceling ? "Cancels" : "Renews") : "Paid through"}{" "}
+                  {isStripeManaged ? "on " : ""}
                   {new Date(subscription.current_period_end).toLocaleDateString()}
                 </p>
               )}
             </div>
           </div>
-          {isLifetime ? null : isCanceling ? (
+          {isLifetime ? null : !isStripeManaged ? (
+            <Button
+              variant="outline"
+              onClick={() => handleCryptoCheckout("annual")}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                `Add a year with crypto (${formatUsd(PLANS.pro.annualUsd)})`
+              )}
+            </Button>
+          ) : isCanceling ? (
             <Button
               variant="outline"
               onClick={handleReactivate}
@@ -320,28 +323,11 @@ function SubscriptionPageContent() {
             )}
           </div>
           <div className="mb-4">
-            <span className="text-3xl font-bold">$0</span>
+            <span className="text-3xl font-bold">{formatUsd(PLANS.free.priceUsd)}</span>
             <span className="text-muted-foreground">/month</span>
           </div>
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Up to {PLANS.free.postsPerMonth} gig posts per month
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Unlimited applications
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Messaging
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Video calls
-            </li>
-          </ul>
-          {isPro && (
+          <PerkItems perks={PLANS.free.perks} />
+          {isPro && !isLifetime && isStripeManaged && (
             <Button
               variant="outline"
               className="w-full"
@@ -377,57 +363,46 @@ function SubscriptionPageContent() {
             )}
           </div>
           <div className="mb-4">
-            <span className="text-3xl font-bold">
-              ${(PLANS.pro.price / 100).toFixed(2)}
-            </span>
+            <span className="text-3xl font-bold">{formatUsd(PLANS.pro.monthlyUsd)}</span>
             <span className="text-muted-foreground">/month</span>
+            <p className="text-sm text-muted-foreground mt-1">
+              or {formatUsd(PLANS.pro.annualUsd)}/year ({PRICE_RAILS_COPY.annual})
+            </p>
           </div>
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Unlimited gig posts
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Unlimited applications
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Messaging
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Video calls
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Priority support
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Featured listings
-            </li>
-          </ul>
+          <PerkItems perks={["Everything in Free", ...PLANS.pro.perks]} />
           {!isPro && (
-            <Button
-              className="w-full"
-              onClick={handleUpgrade}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Crown className="h-4 w-4 mr-2" />
-                  Upgrade to Pro
-                </>
-              )}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                className="w-full"
+                onClick={() => handleCryptoCheckout("monthly")}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Crown className="h-4 w-4 mr-2" />
+                    Pay {formatUsd(PLANS.pro.monthlyUsd)}/month with crypto (CoinPay)
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleCryptoCheckout("annual")}
+                disabled={isProcessing}
+              >
+                Pay {formatUsd(PLANS.pro.annualUsd)}/year with crypto (CoinPay)
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Paid in crypto via CoinPay. Pay again to extend; nothing renews automatically.
+              </p>
+            </div>
           )}
-          {subscription?.plan === "pro" && !isCanceling && (
+          {subscription?.plan === "pro" && isStripeManaged && !isCanceling && (
             <Button
               variant="outline"
               className="w-full"
@@ -458,30 +433,20 @@ function SubscriptionPageContent() {
             )}
           </div>
           <div className="mb-4">
-            <span className="text-3xl font-bold">$100</span>
+            <span className="text-3xl font-bold">{formatUsd(PLANS.lifetime.oneTimeUsd)}</span>
             <span className="text-muted-foreground"> one-time</span>
+            <p className="text-sm text-muted-foreground mt-1">
+              {PRICE_RAILS_COPY.lifetime.charAt(0).toUpperCase() + PRICE_RAILS_COPY.lifetime.slice(1)}
+            </p>
           </div>
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Unlimited gig posts forever
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Priority support
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500" />
-              Premium features included for life
-            </li>
-          </ul>
+          <PerkItems perks={[...PAID_PERKS.map((perk) => `${perk}, forever`), "Never renews"]} />
           <p className="text-sm text-green-600 dark:text-green-400 font-semibold mb-4">
-            🎉 Fund ugig.net $50+ and lifetime is included free
+            Fund ugig.net {formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)}+ and lifetime is included free
           </p>
           {!isLifetime && (
             <Button
               className="w-full"
-              onClick={handleLifetimeUpgrade}
+              onClick={() => handleCryptoCheckout("lifetime")}
               disabled={isProcessing}
             >
               {isProcessing ? (
@@ -492,7 +457,7 @@ function SubscriptionPageContent() {
               ) : (
                 <>
                   <Crown className="h-4 w-4 mr-2" />
-                  Buy Lifetime ($100)
+                  Buy Lifetime ({formatUsd(PLANS.lifetime.oneTimeUsd)}, crypto)
                 </>
               )}
             </Button>
@@ -500,6 +465,19 @@ function SubscriptionPageContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PerkItems({ perks }: { perks: readonly string[] }) {
+  return (
+    <ul className="space-y-3 mb-6">
+      {perks.map((perk) => (
+        <li key={perk} className="flex items-center gap-2 text-sm">
+          <Check className="h-4 w-4 text-green-500" />
+          {perk}
+        </li>
+      ))}
+    </ul>
   );
 }
 

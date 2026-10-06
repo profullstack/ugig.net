@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { SatsAmount } from "@/components/ui/SatsAmount";
+import { BuyerPriceNote } from "@/components/marketplace/FeeNotices";
 import { Zap, Loader2, Check } from "lucide-react";
 
 interface PromptPurchaseButtonProps {
@@ -85,6 +86,7 @@ export function PromptPurchaseButton({ slug, priceSats }: PromptPurchaseButtonPr
           </>
         )}
       </Button>
+      <BuyerPriceNote priceSats={priceSats} />
       {error && (
         <p className="text-sm text-red-500 mt-2 text-center">{error}</p>
       )}

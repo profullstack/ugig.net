@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS } from "@/lib/constants";
+import { SKILL_CATEGORIES, SUPPORTED_AGENT_OPTIONS, SKILL_FEE_RATES } from "@/lib/constants";
+import { SellerFeeNotice } from "@/components/marketplace/FeeNotices";
 import { Loader2, Trash2, Link as LinkIcon, Sparkles, Shield, CheckCircle, AlertCircle, Terminal, Copy, Check } from "lucide-react";
 import { GenerateScanButton } from "./GenerateScanButton";
 import { useDialog } from "@/components/providers/DialogProvider";
@@ -419,7 +420,7 @@ export function SkillListingForm({ slug, listingId, initialData }: SkillListingF
             onChange={(e) => setPriceSats(e.target.value)}
             placeholder="0 = free"
           />
-          <p className="text-xs text-muted-foreground">0 for free listing</p>
+          <SellerFeeNotice priceSats={parseInt(priceSats) || 0} rates={SKILL_FEE_RATES} />
         </div>
 
         <div className="space-y-2">

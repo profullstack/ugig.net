@@ -6,6 +6,7 @@ import {
   internalTransfer,
   syncBalanceCache,
 } from "@/lib/lightning/wallet-utils";
+import { isPaidPlan } from "@/lib/plans";
 
 const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || "";
 
@@ -20,9 +21,10 @@ export interface PurchaseResult {
 
 /**
  * Determine the fee rate for a seller based on their subscription plan.
+ * Pro and Lifetime sellers get the reduced rate.
  */
 export function getSellerFeeRate(plan: string | null | undefined): number {
-  if (plan === "pro") return SKILL_FEE_RATES.pro;
+  if (isPaidPlan(plan)) return SKILL_FEE_RATES.pro;
   return SKILL_FEE_RATES.free;
 }
 

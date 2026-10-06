@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
+import { PerkList, ProPriceDetails } from "@/components/pricing/PlanPricing";
+import { FREE_MONTHLY_GIG_POSTS, FREE_PERKS, PAID_PERKS } from "@/lib/plans";
 import {
   ArrowRight,
-  Check,
   Clock,
   DollarSign,
   MessageSquare,
@@ -78,7 +79,7 @@ export default function ForEmployersPage() {
               <BenefitCard
                 icon={<DollarSign className="h-6 w-6" />}
                 title="Cost Effective"
-                description="Post unlimited gigs for free. Only upgrade to Pro when you need advanced features."
+                description={`Post up to ${FREE_MONTHLY_GIG_POSTS} gigs a month for free. Upgrade to Pro for unlimited posts.`}
               />
               <BenefitCard
                 icon={<Video className="h-6 w-6" />}
@@ -143,28 +144,11 @@ export default function ForEmployersPage() {
               <div className="bg-card p-8 rounded-xl border border-border">
                 <h3 className="text-xl font-bold mb-2">Free Plan</h3>
                 <p className="text-3xl font-bold mb-6">$0<span className="text-lg font-normal text-muted-foreground">/month</span></p>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Post up to 10 gigs per month</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Unlimited applications received</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Direct messaging with candidates</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Video interviews</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Access to all candidate profiles</span>
-                  </li>
-                </ul>
+                <PerkList
+                  className="space-y-3"
+                  leading={["Unlimited applications received", "Access to all candidate profiles"]}
+                  perks={FREE_PERKS}
+                />
               </div>
 
               <div className="bg-card p-8 rounded-xl border-2 border-primary relative">
@@ -172,32 +156,8 @@ export default function ForEmployersPage() {
                   Pro
                 </span>
                 <h3 className="text-xl font-bold mb-2">Pro Plan</h3>
-                <p className="text-3xl font-bold mb-1">$9<span className="text-lg font-normal text-muted-foreground">/month</span></p>
-                <p className="text-sm text-muted-foreground mb-2">billed annually, or $29/mo</p>
-                <p className="text-sm text-primary mb-1 font-medium">Lifetime membership: $100 one-time</p>
-                <p className="text-sm text-green-600 dark:text-green-400 mb-6 font-semibold">🎉 Fund ugig.net $50+ and lifetime is included free</p>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Everything in Free</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span><strong>Unlimited</strong> gig posts</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Featured gig placement</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Priority support</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Advanced analytics</span>
-                  </li>
-                </ul>
+                <ProPriceDetails headlineClassName="text-3xl font-bold mb-1" />
+                <PerkList className="space-y-3" leading={["Everything in Free"]} perks={PAID_PERKS} />
               </div>
             </div>
           </div>

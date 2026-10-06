@@ -62,10 +62,11 @@ function makeRequest(body: Record<string, unknown>) {
 
 function chainResult(result: { data: unknown; error: unknown }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ["select", "insert", "upsert", "eq", "not", "single", "gte", "lte", "overlaps", "or", "order", "range"]) {
+  for (const m of ["select", "insert", "upsert", "eq", "not", "single", "maybeSingle", "gte", "lte", "overlaps", "or", "order", "range"]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   chain.single.mockResolvedValue(result);
+  chain.maybeSingle.mockResolvedValue(result);
   return chain;
 }
 

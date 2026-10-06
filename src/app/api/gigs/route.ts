@@ -13,6 +13,7 @@ import {
   computeExpiresAt,
   limitResponse,
 } from "@/lib/limits";
+import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -248,36 +249,12 @@ export async function POST(request: NextRequest) {
         if (!activation.ok) return limitResponse(activation);
       }
     }
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
 
-    // Only check gig limit for active posts
+    // Free accounts: FREE_MONTHLY_GIG_POSTS active posts per month (drafts are free)
     if (isActivePost) {
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("plan")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!subscription || subscription.plan === "free") {
-        const { data: usage } = await supabase
-          .from("gig_usage")
-          .select("posts_count")
-          .eq("user_id", user.id)
-          .eq("month", month)
-          .eq("year", year)
-          .single();
-
-        if (usage && usage.posts_count >= 10) {
-          return NextResponse.json(
-            {
-              error:
-                "You've reached your monthly limit of 10 gig posts. Upgrade to Pro for unlimited posts.",
-            },
-            { status: 403 }
-          );
-        }
+      const allowance = await getGigPostAllowance(supabase, user.id);
+      if (!allowance.allowed) {
+        return NextResponse.json({ error: GIG_POST_LIMIT_MESSAGE }, { status: 403 });
       }
     }
 
@@ -297,25 +274,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Only update usage count for active posts
+    // Only count active posts
     if (isActivePost) {
-      await supabase.from("gig_usage").upsert(
-        {
-          user_id: user.id,
-          month,
-          year,
-          posts_count: 1,
-        },
-        {
-          onConflict: "user_id,month,year",
-        }
-      );
-
-      await supabase.rpc("increment_gig_usage", {
-        p_user_id: user.id,
-        p_month: month,
-        p_year: year,
-      });
+      await recordGigPost(supabase, user.id);
     }
 
     // Fire reputation receipt

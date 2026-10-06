@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyWebhookSignature, type CoinPayWebhookPayload } from "@/lib/coinpayportal";
-import { LIFETIME_THRESHOLD_USD } from "@/lib/funding";
+import {
+  handleFundingPaymentEvent,
+  markCheckoutPaymentUnpaid,
+  settleCheckoutPayment,
+  type FundingEventStatus,
+} from "@/lib/payments/checkout-settlement";
 import { getUserDid, onPaymentReceived, onPaymentSent } from "@/lib/reputation-hooks";
 import { parseGitHubIssueUrl } from "@/lib/github-links";
 import { updateIssueComment } from "@/lib/github-app";
@@ -54,26 +59,26 @@ export async function processCoinPayWebhook(
 
     switch (payload.type) {
       case "payment.confirmed": {
-        if (await handleFundingPaymentEvent(supabase, payload, "confirmed")) break;
-        await handlePaymentConfirmed(supabase, payload);
+        if (await handleFunding(supabase, payload, "confirmed")) break;
+        await handlePaymentSettled(supabase, payload, "confirmed");
         break;
       }
 
       case "payment.forwarded": {
-        if (await handleFundingPaymentEvent(supabase, payload, "forwarded")) break;
-        await handlePaymentForwarded(supabase, payload);
+        if (await handleFunding(supabase, payload, "forwarded")) break;
+        await handlePaymentSettled(supabase, payload, "forwarded");
         break;
       }
 
       case "payment.expired": {
-        if (await handleFundingPaymentEvent(supabase, payload, "expired")) break;
+        if (await handleFunding(supabase, payload, "expired")) break;
         await handlePaymentExpired(supabase, payload);
         break;
       }
 
       case "payment.failed": {
-        if (await handleFundingPaymentEvent(supabase, payload, "failed")) break;
-        console.log(`Unhandled webhook event: ${payload.type}`);
+        if (await handleFunding(supabase, payload, "failed")) break;
+        await markCheckoutPaymentUnpaid(supabase, payload.data.payment_id, "failed");
         break;
       }
 
@@ -103,176 +108,54 @@ export async function processCoinPayWebhook(
   }
 }
 
-async function handleFundingPaymentEvent(
+function handleFunding(
   supabase: ReturnType<typeof createServiceClient>,
   payload: CoinPayWebhookPayload,
-  status: "confirmed" | "forwarded" | "expired" | "failed"
+  status: FundingEventStatus
 ): Promise<boolean> {
-  const now = new Date().toISOString();
-  const amountCrypto =
-    typeof payload.data.amount_crypto === "string"
-      ? parseFloat(payload.data.amount_crypto)
-      : (payload.data.amount_crypto ?? null);
-  const update: Record<string, unknown> = {
+  return handleFundingPaymentEvent(supabase, {
+    coinpayPaymentId: payload.data.payment_id,
     status,
-    updated_at: now,
-    tx_hash: payload.data.tx_hash ?? null,
-  };
-  if (amountCrypto !== null) update.amount_crypto = amountCrypto;
-  if (status === "confirmed" || status === "forwarded") update.paid_at = now;
-
-  const { error } = await (supabase.from("funding_payments") as any)
-    .update(update)
-    .eq("coinpay_payment_id", payload.data.payment_id);
-
-  if (error) {
-    console.error("[coinpay webhook] funding update failed:", error);
-    throw new Error("Funding payment update failed");
-  }
-
-  return payload.data.metadata?.type === "funding";
+    amountUsd: payload.data.amount_usd,
+    amountCrypto: payload.data.amount_crypto,
+    txHash: payload.data.tx_hash ?? null,
+    providerMetadata: payload.data.metadata ?? null,
+  });
 }
 
-async function handlePaymentConfirmed(
+/**
+ * payment.confirmed and payment.forwarded. Checkout payments (Pro, Lifetime,
+ * tips) settle through the shared settlement code; anything else is a gig
+ * invoice or bounty payout.
+ */
+async function handlePaymentSettled(
   supabase: ReturnType<typeof createServiceClient>,
-  payload: CoinPayWebhookPayload
+  payload: CoinPayWebhookPayload,
+  status: "confirmed" | "forwarded"
 ) {
   const { data: paymentData } = payload;
 
-  // Update payment status
-  const { data: payment, error: paymentError } = await supabase
-    .from("payments")
-    .update({
-      status: "confirmed",
-      amount_crypto: parseFloat(paymentData.amount_crypto),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("coinpay_payment_id", paymentData.payment_id)
-    .select()
-    .single();
-
-  if (paymentError) {
-    const handledInvoice = await handleGigInvoicePaymentConfirmed(supabase, payload);
-    if (handledInvoice) return;
-    const handledBounty = await handleBountyPaymentConfirmed(supabase, payload);
-    if (handledBounty) return;
-    console.error("Failed to update payment:", paymentError);
-    return;
-  }
-
-  if (!payment) {
-    const handledInvoice = await handleGigInvoicePaymentConfirmed(supabase, payload);
-    if (handledInvoice) return;
-    const handledBounty = await handleBountyPaymentConfirmed(supabase, payload);
-    if (handledBounty) return;
-    console.error("Payment not found:", paymentData.payment_id);
-    return;
-  }
-
-  const amountUsd = Number(paymentData.amount_usd || 0);
-
-  const paymentPlan =
-    typeof payment.metadata === "object" && payment.metadata && "plan" in payment.metadata
-      ? String((payment.metadata as Record<string, unknown>).plan || "")
-      : "";
-
-  // Handle based on payment type
-  if (payment.type === "subscription") {
-    if (paymentPlan === "lifetime") {
-      await grantLifetimeForInvestment(supabase, payment.user_id, payment.id, amountUsd);
-    } else {
-      // Activate Pro subscription
-      const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-
-      await supabase.from("subscriptions").upsert(
-        {
-          user_id: payment.user_id,
-          coinpay_payment_id: paymentData.payment_id,
-          status: "active",
-          plan: "pro",
-          current_period_start: now.toISOString(),
-          current_period_end: periodEnd.toISOString(),
-          cancel_at_period_end: false,
-          updated_at: now.toISOString(),
-        },
-        {
-          onConflict: "user_id",
-        }
-      );
-
-      // Notify user
-      await supabase.from("notifications").insert({
-        user_id: payment.user_id,
-        type: "payment_received",
-        title: "Pro subscription activated",
-        body: `Your Pro subscription is now active. Enjoy unlimited gig posts!`,
-        data: {
-          payment_id: payment.id,
-          amount_usd: paymentData.amount_usd,
-          currency: paymentData.currency,
-        },
-      });
-    }
-  }
-
-  // Investor perk: $50+ contribution via CoinPay grants lifetime plan
-  if (payment.type !== "subscription" && amountUsd >= LIFETIME_THRESHOLD_USD) {
-    await grantLifetimeForInvestment(supabase, payment.user_id, payment.id, amountUsd);
-  }
-
-  // Handle other payment types as needed
-}
-
-async function grantLifetimeForInvestment(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string,
-  paymentId: string,
-  amountUsd: number
-) {
-  const now = new Date().toISOString();
-
-  const { data: existing } = await supabase
-    .from("subscriptions")
-    .select("id, plan")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!existing) {
-    await supabase.from("subscriptions").insert({
-      user_id: userId,
-      status: "active",
-      plan: "lifetime",
-      current_period_start: now,
-      cancel_at_period_end: false,
-      updated_at: now,
-    });
-  } else if (existing.plan !== "lifetime") {
-    await supabase
-      .from("subscriptions")
-      .update({
-        status: "active",
-        plan: "lifetime",
-        cancel_at_period_end: false,
-        updated_at: now,
-      })
-      .eq("id", existing.id);
-  } else {
-    return;
-  }
-
-  await supabase.from("notifications").insert({
-    user_id: userId,
-    type: "payment_received",
-    title: "Lifetime unlocked 🎉",
-    body: `Your $${amountUsd.toFixed(2)} investment unlocked free lifetime access.`,
-    data: {
-      payment_id: paymentId,
-      reward: "lifetime",
-      threshold_usd: LIFETIME_THRESHOLD_USD,
-    },
+  const result = await settleCheckoutPayment(supabase, {
+    coinpayPaymentId: paymentData.payment_id,
+    status,
+    amountUsd: paymentData.amount_usd,
+    amountCrypto: paymentData.amount_crypto ?? (paymentData as any).crypto_amount,
+    txHash: paymentData.tx_hash ?? null,
+    merchantTxHash: paymentData.merchant_tx_hash ?? null,
+    providerMetadata: paymentData.metadata ?? null,
   });
+  if (result.found) return;
+
+  // A confirmed or forwarded payment means the recipient (the invoice's worker)
+  // received their funds. Both are authoritative settlement for gig invoices
+  // and bounty payouts; the handlers are idempotent across the two events.
+  if (await handleGigInvoicePaymentConfirmed(supabase, payload)) return;
+  if (await handleBountyPaymentConfirmed(supabase, payload)) return;
+  if (status === "forwarded") {
+    await updateBountyPaymentMetadata(supabase, payload, "invoiced");
+    return;
+  }
+  console.error("Payment not found:", paymentData.payment_id);
 }
 
 async function recordPaymentReputation(
@@ -316,61 +199,16 @@ async function recordPaymentReputation(
   }
 }
 
-async function handlePaymentForwarded(
-  supabase: ReturnType<typeof createServiceClient>,
-  payload: CoinPayWebhookPayload
-) {
-  const { data: paymentData } = payload;
-
-  // Update payment with forwarding info + crypto amount
-  await (supabase.from("payments") as any)
-    .update({
-      status: "forwarded",
-      amount_crypto: paymentData.amount_crypto || (paymentData as any).crypto_amount || null,
-      metadata: {
-        tx_hash: paymentData.tx_hash,
-        merchant_tx_hash: paymentData.merchant_tx_hash,
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("coinpay_payment_id", paymentData.payment_id);
-
-  // A forwarded payment means the recipient (the invoice's worker) actually
-  // received their funds on-chain. Treat it as authoritative settlement for
-  // gig invoices — record the merchant_tx_hash and mark paid if a confirmed
-  // event hasn't already done so — instead of downgrading the invoice back to
-  // "sent" (which previously reverted genuinely-paid invoices).
-  if (await handleGigInvoicePaymentConfirmed(supabase, payload)) return;
-  if (await handleBountyPaymentConfirmed(supabase, payload)) return;
-  await updateBountyPaymentMetadata(supabase, payload, "invoiced");
-}
-
 async function handlePaymentExpired(
   supabase: ReturnType<typeof createServiceClient>,
   payload: CoinPayWebhookPayload
 ) {
   const { data: paymentData } = payload;
 
-  // Mark payment as expired
-  const { data: payment } = await supabase
-    .from("payments")
-    .update({
-      status: "expired",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("coinpay_payment_id", paymentData.payment_id)
-    .select()
-    .single();
-
-  if (!payment) {
-    const handledInvoice = await updateGigInvoicePaymentMetadata(supabase, payload, "expired");
-    if (handledInvoice) return;
-    const handledBounty = await updateBountyPaymentMetadata(supabase, payload, "unpaid");
-    if (handledBounty) return;
-  }
+  // Only a pending checkout payment expires; a settled one is left alone.
+  const payment = await markCheckoutPaymentUnpaid(supabase, paymentData.payment_id, "expired");
 
   if (payment) {
-    // Notify user
     await supabase.from("notifications").insert({
       user_id: payment.user_id,
       type: "payment_received",
@@ -380,7 +218,19 @@ async function handlePaymentExpired(
         payment_id: payment.id,
       },
     });
+    return;
   }
+
+  const { data: existing } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("coinpay_payment_id", paymentData.payment_id)
+    .maybeSingle();
+  if (existing) return;
+
+  const handledInvoice = await updateGigInvoicePaymentMetadata(supabase, payload, "expired");
+  if (handledInvoice) return;
+  await updateBountyPaymentMetadata(supabase, payload, "unpaid");
 }
 
 async function handleBountyPaymentConfirmed(

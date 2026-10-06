@@ -1,5 +1,12 @@
 import Stripe from "stripe";
 
+/*
+ * Stripe is retired as a payment rail: no new card checkouts are offered and
+ * POST /api/subscriptions/checkout returns 410. This client remains only for
+ * the webhook, portal and cancel routes in case a legacy Stripe subscriber
+ * exists. Prices live in src/lib/plans.ts.
+ */
+
 function createStripeClient(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
@@ -15,19 +22,3 @@ function createStripeClient(): Stripe {
 }
 
 export const stripe = createStripeClient();
-
-export const PLANS = {
-  free: {
-    name: "Free",
-    price: 0,
-    postsPerMonth: 10,
-  },
-  pro: {
-    name: "Pro",
-    priceMonthly: 900, // cents - $9/month
-    priceAnnual: 7200, // cents - $72/year ($6/month)
-    price: 900, // default to monthly for backwards compat
-    postsPerMonth: Infinity,
-    priceId: process.env.STRIPE_PRO_PRICE_ID,
-  },
-} as const;

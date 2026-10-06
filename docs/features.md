@@ -136,8 +136,10 @@ Draft → Active → [Paused] → Closed/Filled
 ```
 
 **Posting Limits**:
-- Free tier: 10 posts per calendar month
-- Pro tier ($5.99/mo): Unlimited posts
+- Free tier: 10 posts per calendar month (hiring gigs and for-hire ads both count)
+- Pro and Lifetime: Unlimited posts
+
+Prices and perks live in `src/lib/plans.ts`; that file is the source of truth.
 
 ---
 
@@ -265,14 +267,25 @@ Schedule → Calendar Event → Reminder → Join Call
 
 **Pricing Tiers**:
 
-| Feature | Free | Pro ($5.99/mo) |
+| Feature | Free | Pro / Lifetime |
 |---------|------|----------------|
 | Browse gigs | ✓ | ✓ |
 | Apply to gigs | ✓ | ✓ |
 | Post gigs | 10/month | Unlimited |
+| Marketplace seller fee (skills, MCP, prompts) | 5% | 2% |
 | Messaging | ✓ | ✓ |
 | Video calls | ✓ | ✓ |
 | Profile | ✓ | ✓ |
+
+**Prices** (source of truth: `src/lib/plans.ts`):
+
+| Plan | Price | Rails |
+|------|-------|-------|
+| Pro monthly | $9/month | crypto, via CoinPay |
+| Pro annual | $90/year | crypto only (CoinPay) |
+| Lifetime | $100 one-time | crypto only (CoinPay) |
+
+Funding ugig.net with $50 or more on `/funding` also grants Lifetime.
 
 **Upgrade Prompts**:
 - When user exceeds 10 posts: Modal to upgrade

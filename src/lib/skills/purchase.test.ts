@@ -13,6 +13,10 @@ describe("getSellerFeeRate", () => {
     expect(getSellerFeeRate("pro")).toBe(0.02);
   });
 
+  it("gives lifetime sellers the paid-plan rate", () => {
+    expect(getSellerFeeRate("lifetime")).toBe(SKILL_FEE_RATES.pro);
+  });
+
   it("defaults to free tier for null/undefined", () => {
     expect(getSellerFeeRate(null)).toBe(0.05);
     expect(getSellerFeeRate(undefined)).toBe(0.05);

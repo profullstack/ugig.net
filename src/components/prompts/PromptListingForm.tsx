@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PROMPT_CATEGORIES, PROMPT_MODEL_OPTIONS } from "@/lib/constants";
+import { PROMPT_CATEGORIES, PROMPT_MODEL_OPTIONS, PROMPT_FEE_RATES } from "@/lib/constants";
+import { SellerFeeNotice } from "@/components/marketplace/FeeNotices";
 import { Loader2, Trash2 } from "lucide-react";
 import { useDialog } from "@/components/providers/DialogProvider";
 
@@ -253,7 +254,7 @@ export function PromptListingForm({ slug, initialData }: PromptListingFormProps)
             onChange={(e) => setPriceSats(e.target.value)}
             placeholder="0 = free"
           />
-          <p className="text-xs text-muted-foreground">0 for free listing</p>
+          <SellerFeeNotice priceSats={parseInt(priceSats) || 0} rates={PROMPT_FEE_RATES} />
         </div>
 
         <div className="space-y-2">

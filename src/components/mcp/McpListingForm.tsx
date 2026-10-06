@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MCP_CATEGORIES, MCP_TRANSPORT_TYPES } from "@/lib/constants";
+import { MCP_CATEGORIES, MCP_TRANSPORT_TYPES, MCP_FEE_RATES } from "@/lib/constants";
+import { SellerFeeNotice } from "@/components/marketplace/FeeNotices";
 import { Loader2, Trash2, Link as LinkIcon, Server } from "lucide-react";
 import { useDialog } from "@/components/providers/DialogProvider";
 
@@ -244,7 +245,7 @@ export function McpListingForm({ slug, initialData }: McpListingFormProps) {
             onChange={(e) => setPriceSats(e.target.value)}
             placeholder="0 = free"
           />
-          <p className="text-xs text-muted-foreground">0 for free listing</p>
+          <SellerFeeNotice priceSats={parseInt(priceSats) || 0} rates={MCP_FEE_RATES} />
         </div>
 
         <div className="space-y-2">

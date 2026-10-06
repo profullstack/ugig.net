@@ -8,10 +8,10 @@ import {
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
-const SUPPORTED_KEYS = Object.keys(SUPPORTED_CURRENCIES) as [
-  CoinpayCurrency,
-  ...CoinpayCurrency[],
-];
+// Crypto only: card checkout (CoinPay's Stripe leg) is not offered.
+const SUPPORTED_KEYS = (Object.keys(SUPPORTED_CURRENCIES) as CoinpayCurrency[]).filter(
+  (key) => key !== "card"
+) as [CoinpayCurrency, ...CoinpayCurrency[]];
 
 const Body = z.object({
   amount_usd: z.number().min(1).max(1_000_000),

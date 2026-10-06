@@ -1,3 +1,5 @@
+import { FUNDING_LIFETIME_THRESHOLD_USD } from "@/lib/plans";
+
 /**
  * Funding tier definitions matching docs/funding.md
  */
@@ -26,17 +28,17 @@ export const FUNDING_TIERS = {
   },
   lifetime: {
     id: "lifetime" as const,
-    label: "Lifetime Premium",
+    label: "Lifetime Membership",
     creditsAwarded: 0,
-    usdValue: 20,
-    description: "Lifetime Premium plan — unlimited job postings, premium placement, API access, Founder badge",
+    usdValue: FUNDING_LIFETIME_THRESHOLD_USD,
+    description: "Lifetime membership: the Pro plan forever (unlimited gig posts, 2% marketplace seller fee)",
   },
   supporter: {
     id: "supporter" as const,
     label: "Supporter",
     creditsAwarded: 0,
     usdValue: 1,
-    description: "Supporter badge",
+    description: "Thank-you contribution (no perks attached)",
   },
 } as const;
 
@@ -87,8 +89,8 @@ export type FundingTierId = keyof typeof FUNDING_TIERS;
 
 export const VALID_FUNDING_TIERS: FundingTierId[] = Object.keys(FUNDING_TIERS) as FundingTierId[];
 
-/** The USD threshold for automatic lifetime premium */
-export const LIFETIME_THRESHOLD_USD = 50;
+/** The USD threshold for automatic lifetime membership (see src/lib/plans.ts) */
+export const LIFETIME_THRESHOLD_USD = FUNDING_LIFETIME_THRESHOLD_USD;
 
 /** Invoice expiry in seconds (10 minutes) */
 export const INVOICE_EXPIRY_SECONDS = 600;

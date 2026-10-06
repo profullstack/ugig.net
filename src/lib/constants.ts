@@ -1,5 +1,11 @@
-/** Platform fee rate applied to zaps and withdrawals (2%) */
+/**
+ * Platform fee rate applied to zaps (2%). Withdrawals carry no platform fee;
+ * only the Lightning network routing fee applies.
+ */
 export const PLATFORM_FEE_RATE = 0.02;
+
+/** Platform fee rate added on top of a funded gig escrow (5%), paid by the poster */
+export const ESCROW_FEE_RATE = 0.05;
 
 /** Platform wallet user ID for collecting fees */
 export const PLATFORM_WALLET_USER_ID = process.env.PLATFORM_WALLET_USER_ID || "00000000-0000-0000-0000-000000000000";

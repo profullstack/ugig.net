@@ -118,7 +118,7 @@ function TopContributorsInner() {
             <p className="text-xs text-muted-foreground">
               {new Date(tx.paid_at).toLocaleDateString()} ·{" "}
               {tx.currency === "card"
-                ? "Credit Card (via CoinPay)"
+                ? "CoinPay"
                 : `${tx.currency.toUpperCase()} (via CoinPay)`}
             </p>
           </div>

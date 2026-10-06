@@ -156,8 +156,8 @@ export default function ForCandidatesPage() {
                     <Star className="h-8 w-8 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Pro Candidate</h3>
-                    <p className="text-sm text-muted-foreground">Featured profile badge</p>
+                    <h3 className="font-bold text-lg">Example Profile</h3>
+                    <p className="text-sm text-muted-foreground">AI toolkit at a glance</p>
                   </div>
                 </div>
                 <div className="space-y-3 mb-6">

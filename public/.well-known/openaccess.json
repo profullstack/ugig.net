@@ -23,7 +23,7 @@
     {
       "product": "ugig.net/pro",
       "name": "Pro",
-      "price": "29 USD/month",
+      "price": "9 USD/month",
       "links": {
         "pay": "https://ugig.net/dashboard/subscription?principal={principal}",
         "cancel": "https://ugig.net/settings/billing",

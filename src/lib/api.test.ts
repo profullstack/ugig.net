@@ -1093,24 +1093,6 @@ describe("API client", () => {
       });
     });
 
-    it("createCheckout makes POST request", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            sessionId: "cs_test_123",
-            url: "https://checkout.stripe.com/...",
-          }),
-      });
-
-      await subscriptions.createCheckout();
-
-      expect(mockFetch).toHaveBeenCalledWith("/api/subscriptions/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-    });
-
     it("createPortalSession makes POST request", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

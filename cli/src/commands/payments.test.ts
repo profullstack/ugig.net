@@ -67,7 +67,7 @@ describe("payments create", () => {
       payment_id: "pay1",
       checkout_url: "https://example.com/pay",
       address: "0x123",
-      amount_crypto: 29,
+      amount_crypto: 9,
       currency: "usdc_pol",
       expires_at: "2025-01-01T00:00:00Z",
     });
@@ -128,9 +128,11 @@ describe("payments create", () => {
 });
 
 describe("payments status", () => {
-  it("calls GET /api/payments/coinpayportal/:id", async () => {
-    mockClient.get.mockResolvedValue({ id: "pay1", status: "pending", amount_usd: 29 });
+  it("calls the real status route with payment_id", async () => {
+    mockClient.get.mockResolvedValue({ status: "pending", updated_at: "2026-10-06T00:00:00Z" });
     await run(["payments", "status", "pay1"]);
-    expect(mockClient.get).toHaveBeenCalledWith("/api/payments/coinpayportal/pay1");
+    expect(mockClient.get).toHaveBeenCalledWith("/api/payments/coinpayportal/status", {
+      payment_id: "pay1",
+    });
   });
 });

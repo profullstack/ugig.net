@@ -8,6 +8,7 @@ import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 import { rejectOpenApplications } from "@/lib/application-resolution";
 import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
+import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -67,48 +68,12 @@ export async function PATCH(
       if (!activation.ok) return limitResponse(activation);
     }
 
-    // If transitioning from non-active to active, check usage limit
+    // Publishing a draft or re-activating a gig counts against the free cap
     if (isActivation) {
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("plan")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!subscription || subscription.plan === "free") {
-        const now = new Date();
-        const month = now.getMonth() + 1;
-        const year = now.getFullYear();
-
-        const { data: usage } = await supabase
-          .from("gig_usage")
-          .select("posts_count")
-          .eq("user_id", user.id)
-          .eq("month", month)
-          .eq("year", year)
-          .single();
-
-        if (usage && usage.posts_count >= 10) {
-          return NextResponse.json(
-            {
-              error:
-                "You've reached your monthly limit of 10 gig posts. Upgrade to Pro for unlimited posts.",
-            },
-            { status: 403 }
-          );
-        }
+      const allowance = await getGigPostAllowance(supabase, user.id);
+      if (!allowance.allowed) {
+        return NextResponse.json({ error: GIG_POST_LIMIT_MESSAGE }, { status: 403 });
       }
-
-      // Increment usage when activating
-      const createdAt = new Date(existingGig.created_at);
-      const month = createdAt.getMonth() + 1;
-      const year = createdAt.getFullYear();
-
-      await supabase.rpc("increment_gig_usage", {
-        p_user_id: user.id,
-        p_month: month,
-        p_year: year,
-      });
     }
 
     // Update the status
@@ -127,6 +92,10 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (isActivation) {
+      await recordGigPost(supabase, user.id);
     }
 
     // Dispatch webhook for gig status change

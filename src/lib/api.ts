@@ -205,11 +205,6 @@ export const payments = {
 export const subscriptions = {
   get: () => request("/api/subscriptions"),
 
-  createCheckout: () =>
-    request("/api/subscriptions/checkout", {
-      method: "POST",
-    }),
-
   createPortalSession: () =>
     request("/api/subscriptions/portal", {
       method: "POST",

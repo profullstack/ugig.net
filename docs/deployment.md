@@ -5,7 +5,7 @@
 ugig.net is deployed using:
 - **Railway** - Next.js application hosting
 - **Supabase Cloud** - Database, Auth, Storage, Realtime
-- **Stripe** - Payment processing
+- **CoinPay** - Payment processing (crypto only; see `src/lib/plans.ts` for prices)
 
 ---
 
@@ -14,7 +14,6 @@ ugig.net is deployed using:
 1. **Accounts Required**:
    - [Railway](https://railway.app) account
    - [Supabase](https://supabase.com) account
-   - [Stripe](https://stripe.com) account
    - [GitHub](https://github.com) account (for deployment)
 
 2. **Domain** (optional but recommended):
@@ -116,7 +115,13 @@ USING (
 
 ---
 
-## Stripe Setup
+## Stripe (retired)
+
+ugig.net does not take card payments. Pro and Lifetime are sold only through
+CoinPay, and `POST /api/subscriptions/checkout` returns 410. The Stripe webhook,
+portal and cancel routes remain only for a legacy Stripe subscriber (there were
+none on 2026-10-06). Do not set up new Stripe products. The steps below are kept
+for reference only.
 
 ### 1. Create Account & Get Keys
 
@@ -130,7 +135,7 @@ USING (
 1. Go to **Products**
 2. Create product: "ugig Pro"
 3. Add price:
-   - Amount: $5.99
+   - Amount: $9.00 (must match `PRO_MONTHLY_PRICE_USD` in `src/lib/plans.ts`)
    - Billing period: Monthly
    - Copy Price ID for checkout
 

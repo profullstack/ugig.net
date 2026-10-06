@@ -14,6 +14,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/coinpayportal";
+import { ESCROW_FEE_RATE } from "@/lib/constants";
+import { escrowFeeSplit, formatFeeRate } from "@/lib/fees";
 
 interface WalletAddress {
   currency: string;
@@ -44,8 +46,33 @@ interface EscrowPaymentButtonProps {
   isPoster: boolean;
   isWorker: boolean;
   budgetAmount: number | null;
+  /** Unit of budgetAmount: the gig's native unit (sats for SATS/LN/BTC gigs). */
+  amountUnit?: "USD" | "sats";
   existingEscrow?: GigEscrow | null;
   workerId?: string;
+}
+
+function formatEscrowAmount(amount: number, unit: "USD" | "sats"): string {
+  return unit === "sats"
+    ? `${amount.toLocaleString("en-US")} sats`
+    : `$${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+/** Fee breakdown shown to the poster before an escrow is created (Terms §5). */
+export function EscrowFeeBreakdown({ amount, unit }: { amount: number; unit: "USD" | "sats" }) {
+  const { feeAmount, workerAmount } = escrowFeeSplit(amount, unit);
+  return (
+    <div className="text-xs text-muted-foreground space-y-0.5" data-testid="escrow-fee-breakdown">
+      <p>
+        You deposit: <span className="font-medium text-foreground">{formatEscrowAmount(amount, unit)}</span>
+        {unit === "sats" && " (charged in USD at the current BTC price)"}
+      </p>
+      <p>
+        Platform fee ({formatFeeRate(ESCROW_FEE_RATE)}, deducted on release): {formatEscrowAmount(feeAmount, unit)}
+      </p>
+      <p>Worker receives: {formatEscrowAmount(workerAmount, unit)}</p>
+    </div>
+  );
 }
 
 export function EscrowPaymentButton({
@@ -55,6 +82,7 @@ export function EscrowPaymentButton({
   isPoster,
   isWorker,
   budgetAmount,
+  amountUnit = "USD",
   existingEscrow,
   workerId,
 }: EscrowPaymentButtonProps) {
@@ -256,7 +284,8 @@ export function EscrowPaymentButton({
 
         {escrow.platform_fee_usd > 0 && (
           <p className="text-xs text-muted-foreground">
-            Platform fee: ${escrow.platform_fee_usd} (5%) · Worker receives: ${escrow.amount_usd - escrow.platform_fee_usd}
+            Platform fee: ${escrow.platform_fee_usd} ({formatFeeRate(ESCROW_FEE_RATE)}) · Worker
+            receives: ${Math.round((escrow.amount_usd - escrow.platform_fee_usd) * 100) / 100}
           </p>
         )}
 
@@ -414,6 +443,8 @@ export function EscrowPaymentButton({
           )}
         </div>
 
+        {budgetAmount ? <EscrowFeeBreakdown amount={budgetAmount} unit={amountUnit} /> : null}
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-2">
@@ -428,7 +459,7 @@ export function EscrowPaymentButton({
             ) : (
               <Shield className="h-4 w-4 mr-2" />
             )}
-            Fund ${budgetAmount || "?"} Escrow
+            Fund {budgetAmount ? formatEscrowAmount(budgetAmount, amountUnit) : "?"} Escrow
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowCurrencySelect(false)}>
             Cancel
@@ -439,13 +470,16 @@ export function EscrowPaymentButton({
   }
 
   return (
-    <Button
-      onClick={() => setShowCurrencySelect(true)}
-      variant="default"
-      className="gap-2"
-    >
-      <Shield className="h-4 w-4" />
-      Fund Escrow{budgetAmount ? ` ($${budgetAmount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })})` : ""}
-    </Button>
+    <div className="space-y-2">
+      <Button
+        onClick={() => setShowCurrencySelect(true)}
+        variant="default"
+        className="gap-2"
+      >
+        <Shield className="h-4 w-4" />
+        Fund Escrow{budgetAmount ? ` (${formatEscrowAmount(budgetAmount, amountUnit)})` : ""}
+      </Button>
+      {budgetAmount ? <EscrowFeeBreakdown amount={budgetAmount} unit={amountUnit} /> : null}
+    </div>
   );
 }
