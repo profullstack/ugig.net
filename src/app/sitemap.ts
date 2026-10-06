@@ -2,7 +2,12 @@ import type { MetadataRoute } from "next";
 import { buildSitemapBlogEntries } from "@profullstack/autoblog/feeds";
 import { createServiceClient } from "@/lib/supabase/service";
 
-export const revalidate = 3600; // regenerate at most once per hour (ISR)
+// Render per request. With ISR the first render happens at `next build`,
+// where the image has no SUPABASE_SERVICE_ROLE_KEY, so createServiceClient()
+// throws and the static-only fallback (23 URLs, no gigs or profiles) was
+// cached and served after every deploy. Six indexed selects per crawler hit
+// is cheap.
+export const dynamic = "force-dynamic";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
 
@@ -12,7 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let supabase;
   try {
     supabase = createServiceClient();
-  } catch {
+  } catch (err) {
+    console.error("[sitemap] no service client, serving static pages only:", err);
     return staticPages;
   }
 
@@ -122,8 +128,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...affiliatePages,
       ...blogPages,
     ];
-  } catch {
+  } catch (err) {
     // Fall back to static pages if any DB query fails
+    console.error("[sitemap] query failed, serving static pages only:", err);
     return staticPages;
   }
 }
