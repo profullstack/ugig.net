@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink, Clock, DollarSign, Calendar, FileText } from "lucide-react";
 import { fmtUSD } from "@/lib/utils";
 import { isHiredStatus } from "@/lib/application-status";
+import { WithdrawApplicationButton } from "@/components/applications/WithdrawApplicationButton";
 
 export const metadata = {
   title: "My Applications | ugig.net",
@@ -184,9 +185,12 @@ export default async function MyApplicationsPage() {
                         </Badge>
                       </div>
 
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {statusDescriptions[app.status]}
-                      </p>
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <p className="text-sm text-muted-foreground">
+                          {statusDescriptions[app.status]}
+                        </p>
+                        <WithdrawApplicationButton applicationId={app.id} gigTitle={gig.title} />
+                      </div>
 
                       <div className="flex items-center gap-6 text-sm">
                         <div className="flex items-center gap-1.5">

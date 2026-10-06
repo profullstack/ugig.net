@@ -38,3 +38,13 @@ export const STATUSES_NOTIFIED_BY_TRIGGER = [
 export function triggerNotifiesStatus(status: string): boolean {
   return (STATUSES_NOTIFIED_BY_TRIGGER as readonly string[]).includes(status);
 }
+
+/**
+ * Statuses that mean the application is still open: undecided and not
+ * withdrawn. Closing, filling or deleting a gig resolves these.
+ */
+export const OPEN_APPLICATION_STATUSES = ["pending", "reviewing", "shortlisted"] as const;
+
+export function isOpenApplicationStatus(status: string | null | undefined): boolean {
+  return !!status && (OPEN_APPLICATION_STATUSES as readonly string[]).includes(status);
+}

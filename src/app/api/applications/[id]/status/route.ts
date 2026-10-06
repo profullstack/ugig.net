@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationStatusSchema } from "@/lib/validations";
 import { getUserDid, onHired } from "@/lib/reputation-hooks";
 import { triggerNotifiesStatus } from "@/lib/application-status";
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
 
 async function parseJsonBody(request: NextRequest) {
   try {
@@ -142,6 +143,22 @@ export async function PUT(
       // Note: Email notifications require applicant email from auth.users
       // which isn't accessible via RLS. Consider using a webhook or edge function
       // to send email notifications in the future.
+    }
+
+    // Email the applicant (gated on their email_application_status setting).
+    // Fire-and-forget: an email failure never fails the status change.
+    if (isPoster && !isApplicant && application.status !== status && gig) {
+      const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
+      emailApplicantsAboutStatusInBackground([
+        {
+          applicationId: id,
+          applicantId: application.applicant_id,
+          gigId: application.gig_id,
+          gigTitle: gig.title,
+          posterName: poster?.full_name || poster?.username || "The client",
+          status,
+        },
+      ]);
     }
 
     return NextResponse.json({ application: updatedApplication });

@@ -35,6 +35,10 @@ vi.mock("@/lib/email", () => ({
   newApplicationEmail: vi.fn(() => ({ subject: "test", text: "test", html: "test" })),
 }));
 
+vi.mock("@/lib/application-emails", () => ({
+  notifyPosterOfNewApplicationInBackground: vi.fn(),
+}));
+
 vi.mock("@/lib/webhooks/dispatch", () => ({
   dispatchWebhookAsync: vi.fn(),
 }));
@@ -51,9 +55,10 @@ vi.mock("@/lib/limits", async (importOriginal) => ({
   checkApplicationLimits: mockCheckApplicationLimits,
 }));
 
-import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { sendEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { notifyPosterOfNewApplicationInBackground } from "@/lib/application-emails";
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
 type MockAuthContext = any;
@@ -154,6 +159,19 @@ describe("POST /api/applications - re-apply after withdrawal", () => {
     expect(insertCalls).toHaveLength(0);
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].status).toBe("pending");
+    // The poster email goes through the instant-or-digest helper, never a
+    // direct per-application send.
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(notifyPosterOfNewApplicationInBackground).toHaveBeenCalledWith({
+      gigId: GIG_ID,
+      gigTitle: "Test Gig",
+      posterId: "poster-1",
+      posterName: "Poster",
+      applicationId: "app-existing",
+      applicationMetadata: undefined,
+      applicantName: "Applicant",
+      coverLetter: "x".repeat(60),
+    });
   });
 
   it("still blocks re-applying when an active (pending) application exists", async () => {
@@ -272,7 +290,8 @@ describe("POST /api/applications - limits", () => {
     expect(inserts[0].status).toBeUndefined(); // DB default: pending
     expect(sendEmail).not.toHaveBeenCalled();
     expect(dispatchWebhookAsync).not.toHaveBeenCalled();
-    expect(createServiceClient).not.toHaveBeenCalled();
+    // No instant email; held rows are also left out of the daily digest.
+    expect(notifyPosterOfNewApplicationInBackground).not.toHaveBeenCalled();
   });
 
   it("does not mark a normal application as held and still notifies the poster", async () => {
@@ -283,6 +302,7 @@ describe("POST /api/applications - limits", () => {
     expect(res.status).toBe(201);
     expect(inserts[0].metadata).toBeUndefined();
     expect(dispatchWebhookAsync).toHaveBeenCalledWith("poster-1", "application.new", expect.any(Object));
+    expect(notifyPosterOfNewApplicationInBackground).toHaveBeenCalledTimes(1);
   });
 
   it("excludes the withdrawn row from the duplicate check and holds the resubmission", async () => {

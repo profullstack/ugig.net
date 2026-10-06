@@ -318,7 +318,11 @@ async function sendBroadcastEmails({
       gigTitle: null,
     });
 
-    sendEmail({ to, ...emailContent }).catch((err) =>
+    sendEmail({
+      to,
+      ...emailContent,
+      unsubscribe: { userId: recipientId, setting: "email_new_message" },
+    }).catch((err) =>
       console.error("Failed to send broadcast message email:", err)
     );
     sent++;

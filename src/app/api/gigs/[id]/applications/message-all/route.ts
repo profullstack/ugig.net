@@ -227,7 +227,11 @@ export async function POST(
         gigTitle: gig.title,
       });
 
-      sendEmail({ to: recipientEmail, ...emailContent }).catch((err) =>
+      sendEmail({
+        to: recipientEmail,
+        ...emailContent,
+        unsubscribe: { userId: recipientId, setting: "email_new_message" },
+      }).catch((err) =>
         console.error("Failed to send broadcast message email:", err)
       );
     }

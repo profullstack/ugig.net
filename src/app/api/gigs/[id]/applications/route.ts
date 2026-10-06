@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationSchema } from "@/lib/validations";
-import { sendEmail, newApplicationEmail } from "@/lib/email";
+import { notifyPosterOfNewApplicationInBackground } from "@/lib/application-emails";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
@@ -192,31 +192,25 @@ export async function POST(
       return NextResponse.json({ application }, { status: 201 });
     }
 
-    const adminClient = createServiceClient();
-    const { data: posterAuth } = await adminClient.auth.admin.getUserById(gig.poster_id);
-    const posterEmail = posterAuth?.user?.email;
+    // Email the poster: instantly for the first application on this gig in
+    // the last 24h, otherwise via the daily digest. Gated on the poster's
+    // email_new_application setting. Fire-and-forget.
+    const { data: applicantProfile } = await supabase
+      .from("profiles")
+      .select("full_name, username")
+      .eq("id", user.id)
+      .single();
 
-    if (posterEmail) {
-      const { data: applicantProfile } = await supabase
-        .from("profiles")
-        .select("full_name, username")
-        .eq("id", user.id)
-        .single();
-
-      const applicantName = applicantProfile?.full_name || applicantProfile?.username || "A candidate";
-      const posterName = poster?.full_name || poster?.username || "there";
-
-      const emailContent = newApplicationEmail({
-        posterName,
-        applicantName,
-        gigTitle: gig.title,
-        gigId: gig_id,
-        applicationId: application.id,
-        coverLetterPreview: applicationData.cover_letter,
-      });
-
-      await sendEmail({ to: posterEmail, ...emailContent });
-    }
+    notifyPosterOfNewApplicationInBackground({
+      gigId: gig_id,
+      gigTitle: gig.title,
+      posterId: gig.poster_id,
+      posterName: poster?.full_name || poster?.username || "there",
+      applicationId: application.id,
+      applicationMetadata: (application as { metadata?: unknown }).metadata,
+      applicantName: applicantProfile?.full_name || applicantProfile?.username || "A candidate",
+      coverLetter: applicationData.cover_letter,
+    });
 
     void logActivity(supabase, {
       userId: user.id,

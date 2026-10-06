@@ -39,6 +39,10 @@ vi.mock("@/lib/email", () => ({
   newApplicationEmail: vi.fn(() => ({ subject: "test", text: "test", html: "test" })),
 }));
 
+vi.mock("@/lib/application-emails", () => ({
+  notifyPosterOfNewApplicationInBackground: vi.fn(),
+}));
+
 vi.mock("@/lib/webhooks/dispatch", () => ({
   dispatchWebhookAsync: vi.fn(),
 }));
@@ -58,6 +62,7 @@ vi.mock("@/lib/limits", async (importOriginal) => ({
 import { getAuthContext } from "@/lib/auth/get-user";
 import { sendEmail } from "@/lib/email";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
+import { notifyPosterOfNewApplicationInBackground } from "@/lib/application-emails";
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,6 +202,36 @@ describe("POST /api/gigs/[id]/applications - success paths", () => {
     const body = await res.json();
     expect(body.application).toBeDefined();
     expect(body.application.id).toBe("app-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(notifyPosterOfNewApplicationInBackground).toHaveBeenCalledTimes(1);
+    expect(notifyPosterOfNewApplicationInBackground).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gigId: "00000000-0000-4000-a000-000000000001",
+        posterId: "poster-1",
+        applicationId: "app-1",
+        applicantName: "Applicant",
+      })
+    );
+  });
+
+  it("does not email the poster when the application is refused", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "gigs") {
+        return chainResult({
+          data: { poster_id: "poster-1", status: "closed", title: "Test Gig", poster: null },
+          error: null,
+        });
+      }
+      return chainResult({ data: null, error: null });
+    });
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "user-1", authMethod: "api_key" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const res = await POST(makeRequest({ cover_letter: "x".repeat(60) }), routeParams);
+    expect(res.status).toBe(400);
+    expect(notifyPosterOfNewApplicationInBackground).not.toHaveBeenCalled();
   });
 
   it("returns 400 when already applied", async () => {
@@ -309,6 +344,7 @@ describe("POST /api/gigs/[id]/applications - limits", () => {
     expect(inserts[0].metadata).toEqual({ held: "spam_review" });
     expect(sendEmail).not.toHaveBeenCalled();
     expect(dispatchWebhookAsync).not.toHaveBeenCalled();
+    expect(notifyPosterOfNewApplicationInBackground).not.toHaveBeenCalled();
   });
 });
 

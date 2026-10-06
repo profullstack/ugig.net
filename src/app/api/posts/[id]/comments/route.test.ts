@@ -51,6 +51,11 @@ vi.mock("@/lib/email", () => ({
   mentionInCommentEmail: (...args: unknown[]) => mockMentionInCommentEmail(...args),
 }));
 
+const mockEmailEnabled = vi.fn().mockResolvedValue(true);
+vi.mock("@/lib/notification-settings", () => ({
+  isEmailNotificationEnabled: (...args: unknown[]) => mockEmailEnabled(...args),
+}));
+
 import { GET, POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
 
@@ -120,6 +125,7 @@ function setupSeq(...chains: ReturnType<typeof ch>[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockEmailEnabled.mockResolvedValue(true);
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -280,8 +286,32 @@ describe("POST /api/posts/[id]/comments — email notifications", () => {
       expect.objectContaining({ replyPreview: "Reply" })
     );
     expect(mockSendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "parent@test.com" })
+      expect.objectContaining({
+        to: "parent@test.com",
+        unsubscribe: { userId: USER_PARENT, setting: "email_new_comment" },
+      })
     );
+    expect(mockEmailEnabled).toHaveBeenCalledWith(expect.anything(), USER_PARENT, "email_new_comment");
+  });
+
+  it("sends no comment emails to people who turned email_new_comment off", async () => {
+    mockAuth(USER_3);
+    mockEmailEnabled.mockResolvedValue(false);
+    mockGetUserById.mockResolvedValue({ data: { user: { email: "someone@test.com" } } });
+
+    setupSeq(
+      ch({ data: { is_spam: false }, error: null }),
+      ch({ data: { id: POST_ID, author_id: AUTHOR_1 }, error: null }),
+      ch({ data: { id: COMMENT_1, post_id: POST_ID, parent_id: null, depth: 0, author_id: USER_PARENT, content: "Original" }, error: null }),
+      ch({ data: { id: COMMENT_2, post_id: POST_ID, author_id: USER_3, parent_id: COMMENT_1, content: "Reply", depth: 1, author: { id: USER_3, username: "u3" } }, error: null }),
+      ch({ data: { username: "u3", full_name: "User 3" }, error: null }),
+      ch({ data: { content: "Post body" }, error: null }),
+    );
+
+    await POST(makePostRequest(POST_ID, { content: "Reply", parent_id: COMMENT_1 }), makeParams(POST_ID));
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   it("does not double-notify when post author IS parent comment author", async () => {
@@ -386,6 +416,11 @@ describe("POST /api/posts/[id]/comments — @mentions", () => {
 
     expect(mockMentionInCommentEmail).toHaveBeenCalledWith(
       expect.objectContaining({ mentionerName: "User 2" })
+    );
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        unsubscribe: { userId: MENTIONED_USER, setting: "email_mention" },
+      })
     );
   });
 

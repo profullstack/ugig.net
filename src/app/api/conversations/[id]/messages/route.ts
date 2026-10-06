@@ -288,6 +288,7 @@ export async function POST(
             sendEmail({
               to: recipientEmail,
               ...emailContent,
+              unsubscribe: { userId: recipientId, setting: "email_new_message" },
             }).catch((err) =>
               console.error("Failed to send message notification email:", err)
             );

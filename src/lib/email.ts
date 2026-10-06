@@ -1,4 +1,6 @@
 import { createEmailer, escapeHtml, type Emailer } from "@profullstack/stack/email";
+import type { NotificationSettingKey } from "@/lib/notification-settings";
+import { UNSUBSCRIBABLE_SETTINGS, unsubscribeUrl } from "@/lib/email-unsubscribe";
 
 const SENDER_EMAIL = process.env.FROM_EMAIL || process.env.EMAIL_FROM || "notifications@ugig.net";
 const SENDER_NAME = process.env.FROM_EMAIL_NAME || process.env.EMAIL_FROM_NAME;
@@ -25,9 +27,45 @@ interface SendEmailParams {
   subject: string;
   html: string;
   text?: string;
+  /**
+   * The recipient and the notification setting this email belongs to. When
+   * set, the email carries a signed one-click unsubscribe link for that
+   * setting plus List-Unsubscribe / List-Unsubscribe-Post headers (RFC 8058).
+   */
+  unsubscribe?: { userId: string; setting: NotificationSettingKey };
 }
 
-export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
+/**
+ * Add the unsubscribe footer and headers for one notification setting.
+ * Returns the content unchanged when no signing secret is configured.
+ */
+export function withUnsubscribe(
+  content: { html: string; text?: string },
+  unsubscribe: { userId: string; setting: NotificationSettingKey }
+): { html: string; text?: string; headers?: Record<string, string> } {
+  const url = unsubscribeUrl(getBaseUrl(), unsubscribe.userId, unsubscribe.setting);
+  if (!url) return content;
+
+  const label = UNSUBSCRIBABLE_SETTINGS[unsubscribe.setting];
+  const footer = `<p style="text-align: center; color: #9ca3af; font-size: 12px; margin: 10px 0 0 0;"><a href="${escapeHtml(url)}" style="color: #9ca3af;">Unsubscribe from ${label}</a></p>`;
+  const html = content.html.includes("</body>")
+    ? content.html.replace("</body>", `${footer}\n</body>`)
+    : `${content.html}\n${footer}`;
+  const text = content.text
+    ? `${content.text.trimEnd()}\nUnsubscribe from ${label}: ${url}\n`
+    : undefined;
+
+  return {
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${url}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  };
+}
+
+export async function sendEmail({ to, subject, html, text, unsubscribe }: SendEmailParams) {
   const emailer = getEmailer();
   if (!emailer) {
     console.log("RESEND_API_KEY not configured, skipping email:", { to, subject });
@@ -35,6 +73,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
   }
 
   try {
+    let headers: Record<string, string> | undefined;
+    if (unsubscribe) {
+      const wrapped = withUnsubscribe({ html, text }, unsubscribe);
+      html = wrapped.html;
+      text = wrapped.text;
+      headers = wrapped.headers;
+    }
+
     console.log("[email] Sending email:", { to, subject, from: FROM_EMAIL });
     const result = await emailer.send({
       from: FROM_EMAIL,
@@ -42,6 +88,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
       subject,
       html,
       text,
+      ...(headers ? { headers } : {}),
     });
 
     if (!result.sent) {
@@ -358,15 +405,15 @@ export function newApplicationEmail(params: {
   </div>
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-    <p style="margin-top: 0;">Hi ${posterName},</p>
+    <p style="margin-top: 0;">Hi ${escapeHtml(posterName)},</p>
 
-    <p><strong>${applicantName}</strong> has applied to your gig:</p>
+    <p><strong>${escapeHtml(applicantName)}</strong> has applied to your gig:</p>
 
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: #667eea;">${gigTitle}</h3>
+      <h3 style="margin-top: 0; color: #667eea;">${escapeHtml(gigTitle)}</h3>
       <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
         <strong>Cover letter preview:</strong><br>
-        "${coverLetterPreview.slice(0, 200)}${coverLetterPreview.length > 200 ? "..." : ""}"
+        "${escapeHtml(coverLetterPreview.slice(0, 200))}${coverLetterPreview.length > 200 ? "..." : ""}"
       </p>
     </div>
 
@@ -407,6 +454,101 @@ ugig.net - AI-Powered Gig Marketplace
 
   return {
     subject: `New application for "${gigTitle}"`,
+    html,
+    text,
+  };
+}
+
+export interface ApplicationDigestGig {
+  gigId: string;
+  gigTitle: string;
+  applicants: { name: string; coverLetterPreview: string }[];
+}
+
+/** Daily digest of new applications for one poster, grouped by gig. */
+export function applicationDigestEmail(params: {
+  posterName: string;
+  gigs: ApplicationDigestGig[];
+}) {
+  const { posterName, gigs } = params;
+  const baseUrl = getBaseUrl();
+  const total = gigs.reduce((n, g) => n + g.applicants.length, 0);
+  const summary = `${total} new application${total === 1 ? "" : "s"} on ${gigs.length} gig${gigs.length === 1 ? "" : "s"}`;
+  const MAX_LISTED = 5;
+
+  const gigBlocks = gigs
+    .map((g) => {
+      const listed = g.applicants.slice(0, MAX_LISTED);
+      const more = g.applicants.length - listed.length;
+      const items = listed
+        .map(
+          (a) =>
+            `<li style="margin-bottom: 8px;"><strong>${escapeHtml(a.name)}</strong><br><span style="color: #6b7280; font-size: 13px;">${escapeHtml(a.coverLetterPreview.slice(0, 140))}${a.coverLetterPreview.length > 140 ? "..." : ""}</span></li>`
+        )
+        .join("");
+      const moreLine = more > 0 ? `<li style="color: #6b7280;">and ${more} more</li>` : "";
+      return `
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #667eea;">${escapeHtml(g.gigTitle)}</h3>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 0;">${g.applicants.length} new application${g.applicants.length === 1 ? "" : "s"}</p>
+      <ul style="padding-left: 18px; margin: 0 0 12px 0;">${items}${moreLine}</ul>
+      <a href="${baseUrl}/gigs/${g.gigId}/applications" style="color: #667eea; font-weight: 500;">Review applications</a>
+    </div>`;
+    })
+    .join("");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your daily applications digest</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">${summary}</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+    <p style="margin-top: 0;">Hi ${escapeHtml(posterName)},</p>
+    <p>Here is what came in over the last 24 hours.</p>
+    ${gigBlocks}
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+    <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
+    <p style="margin: 5px 0 0 0;">
+      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  const textGigs = gigs
+    .map((g) => {
+      const names = g.applicants.slice(0, MAX_LISTED).map((a) => `  - ${a.name}`).join("\n");
+      const more = g.applicants.length > MAX_LISTED ? `\n  - and ${g.applicants.length - MAX_LISTED} more` : "";
+      return `${g.gigTitle} (${g.applicants.length})\n${names}${more}\nReview: ${baseUrl}/gigs/${g.gigId}/applications`;
+    })
+    .join("\n\n");
+
+  const text = `
+${summary}
+
+Hi ${posterName},
+
+Here is what came in over the last 24 hours.
+
+${textGigs}
+
+---
+ugig.net - AI-Powered Gig Marketplace
+`;
+
+  return {
+    subject: `${summary} - ugig.net`,
     html,
     text,
   };
@@ -600,14 +742,14 @@ export function applicationStatusEmail(params: {
   </div>
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-    <p style="margin-top: 0;">Hi ${applicantName},</p>
+    <p style="margin-top: 0;">Hi ${escapeHtml(applicantName)},</p>
 
     <p>${statusInfo.message}</p>
 
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: ${statusInfo.color};">${gigTitle}</h3>
+      <h3 style="margin-top: 0; color: ${statusInfo.color};">${escapeHtml(gigTitle)}</h3>
       <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
-        Posted by ${posterName}
+        Posted by ${escapeHtml(posterName)}
       </p>
     </div>
 

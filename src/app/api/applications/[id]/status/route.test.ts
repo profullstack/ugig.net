@@ -23,7 +23,13 @@ vi.mock("@/lib/reputation-hooks", () => ({
   onHired: vi.fn(),
 }));
 
+vi.mock("@/lib/application-emails", () => ({
+  emailApplicantsAboutStatusInBackground: vi.fn(),
+}));
+
 import { getAuthContext } from "@/lib/auth/get-user";
+import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
+const mockEmailApplicants = vi.mocked(emailApplicantsAboutStatusInBackground);
 const mockGetAuthContext = vi.mocked(getAuthContext);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -409,5 +415,81 @@ describe("PUT /api/applications/[id]/status", () => {
 
     expect(res.status).toBe(200);
     expect(json.application.status).toBe("reviewing");
+  });
+
+  describe("applicant status email", () => {
+    function posterUpdates(newStatus: string, current = mockApplication) {
+      mockGetAuthContext.mockResolvedValue({
+        user: { id: "poster-user-id", authMethod: "session" },
+        supabase: supabaseClient,
+      } as MockAuthContext);
+      let callCount = 0;
+      mockFrom.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return chainResult({ data: current, error: null });
+        if (callCount === 2) return chainResult({ data: mockGig, error: null });
+        return chainResult({ data: { ...current, status: newStatus }, error: null });
+      });
+    }
+
+    it.each(["accepted", "rejected", "shortlisted"])(
+      "hands a %s change to the (gated) applicant email",
+      async (status) => {
+        posterUpdates(status);
+        const res = await PUT(makeRequest({ status }), routeParams);
+        expect(res.status).toBe(200);
+        expect(mockEmailApplicants).toHaveBeenCalledTimes(1);
+        expect(mockEmailApplicants).toHaveBeenCalledWith([
+          {
+            applicationId: "test-app-id",
+            applicantId: "applicant-user-id",
+            gigId: "test-gig-id",
+            gigTitle: "Test Gig",
+            posterName: "Test Poster",
+            status,
+          },
+        ]);
+      }
+    );
+
+    it("does not email when the status did not change", async () => {
+      posterUpdates("rejected", { ...mockApplication, status: "rejected" });
+      const res = await PUT(makeRequest({ status: "rejected" }), routeParams);
+      expect(res.status).toBe(200);
+      expect(mockEmailApplicants).not.toHaveBeenCalled();
+    });
+
+    it("does not email the applicant about their own withdrawal", async () => {
+      mockGetAuthContext.mockResolvedValue({
+        user: { id: "applicant-user-id", authMethod: "session" },
+        supabase: supabaseClient,
+      } as MockAuthContext);
+      let callCount = 0;
+      mockFrom.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return chainResult({ data: mockApplication, error: null });
+        if (callCount === 2) return chainResult({ data: mockGig, error: null });
+        return chainResult({ data: { ...mockApplication, status: "withdrawn" }, error: null });
+      });
+      await PUT(makeRequest({ status: "withdrawn" }), routeParams);
+      expect(mockEmailApplicants).not.toHaveBeenCalled();
+    });
+
+    it("does not email when the update fails", async () => {
+      mockGetAuthContext.mockResolvedValue({
+        user: { id: "poster-user-id", authMethod: "session" },
+        supabase: supabaseClient,
+      } as MockAuthContext);
+      let callCount = 0;
+      mockFrom.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return chainResult({ data: mockApplication, error: null });
+        if (callCount === 2) return chainResult({ data: mockGig, error: null });
+        return chainResult({ data: null, error: { message: "Database error" } });
+      });
+      const res = await PUT(makeRequest({ status: "accepted" }), routeParams);
+      expect(res.status).toBe(400);
+      expect(mockEmailApplicants).not.toHaveBeenCalled();
+    });
   });
 });
