@@ -1837,7 +1837,7 @@
       "post": {
         "tags": ["Gigs"],
         "summary": "Create a gig",
-        "description": "Post a new gig. Free accounts are limited to 10 active gig posts per month.",
+        "description": "Post a new gig. Free accounts may publish 10 gigs (hiring gigs and for-hire ads) per calendar month; Pro and Lifetime are unlimited.",
         "operationId": "createGig",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "requestBody": {
@@ -5022,8 +5022,8 @@
                   "type": { "type": "string", "enum": ["subscription", "tip", "funding"] },
                   "plan": {
                     "type": "string",
-                    "enum": ["monthly", "annual"],
-                    "description": "Required for subscription type"
+                    "enum": ["monthly", "annual", "lifetime"],
+                    "description": "Required for subscription type. monthly = $9 (1 month of Pro), annual = $90 (12 months of Pro), lifetime = $100 one-time (Pro forever). Prices: src/lib/plans.ts."
                   },
                   "currency": {
                     "type": "string",

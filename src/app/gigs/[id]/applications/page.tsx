@@ -18,6 +18,7 @@ import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { isHiredStatus } from "@/lib/application-status";
 import { HELD_COLUMN } from "@/lib/limits";
+import { isSatsCoin } from "@/lib/rates";
 
 interface ApplicationsPageProps {
   params: Promise<{ id: string }>;
@@ -504,6 +505,7 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                             isPoster={true}
                             isWorker={false}
                             budgetAmount={app.proposed_rate || gig.budget_min || gig.budget_max}
+                            amountUnit={isSatsCoin(gig.payment_coin) ? "sats" : "USD"}
                             existingEscrow={escrowMap[app.id] || null}
                             workerId={applicant?.id}
                           />

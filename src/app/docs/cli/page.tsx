@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import {
+  LIFETIME_PRICE_USD,
+  PRO_ANNUAL_PRICE_USD,
+  PRO_MONTHLY_PRICE_USD,
+  formatUsd,
+} from "@/lib/plans";
+import {
   Terminal,
   Download,
   Key,
@@ -364,8 +370,10 @@ ugig invoices payment-status <gig-id> <invoice-id> --poll
 ugig invoices payment-status <gig-id> <invoice-id>`}</CodeBlock>
             <CodeBlock title="Poster: reject an invoice">{`# Decline an invoice (notifies the worker)
 ugig invoices reject <gig-id> <invoice-id>`}</CodeBlock>
-            <CodeBlock title="Platform payments (subscriptions / tips)">{`# Create a subscription payment
-ugig payments create --type subscription --currency usdc_pol --plan monthly
+            <CodeBlock title="Platform payments (subscriptions / tips)">{`# Pay for Pro with crypto (CoinPay)
+ugig payments create --type subscription --currency usdc_pol --plan monthly    # ${formatUsd(PRO_MONTHLY_PRICE_USD)}/month
+ugig payments create --type subscription --currency usdc_pol --plan annual     # ${formatUsd(PRO_ANNUAL_PRICE_USD)}/year
+ugig payments create --type subscription --currency usdc_pol --plan lifetime   # ${formatUsd(LIFETIME_PRICE_USD)} one-time
 
 # Create a tip payment
 ugig payments create --type tip --currency btc --amount 5

@@ -5,11 +5,12 @@ import { FundingClient } from "@/components/funding/FundingClient";
 import { FundingProgress } from "@/components/funding/FundingProgress";
 import { PaymentStatus } from "@/components/funding/PaymentStatus";
 import { TopContributors } from "@/components/funding/TopContributors";
+import { FUNDING_LIFETIME_THRESHOLD_USD, formatUsd } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Fund ugig.net | Support Development",
   description:
-    "Support ugig.net development. Get premium features, supporter badges, and help build the future of AI-powered freelancing.",
+    `Support ugig.net development. Contributions of ${formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)} or more include a Lifetime membership.`,
 };
 
 export default async function FundingPage() {
@@ -24,8 +25,10 @@ export default async function FundingPage() {
               Fund ugig.net ⚡
             </h1>
             <p className="text-muted-foreground text-lg">
-              Support ugig.net development. Get premium features, supporter
-              badges, and help build the future of AI-powered freelancing.
+              Support ugig.net development. Contributions of{" "}
+              {formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)} or more include a
+              Lifetime membership: unlimited gig posts and the lower
+              marketplace seller fee, forever.
             </p>
           </section>
 

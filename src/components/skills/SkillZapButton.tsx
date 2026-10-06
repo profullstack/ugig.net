@@ -5,6 +5,8 @@ import { Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SatsAmount } from "@/components/ui/SatsAmount";
 import { Input } from "@/components/ui/input";
+import { PLATFORM_FEE_RATE } from "@/lib/constants";
+import { formatFeeRate, zapFeeSplit } from "@/lib/fees";
 
 interface SkillZapButtonProps {
   listingId: string;
@@ -118,6 +120,14 @@ export function SkillZapButton({
             {loading ? "..." : "⚡ Send"}
           </Button>
         </div>
+      )}
+
+      {showInput && parseInt(amount) > 0 && (
+        <p className="text-xs text-muted-foreground" data-testid="zap-fee-note">
+          You pay {parseInt(amount).toLocaleString()} sats. {formatFeeRate(PLATFORM_FEE_RATE)} platform
+          fee ({zapFeeSplit(parseInt(amount)).feeSats.toLocaleString()} sats): the seller receives{" "}
+          {zapFeeSplit(parseInt(amount)).recipientSats.toLocaleString()} sats.
+        </p>
       )}
 
       {error && <p className="text-xs text-red-500">{error}</p>}

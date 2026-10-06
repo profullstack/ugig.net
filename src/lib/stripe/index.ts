@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { FREE_MONTHLY_GIG_POSTS, PRO_MONTHLY_PRICE_USD } from "@/lib/plans";
 
 function createStripeClient(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -16,17 +17,20 @@ function createStripeClient(): Stripe {
 
 export const stripe = createStripeClient();
 
+/**
+ * Stripe view of the plans. Prices come from src/lib/plans.ts. Stripe sells
+ * only Pro monthly; annual and lifetime are crypto-only via CoinPay.
+ */
 export const PLANS = {
   free: {
     name: "Free",
     price: 0,
-    postsPerMonth: 10,
+    postsPerMonth: FREE_MONTHLY_GIG_POSTS,
   },
   pro: {
     name: "Pro",
-    priceMonthly: 900, // cents - $9/month
-    priceAnnual: 7200, // cents - $72/year ($6/month)
-    price: 900, // default to monthly for backwards compat
+    priceMonthly: PRO_MONTHLY_PRICE_USD * 100, // cents
+    price: PRO_MONTHLY_PRICE_USD * 100, // cents, monthly
     postsPerMonth: Infinity,
     priceId: process.env.STRIPE_PRO_PRICE_ID,
   },

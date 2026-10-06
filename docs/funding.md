@@ -45,24 +45,24 @@ Credits are stored in user account and consumed within UGIG platform.
 
 ### 2. Lifetime Access Tier
 
-Any investment of **$20 or more** automatically receives a **free Lifetime Premium plan**.
+Any contribution of **$50 or more** (`FUNDING_LIFETIME_THRESHOLD_USD` in `src/lib/plans.ts`)
+automatically grants a **free Lifetime membership** to the signed-in contributor.
 
-- $20+ (any amount) → Lifetime Premium Plan
+- $50+ (any amount) → Lifetime membership
 - No cap on number of users
 
-Includes:
-- Unlimited job postings
-- Premium placement
-- API access (future)
-- Founder badge
-- All future Premium features at no additional cost
+Lifetime is the Pro plan forever:
+- Unlimited gig posts
+- 2% marketplace seller fee instead of 5%
+
+This is the only funding perk. There are no badges and no placement perks.
 
 ---
 
-### 3. Supporter Tier (Optional)
+### 3. Smaller contributions
 
-- 10k–50k sats → supporter badge
-- Public leaderboard (optional)
+- Any amount below $50 is a thank-you contribution with no perks attached
+- Contributors appear in the public recent-contributions list
 
 ---
 
@@ -74,12 +74,12 @@ A dedicated BTC/LN address will be used exclusively for funding contributions:
 - **Lightning address**: fund@ugig.net (via LNbits LNURLp)
 - **LNURL-pay**: Encoded LNURL for QR-based payments
 
-All incoming payments to this address are tracked as funding contributions and automatically trigger the reward logic (credits, lifetime plan, badges).
+All incoming payments to this address are tracked as funding contributions and automatically trigger the reward logic (credits, lifetime plan).
 
 Implementation requirements:
 - Separate LNbits wallet dedicated to funding (not the platform operational wallet)
 - Webhook routes specific to funding payments
-- Automatic $20+ threshold check to grant Lifetime Premium
+- Automatic $50+ threshold check to grant Lifetime
 
 ---
 
@@ -165,11 +165,9 @@ Response:
 IF tier == credits:
   add credits to user account
 
-IF amount_usd >= 20:
-  set user.plan = "lifetime_premium"
-
-IF tier == supporter:
-  assign badge
+IF amount_usd >= 50 AND user is signed in:
+  set subscriptions.plan = "lifetime" (idempotent)
+  write funding_rewards_log (reward_type = lifetime)
 
 ---
 
@@ -272,10 +270,6 @@ IF tier == supporter:
 ### Gamification
 
 - Top contributors leaderboard
-- Badges:
-  - Early supporter
-  - Whale
-  - OG
 
 ---
 

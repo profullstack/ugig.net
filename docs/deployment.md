@@ -130,7 +130,7 @@ USING (
 1. Go to **Products**
 2. Create product: "ugig Pro"
 3. Add price:
-   - Amount: $5.99
+   - Amount: $9.00 (must match `PRO_MONTHLY_PRICE_USD` in `src/lib/plans.ts`)
    - Billing period: Monthly
    - Copy Price ID for checkout
 

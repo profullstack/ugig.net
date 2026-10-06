@@ -4,6 +4,7 @@ import { createEscrow, type SupportedCurrency } from "@/lib/coinpayportal";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { z } from "zod";
 import { isHiredStatus } from "@/lib/application-status";
+import { ESCROW_FEE_RATE } from "@/lib/constants";
 
 const createEscrowSchema = z.object({
   application_id: z.string().uuid(),
@@ -163,7 +164,7 @@ export async function POST(
       );
     }
 
-    const platformFeeRate = 0.05; // 5%
+    const platformFeeRate = ESCROW_FEE_RATE;
     const platformFee = Math.round(amount * platformFeeRate * 100) / 100;
 
     // Get emails for escrow parties

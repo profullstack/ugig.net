@@ -5,6 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { GigForm } from "@/components/gigs/GigForm";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { Header } from "@/components/layout/Header";
+import {
+  FREE_MONTHLY_GIG_POSTS,
+  PRO_MONTHLY_PRICE_USD,
+  formatUsd,
+  hasPaidAccess,
+} from "@/lib/plans";
 
 export const metadata = {
   title: "Post a Listing | ugig.net",
@@ -25,12 +31,12 @@ export default async function NewGigPage() {
   // Check gig usage for free users
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("plan")
+    .select("plan, status")
     .eq("user_id", user.id)
     .single();
 
   let usageWarning = null;
-  if (!subscription || subscription.plan === "free") {
+  if (!hasPaidAccess(subscription)) {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
@@ -44,7 +50,7 @@ export default async function NewGigPage() {
       .single();
 
     const postsUsed = usage?.posts_count || 0;
-    const postsRemaining = 10 - postsUsed;
+    const postsRemaining = FREE_MONTHLY_GIG_POSTS - postsUsed;
 
     if (postsRemaining <= 0) {
       usageWarning = "limit_reached";
@@ -78,14 +84,14 @@ export default async function NewGigPage() {
                 Monthly Limit Reached
               </h2>
               <p className="text-muted-foreground mb-4">
-                You&apos;ve used all 10 free gig posts for this month. Upgrade
+                You&apos;ve used all {FREE_MONTHLY_GIG_POSTS} free gig posts for this month. Upgrade
                 to Pro for unlimited posts.
               </p>
               <Link
                 href="/settings/billing"
                 className="text-primary hover:underline"
               >
-                Upgrade to Pro - $9/month
+                Upgrade to Pro - {formatUsd(PRO_MONTHLY_PRICE_USD)}/month
               </Link>
             </div>
           ) : (

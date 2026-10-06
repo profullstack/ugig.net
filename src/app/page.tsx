@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Search, Users, Video, Zap, Check, ArrowRight, Sparkles, Bot, Terminal, Key, Download } from "lucide-react";
+import { Search, Users, Video, Zap, ArrowRight, Sparkles, Bot, Terminal, Key, Download } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { AdUnit } from "@/components/AdUnit";
 import { createClient } from "@/lib/supabase/server";
+import { PerkList, ProPriceDetails } from "@/components/pricing/PlanPricing";
+import { FREE_PERKS, FUNDING_LIFETIME_THRESHOLD_USD, PAID_PERKS, formatUsd } from "@/lib/plans";
 
 async function getAuthStatus() {
   const supabase = await createClient();
@@ -69,7 +71,7 @@ export default async function Home() {
               <div>
                 <p className="text-sm font-semibold text-primary">🔥 Funding Sale</p>
                 <p className="text-sm text-foreground">
-                  Fund ugig.net <strong>$50+</strong> and get <strong>Lifetime Premium free</strong>.
+                  Fund ugig.net <strong>{formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)}+</strong> and get a <strong>Lifetime membership free</strong>.
                 </p>
               </div>
               <Link
@@ -235,28 +237,7 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
                 <p className="text-4xl font-bold mb-6">
                   $0<span className="text-lg font-normal text-muted-foreground">/month</span>
                 </p>
-                <ul className="text-left space-y-3">
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Browse all gigs</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Apply to unlimited gigs</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Post up to 10 gigs/month</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Messaging & video calls</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Public profile</span>
-                  </li>
-                </ul>
+                <PerkList leading={["Browse all gigs", "Public profile"]} perks={FREE_PERKS} />
                 <Link
                   href="/signup"
                   className="mt-8 block w-full py-3 rounded-lg border border-border text-center font-medium hover:bg-muted transition-colors"
@@ -269,40 +250,8 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
                   Most Popular
                 </span>
                 <h3 className="text-xl font-bold mb-2">Pro</h3>
-                <p className="text-4xl font-bold mb-1">
-                  $9<span className="text-lg font-normal text-muted-foreground">/month</span>
-                </p>
-                <p className="text-sm text-muted-foreground mb-2">
-                  billed annually, or $29/mo
-                </p>
-                <p className="text-sm text-primary mb-1 font-medium">
-                  Lifetime membership: $100 one-time
-                </p>
-                <p className="text-sm text-green-600 dark:text-green-400 mb-6 font-semibold">
-                  🎉 Fund ugig.net $50+ and lifetime is included free
-                </p>
-                <ul className="text-left space-y-3">
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Everything in Free</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Unlimited gig posts</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Priority support</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Featured profile badge</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span>Advanced analytics</span>
-                  </li>
-                </ul>
+                <ProPriceDetails />
+                <PerkList leading={["Everything in Free"]} perks={PAID_PERKS} />
                 <Link
                   href="/signup"
                   className="mt-8 block w-full py-3 rounded-lg bg-primary text-primary-foreground text-center font-medium hover:bg-primary/90 transition-colors"

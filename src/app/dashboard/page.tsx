@@ -20,6 +20,13 @@ import {
 } from "lucide-react";
 import { FundingDashboard } from "@/components/funding/FundingDashboard";
 import { HELD_COLUMN } from "@/lib/limits";
+import {
+  FREE_MONTHLY_GIG_POSTS,
+  PAID_PERKS,
+  PRO_MONTHLY_PRICE_USD,
+  formatUsd,
+  hasPaidAccess,
+} from "@/lib/plans";
 
 export const metadata = {
   title: "Dashboard | ugig.net",
@@ -124,10 +131,11 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .single();
 
-  const isPro = subscription?.plan === "pro" && subscription?.status === "active";
+  const isPro = hasPaidAccess(subscription);
+  const isLifetime = subscription?.plan === "lifetime";
 
   // Fetch gig usage for free users
-  let postsRemaining = 10;
+  let postsRemaining = FREE_MONTHLY_GIG_POSTS;
   if (!isPro) {
     const now = new Date();
     const { data: usage } = await supabase
@@ -138,7 +146,7 @@ export default async function DashboardPage() {
       .eq("year", now.getFullYear())
       .single();
 
-    postsRemaining = 10 - (usage?.posts_count || 0);
+    postsRemaining = Math.max(0, FREE_MONTHLY_GIG_POSTS - (usage?.posts_count || 0));
   }
 
   return (
@@ -200,7 +208,7 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {isPro ? "Pro" : `${postsRemaining}/10`}
+                  {isPro ? (isLifetime ? "Lifetime" : "Pro") : `${postsRemaining}/${FREE_MONTHLY_GIG_POSTS}`}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {isPro ? "Unlimited Posts" : "Posts Remaining"}
@@ -498,24 +506,27 @@ export default async function DashboardPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2.5 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md">
-                      PRO
+                      {isLifetime ? "LIFETIME" : "PRO"}
                     </span>
                     <span className="text-green-600 text-sm font-medium">Active</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Renews{" "}
-                    {subscription?.current_period_end
-                      ? new Date(subscription.current_period_end).toLocaleDateString()
-                      : "monthly"}
+                    {isLifetime
+                      ? "Never expires"
+                      : `Renews ${
+                          subscription?.current_period_end
+                            ? new Date(subscription.current_period_end).toLocaleDateString()
+                            : "monthly"
+                        }`}
                   </p>
                 </div>
               ) : (
                 <div>
                   <p className="text-muted-foreground mb-4">
-                    Upgrade to Pro for unlimited gig posts and premium features.
+                    Upgrade to Pro: {PAID_PERKS.join(", ").toLowerCase()}.
                   </p>
                   <Link href="/settings/billing">
-                    <Button className="w-full">Upgrade to Pro - $9/mo</Button>
+                    <Button className="w-full">Upgrade to Pro - {formatUsd(PRO_MONTHLY_PRICE_USD)}/mo</Button>
                   </Link>
                 </div>
               )}

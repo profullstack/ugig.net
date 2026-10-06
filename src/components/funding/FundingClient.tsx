@@ -20,6 +20,8 @@ import {
   SUPPORTED_CURRENCIES,
   type CoinpayCurrency,
 } from "@/lib/coinpay-client";
+import { FUNDING_LIFETIME_THRESHOLD_USD, formatUsd } from "@/lib/plans";
+import { SKILL_FEE_RATES } from "@/lib/constants";
 
 type TierId = "supporter" | "lifetime" | "custom";
 
@@ -52,8 +54,8 @@ const TIERS: Array<{
   {
     id: "lifetime",
     label: "Lifetime",
-    price: "$50",
-    description: "Become a founding contributor",
+    price: formatUsd(FUNDING_LIFETIME_THRESHOLD_USD),
+    description: `Includes a Lifetime membership (unlimited gig posts, ${Math.round(SKILL_FEE_RATES.pro * 100)}% marketplace seller fee). Sign in first so it attaches to your account.`,
     highlight: true,
     icon: Crown,
   },
@@ -61,7 +63,7 @@ const TIERS: Array<{
 
 function tierAmount(tier: TierId, customAmount: number): number {
   if (tier === "supporter") return 1;
-  if (tier === "lifetime") return 50;
+  if (tier === "lifetime") return FUNDING_LIFETIME_THRESHOLD_USD;
   return customAmount;
 }
 
@@ -441,7 +443,7 @@ export function FundingClient() {
             />
           </div>
           <p className="text-sm text-muted-foreground">
-            Enter any amount to support development
+            Enter any amount to support development. {formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)}+ includes a Lifetime membership.
           </p>
           <Button
             size="sm"

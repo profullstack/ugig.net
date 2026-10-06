@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Zap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { PLATFORM_FEE_RATE } from "@/lib/constants";
+import { formatFeeRate, zapFeeSplit } from "@/lib/fees";
 
 const ZAP_AMOUNTS = [1, 2, 5, 10, 20, 50, 100, 1000, 10000];
 
@@ -116,10 +118,13 @@ export function ZapButton({ targetType, targetId, recipientId, totalSats: initia
             <div className="text-xs text-muted-foreground mb-1.5 px-1">Zap sats ⚡</div>
             <div className="flex flex-wrap gap-1">
               {ZAP_AMOUNTS.map((amt) => (
-                <Button key={amt} size="sm" variant="outline" className="text-xs h-7 px-2" disabled={loading} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleZap(amt); }}>
+                <Button key={amt} size="sm" variant="outline" className="text-xs h-7 px-2" disabled={loading} title={`Recipient receives ${zapFeeSplit(amt).recipientSats.toLocaleString()} sats`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleZap(amt); }}>
                   {amt.toLocaleString()}
                 </Button>
               ))}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1.5 px-1" data-testid="zap-fee-note">
+              {formatFeeRate(PLATFORM_FEE_RATE)} platform fee: you pay the amount shown, the recipient gets {formatFeeRate(1 - PLATFORM_FEE_RATE)}.
             </div>
             {error && (
               <div className="text-xs text-red-500 mt-1.5 px-1">
