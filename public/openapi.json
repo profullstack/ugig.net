@@ -2255,6 +2255,31 @@
         }
       }
     },
+    "/api/gigs/{id}/renew": {
+      "post": {
+        "tags": ["Gigs"],
+        "summary": "Renew a gig",
+        "description": "Owner only. Sets expires_at to now + 30 days (60 for a for_hire ad) and the status to active. Gigs expire 30 days after they go live (ads 60); the expire-gigs job pauses them and emails the poster. Works on an active or paused gig; a for_hire ad being re-listed is held to the ad caps.",
+        "operationId": "renewGig",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Renewed: { gig, renewed_days }" },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Forbidden", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Gig not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Draft, closed or filled gig, or a duplicate ad title", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": { "description": "For-hire ad cap reached (50 active per account)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
     "/api/gigs/{id}/applications": {
       "get": {
         "tags": ["Applications"],

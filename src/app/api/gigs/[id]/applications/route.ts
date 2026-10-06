@@ -7,6 +7,12 @@ import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { usersAreBlocked } from "@/lib/blocks";
+import {
+  checkApplicationLimits,
+  heldMetadata,
+  limitResponse,
+  HELD_COLUMN,
+} from "@/lib/limits";
 
 // GET /api/gigs/[id]/applications - Get applications for a gig (poster only)
 export async function GET(
@@ -55,6 +61,8 @@ export async function GET(
       `
       )
       .eq("gig_id", id)
+      // Applications held for spam review are not shown to the poster.
+      .is(HELD_COLUMN, null)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -150,12 +158,18 @@ export async function POST(
       );
     }
 
+    // Daily cap, duplicate cover letter, and the spam hold (PRD 02).
+    const limits = await checkApplicationLimits(supabase, user.id, applicationData.cover_letter);
+    if (!limits.ok) return limitResponse(limits);
+    const held = heldMetadata(limits.held);
+
     const { data: application, error } = await supabase
       .from("applications")
       .insert({
         gig_id,
         applicant_id: user.id,
         ...applicationData,
+        ...(held ? { metadata: held } : {}),
       })
       .select()
       .single();
@@ -171,6 +185,12 @@ export async function POST(
 
     // Note: notification is created by DB trigger (notify_on_new_application)
     // Do NOT insert a duplicate notification here.
+
+    // A held application (spam-flagged applicant) is stored for review and the
+    // poster hears nothing about it: no email, no webhook, no notification.
+    if (held) {
+      return NextResponse.json({ application }, { status: 201 });
+    }
 
     const adminClient = createServiceClient();
     const { data: posterAuth } = await adminClient.auth.admin.getUserById(gig.poster_id);

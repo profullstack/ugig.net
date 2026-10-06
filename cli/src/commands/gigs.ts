@@ -284,4 +284,28 @@ export function registerGigsCommands(program: Command): void {
         handleError(err, opts as OutputOptions);
       }
     });
+
+  gigs
+    .command("renew <id>")
+    .description("Renew a gig for another 30 days (60 for a for-hire ad) and re-list it if it expired")
+    .action(async (id: string) => {
+      const opts = program.opts() as GlobalOpts;
+      const spinner = opts.json ? null : ora("Renewing gig...").start();
+      try {
+        const client = createClient(opts);
+        const result = await client.post<{ gig?: { expires_at?: string | null }; renewed_days?: number }>(
+          `/api/gigs/${id}/renew`
+        );
+        spinner?.succeed("Gig renewed");
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          const until = result?.gig?.expires_at ? new Date(result.gig.expires_at).toLocaleDateString() : "later";
+          printSuccess(`Gig renewed for ${result?.renewed_days ?? 30} days (listed until ${until}).`, opts as OutputOptions);
+        }
+      } catch (err) {
+        spinner?.fail("Failed to renew gig");
+        handleError(err, opts as OutputOptions);
+      }
+    });
 }

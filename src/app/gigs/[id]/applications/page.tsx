@@ -16,6 +16,7 @@ import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { isHiredStatus } from "@/lib/application-status";
+import { HELD_COLUMN } from "@/lib/limits";
 
 interface ApplicationsPageProps {
   params: Promise<{ id: string }>;
@@ -93,6 +94,8 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
     `
     )
     .eq("gig_id", id)
+    // Applications held for spam review are not shown to the poster.
+    .is(HELD_COLUMN, null)
     .order("created_at", { ascending: false });
 
   const statusColors: Record<string, string> = {

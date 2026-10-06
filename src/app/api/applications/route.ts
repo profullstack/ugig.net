@@ -7,6 +7,7 @@ import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { getUserDid, onApplicationSubmitted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { usersAreBlocked } from "@/lib/blocks";
+import { checkApplicationLimits, heldMetadata, limitResponse } from "@/lib/limits";
 
 // POST /api/applications - Submit an application
 export async function POST(request: NextRequest) {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     // Check if already applied
     const { data: existingApplication } = await supabase
       .from("applications")
-      .select("id, status")
+      .select("id, status, metadata")
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
       .single();
@@ -97,6 +98,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Daily cap, duplicate cover letter, and the spam hold (PRD 02).
+    const limits = await checkApplicationLimits(
+      supabase,
+      user.id,
+      applicationData.cover_letter,
+      { excludeApplicationId: existingApplication?.id }
+    );
+    if (!limits.ok) return limitResponse(limits);
+    const held = heldMetadata(limits.held);
+
     // Create the application, or re-activate a withdrawn one. The
     // UNIQUE(gig_id, applicant_id) constraint means a prior withdrawn row must
     // be updated in place rather than inserted a second time.
@@ -107,6 +118,14 @@ export async function POST(request: NextRequest) {
             ...applicationData,
             status: "pending",
             updated_at: new Date().toISOString(),
+            ...(held
+              ? {
+                  metadata: {
+                    ...((existingApplication.metadata as Record<string, unknown> | null) ?? {}),
+                    ...held,
+                  },
+                }
+              : {}),
           })
           .eq("id", existingApplication.id)
           .select()
@@ -117,6 +136,7 @@ export async function POST(request: NextRequest) {
             gig_id,
             applicant_id: user.id,
             ...applicationData,
+            ...(held ? { metadata: held } : {}),
           })
           .select()
           .single();
@@ -133,6 +153,12 @@ export async function POST(request: NextRequest) {
 
     // Note: notification is created by DB trigger (notify_on_new_application)
     // Do NOT insert a duplicate notification here.
+
+    // A held application (spam-flagged applicant) is stored for review and the
+    // poster hears nothing about it: no email, no webhook, no notification.
+    if (held) {
+      return NextResponse.json({ application }, { status: 201 });
+    }
 
     // Send email notification to gig poster
     // Get poster email from auth.users (not in profiles table)

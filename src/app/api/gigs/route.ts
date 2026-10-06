@@ -7,6 +7,12 @@ import { sanitizeTitle, sanitizeContent, stripProtoPollution } from "@/lib/sanit
 import { getUserDid, onGigPosted } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
+import {
+  checkForHireAdRate,
+  checkForHireAdActivation,
+  computeExpiresAt,
+  limitResponse,
+} from "@/lib/limits";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -226,6 +232,22 @@ export async function POST(request: NextRequest) {
     }
 
     const isActivePost = validationResult.data.status === "active";
+    const listingType = validationResult.data.listing_type || "hiring";
+
+    // For-hire ad caps (PRD 03): new ads per day, then active ads and
+    // near-duplicate titles for an ad that goes live now.
+    if (listingType === "for_hire") {
+      const rate = await checkForHireAdRate(supabase, user.id);
+      if (!rate.ok) return limitResponse(rate);
+      if (isActivePost) {
+        const activation = await checkForHireAdActivation(
+          supabase,
+          user.id,
+          validationResult.data.title
+        );
+        if (!activation.ok) return limitResponse(activation);
+      }
+    }
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
@@ -264,8 +286,9 @@ export async function POST(request: NextRequest) {
       .from("gigs")
       .insert({
         poster_id: user.id,
-        listing_type: validationResult.data.listing_type || "hiring",
+        listing_type: listingType,
         ...validationResult.data,
+        ...(isActivePost ? { expires_at: computeExpiresAt(listingType) } : {}),
       })
       .select()
       .single();

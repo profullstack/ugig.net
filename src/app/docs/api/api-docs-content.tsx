@@ -212,6 +212,15 @@ const SECTIONS: Section[] = [
   -d '{ "status": "paused" }'`,
         response: `{ "gig": { "id": "a1b2c3d4-...", "status": "paused", ... } }`,
       },
+      {
+        method: "POST",
+        path: "/api/gigs/{id}/renew",
+        description:
+          "Renew a gig for another 30 days (60 for a for-hire ad) and re-list it. Gigs expire 30 days after they go live (ads 60) and are paused until renewed.",
+        curl: `curl -X POST ${BASE}/api/gigs/a1b2c3d4-5678-90ab-cdef-1234567890ab/renew \\
+  -H "X-API-Key: $API_KEY"`,
+        response: `{ "gig": { "id": "a1b2c3d4-...", "status": "active", "expires_at": "..." }, "renewed_days": 30 }`,
+      },
     ],
   },
   {

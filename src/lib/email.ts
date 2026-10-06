@@ -1672,14 +1672,28 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
+/**
+ * Sent once by POST /api/cron/expire-gigs when it pauses a gig past its
+ * expires_at. The main button goes to the gig page, whose owner card shows
+ * "Renew for N days" for an expired gig (#renew anchors it).
+ */
 export function gigExpiredEmail(params: {
   posterName: string;
   gigTitle: string;
   gigId: string;
   applicantCount: number;
+  renewDays?: number;
 }) {
-  const { posterName, gigTitle, gigId, applicantCount } = params;
+  const { posterName, gigTitle, gigId, applicantCount, renewDays = 30 } = params;
   const baseUrl = getBaseUrl();
+  const gigUrl = `${baseUrl}/gigs/${gigId}`;
+  const renewUrl = `${gigUrl}#renew`;
+  const posterNameHtml = escapeHtml(posterName);
+  const gigTitleHtml = escapeHtml(gigTitle);
+  const applicationsLine =
+    applicantCount > 0
+      ? `You received ${applicantCount} ${applicantCount === 1 ? "application" : "applications"} for it. Don't forget to review them.`
+      : "It didn't receive any applications. If you renew it, consider updating the details or the budget.";
 
   const html = `
 <!DOCTYPE html>
@@ -1697,37 +1711,22 @@ export function gigExpiredEmail(params: {
   </div>
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-    <p style="margin-top: 0;">Hi ${posterName},</p>
+    <p style="margin-top: 0;">Hi ${posterNameHtml},</p>
 
-    <p>Your gig <strong>"${gigTitle}"</strong> has reached its expiration date and is no longer accepting applications.</p>
+    <p>Your gig <strong>"${gigTitleHtml}"</strong> reached its expiration date. We paused it, so it is no longer listed or accepting applications.</p>
 
-    ${
-      applicantCount > 0
-        ? `
     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <p style="color: #374151; margin: 0;">
-        You received <strong>${applicantCount}</strong> ${applicantCount === 1 ? "application" : "applications"} for this gig.
-        ${applicantCount > 0 ? "Don't forget to review them!" : ""}
-      </p>
+      <p style="color: #374151; margin: 0;">${applicationsLine}</p>
     </div>
-    `
-        : `
-    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <p style="color: #374151; margin: 0;">
-        This gig didn't receive any applications. Consider reposting with updated details or a more competitive budget.
-      </p>
-    </div>
-    `
-    }
 
-    <p>What would you like to do?</p>
+    <p>Still looking? Renew it for another ${renewDays} days with one click.</p>
 
     <div style="margin-top: 20px;">
-      <a href="${baseUrl}/gig/${gigId}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-right: 10px;">
-        View Gig
+      <a href="${renewUrl}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; margin-right: 10px;">
+        Renew for ${renewDays} days
       </a>
-      <a href="${baseUrl}/dashboard/gigs/new" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500;">
-        Post New Gig
+      <a href="${gigUrl}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500;">
+        View Gig
       </a>
     </div>
   </div>
@@ -1735,7 +1734,7 @@ export function gigExpiredEmail(params: {
   <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
     <p style="margin: 0;">ugig.net - AI-Powered Gig Marketplace</p>
     <p style="margin: 5px 0 0 0;">
-      <a href="${baseUrl}/dashboard/notifications" style="color: #9ca3af;">Manage notification settings</a>
+      <a href="${baseUrl}/settings/notifications" style="color: #9ca3af;">Manage notification settings</a>
     </p>
   </div>
 </body>
@@ -1747,12 +1746,12 @@ export function gigExpiredEmail(params: {
 
 Hi ${posterName},
 
-Your gig "${gigTitle}" has reached its expiration date and is no longer accepting applications.
+Your gig "${gigTitle}" reached its expiration date. We paused it, so it is no longer listed or accepting applications.
 
-${applicantCount > 0 ? `You received ${applicantCount} ${applicantCount === 1 ? "application" : "applications"} for this gig. Don't forget to review them!` : "This gig didn't receive any applications. Consider reposting with updated details or a more competitive budget."}
+${applicationsLine}
 
-View gig: ${baseUrl}/gig/${gigId}
-Post new gig: ${baseUrl}/dashboard/gigs/new
+Renew it for another ${renewDays} days: ${renewUrl}
+View gig: ${gigUrl}
 
 ---
 ugig.net - AI-Powered Gig Marketplace
