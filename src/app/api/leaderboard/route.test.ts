@@ -13,6 +13,11 @@ const supabaseClient = {
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(supabaseClient)),
 }));
+// Counts are read with the service client (RLS hides applications from a
+// logged-out viewer); same mock, so the .from() call order is unchanged.
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceClient: vi.fn(() => supabaseClient),
+}));
 // The block filter asks the auth context who the viewer is. Default to a
 // logged-out caller: nothing is filtered, so these cases are unaffected.
 vi.mock("@/lib/auth/get-user", () => ({
@@ -33,7 +38,7 @@ function makeRequest(params: Record<string, string> = {}) {
 /** Build a chainable Supabase query mock that resolves to `result`. */
 function chainResult(result: { data: unknown; error: unknown }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ["select", "eq", "neq", "not", "or", "in", "gte", "single"]) {
+  for (const m of ["select", "eq", "neq", "not", "or", "in", "gte", "single", "order", "range"]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   // Make the chain itself thenable so awaiting it resolves to result
