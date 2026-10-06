@@ -30,6 +30,7 @@ const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
   new_message: <MessageSquare className="h-5 w-5" />,
   call_scheduled: <Video className="h-5 w-5" />,
   new_review: <Star className="h-5 w-5" />,
+  review_request: <Star className="h-5 w-5" />,
   gig_update: <Briefcase className="h-5 w-5" />,
   payment_received: <DollarSign className="h-5 w-5" />,
 };
@@ -42,6 +43,7 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   new_message: "New Message",
   call_scheduled: "Call Scheduled",
   new_review: "Review Received",
+  review_request: "Review Request",
   gig_update: "Gig Update",
   payment_received: "Payment Received",
 };
@@ -125,6 +127,9 @@ export function NotificationsList() {
       case "application_accepted":
       case "application_rejected":
         return "/dashboard/applications";
+      case "review_request":
+        // "Rate @x for <gig>": the review form on the gig page
+        return data?.gig_id ? `/gigs/${data.gig_id}#review` : "/dashboard";
       case "review_received":
       case "new_review":
         return data?.reviewer_id ? `/u/${data.reviewer_id}` : "/dashboard";

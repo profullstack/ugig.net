@@ -32,6 +32,8 @@ import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
 import { ZapButton } from "@/components/zaps/ZapButton";
 import { GigTestimonialSection } from "@/components/testimonials/GigTestimonialSection";
 import { HiredWorkerReview } from "@/components/gigs/HiredWorkerReview";
+import { GigReviewSection } from "@/components/reviews/GigReviewSection";
+import { getReviewTargets, type ReviewTargetPerson } from "@/lib/reviews/review-targets";
 import { AdUnit } from "@/components/AdUnit";
 import { createServiceClient } from "@/lib/supabase/service";
 import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
@@ -218,6 +220,7 @@ export default async function GigPage({ params }: GigPageProps) {
           .from("testimonials")
           .select("profile_id")
           .eq("author_id", user.id)
+          .eq("gig_id", id)
           .in("profile_id", workerIds);
 
         existingWorkerReviews = new Set(
@@ -225,6 +228,31 @@ export default async function GigPage({ params }: GigPageProps) {
         );
       }
     }
+  }
+
+  // Star-rating reviews, both sides: the poster rates each hired worker, a
+  // hired worker rates the poster. Anyone already reviewed by this user for
+  // this gig is left out, so the form disappears once used.
+  let reviewTargets: ReviewTargetPerson[] = [];
+  if (user && poster && (isOwner || userAcceptedApplication)) {
+    const { data: myReviews } = await supabase
+      .from("reviews")
+      .select("reviewee_id")
+      .eq("gig_id", id)
+      .eq("reviewer_id", user.id);
+    reviewTargets = getReviewTargets({
+      currentUserId: user.id,
+      poster: {
+        id: poster.id,
+        username: poster.username,
+        full_name: poster.full_name,
+        avatar_url: poster.avatar_url,
+      },
+      hiredWorkers: isOwner
+        ? hiredWorkers
+        : [{ id: user.id, username: "", full_name: null, avatar_url: null }],
+      reviewedIds: (myReviews || []).map((r) => r.reviewee_id),
+    });
   }
 
   // Fetch testimonials for the gig
@@ -415,7 +443,10 @@ export default async function GigPage({ params }: GigPageProps) {
               gigOwnerId={gig.poster_id}
             />
 
-            {/* Hired Workers + Review */}
+            {/* Star-rating reviews for both sides (#review) */}
+            <GigReviewSection gigId={id} targets={reviewTargets} />
+
+            {/* Hired Workers + optional public testimonial */}
             {isOwner && hiredWorkers.length > 0 && user && (
               <HiredWorkerReview
                 gigId={id}

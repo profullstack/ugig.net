@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
+import { syncTestimonialToReview } from "@/lib/reviews/sync-testimonial-review";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -71,6 +72,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       if (error || !data) {
         return NextResponse.json({ error: "Failed to update testimonial" }, { status: 400 });
+      }
+
+      // Keep the matching review's stars in step with the edited testimonial.
+      if (rating !== undefined && testimonial.gig_id) {
+        await syncTestimonialToReview(serviceClient, {
+          gigId: testimonial.gig_id,
+          authorId: testimonial.author_id,
+          profileId: testimonial.profile_id,
+          rating: data.rating,
+          content: data.content,
+        });
       }
 
       return NextResponse.json({ testimonial: data });

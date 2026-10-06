@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
+import { getCompletedApplications } from "@/lib/completed-work";
 
 /**
  * Auto-verification criteria:
- * 1. Completed 3+ gigs (accepted applications on filled gigs)
+ * 1. Completed 3+ gigs (hired applications with a paid invoice or on a
+ *    filled gig; see src/lib/completed-work.ts)
  * 2. Average rating >= 4.0
  * 3. Account age >= 7 days
  */
@@ -51,15 +52,8 @@ export async function checkAutoVerification(
     };
   }
 
-  // 1. Check completed gigs — accepted applications on filled gigs
-  const { count: completedGigsCount } = await supabase
-    .from("applications")
-    .select("id, gig:gigs!inner(status)", { count: "exact", head: true })
-    .eq("applicant_id", userId)
-    .in("status", HIRED_APPLICATION_STATUSES)
-    .eq("gig.status", "filled");
-
-  const completedGigs = completedGigsCount ?? 0;
+  // 1. Completed gigs: hired applications with a paid invoice or on a filled gig
+  const completedGigs = (await getCompletedApplications(supabase, userId)).length;
 
   // 2. Check average rating
   const { data: reviews } = await supabase
