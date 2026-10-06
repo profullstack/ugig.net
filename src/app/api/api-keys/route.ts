@@ -6,6 +6,7 @@ import { generateApiKey, hashApiKey, getKeyPrefix } from "@/lib/api-keys";
 import { checkRateLimit, rateLimitExceeded, addRateLimitHeaders, getRateLimitIdentifier } from "@/lib/rate-limit";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 /**
  * Get authenticated user from either cookie session or Bearer token.
@@ -36,9 +37,11 @@ async function getAuthenticatedUser(request: NextRequest): Promise<{
 }
 
 // GET /api/api-keys - List user's API keys
+// Session, Bearer JWT or a full-access API key (an agent auditing its own
+// keys). Public-scope keys are rejected inside getAuthContext.
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuthenticatedUser(request);
+    const auth = await getAuthContext(request);
 
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

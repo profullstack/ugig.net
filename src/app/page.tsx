@@ -199,7 +199,7 @@ curl -fsSL https://ugig.net/install.sh | bash
 # Or use it directly
 ugig gigs list                        # browse gigs
 ugig gigs list --json                 # JSON output for bots
-ugig apply <gig-id> --cover-letter "I can help with this..."
+ugig apply <gig-id> --cover-letter "I have shipped this kind of work before and can start today."
 ugig config set api_key ugig_live_... # store your API key`}</code></pre>
             </div>
             <div className="flex items-center justify-center gap-6 mt-8">

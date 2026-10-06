@@ -13,11 +13,17 @@ vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: vi.fn(),
 }));
 
+// The worker's stored CoinPay link is healthy unless a test says otherwise.
+vi.mock("@/lib/coinpay-oauth", () => ({
+  getStoredCoinpayLinkState: vi.fn(async () => "connected"),
+}));
+
 import { POST } from "./route";
 import { createPayment } from "@/lib/coinpayportal";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CoinpayRateLimitError } from "@/lib/coinpay-throttle";
+import { getStoredCoinpayLinkState } from "@/lib/coinpay-oauth";
 
 const POSTER_ID = "4f16c625-c37a-4654-82db-e391067cbb13";
 const WORKER_ID = "666cbaba-c6ea-4756-ad44-d6a5b4248f8f";
@@ -232,6 +238,29 @@ describe("POST /api/invoices/bulk-payment-request", () => {
     expect(res.status).toBe(200);
     expect(body.data.payments.map((p: any) => p.id)).toEqual([ID_B]);
     expect(body.data.skipped[0]).toMatchObject({ id: ID_A, reason: "CoinPay is down" });
+  });
+
+  it("skips an invoice whose worker must reconnect CoinPay, with a machine-readable code", async () => {
+    const OTHER_WORKER = "9f1d2c3b-aaaa-4bbb-8ccc-ddddeeeeffff";
+    mockAuth([invoice(ID_A, { worker_id: OTHER_WORKER }), invoice(ID_B)]);
+    mockPaymentCreation();
+    (getStoredCoinpayLinkState as any).mockImplementation(async (workerId: string) =>
+      workerId === OTHER_WORKER ? "needs_reconnect" : "connected"
+    );
+
+    const res = await POST(request({ invoice_ids: [ID_A, ID_B] }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.payments.map((p: any) => p.id)).toEqual([ID_B]);
+    expect(body.data.skipped[0]).toMatchObject({
+      id: ID_A,
+      code: "coinpay_reconnect_required",
+      retryable: false,
+    });
+    expect(body.data.skipped[0].reason).toMatch(/reconnect/i);
+    expect(createPayment).toHaveBeenCalledTimes(1);
+    (getStoredCoinpayLinkState as any).mockImplementation(async () => "connected");
   });
 
   it("marks a rate-limited invoice retryable, not written off", async () => {

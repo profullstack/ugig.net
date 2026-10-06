@@ -2197,6 +2197,26 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
             }
           },
+          "409": {
+            "description": "The worker's CoinPay link is missing or unusable (code coinpay_reconnect_required; reconnect at /settings/connections), or they have no CoinPay wallet addresses. No invoice is created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["error"],
+                  "properties": {
+                    "error": { "type": "string" },
+                    "code": { "type": "string", "enum": ["coinpay_reconnect_required"] },
+                    "coinpay_link_state": { "type": "string", "enum": ["none", "needs_reconnect"] },
+                    "reconnect_url": { "type": "string", "example": "/settings/connections" },
+                    "oauth_required": { "type": "boolean" },
+                    "setup_required": { "type": "boolean" },
+                    "setup_instructions": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          },
           "502": {
             "description": "CoinPayPortal did not return usable payment details",
             "content": {

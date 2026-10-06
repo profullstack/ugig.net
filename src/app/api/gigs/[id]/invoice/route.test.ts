@@ -7,7 +7,7 @@ vi.mock("@/lib/coinpayportal", () => ({
       wallets.find((wallet: any) => wallet.currency === currency && wallet.address === address) ||
       null
   ),
-  getCoinpayGlobalWalletTokens: vi.fn(),
+  readCoinpayUserinfoWallets: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn((value: string | null) => value?.toLowerCase() || null),
   resolveSupportedPaymentCurrency: vi.fn(),
 }));
@@ -53,7 +53,7 @@ import { GET, POST } from "./route";
 import { createServiceClient, getAuthContext } from "@/lib/auth/get-user";
 import {
   createPayment,
-  getCoinpayGlobalWalletTokens,
+  readCoinpayUserinfoWallets,
   resolveSupportedPaymentCurrency,
 } from "@/lib/coinpayportal";
 import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
@@ -154,7 +154,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
       state: "connected",
       accessToken: "coinpay-access-token",
     });
-    (getCoinpayGlobalWalletTokens as any).mockResolvedValue([
+    (readCoinpayUserinfoWallets as any).mockResolvedValue({ status: "ok", wallets: [
       {
         currency: "sol",
         cryptocurrency: "SOL",
@@ -162,7 +162,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
         address: "So11111111111111111111111111111111111111112",
         network: "SOL",
       },
-    ]);
+    ] });
   });
 
   it("returns 401 if not authenticated", async () => {
@@ -323,6 +323,68 @@ describe("POST /api/gigs/[id]/invoice", () => {
       expect(json.coinpay_link_state).toBe("none");
       expect(json.error).toBe("Connect your CoinPay account before sending an invoice");
       expect(json.setup_instructions[0]).not.toMatch(/reconnect/i);
+    });
+
+    function authWithInsertSpy(userId: string) {
+      const onInsert = vi.fn();
+      const sb = mockSupabase({
+        gigs: {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: gig, error: null }),
+        },
+        applications: {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: application, error: null }),
+        },
+        gig_invoices: mockInvoiceTable({ onInsert }),
+      });
+      (getAuthContext as any).mockResolvedValue({ user: { id: userId }, supabase: sb });
+      return onInsert;
+    }
+
+    it("returns code coinpay_reconnect_required and a link to the connect flow", async () => {
+      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", accessToken: null });
+      const onInsert = authWithInsertSpy(WORKER_ID);
+
+      const res = await POST(body(), params);
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.code).toBe("coinpay_reconnect_required");
+      expect(json.reconnect_url).toBe("/settings/connections");
+      expect(onInsert).not.toHaveBeenCalled();
+    });
+
+    it("refuses with 409 and creates no row when CoinPay rejects the stored token", async () => {
+      (readCoinpayUserinfoWallets as any).mockResolvedValue({
+        status: "unauthorized",
+        httpStatus: 401,
+      });
+      const onInsert = authWithInsertSpy(WORKER_ID);
+
+      const res = await POST(body(), params);
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.code).toBe("coinpay_reconnect_required");
+      expect(json.coinpay_link_state).toBe("needs_reconnect");
+      expect(onInsert).not.toHaveBeenCalled();
+    });
+
+    it("treats a userinfo with no wallets claim as a silently dropped scope", async () => {
+      // 2026-08-16: CoinPay intersected the requested scopes with the client's
+      // and dropped wallet:read without an error. The token still worked.
+      (readCoinpayUserinfoWallets as any).mockResolvedValue({ status: "no_wallet_claim" });
+      const onInsert = authWithInsertSpy(POSTER_ID);
+
+      const res = await POST(body(), params);
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.code).toBe("coinpay_reconnect_required");
+      // The poster cannot fix the worker's link, so no OAuth button for them.
+      expect(json.oauth_required).toBe(false);
+      expect(json.error).toMatch(/worker must reconnect/i);
+      expect(onInsert).not.toHaveBeenCalled();
     });
   });
 

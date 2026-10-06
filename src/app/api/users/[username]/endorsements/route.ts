@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 // GET /api/users/:username/endorsements — list endorsements grouped by skill
 export async function GET(
@@ -12,10 +13,10 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const skillFilter = searchParams.get("skill");
 
-    // Get the authenticated user (optional — for "endorsed_by_current_user")
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
+    // The caller (optional, for "endorsed_by_current_user"): session or API
+    // key. The reads below stay on the anon/session client: they are public.
+    const auth = await getAuthContext(request);
+    const currentUser = auth?.user ?? null;
 
     // Look up user by username
     const { data: profile } = await supabase

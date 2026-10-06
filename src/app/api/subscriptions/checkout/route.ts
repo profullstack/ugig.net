@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient, getAuthContext } from "@/lib/auth/get-user";
 import { stripe, PLANS } from "@/lib/stripe";
 
 // POST /api/subscriptions/checkout - Create Stripe checkout session
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Session or full-access API key (public-scope keys get 401 here).
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     // Get or create Stripe customer
     const { data: subscription } = await supabase
@@ -44,9 +40,17 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id)
         .single();
 
+      // API-key callers carry no email on the auth context; Stripe needs one
+      // for receipts, so read it from the auth user.
+      let email = user.email;
+      if (!email) {
+        const { data: authUser } = await createServiceClient().auth.admin.getUserById(user.id);
+        email = authUser?.user?.email ?? undefined;
+      }
+
       // Create Stripe customer
       const customer = await stripe.customers.create({
-        email: user.email,
+        email,
         name: profile?.full_name || profile?.username || undefined,
         metadata: {
           supabase_user_id: user.id,

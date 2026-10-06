@@ -9,6 +9,11 @@ vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: vi.fn(),
 }));
 
+// The worker's stored CoinPay link is healthy unless a test says otherwise.
+vi.mock("@/lib/coinpay-oauth", () => ({
+  getStoredCoinpayLinkState: vi.fn(async () => "connected"),
+}));
+
 import {
   ensureInvoicePaymentRequest,
   activeExpiresAt,
@@ -114,6 +119,48 @@ describe("PAYABLE_INVOICE_STATUSES", () => {
 
 describe("ensureInvoicePaymentRequest", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("refuses to mint a request when the worker's CoinPay link needs reconnecting", async () => {
+    const captured = serviceClient();
+    mockCoinPaySuccess();
+    const workerLinkState = vi.fn(async () => "needs_reconnect" as const);
+
+    const result = await ensureInvoicePaymentRequest(invoice(WALLET_METADATA), {
+      workerLinkState,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "RECONNECT",
+      coinpay_link_state: "needs_reconnect",
+    });
+    expect(workerLinkState).toHaveBeenCalledWith("666cbaba-c6ea-4756-ad44-d6a5b4248f8f");
+    expect(createPayment).not.toHaveBeenCalled();
+    expect(captured.row).toBeUndefined();
+  });
+
+  it("refuses when the worker has no CoinPay link at all", async () => {
+    serviceClient();
+    const result = await ensureInvoicePaymentRequest(invoice(WALLET_METADATA), {
+      workerLinkState: async () => "none",
+    });
+    expect(result).toMatchObject({ ok: false, code: "RECONNECT", coinpay_link_state: "none" });
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("still mints the request when the link lookup itself fails", async () => {
+    // A database hiccup is not evidence that the worker's link is broken.
+    serviceClient();
+    mockCoinPaySuccess();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await ensureInvoicePaymentRequest(invoice(WALLET_METADATA), {
+      workerLinkState: async () => {
+        throw new Error("db down");
+      },
+    });
+    errorSpy.mockRestore();
+    expect(result.ok).toBe(true);
+  });
 
   it("creates a request from the worker's stored receiving wallet", async () => {
     const captured = serviceClient();
