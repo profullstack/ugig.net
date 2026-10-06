@@ -543,6 +543,45 @@ export function validateCoinpayReceivingAddress(
   return false;
 }
 
+export type CoinpayUserinfoWallets =
+  | { status: "ok"; wallets: CoinPayGlobalWallet[] }
+  /** The token was rejected outright (expired, revoked, client disabled). */
+  | { status: "unauthorized"; httpStatus: number }
+  /**
+   * The token works but userinfo carries no `wallets` claim at all, which is
+   * what a grant without wallet:read looks like. CoinPay intersects the scopes
+   * ugig asks for with the client's allowed scopes and drops the rest without
+   * an error (2026-08-16), so this is the only place the loss is visible.
+   * Distinct from an empty array, which means "connected, no addresses yet".
+   */
+  | { status: "no_wallet_claim" };
+
+/** Read a user's global wallets through their OAuth token, classifying failure. */
+export async function readCoinpayUserinfoWallets(
+  accessToken: string
+): Promise<CoinpayUserinfoWallets> {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/oauth/userinfo`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return { status: "unauthorized", httpStatus: response.status };
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `CoinPay userinfo failed: ${response.status}${text ? ` ${text.slice(0, 120)}` : ""}`
+    );
+  }
+
+  const payload = await response.json();
+  if (!payload || typeof payload !== "object" || !("wallets" in payload)) {
+    return { status: "no_wallet_claim" };
+  }
+  return { status: "ok", wallets: normalizeGlobalWallets((payload as any).wallets) };
+}
+
 export async function getCoinpayGlobalWalletTokens(
   options: {
     business_id?: string;
@@ -558,20 +597,11 @@ export async function getCoinpayGlobalWalletTokens(
   // and /api/get-tokens endpoints use a different verifier (merchant-login
   // JWT or business API key) and reject OAuth access tokens.
   if (options.access_token) {
-    const response = await coinpayFetch(`${COINPAY_API_URL}/oauth/userinfo`, {
-      headers: { Authorization: `Bearer ${options.access_token}` },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      throw new Error(
-        `CoinPay userinfo failed: ${response.status}${text ? ` ${text.slice(0, 120)}` : ""}`
-      );
+    const result = await readCoinpayUserinfoWallets(options.access_token);
+    if (result.status === "unauthorized") {
+      throw new Error(`CoinPay userinfo failed: ${result.httpStatus}`);
     }
-
-    const payload = await response.json();
-    return normalizeGlobalWallets(payload?.wallets);
+    return result.status === "ok" ? result.wallets : [];
   }
 
   if (!apiKey) {

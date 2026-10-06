@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 /**
  * GET /api/funding/history
@@ -7,15 +7,12 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Session or full-access API key. Every query below filters by user.id.
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     // Get paid funding payments
     const { data: payments, error: paymentsError } = await supabase

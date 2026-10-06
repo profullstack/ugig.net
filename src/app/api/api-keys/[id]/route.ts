@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 // DELETE /api/api-keys/:id - Revoke an API key
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Session or API key: an agent must be able to revoke a leaked key with
+    // the key itself. The update below is scoped by user_id, which matters
+    // because API-key auth uses the service client (no RLS).
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const { id } = await params;
 

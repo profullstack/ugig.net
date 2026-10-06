@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { parseResumeFile } from "@/lib/resume-parser";
 import { getUserDid, onResumeUploaded } from "@/lib/reputation-hooks";
 
@@ -7,16 +7,13 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Session or full-access API key. Writes are scoped to user.id (storage
+    // path and profile row), which is what matters under the service client.
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, supabase } = auth;
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

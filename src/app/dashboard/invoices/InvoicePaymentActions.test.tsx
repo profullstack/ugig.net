@@ -31,6 +31,45 @@ describe("InvoicePaymentActions", () => {
     vi.unstubAllGlobals();
   });
 
+  it("explains an invoice whose worker must reconnect CoinPay and offers a new invoice", () => {
+    render(
+      <InvoicePaymentActions
+        {...baseProps}
+        status="sent"
+        metadata={{ payment_currency: "sol" }}
+        unpayableReason="worker_reconnect"
+      />
+    );
+
+    expect(screen.getByTestId("unpayable-explanation")).toHaveTextContent(/reconnect CoinPay/i);
+    expect(screen.getByRole("button", { name: /pay now/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /request a new invoice/i })).toBeInTheDocument();
+  });
+
+  it("switches to the reconnect explanation when Pay now returns coinpay_reconnect_required", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        error: "The worker must reconnect CoinPay before this invoice can be paid.",
+        code: "coinpay_reconnect_required",
+        coinpay_link_state: "needs_reconnect",
+        reconnect_url: "/settings/connections",
+        oauth_required: false,
+        setup_required: true,
+      }),
+    });
+
+    render(<InvoicePaymentActions {...baseProps} status="sent" metadata={{}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /pay now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("unpayable-explanation")).toHaveTextContent(/reconnect CoinPay/i);
+    });
+    expect(screen.getByRole("button", { name: /request a new invoice/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /pay now/i })).toBeDisabled();
+  });
+
   it("shows in-app crypto payment details for sent invoices", () => {
     render(
       <InvoicePaymentActions

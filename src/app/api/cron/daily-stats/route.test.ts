@@ -186,6 +186,33 @@ describe("POST /api/cron/daily-stats", () => {
     expect(inCalls).toContain("applications.status=accepted|in_progress|completed|paid");
   });
 
+  it("counts invoices created without a CoinPay id and those created unpayable (24h)", async () => {
+    const builders: { table: string; b: ReturnType<typeof builder> }[] = [];
+    mockFrom.mockImplementation((table: string) => {
+      const b = builder({ count: 4, data: [] });
+      builders.push({ table, b });
+      return b;
+    });
+
+    const res = await POST(makeRequest({ "x-cron-secret": "test-secret" }, "?dry_run=1"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.stats.invoices.noCoinpayId24h).toBe(4);
+    expect(json.stats.invoices.unpayable24h).toBe(4);
+
+    const isCalls = builders.flatMap(({ table, b }) =>
+      (b.is as ReturnType<typeof vi.fn>).mock.calls.map((c) => `${table}.${c[0]}=${c[1]}`)
+    );
+    expect(isCalls).toContain("gig_invoices.coinpay_invoice_id=null");
+    expect(isCalls).toContain("gig_invoices.metadata->>merchant_wallet_address=null");
+
+    await POST(makeRequest({ "x-cron-secret": "test-secret" }));
+    const text: string = mockSend.mock.calls[0][0].text;
+    expect(text).toContain("Created without a CoinPay id (24h): 4");
+    expect(text).toMatch(/Created unpayable, no receiving wallet \(24h\): 4 <-- ALERT/);
+  });
+
   it("labels the payments table as checkouts, not gig payments", async () => {
     mockFrom.mockImplementation(() => builder({ count: 9, data: [] }));
     await POST(makeRequest({ "x-cron-secret": "test-secret" }));

@@ -13,10 +13,16 @@ vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: vi.fn(),
 }));
 
+// The worker's stored CoinPay link is healthy unless a test says otherwise.
+vi.mock("@/lib/coinpay-oauth", () => ({
+  getStoredCoinpayLinkState: vi.fn(async () => "connected"),
+}));
+
 import { GET, POST } from "./route";
 import { createPayment } from "@/lib/coinpayportal";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getStoredCoinpayLinkState } from "@/lib/coinpay-oauth";
 
 const GIG_ID = "8489a861-0999-4107-afca-2592021ac338";
 const INVOICE_ID = "f53e4a56-3cf7-42f9-9a33-bc1cb770c4f6";
@@ -163,6 +169,35 @@ describe("POST /api/gigs/[id]/invoice/[invoiceId]/payment-request", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("This invoice is missing the worker's CoinPay receiving wallet");
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 coinpay_reconnect_required when the worker's CoinPay link is unusable", async () => {
+    (getStoredCoinpayLinkState as any).mockResolvedValueOnce("needs_reconnect");
+    (getAuthContext as any).mockResolvedValue({
+      user: { id: POSTER_ID },
+      supabase: {
+        from: vi.fn(() =>
+          invoiceQuery(
+            payableInvoice({
+              receiver_payment_currency: "sol",
+              merchant_wallet_address: WALLET_ADDRESS,
+            })
+          )
+        ),
+      },
+    });
+    (createServiceClient as any).mockReturnValue(serviceClient({ id: INVOICE_ID }));
+
+    const res = await POST({} as any, params);
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("coinpay_reconnect_required");
+    expect(body.coinpay_link_state).toBe("needs_reconnect");
+    expect(body.reconnect_url).toBe("/settings/connections");
+    // The payer cannot fix the worker's link.
+    expect(body.oauth_required).toBe(false);
     expect(createPayment).not.toHaveBeenCalled();
   });
 

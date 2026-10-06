@@ -3,9 +3,10 @@ import { createServiceClient, getAuthContext } from "@/lib/auth/get-user";
 import { getCoinpayLink } from "@/lib/coinpay-oauth";
 import {
   findCoinpayGlobalWallet,
-  getCoinpayGlobalWalletTokens,
   preferredCoinToPaymentCurrency,
+  readCoinpayUserinfoWallets,
 } from "@/lib/coinpayportal";
+import { coinpayReconnectBody } from "@/lib/coinpay-reconnect";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
 import { getPullRequestMergeState } from "@/lib/github-app";
 import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
@@ -457,37 +458,50 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
+    // Verify the worker's CoinPay link before anything is written. The invoice
+    // row is only payable if it carries the worker's receiving wallet, and that
+    // wallet can only be read through a live link with wallet:read. A link that
+    // cannot do that gets one machine-readable answer (409
+    // coinpay_reconnect_required) and no row, never a half-made invoice.
     const workerCoinpayLink = await getCoinpayLink(workerId);
     if (workerCoinpayLink.accessToken === null) {
-      // "Connect" and "reconnect" are different instructions, and handing the
-      // wrong one to somebody who is already connected is a loop with no exit:
-      // they check, see a connection, and try again. See getCoinpayLink.
-      const reconnect = workerCoinpayLink.state === "needs_reconnect";
+      const state = workerCoinpayLink.state === "none" ? "none" : "needs_reconnect";
       return NextResponse.json(
         {
-          error: isWorker
-            ? reconnect
-              ? "Reconnect your CoinPay account before sending an invoice. It is connected, but it was authorised before ugig needed permission to read your wallet addresses."
-              : "Connect your CoinPay account before sending an invoice"
-            : reconnect
-              ? "The worker must reconnect CoinPay before this invoice can be created. Their link predates the wallet permission ugig needs."
-              : "The worker must connect CoinPay before this invoice can be created",
-          // Still an OAuth round trip for the worker either way: reconnecting
-          // is the same authorise flow, so a client that keys on this flag to
-          // offer the button keeps working.
-          oauth_required: isWorker,
-          coinpay_link_state: workerCoinpayLink.state,
-          setup_required: true,
-          setup_instructions: reconnect
-            ? COINPAY_RECONNECT_INSTRUCTIONS
-            : COINPAY_WALLET_SETUP_INSTRUCTIONS,
+          ...coinpayReconnectBody({ state, callerIsWorker: isWorker, action: "invoice" }),
+          setup_instructions:
+            state === "needs_reconnect"
+              ? COINPAY_RECONNECT_INSTRUCTIONS
+              : COINPAY_WALLET_SETUP_INSTRUCTIONS,
         },
         { status: 409 }
       );
     }
     const workerCoinpayToken = workerCoinpayLink.accessToken;
 
-    const workerWallets = await getCoinpayGlobalWalletTokens({ access_token: workerCoinpayToken });
+    // The stored scope can claim wallet:read while CoinPay has silently
+    // narrowed the grant (2026-08-16), or the token can be revoked. Both look
+    // "Connected" from our side; only the userinfo call tells the truth.
+    const userinfo = await readCoinpayUserinfoWallets(workerCoinpayToken);
+    if (userinfo.status !== "ok") {
+      console.warn(
+        `[invoice] worker CoinPay link unusable: ${userinfo.status}${
+          userinfo.status === "unauthorized" ? ` ${userinfo.httpStatus}` : ""
+        }`
+      );
+      return NextResponse.json(
+        {
+          ...coinpayReconnectBody({
+            state: "needs_reconnect",
+            callerIsWorker: isWorker,
+            action: "invoice",
+          }),
+          setup_instructions: COINPAY_RECONNECT_INSTRUCTIONS,
+        },
+        { status: 409 }
+      );
+    }
+    const workerWallets = userinfo.wallets;
     if (workerWallets.length === 0) {
       return NextResponse.json(
         {

@@ -5,7 +5,7 @@ import {
   SUPPORTED_CURRENCIES,
   type CoinpayCurrency,
 } from "@/lib/coinpay-client";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const SUPPORTED_KEYS = Object.keys(SUPPORTED_CURRENCIES) as [
@@ -40,14 +40,19 @@ export async function POST(req: NextRequest) {
   // form-supplied name/email. Funding is open to anonymous contributors.
   let userId: string | null = null;
   try {
-    const sessionClient = await createClient();
-    const {
-      data: { user },
-    } = await sessionClient.auth.getUser();
+    // Session or API key. An API-key context has no email, so read it from
+    // the auth user rather than trusting the form.
+    const auth = await getAuthContext(req);
+    const user = auth?.user ?? null;
     if (user) {
       userId = user.id;
-      if (user.email) contributor_email = user.email;
       const admin = createServiceClient();
+      let email = user.email;
+      if (!email && admin) {
+        const { data: authUser } = await admin.auth.admin.getUserById(user.id);
+        email = authUser?.user?.email ?? undefined;
+      }
+      if (email) contributor_email = email;
       if (admin) {
         const { data: profile } = await admin
           .from("profiles")

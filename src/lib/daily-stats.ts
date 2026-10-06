@@ -57,7 +57,24 @@ export interface DailyStats {
   social: { follows: number; newFollows24h: number; endorsements: number; reviews: number; newReviews24h: number };
   messaging: { conversations: number; newConversations24h: number; messages: number; newMessages24h: number };
   /** gig_invoices: worker -> poster invoices paid through CoinPay. This is where gig money moves. */
-  invoices: { total: number; paid: number; awaitingPayment: number; new24h: number; paid24h: number };
+  invoices: {
+    total: number;
+    paid: number;
+    awaitingPayment: number;
+    new24h: number;
+    paid24h: number;
+    /**
+     * Created in the last 24h with no coinpay_invoice_id yet. The id is minted
+     * when the poster presses Pay, so this is "not yet put up for payment",
+     * not by itself an error; a count that never drains is the 2026-09 stall.
+     */
+    noCoinpayId24h: number;
+    /**
+     * Created in the last 24h with no receiving wallet: nothing the poster can
+     * pay. Should always be 0 now that creation is gated; non-zero is a bug.
+     */
+    unpayable24h: number;
+  };
   /** payments: Pro/lifetime/funding/tip checkouts only, not gig payments. */
   payments: { total: number; confirmed: number; forwarded: number; pending: number; new24h: number };
 }
@@ -125,7 +142,7 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     postsTotal, posts24h, posts7d, commentsTotal, comments24h,
     follows, follows24h, endorsements, reviews, reviews24h,
     convos, convos24h, messages, messages24h,
-    invTotal, invPaid, invSent, inv24h, invPaid24h,
+    invTotal, invPaid, invSent, inv24h, invPaid24h, invNoId24h, invUnpayable24h,
     payTotal, payConfirmed, payForwarded, payPending, pay24h,
   ] = await Promise.all([
     count(supabase, "profiles"),
@@ -173,6 +190,10 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     count(supabase, "gig_invoices", { status: "sent" }),
     countSince(supabase, "gig_invoices", "created_at", day),
     countSince(supabase, "gig_invoices", "updated_at", day, { status: "paid" }),
+    countSince(supabase, "gig_invoices", "created_at", day, { coinpay_invoice_id: null }),
+    countSince(supabase, "gig_invoices", "created_at", day, {
+      "metadata->>merchant_wallet_address": null,
+    }),
     // payment_status: pending | confirmed | forwarded | expired | failed
     count(supabase, "payments"),
     count(supabase, "payments", { status: "confirmed" }),
@@ -210,7 +231,15 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     posts: { total: postsTotal, new24h: posts24h, new7d: posts7d, comments: commentsTotal, newComments24h: comments24h },
     social: { follows, newFollows24h: follows24h, endorsements, reviews, newReviews24h: reviews24h },
     messaging: { conversations: convos, newConversations24h: convos24h, messages, newMessages24h: messages24h },
-    invoices: { total: invTotal, paid: invPaid, awaitingPayment: invSent, new24h: inv24h, paid24h: invPaid24h },
+    invoices: {
+      total: invTotal,
+      paid: invPaid,
+      awaitingPayment: invSent,
+      new24h: inv24h,
+      paid24h: invPaid24h,
+      noCoinpayId24h: invNoId24h,
+      unpayable24h: invUnpayable24h,
+    },
     payments: { total: payTotal, confirmed: payConfirmed, forwarded: payForwarded, pending: payPending, new24h: pay24h },
   };
 
@@ -294,6 +323,8 @@ GIG INVOICES (worker -> poster, via CoinPay)
   Paid: ${invoices.paid} (+${invoices.paid24h} 24h)
   Awaiting payment: ${invoices.awaitingPayment}
   New (24h): ${invoices.new24h}
+  Created without a CoinPay id (24h): ${invoices.noCoinpayId24h} (id is minted when the poster pays)
+  Created unpayable, no receiving wallet (24h): ${invoices.unpayable24h}${invoices.unpayable24h > 0 ? " <-- ALERT" : ""}
 
 PRO / FUNDING / TIP CHECKOUTS (payments table)
   Total: ${payments.total}
@@ -387,6 +418,12 @@ PRO / FUNDING / TIP CHECKOUTS (payments table)
       row("Paid", plus(invoices.paid, invoices.paid24h), " color: #16a34a;"),
       row("Awaiting payment", invoices.awaitingPayment),
       row("New (24h)", invoices.new24h, green(invoices.new24h)),
+      row("Created without a CoinPay id (24h)", invoices.noCoinpayId24h),
+      row(
+        "Created unpayable, no wallet (24h)",
+        invoices.unpayable24h,
+        invoices.unpayable24h > 0 ? " font-weight: bold; color: #dc2626;" : ""
+      ),
     ])}
     ${h2("💰 Pro / funding / tip checkouts")}
     ${table([

@@ -7,6 +7,7 @@ import {
   ensureInvoicePaymentRequest,
   metadataObject,
 } from "@/lib/invoices/payment-request";
+import { COINPAY_RECONNECT_CODE } from "@/lib/coinpay-reconnect";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,11 @@ export interface BulkPaymentSkip {
    * paid", which is how 30 perfectly payable invoices got written off.
    */
   retryable?: boolean;
+  /**
+   * "coinpay_reconnect_required" when the worker's CoinPay link is unusable.
+   * Not retryable: only the worker can fix it, via /settings/connections.
+   */
+  code?: string;
 }
 
 /** Run tasks with a bounded number in flight, preserving input order. */
@@ -189,7 +195,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const prepared = await mapWithConcurrency(payable, CONCURRENCY, async (invoice) => {
       try {
         const result = await ensureInvoicePaymentRequest(invoice, { deadline });
-        if (!result.ok) return { invoice, error: result.error, retryable: result.retryable };
+        if (!result.ok) {
+          return {
+            invoice,
+            error: result.error,
+            retryable: result.retryable,
+            code: result.code === "RECONNECT" ? COINPAY_RECONNECT_CODE : undefined,
+          };
+        }
         return { invoice, data: result.data, reused: result.reused };
       } catch (err) {
         return {
@@ -207,6 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           id: entry.invoice.id,
           reason: entry.error || "Could not be prepared",
           retryable: entry.retryable ?? false,
+          ...("code" in entry && entry.code ? { code: entry.code } : {}),
         });
         continue;
       }

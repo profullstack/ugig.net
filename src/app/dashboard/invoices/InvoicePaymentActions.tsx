@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
+import { isCoinpayReconnectBody } from "@/lib/coinpay-reconnect";
+import type { UnpayableReason } from "@/lib/invoices/payability";
 import { CheckCircle2, Loader2, RefreshCw, Send, ThumbsUp, XCircle } from "lucide-react";
 
 type InvoiceStatus =
@@ -52,6 +54,11 @@ interface InvoicePaymentActionsProps {
   dueDate: string | null;
   metadata: InvoicePaymentMetadata | null;
   rejectionReason?: string | null;
+  /**
+   * Why this invoice cannot be paid as things stand (see
+   * lib/invoices/payability). Null when it can.
+   */
+  unpayableReason?: UnpayableReason | null;
 }
 
 export function InvoicePaymentActions({
@@ -61,6 +68,7 @@ export function InvoicePaymentActions({
   payUrl: initialPayUrl,
   metadata: initialMetadata,
   rejectionReason = null,
+  unpayableReason: initialUnpayableReason = null,
 }: InvoicePaymentActionsProps) {
   const router = useRouter();
   const [status, setStatus] = useState<InvoiceStatus>(initialStatus);
@@ -82,7 +90,10 @@ export function InvoicePaymentActions({
   const [acceptedAt, setAcceptedAt] = useState<string | null>(
     initialMetadata?.accepted_at ?? null
   );
-  const [canRequestNew, setCanRequestNew] = useState(false);
+  const [unpayableReason, setUnpayableReason] = useState<UnpayableReason | null>(
+    initialUnpayableReason
+  );
+  const [canRequestNew, setCanRequestNew] = useState(Boolean(initialUnpayableReason));
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -177,6 +188,12 @@ export function InvoicePaymentActions({
 
       if (!res.ok) {
         const message = json.error || "Failed to create payment request";
+        if (isCoinpayReconnectBody(json)) {
+          // The worker's link is unusable; the explanation below says so.
+          setUnpayableReason("worker_reconnect");
+          setCanRequestNew(true);
+          return;
+        }
         setError(message);
         // The worker's CoinPay wallet is missing or no longer connected, so this
         // invoice can't be paid as-is. Offer to ask them for a fresh invoice.
@@ -500,11 +517,24 @@ export function InvoicePaymentActions({
       </p>
       {statusMessage && <p className="text-sm text-green-700">{statusMessage}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {canRequestNew && (
-        <p className="text-xs text-muted-foreground">
-          The worker&apos;s CoinPay wallet isn&apos;t connected, so this invoice can&apos;t be paid.
-          Ask them to send a fresh invoice with a connected wallet.
+      {unpayableReason === "worker_reconnect" ? (
+        <p className="text-xs text-muted-foreground" data-testid="unpayable-explanation">
+          This invoice can&apos;t be paid yet: the worker&apos;s CoinPay connection has expired or
+          lost the wallet permission. They need to reconnect CoinPay. Request a new invoice and
+          they will be prompted to.
         </p>
+      ) : unpayableReason === "missing_wallet" ? (
+        <p className="text-xs text-muted-foreground" data-testid="unpayable-explanation">
+          This invoice can&apos;t be paid: it has no CoinPay receiving wallet. Request a new
+          invoice from the worker.
+        </p>
+      ) : (
+        canRequestNew && (
+          <p className="text-xs text-muted-foreground">
+            The worker&apos;s CoinPay wallet isn&apos;t connected, so this invoice can&apos;t be
+            paid. Ask them to send a fresh invoice with a connected wallet.
+          </p>
+        )
       )}
       <div className="flex flex-wrap items-center gap-2">
         {acceptControl}
@@ -512,7 +542,7 @@ export function InvoicePaymentActions({
           type="button"
           size="sm"
           onClick={createPaymentRequest}
-          disabled={submitting || requestingNew || accepting}
+          disabled={submitting || requestingNew || accepting || Boolean(unpayableReason)}
           className="gap-2"
         >
           {submitting ? (

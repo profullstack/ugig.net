@@ -12,7 +12,7 @@ vi.mock("@/lib/coinpayportal", () => ({
     (wallets, currency, address) =>
       wallets.find((w: any) => w.currency === currency && w.address === address) || null
   ),
-  getCoinpayGlobalWalletTokens: vi.fn(),
+  readCoinpayUserinfoWallets: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn((v: string | null) => v?.toLowerCase() || null),
   resolveSupportedPaymentCurrency: vi.fn(),
 }));
@@ -20,6 +20,7 @@ vi.mock("@/lib/coinpayportal", () => ({
 vi.mock("@/lib/coinpay-oauth", () => ({
   getConnectedCoinpayAccessToken: vi.fn(),
   getCoinpayLink: vi.fn(),
+  getStoredCoinpayLinkState: vi.fn(async () => "connected"),
 }));
 
 vi.mock("@/lib/email", () => ({
@@ -150,7 +151,7 @@ import { POST as payInvoice } from "./[invoiceId]/payment-request/route";
 import { getAuthContext } from "@/lib/auth/get-user";
 import {
   createPayment,
-  getCoinpayGlobalWalletTokens,
+  readCoinpayUserinfoWallets,
   preferredCoinToPaymentCurrency,
 } from "@/lib/coinpayportal";
 import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
@@ -168,9 +169,9 @@ describe("invoice money path (sats gig, end to end)", () => {
     );
     (getConnectedCoinpayAccessToken as any).mockResolvedValue("token");
     (getCoinpayLink as any).mockResolvedValue({ state: "connected", accessToken: "token" });
-    (getCoinpayGlobalWalletTokens as any).mockResolvedValue([
+    (readCoinpayUserinfoWallets as any).mockResolvedValue({ status: "ok", wallets: [
       { currency: "sol", cryptocurrency: "SOL", label: "Solana", address: SOL_ADDRESS },
-    ]);
+    ] });
     (createPayment as any).mockResolvedValue({
       payment_id: "cp-1",
       payment: { payment_address: "cp-addr", currency: "sol" },

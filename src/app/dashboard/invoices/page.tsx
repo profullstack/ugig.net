@@ -8,6 +8,13 @@ import { InvoiceCharges } from "./InvoiceCharges";
 import { SentInvoiceActions } from "./SentInvoiceActions";
 import { PaymentTransactionDetails } from "@/components/payments/PaymentTransactionDetails";
 import { BulkPayAccepted } from "./BulkPayAccepted";
+import { CoinpayReconnectNotice } from "@/components/gigs/CoinpayReconnectNotice";
+import { getStoredCoinpayLinkStates, type CoinpayLinkState } from "@/lib/coinpay-oauth";
+import {
+  UNPAYABLE_LABEL,
+  invoiceUnpayableReason,
+  type UnpayableReason,
+} from "@/lib/invoices/payability";
 import {
   ArrowLeft,
   ExternalLink,
@@ -84,6 +91,8 @@ interface InvoiceRow {
     payer_tx_hash?: string | null;
     payer_tx_explorer_url?: string | null;
     paid_at?: string | null;
+    merchant_wallet_address?: string | null;
+    receiver_payment_currency?: string | null;
   } | null;
   created_at: string;
   gig: { id: string; title: string } | null;
@@ -216,6 +225,27 @@ export default async function InvoicesDashboardPage({
   const totalPendingForMe = sent
     .filter((i) => isAwaitingPayment(i.status))
     .reduce((s, i) => s + Number(i.amount_usd || 0), 0);
+
+  // Which open invoices cannot be paid as things stand, and why. Read from
+  // the stored CoinPay links (no provider calls), so a page of 100 invoices is
+  // one extra query. A lookup failure just hides the hint.
+  let linkStates = new Map<string, CoinpayLinkState>();
+  try {
+    linkStates = await getStoredCoinpayLinkStates(
+      invoices.filter((i) => isAwaitingPayment(i.status)).map((i) => i.worker_id)
+    );
+  } catch (err) {
+    console.error("[invoices dashboard] CoinPay link lookup failed:", err);
+  }
+  const unpayable = new Map<string, UnpayableReason>();
+  for (const inv of invoices) {
+    const reason = invoiceUnpayableReason(
+      { status: inv.status, metadata: inv.metadata as Record<string, unknown> | null },
+      linkStates.get(inv.worker_id) ?? null
+    );
+    if (reason) unpayable.set(inv.id, reason);
+  }
+  const myLinkState = linkStates.get(user.id) ?? null;
 
   const base = tab === "sent" ? sent : received;
   const list = base.filter((i) => matchesStatusFilter(i, statusFilter));
@@ -396,6 +426,14 @@ export default async function InvoicesDashboardPage({
                             Accepted · will be paid soon
                           </span>
                         )}
+                        {unpayable.has(inv.id) && (
+                          <span
+                            data-testid="unpayable-badge"
+                            className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-600 border border-red-500/20"
+                          >
+                            {UNPAYABLE_LABEL[unpayable.get(inv.id)!]}
+                          </span>
+                        )}
                         {inv.metadata?.replacement_requested_at &&
                           isAwaitingPayment(inv.status) && (
                             <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600 border border-amber-500/20">
@@ -465,6 +503,22 @@ export default async function InvoicesDashboardPage({
                       </div>
                     )}
 
+                    {tab === "sent" && unpayable.get(inv.id) === "worker_reconnect" && (
+                      <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                        <CoinpayReconnectNotice
+                          state={myLinkState === "none" ? "none" : "needs_reconnect"}
+                          canFix
+                        />
+                      </div>
+                    )}
+
+                    {tab === "sent" && unpayable.get(inv.id) === "missing_wallet" && (
+                      <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600">
+                        This invoice has no CoinPay receiving wallet, so the client cannot pay it.
+                        Revoke it and send a new one from the gig.
+                      </div>
+                    )}
+
                     {tab === "sent" && inv.status === "cancelled" && (
                       <div className="mb-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
                         You revoked this invoice. Resend a corrected one from the gig.
@@ -505,6 +559,7 @@ export default async function InvoicesDashboardPage({
                           dueDate={inv.due_date}
                           metadata={inv.metadata}
                           rejectionReason={inv.rejection_reason}
+                          unpayableReason={unpayable.get(inv.id) ?? null}
                         />
                       </div>
                     )}

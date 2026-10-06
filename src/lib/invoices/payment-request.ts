@@ -1,6 +1,7 @@
 import { createPayment, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
 import { isCoinpayRateLimitError } from "@/lib/coinpay-throttle";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getStoredCoinpayLinkState, type CoinpayLinkState } from "@/lib/coinpay-oauth";
 
 /**
  * Creating the CoinPay payment request for an invoice.
@@ -31,7 +32,9 @@ export type PaymentRequestResult =
   | {
       ok: false;
       error: string;
-      code: "NO_WALLET" | "PROVIDER" | "PERSIST" | "RATE_LIMITED";
+      code: "NO_WALLET" | "PROVIDER" | "PERSIST" | "RATE_LIMITED" | "RECONNECT";
+      /** Set with code RECONNECT: what is wrong with the worker's link. */
+      coinpay_link_state?: Exclude<CoinpayLinkState, "connected">;
       /**
        * True when nothing about this invoice is wrong and the same call would
        * likely succeed shortly. The bulk payer surfaces these as retryable
@@ -93,7 +96,13 @@ function receivingWallet(metadata: Record<string, unknown>): {
  */
 export async function ensureInvoicePaymentRequest(
   invoice: any,
-  options: { appUrl?: string; businessId?: string; deadline?: number } = {}
+  options: {
+    appUrl?: string;
+    businessId?: string;
+    deadline?: number;
+    /** Injected for tests; defaults to the stored oauth_identities check. */
+    workerLinkState?: (workerId: string) => Promise<CoinpayLinkState>;
+  } = {}
 ): Promise<PaymentRequestResult> {
   const metadata = metadataObject(invoice.metadata);
 
@@ -126,6 +135,31 @@ export async function ensureInvoicePaymentRequest(
       code: "NO_WALLET",
       error: "This invoice is missing the worker's CoinPay receiving wallet",
     };
+  }
+
+  // Verify the worker's CoinPay link before minting a payment request. The
+  // payment goes to the address captured on the invoice, but a worker whose
+  // link is gone can no longer prove that address is theirs, cannot see the
+  // payment in CoinPay, and is the one person who can fix it. Block only on
+  // positive evidence: a failed lookup is our problem, not the worker's.
+  if (invoice.worker_id) {
+    let linkState: CoinpayLinkState | null = null;
+    try {
+      linkState = await (options.workerLinkState ?? getStoredCoinpayLinkState)(invoice.worker_id);
+    } catch (err) {
+      console.error("[invoice payment request] worker CoinPay link lookup failed:", err);
+    }
+    if (linkState && linkState !== "connected") {
+      return {
+        ok: false,
+        code: "RECONNECT",
+        coinpay_link_state: linkState,
+        error:
+          linkState === "needs_reconnect"
+            ? "The worker must reconnect CoinPay before this invoice can be paid. Their link has expired or is missing the wallet permission."
+            : "The worker must connect CoinPay before this invoice can be paid.",
+      };
+    }
   }
 
   let paymentResult: any;

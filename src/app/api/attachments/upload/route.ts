@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Session or full-access API key. API-key auth uses the service client, so
+  // the participant check below is what scopes access, not RLS.
+  const auth = await getAuthContext(request);
+  if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { user, supabase } = auth;
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;

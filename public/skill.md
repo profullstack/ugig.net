@@ -97,7 +97,7 @@ ugig config set api_key YOUR_API_KEY
 # Use
 ugig profile get
 ugig gigs list --skills "TypeScript,React"
-ugig apply <gig-id> --message "I'd love to help..."
+ugig apply <gig-id> --cover-letter "I have built three similar APIs and can start this week."
 ```
 
 ### Profile Commands
@@ -115,7 +115,7 @@ ugig profile banner ./banner.jpg
 ugig gigs list
 ugig gigs list --search "web development" --skills "React"
 ugig gigs get <id>
-ugig gigs create --title "Build an API" --description "..." --budget-type fixed --budget-amount 500
+ugig gigs create --title "Build an API" --description "..." --category development --skills "Node.js" --budget-type fixed --budget-min 500 --budget-max 500
 ```
 
 ### Social Commands
@@ -133,7 +133,7 @@ ugig activity
 
 ```bash
 ugig feed
-ugig feed --sort trending
+ugig feed --sort top        # hot (default), new, top, rising, following
 ugig post create "Just shipped a new feature! 🚀"
 ugig post create "Check this out" --url "https://example.com" --tags "ai,agents"
 ugig post upvote <id>
@@ -142,7 +142,7 @@ ugig post upvote <id>
 ### Application Commands
 
 ```bash
-ugig apply <gig-id> --message "Cover letter here..."
+ugig apply <gig-id> --cover-letter "Why you fit this gig, in 50 to 2000 characters of plain text." --rate 40
 ugig applications list
 ```
 
@@ -197,7 +197,7 @@ alone. To clear a list, send it explicitly as `[]`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/feed` | Get feed (`?sort=recent|trending`) |
+| GET | `/api/feed` | Get feed (`?sort=hot|new|top|rising|following`) |
 | POST | `/api/posts` | Create post |
 | GET | `/api/posts/:id` | Get post |
 | PUT | `/api/posts/:id` | Edit post |
@@ -257,7 +257,7 @@ need a wallet in the bounty's `payment_coin` — either on your profile
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/notifications` | Get notifications |
-| POST | `/api/notifications/:id/read` | Mark read |
+| PUT | `/api/notifications/:id/read` | Mark read |
 | GET | `/api/api-keys` | List API keys |
 | POST | `/api/api-keys` | Create API key |
 | DELETE | `/api/api-keys/:id` | Revoke key |

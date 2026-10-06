@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { CryptoPaymentBox } from "@/components/payments/CryptoPaymentBox";
 import { PaymentTransactionDetails } from "@/components/payments/PaymentTransactionDetails";
+import { CoinpayReconnectNotice } from "@/components/gigs/CoinpayReconnectNotice";
+import { isCoinpayReconnectBody } from "@/lib/coinpay-reconnect";
 import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 
 interface CoinPayWalletOption {
@@ -203,6 +205,9 @@ export function InvoiceButton({
   const [walletsLoaded, setWalletsLoaded] = useState(false);
   const [oauthRequired, setOauthRequired] = useState(false);
   const [walletInstructions, setWalletInstructions] = useState<string[]>([]);
+  // Set when the API answers 409 coinpay_reconnect_required: the worker's
+  // CoinPay link cannot be used, so no invoice was created.
+  const [reconnect, setReconnect] = useState<CoinpayReconnectState | null>(null);
   const [items, setItems] = useState<LineItem[]>([
     { description: "", quantity: "1", unit_price: budgetAmount ? budgetAmount.toString() : "", link: "" },
   ]);
@@ -365,8 +370,10 @@ export function InvoiceButton({
 
       if (!response.ok) {
         setError(result.error || "Failed to create invoice");
+        setReconnect(reconnectStateFrom(result));
         return;
       }
+      setReconnect(null);
 
       // Add to local list
       setInvoices((prev) => [
@@ -419,6 +426,10 @@ export function InvoiceButton({
       if (!response.ok) {
         const message = result.error || "Failed to create payment request";
         setError(message);
+        if (isCoinpayReconnectBody(result)) {
+          setWalletErrorInvoiceId(invoiceId);
+          return;
+        }
         // The worker's CoinPay wallet is missing or no longer connected. Let the
         // poster ask them for a fresh invoice instead of leaving a dead end.
         if (/wallet|coinpay|not connected|receiving/i.test(message)) {
@@ -799,6 +810,7 @@ export function InvoiceButton({
             walletsLoading={walletsLoading}
             oauthRequired={oauthRequired}
             walletInstructions={walletInstructions}
+            reconnect={reconnect}
             onRefreshWallets={loadCoinpayWallets}
             onSubmit={handleCreateInvoice}
             onCancel={() => {
@@ -837,6 +849,7 @@ export function InvoiceButton({
           walletsLoading={walletsLoading}
           oauthRequired={oauthRequired}
           walletInstructions={walletInstructions}
+          reconnect={reconnect}
           onRefreshWallets={loadCoinpayWallets}
           onSubmit={handleCreateInvoice}
           onCancel={() => {
@@ -862,6 +875,22 @@ export function InvoiceButton({
 
   // Poster with no invoices yet: nothing to show
   return null;
+}
+
+type CoinpayReconnectState = {
+  state: "none" | "needs_reconnect";
+  canFix: boolean;
+  url: string;
+};
+
+/** The reconnect prompt for a 409 coinpay_reconnect_required body, else null. */
+export function reconnectStateFrom(body: unknown): CoinpayReconnectState | null {
+  if (!isCoinpayReconnectBody(body)) return null;
+  return {
+    state: body.coinpay_link_state === "none" ? "none" : "needs_reconnect",
+    canFix: Boolean(body.oauth_required),
+    url: body.reconnect_url || "/settings/connections",
+  };
 }
 
 // ── Invoice Form ──
@@ -890,6 +919,7 @@ function InvoiceForm({
   walletsLoading,
   oauthRequired,
   walletInstructions,
+  reconnect,
   onRefreshWallets,
   onSubmit,
   onCancel,
@@ -915,6 +945,7 @@ function InvoiceForm({
   walletsLoading: boolean;
   oauthRequired: boolean;
   walletInstructions: string[];
+  reconnect: CoinpayReconnectState | null;
   onRefreshWallets: () => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -1195,6 +1226,13 @@ function InvoiceForm({
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {reconnect && (
+        <CoinpayReconnectNotice
+          state={reconnect.state}
+          canFix={reconnect.canFix}
+          connectUrl={reconnect.url}
+        />
+      )}
 
       <div className="flex gap-2">
         <Button

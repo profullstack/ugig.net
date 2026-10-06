@@ -3,6 +3,7 @@ import crypto from "crypto";
 import {
   coinToPaymentCurrency,
   getCoinpayGlobalWalletTokens,
+  readCoinpayUserinfoWallets,
   createPayment,
   createInvoice,
   sendInvoice,
@@ -489,5 +490,52 @@ describe("getCoinpayGlobalWalletTokens via OAuth userinfo", () => {
     );
 
     await expect(getCoinpayGlobalWalletTokens({ access_token: "cp_at_test" })).resolves.toEqual([]);
+  });
+});
+
+describe("readCoinpayUserinfoWallets", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubUserinfo(status: number, body: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: status >= 200 && status < 300,
+        status,
+        json: vi.fn().mockResolvedValue(body),
+        text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+      })
+    );
+  }
+
+  it("classifies a rejected token as unauthorized instead of throwing", async () => {
+    stubUserinfo(401, { error: "invalid_token" });
+    await expect(readCoinpayUserinfoWallets("tok")).resolves.toEqual({
+      status: "unauthorized",
+      httpStatus: 401,
+    });
+  });
+
+  it("reports a missing wallets claim as a dropped scope, not as zero wallets", async () => {
+    // What a grant without wallet:read looks like: userinfo works, no claim.
+    stubUserinfo(200, { sub: "abc", email: "x" });
+    await expect(readCoinpayUserinfoWallets("tok")).resolves.toEqual({
+      status: "no_wallet_claim",
+    });
+  });
+
+  it("returns an empty list when the claim is present but empty", async () => {
+    stubUserinfo(200, { sub: "abc", wallets: [] });
+    await expect(readCoinpayUserinfoWallets("tok")).resolves.toEqual({
+      status: "ok",
+      wallets: [],
+    });
+  });
+
+  it("throws on any other failure rather than guessing", async () => {
+    stubUserinfo(400, { error: "bad request" });
+    await expect(readCoinpayUserinfoWallets("tok")).rejects.toThrow(/userinfo failed: 400/);
   });
 });

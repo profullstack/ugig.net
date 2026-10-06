@@ -27,9 +27,50 @@ const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 // Refresh if token expires within 5 minutes
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
+/**
+ * The identity metadata to store after a refresh.
+ *
+ * Merged over what was there, not a replacement. The original version wrote a
+ * fresh object, which threw away `coinpay_sub`, `name` and `connected_at` on
+ * every refresh (46 of 101 prod links had lost them by 2026-10-06), and wrote
+ * `scope: null` whenever the token response left `scope` out. RFC 6749 5.1
+ * makes `scope` optional when it is unchanged, and a null scope fails
+ * `coinpayLinkCanReadWallets`, so a routine refresh could turn a working link
+ * into "reconnect required" for no reason.
+ */
+export function mergeRefreshedCoinpayMetadata(
+  previous: unknown,
+  tokens: Record<string, unknown>,
+  refreshToken: string,
+  now: number = Date.now()
+): Record<string, unknown> | null {
+  const prev = metadataObject(previous);
+  const newAccessToken = typeof tokens.access_token === "string" ? tokens.access_token.trim() : "";
+  if (!newAccessToken) return null;
+  const scope =
+    typeof tokens.scope === "string" && tokens.scope.trim()
+      ? tokens.scope
+      : typeof prev.scope === "string"
+        ? prev.scope
+        : null;
+  return {
+    ...prev,
+    access_token: newAccessToken,
+    token_type: typeof tokens.token_type === "string" ? tokens.token_type : "Bearer",
+    scope,
+    expires_at:
+      typeof tokens.expires_in === "number"
+        ? new Date(now + tokens.expires_in * 1000).toISOString()
+        : null,
+    refresh_token: typeof tokens.refresh_token === "string" ? tokens.refresh_token : refreshToken,
+    refreshed_at: new Date(now).toISOString(),
+  };
+}
+
 async function refreshCoinpayToken(
   refreshToken: string,
-  identityId: string
+  identityId: string,
+  previousMetadata: unknown
 ): Promise<string | null> {
   const clientId = process.env.COINPAY_OAUTH_CLIENT_ID;
   const clientSecret = process.env.COINPAY_OAUTH_CLIENT_SECRET;
@@ -53,23 +94,9 @@ async function refreshCoinpayToken(
     }
 
     const tokens = await res.json();
-    const newAccessToken = typeof tokens.access_token === "string" ? tokens.access_token.trim() : "";
-    if (!newAccessToken) return null;
-
-    const newMetadata: Record<string, unknown> = {
-      access_token: newAccessToken,
-      token_type: typeof tokens.token_type === "string" ? tokens.token_type : "Bearer",
-      scope: typeof tokens.scope === "string" ? tokens.scope : null,
-      expires_at:
-        typeof tokens.expires_in === "number"
-          ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-          : null,
-    };
-    if (typeof tokens.refresh_token === "string") {
-      newMetadata.refresh_token = tokens.refresh_token;
-    } else {
-      newMetadata.refresh_token = refreshToken;
-    }
+    const newMetadata = mergeRefreshedCoinpayMetadata(previousMetadata, tokens ?? {}, refreshToken);
+    if (!newMetadata) return null;
+    const newAccessToken = newMetadata.access_token as string;
 
     const serviceSupabase = createServiceClient();
     await (serviceSupabase as any)
@@ -154,7 +181,7 @@ async function resolveCoinpayToken(
   if (isExpired) {
     const refreshToken = typeof metadata.refresh_token === "string" ? metadata.refresh_token.trim() : "";
     if (refreshToken && data?.id) {
-      const refreshed = await refreshCoinpayToken(refreshToken, data.id);
+      const refreshed = await refreshCoinpayToken(refreshToken, data.id, data.metadata);
       if (refreshed) return { accessToken: refreshed, hadIdentity };
     }
     // Refresh failed — the stored token is likely unusable; signal reconnect needed.
@@ -162,4 +189,70 @@ async function resolveCoinpayToken(
   }
 
   return { accessToken, hadIdentity };
+}
+
+/**
+ * Can this stored link be used, judged from what is stored alone?
+ *
+ * Usable means: an access token, the wallet:read scope, and either an
+ * unexpired token or a refresh token to get a new one. No network call, so the
+ * payer side (single and bulk payment requests) can ask it for every invoice
+ * without spending CoinPay's rate limit on refreshes it does not need.
+ */
+export function storedCoinpayLinkState(
+  metadata: unknown,
+  hasIdentity: boolean,
+  now: number = Date.now()
+): CoinpayLinkState {
+  if (!hasIdentity) return "none";
+  if (!coinpayLinkCanReadWallets(metadata)) return "needs_reconnect";
+  const meta = metadataObject(metadata);
+  const expiresAt = typeof meta.expires_at === "string" ? Date.parse(meta.expires_at) : NaN;
+  const expired = Number.isFinite(expiresAt) && now >= expiresAt;
+  const refreshToken = typeof meta.refresh_token === "string" ? meta.refresh_token.trim() : "";
+  if (expired && !refreshToken) return "needs_reconnect";
+  return "connected";
+}
+
+/** The worker's CoinPay link state from the database, without refreshing. */
+export async function getStoredCoinpayLinkState(userId: string): Promise<CoinpayLinkState> {
+  const serviceSupabase = createServiceClient();
+  const { data, error } = await (serviceSupabase as any)
+    .from("oauth_identities")
+    .select("id, metadata")
+    .eq("user_id", userId)
+    .eq("provider", "coinpay")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to read CoinPay link: ${error.message}`);
+  return storedCoinpayLinkState(data?.metadata, Boolean(data));
+}
+
+/**
+ * Stored link state for many users at once (one query), for list pages.
+ * Users with no row come back as "none".
+ */
+export async function getStoredCoinpayLinkStates(
+  userIds: string[]
+): Promise<Map<string, CoinpayLinkState>> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  const states = new Map<string, CoinpayLinkState>();
+  if (ids.length === 0) return states;
+  const serviceSupabase = createServiceClient();
+  const { data, error } = await (serviceSupabase as any)
+    .from("oauth_identities")
+    .select("user_id, metadata, updated_at")
+    .eq("provider", "coinpay")
+    .in("user_id", ids)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(`Failed to read CoinPay links: ${error.message}`);
+  for (const row of (data ?? []) as Array<{ user_id: string; metadata: unknown }>) {
+    // Newest first, so the first row per user wins (same rule as the gate).
+    if (!states.has(row.user_id)) {
+      states.set(row.user_id, storedCoinpayLinkState(row.metadata, true));
+    }
+  }
+  for (const id of ids) if (!states.has(id)) states.set(id, "none");
+  return states;
 }

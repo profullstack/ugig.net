@@ -5,6 +5,7 @@ import {
   ensureInvoicePaymentRequest,
   metadataObject,
 } from "@/lib/invoices/payment-request";
+import { coinpayReconnectBody } from "@/lib/coinpay-reconnect";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,16 @@ export async function POST(
 
     const result = await ensureInvoicePaymentRequest(context.invoice);
     if (!result.ok) {
+      if (result.code === "RECONNECT") {
+        return NextResponse.json(
+          coinpayReconnectBody({
+            state: result.coinpay_link_state ?? "needs_reconnect",
+            callerIsWorker: false,
+            action: "payment",
+          }),
+          { status: 409 }
+        );
+      }
       // A missing receiving wallet is the payer's cue to ask for a fresh
       // invoice, so it stays a 400 rather than a provider-side 502.
       const status = result.code === "NO_WALLET" ? 400 : result.code === "PERSIST" ? 500 : 502;
