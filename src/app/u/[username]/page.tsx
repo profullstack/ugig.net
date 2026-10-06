@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { buildProfileMetadata } from "@/lib/seo/profile-metadata";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, username, bio")
+    .select("full_name, username, bio, is_spam")
     .eq("username", username)
     .single();
 
@@ -65,17 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = `${profile.full_name || profile.username} | ugig.net`;
-  const description = profile.bio || `View ${profile.username}'s profile on ugig.net`;
-  const url = `/u/${profile.username}`;
-
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: { title, description, url, type: "profile" },
-    twitter: { card: "summary_large_image", title, description },
-  };
+  return buildProfileMetadata(profile);
 }
 
 export default async function PublicProfilePage({ params, searchParams }: Props) {

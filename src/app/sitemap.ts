@@ -42,6 +42,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from("profiles" as any)
         .select("username, updated_at")
         .not("username", "is", null)
+        // Spam-flagged profiles are noindexed (lib/seo/profile-metadata.ts);
+        // listing them here also let ~460 of them crowd real profiles out of
+        // the 2000-row cap.
+        .eq("is_spam", false)
         .order("updated_at", { ascending: false })
         .limit(2000),
       supabase

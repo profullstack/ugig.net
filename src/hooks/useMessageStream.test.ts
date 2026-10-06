@@ -111,6 +111,7 @@ describe("useMessageStream", () => {
         timezone: null,
         is_available: true,
         profile_completed: false,
+        is_spam: false,
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-01T00:00:00Z",
         resume_url: null,
