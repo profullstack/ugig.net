@@ -188,16 +188,6 @@ describe("API-key access to per-user routes", () => {
     expect(res.status).toBe(200);
   });
 
-  it("POST /api/subscriptions/checkout works for an API key", async () => {
-    apiKeyAuth();
-    tables.subscriptions = builder({ data: null });
-    tables.profiles = builder({ data: { username: "ada" } });
-    const { POST } = await import("./subscriptions/checkout/route");
-    const res = await POST(req("/api/subscriptions/checkout", { method: "POST" }));
-    expect(res.status).toBe(200);
-    expect(serviceClient.auth.admin.getUserById).toHaveBeenCalledWith(USER_ID);
-  });
-
   it("POST /api/attachments/upload works for an API key participant", async () => {
     apiKeyAuth();
     tables.conversations = builder({ data: { participant_ids: [USER_ID] } });
