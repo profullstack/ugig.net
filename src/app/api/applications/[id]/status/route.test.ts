@@ -269,7 +269,7 @@ describe("PUT /api/applications/[id]/status", () => {
     expect(json.error).toBe("Forbidden");
   });
 
-  it("creates notification when poster changes status", async () => {
+  it("leaves the accepted notification to the DB trigger (no duplicate)", async () => {
     mockGetAuthContext.mockResolvedValue({
       user: { id: "poster-user-id", authMethod: "session" },
       supabase: supabaseClient,
@@ -294,8 +294,42 @@ describe("PUT /api/applications/[id]/status", () => {
 
     await PUT(makeRequest({ status: "accepted" }), routeParams);
 
-    // Verify notifications table was accessed
+    // notify_on_application_status_change already notifies on accepted
+    expect(mockFrom).not.toHaveBeenCalledWith("notifications");
+  });
+
+  it("notifies the applicant itself for statuses the trigger skips (completed)", async () => {
+    mockGetAuthContext.mockResolvedValue({
+      user: { id: "poster-user-id", authMethod: "session" },
+      supabase: supabaseClient,
+    } as MockAuthContext);
+
+    const notificationInsert = vi.fn().mockReturnValue(chainResult({ data: null, error: null }));
+    
+    let callCount = 0;
+    mockFrom.mockImplementation((table: string) => {
+      callCount++;
+      if (callCount === 1) {
+        return chainResult({ data: mockApplication, error: null });
+      } else if (callCount === 2) {
+        return chainResult({ data: mockGig, error: null });
+      } else if (callCount === 3) {
+        return chainResult({ data: { ...mockApplication, status: "completed" }, error: null });
+      } else if (table === "notifications") {
+        return { insert: notificationInsert };
+      }
+      return chainResult({ data: null, error: null });
+    });
+
+    await PUT(makeRequest({ status: "completed" }), routeParams);
+
     expect(mockFrom).toHaveBeenCalledWith("notifications");
+    expect(notificationInsert).toHaveBeenCalledTimes(1);
+    expect(notificationInsert.mock.calls[0][0]).toMatchObject({
+      user_id: mockApplication.applicant_id,
+      type: "application_status",
+      data: expect.objectContaining({ status: "completed" }),
+    });
   });
 
   it("handles update errors gracefully", async () => {
