@@ -107,6 +107,10 @@ function getClientIp(request: NextRequest): string {
 }
 
 export async function proxy(request: NextRequest) {
+  // The status page's health check skips the gate, the meter and the session
+  // refresh: it must measure the app, not be billed or throttled by it.
+  if (request.nextUrl.pathname === "/api/health") return NextResponse.next();
+
   // Crawl gateway first: AI training crawlers get 402 Payment Required (or
   // the sales page at /crawl) unless they present a paid pass. People,
   // Googlebot and retrieval crawlers fall through to everything below.
