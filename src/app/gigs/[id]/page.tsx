@@ -24,6 +24,7 @@ import { GigComments } from "@/components/gigs/GigComments";
 import { AddToPortfolioPrompt } from "@/components/portfolio/AddToPortfolioPrompt";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { CloseGigButton } from "@/components/gigs/CloseGigButton";
+import { MarkFilledButton } from "@/components/gigs/MarkFilledButton";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { SatsRangeToUsd } from "@/components/gigs/SatsToUsd";
@@ -513,6 +514,9 @@ export default async function GigPage({ params }: GigPageProps) {
                         View Applications ({gig.applications_count})
                       </Button>
                     </Link>
+                    {!isForHire && (
+                      <MarkFilledButton gigId={id} status={gig.status} hiredCount={acceptedCount} />
+                    )}
                     <CloseGigButton gigId={id} status={gig.status} />
                     {acceptedCount > 0 && (
                       <Link href={`/gigs/${id}/applications`} className="block">
