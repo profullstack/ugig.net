@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { applicationStatusSchema } from "@/lib/validations";
 import { getUserDid, onHired } from "@/lib/reputation-hooks";
+import { triggerNotifiesStatus } from "@/lib/application-status";
 
 async function parseJsonBody(request: NextRequest) {
   try {
@@ -122,8 +123,10 @@ export async function PUT(
       }
     }
 
-    // Notify applicant of status change (if changed by poster)
-    if (isPoster && !isApplicant) {
+    // Notify applicant of status change (if changed by poster). The DB trigger
+    // already notifies for reviewing/shortlisted/accepted/rejected; only the
+    // statuses it skips (in_progress, completed, paid, pending) need one here.
+    if (isPoster && !isApplicant && !triggerNotifiesStatus(status)) {
       await supabase.from("notifications").insert({
         user_id: application.applicant_id,
         type: "application_status",

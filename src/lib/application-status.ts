@@ -21,3 +21,20 @@ export type HiredApplicationStatus = (typeof HIRED_APPLICATION_STATUSES)[number]
 export function isHiredStatus(status: string | null | undefined): status is HiredApplicationStatus {
   return !!status && (HIRED_APPLICATION_STATUSES as readonly string[]).includes(status);
 }
+
+/**
+ * Statuses the `on_application_status_change` trigger
+ * (notify_on_application_status_change) already turns into an in-app
+ * notification for the applicant. Routes must not insert their own for these,
+ * or the applicant gets two (209 applications had duplicates on 2026-10-06).
+ */
+export const STATUSES_NOTIFIED_BY_TRIGGER = [
+  "reviewing",
+  "shortlisted",
+  "accepted",
+  "rejected",
+] as const;
+
+export function triggerNotifiesStatus(status: string): boolean {
+  return (STATUSES_NOTIFIED_BY_TRIGGER as readonly string[]).includes(status);
+}

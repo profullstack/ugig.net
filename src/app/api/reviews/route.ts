@@ -302,18 +302,8 @@ export async function POST(request: NextRequest) {
       metadata: { rating, gig_title: gig.title, reviewer_name: reviewerProfile?.full_name || reviewerProfile?.username },
     });
 
-    // Create notification for reviewee
-    await supabase.from("notifications").insert({
-      user_id: reviewee_id,
-      type: "review_received",
-      title: "New review received",
-      body: `You received a ${rating}-star review`,
-      data: {
-        review_id: review.id,
-        gig_id,
-        rating,
-      },
-    });
+    // The reviewee's in-app notification comes from the on_new_review trigger
+    // (notify_on_new_review). Inserting one here too gave every review two.
 
     // Dispatch webhook to reviewee
     dispatchWebhookAsync(reviewee_id, "review.new", {

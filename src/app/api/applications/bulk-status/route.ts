@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
+import { triggerNotifiesStatus } from "@/lib/application-status";
 
 const bulkStatusSchema = z.object({
   application_ids: z.array(z.string().uuid()).min(1).max(50),
@@ -114,8 +115,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
 
-    // Create notifications for all applicants
-    const notifications = applications.map((app) => ({
+    // Create notifications for all applicants, unless the DB trigger already
+    // does (reviewing/shortlisted/accepted/rejected), which would duplicate them.
+    const notifications = (triggerNotifiesStatus(status) ? [] : applications).map((app) => ({
       user_id: app.applicant_id,
       type: "application_status" as const,
       title: "Application status updated",
@@ -127,7 +129,9 @@ export async function PUT(request: NextRequest) {
       },
     }));
 
-    await supabase.from("notifications").insert(notifications);
+    if (notifications.length > 0) {
+      await supabase.from("notifications").insert(notifications);
+    }
 
     return NextResponse.json({
       updated: updatedApplications?.length || 0,
