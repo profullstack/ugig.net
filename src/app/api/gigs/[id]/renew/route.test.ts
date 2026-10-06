@@ -127,4 +127,40 @@ describe("POST /api/gigs/[id]/renew", () => {
     expect(mockAdActivation).not.toHaveBeenCalled();
     expect(dispatchWebhookAsync).not.toHaveBeenCalled();
   });
+  it("reactivates an archived gig for its listing window", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...pausedHiring, status: "archived", archived_from_status: "active" }, updates);
+
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    expect((await res.json()).renewed_days).toBe(30);
+    expect(updates[0].status).toBe("active");
+    expect(updates[0].expires_at).toBeTruthy();
+    expect(dispatchWebhookAsync).toHaveBeenCalledWith("owner-1", "gig.update", {
+      gig_id: GIG_ID,
+      old_status: "archived",
+      new_status: "active",
+    });
+  });
+
+  it("runs the ad checks before reactivating an archived ad", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...pausedHiring, status: "archived", archived_from_status: "active", listing_type: "for_hire" }, updates);
+    mockAdActivation.mockResolvedValue({ ok: false, status: 429, error: "50 active" });
+
+    expect((await POST(req(), params)).status).toBe(429);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("puts an archived draft back as a draft, not live", async () => {
+    const updates: Record<string, unknown>[] = [];
+    setup({ ...pausedHiring, status: "archived", archived_from_status: "draft" }, updates);
+
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    expect((await res.json()).restored_to).toBe("draft");
+    expect(updates).toEqual([expect.objectContaining({ status: "draft" })]);
+    expect(updates[0].expires_at).toBeUndefined();
+    expect(dispatchWebhookAsync).not.toHaveBeenCalled();
+  });
 });

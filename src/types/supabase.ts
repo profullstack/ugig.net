@@ -1669,6 +1669,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "paid"
+        | "archived"
       budget_type:
         | "fixed"
         | "hourly"
@@ -1680,7 +1681,7 @@ export type Database = {
         | "monthly"
         | "yearly"
         | "bounty"
-      gig_status: "draft" | "active" | "paused" | "closed" | "filled"
+      gig_status: "draft" | "active" | "paused" | "closed" | "filled" | "archived"
       location_type: "remote" | "onsite" | "hybrid"
       notification_type:
         | "new_application"
@@ -1850,6 +1851,7 @@ export const Constants = {
         "in_progress",
         "completed",
         "paid",
+        "archived",
       ],
       budget_type: [
         "fixed",
@@ -1863,7 +1865,7 @@ export const Constants = {
         "yearly",
         "bounty",
       ],
-      gig_status: ["draft", "active", "paused", "closed", "filled"],
+      gig_status: ["draft", "active", "paused", "closed", "filled", "archived"],
       location_type: ["remote", "onsite", "hybrid"],
       notification_type: [
         "new_application",

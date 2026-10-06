@@ -11,7 +11,7 @@ import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
 const statusUpdateSchema = z.object({
-  status: z.enum(["draft", "active", "paused", "closed", "filled"]),
+  status: z.enum(["draft", "active", "paused", "closed", "filled", "archived"]),
 });
 
 // PATCH /api/gigs/[id]/status - Update gig status

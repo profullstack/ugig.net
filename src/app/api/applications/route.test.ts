@@ -89,7 +89,7 @@ beforeEach(() => {
 // ── Tests ──────────────────────────────────────────────────────────
 
 describe("POST /api/applications - re-apply after withdrawal", () => {
-  it("re-activates a withdrawn application instead of blocking (regression)", async () => {
+  it.each(["withdrawn", "archived"])("re-activates a %s application instead of blocking (regression)", async (priorStatus) => {
     // Regression for the ugig bug where a withdrawn application still counted
     // as "already applied", so the applicant could never re-apply and was
     // therefore blocked from ever invoicing merged work.
@@ -115,7 +115,7 @@ describe("POST /api/applications - re-apply after withdrawal", () => {
         if (applicationsCalls.length === 1) {
           // Existing-application lookup: a WITHDRAWN application exists.
           (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({
-            data: { id: "app-existing", status: "withdrawn" },
+            data: { id: "app-existing", status: priorStatus },
             error: null,
           });
         } else {

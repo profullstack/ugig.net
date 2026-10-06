@@ -34,6 +34,10 @@ export interface DailyStats {
     filled: number;
     closed: number;
     draft: number;
+    /** Archived (kept, hidden from listings): stale 30 days, spam poster, or by the owner. */
+    archived: number;
+    /** Archived in the last 24h (archive-stale cron or owners). */
+    archived24h: number;
     /** Active gigs that are jobs (listing_type=hiring). The rest of "active" are for-hire ads. */
     activeHiring: number;
     /** Active for-hire ads ("I will ... for $X"); these can never be "filled". */
@@ -50,6 +54,9 @@ export interface DailyStats {
     /** accepted + in_progress + completed + paid */
     hired: number;
     rejected: number;
+    /** Archived: pending 30 days, on a closed/filled/archived gig, or from a spam profile. */
+    archived: number;
+    archived24h: number;
     new24h: number;
     new7d: number;
   };
@@ -137,8 +144,9 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
   const [
     usersTotal, users24h, users7d, users30d, usersSpam, recentUsers,
     gigsTotal, gigsActive, gigsFilled, gigsClosed, gigsDraft, gigsActiveHiring, gigsActiveForHire,
-    gigs24h, gigs7d, gigs30d, recentGigs,
+    gigs24h, gigs7d, gigs30d, recentGigs, gigsArchived, gigsArchived24h,
     appsTotal, appsPending, appsAccepted, appsHired, appsRejected, apps24h, apps7d,
+    appsArchived, appsArchived24h,
     postsTotal, posts24h, posts7d, commentsTotal, comments24h,
     follows, follows24h, endorsements, reviews, reviews24h,
     convos, convos24h, messages, messages24h,
@@ -151,7 +159,7 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     countSince(supabase, "profiles", "created_at", 30 * day),
     count(supabase, "profiles", { is_spam: true }),
     recent<DailyStats["recentUsers"][number]>(supabase, "profiles", "username, full_name, created_at", 5),
-    // gig_status: draft | active | paused | closed | filled
+    // gig_status: draft | active | paused | closed | filled | archived
     count(supabase, "gigs"),
     count(supabase, "gigs", { status: "active" }),
     count(supabase, "gigs", { status: "filled" }),
@@ -163,6 +171,8 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     countSince(supabase, "gigs", "created_at", 7 * day),
     countSince(supabase, "gigs", "created_at", 30 * day),
     recent<DailyStats["recentGigs"][number]>(supabase, "gigs", "title, status, created_at", 5),
+    count(supabase, "gigs", { status: "archived" }),
+    countSince(supabase, "gigs", "archived_at", day, { status: "archived" }),
     count(supabase, "applications"),
     count(supabase, "applications", { status: "pending" }),
     count(supabase, "applications", { status: "accepted" }),
@@ -170,6 +180,8 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     count(supabase, "applications", { status: "rejected" }),
     countSince(supabase, "applications", "created_at", day),
     countSince(supabase, "applications", "created_at", 7 * day),
+    count(supabase, "applications", { status: "archived" }),
+    countSince(supabase, "applications", "archived_at", day, { status: "archived" }),
     count(supabase, "posts"),
     countSince(supabase, "posts", "created_at", day),
     countSince(supabase, "posts", "created_at", 7 * day),
@@ -212,6 +224,8 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
       filled: gigsFilled,
       closed: gigsClosed,
       draft: gigsDraft,
+      archived: gigsArchived,
+      archived24h: gigsArchived24h,
       activeHiring: gigsActiveHiring,
       activeForHire: gigsActiveForHire,
       new24h: gigs24h,
@@ -225,6 +239,8 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
       accepted: appsAccepted,
       hired: appsHired,
       rejected: appsRejected,
+      archived: appsArchived,
+      archived24h: appsArchived24h,
       new24h: apps24h,
       new7d: apps7d,
     },
@@ -286,6 +302,7 @@ GIGS
   Draft: ${gigs.draft}
   Filled: ${gigs.filled}
   Closed: ${gigs.closed}
+  Archived: ${gigs.archived} (+${gigs.archived24h} in 24h)
   New (24h): ${gigs.new24h}
   New (7d): ${gigs.new7d}
   New (30d): ${gigs.new30d}
@@ -299,6 +316,7 @@ APPLICATIONS
   Accepted: ${apps.accepted}
   Hired (accepted + in progress + completed + paid): ${apps.hired}
   Rejected: ${apps.rejected}
+  Archived: ${apps.archived} (+${apps.archived24h} in 24h)
   New (24h): ${apps.new24h}
   New (7d): ${apps.new7d}
 
@@ -375,6 +393,8 @@ PRO / FUNDING / TIP CHECKOUTS (payments table)
       row("Draft", gigs.draft),
       row("Filled", gigs.filled),
       row("Closed", gigs.closed),
+      row("Archived", gigs.archived),
+      row("&nbsp;&nbsp;archived (24h)", gigs.archived24h),
       row("New (24h)", gigs.new24h, green(gigs.new24h)),
       row("New (7d)", gigs.new7d),
       row("New (30d)", gigs.new30d),
@@ -390,6 +410,8 @@ PRO / FUNDING / TIP CHECKOUTS (payments table)
       row("Accepted", apps.accepted, " color: #16a34a;"),
       row("Hired (incl. in progress / completed / paid)", apps.hired),
       row("Rejected", apps.rejected, " color: #dc2626;"),
+      row("Archived", apps.archived),
+      row("&nbsp;&nbsp;archived (24h)", apps.archived24h),
       row("New (24h)", apps.new24h, green(apps.new24h)),
       row("New (7d)", apps.new7d),
     ])}

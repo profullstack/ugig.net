@@ -8,7 +8,7 @@ import {
   limitResponse,
 } from "@/lib/limits";
 
-const RENEWABLE_STATUSES = new Set(["active", "paused"]);
+const RENEWABLE_STATUSES = new Set(["active", "paused", "archived"]);
 
 /**
  * POST /api/gigs/[id]/renew - "Renew for 30 days" (60 for a for_hire ad).
@@ -17,6 +17,9 @@ const RENEWABLE_STATUSES = new Set(["active", "paused"]);
  * active, so a gig the expire-gigs cron paused goes back on the board. An
  * active gig can be renewed early to push its date out. Drafts are published
  * through the status route instead, and closed/filled gigs stay closed.
+ *
+ * An archived gig (archive-stale cron, or the owner) is reactivated the same
+ * way. One that was a draft when it was archived goes back to being a draft.
  */
 export async function POST(
   request: NextRequest,
@@ -32,7 +35,7 @@ export async function POST(
 
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id, status, listing_type, title")
+      .select("poster_id, status, listing_type, title, archived_from_status")
       .eq("id", id)
       .single();
 
@@ -52,6 +55,19 @@ export async function POST(
         },
         { status: 409 }
       );
+    }
+
+    if (existingGig.status === "archived" && existingGig.archived_from_status === "draft") {
+      const { data: draft, error: draftError } = await supabase
+        .from("gigs")
+        .update({ status: "draft", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (draftError) {
+        return NextResponse.json({ error: draftError.message }, { status: 400 });
+      }
+      return NextResponse.json({ gig: draft, renewed_days: 0, restored_to: "draft" });
     }
 
     if (existingGig.status !== "active" && existingGig.listing_type === "for_hire") {

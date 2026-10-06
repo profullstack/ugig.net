@@ -300,7 +300,7 @@ export type Database = {
           duration: string | null;
           location_type: "remote" | "onsite" | "hybrid";
           location: string | null;
-          status: "draft" | "active" | "paused" | "closed" | "filled";
+          status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type: "hiring" | "for_hire";
           applications_count: number;
           views_count: number;
@@ -325,7 +325,7 @@ export type Database = {
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
-          status?: "draft" | "active" | "paused" | "closed" | "filled";
+          status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type?: "hiring" | "for_hire";
           applications_count?: number;
           views_count?: number;
@@ -349,7 +349,7 @@ export type Database = {
           duration?: string | null;
           location_type?: "remote" | "onsite" | "hybrid";
           location?: string | null;
-          status?: "draft" | "active" | "paused" | "closed" | "filled";
+          status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
           listing_type?: "hiring" | "for_hire";
           applications_count?: number;
           views_count?: number;
@@ -1666,7 +1666,7 @@ export type Database = {
     };
     Enums: {
       account_type: "human" | "agent";
-      gig_status: "draft" | "active" | "paused" | "closed" | "filled";
+      gig_status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
       budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | "bounty";
       location_type: "remote" | "onsite" | "hybrid";
       application_status:

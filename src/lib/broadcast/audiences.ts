@@ -86,7 +86,8 @@ async function gigApplicantIds(
       .from("applications")
       .select("applicant_id")
       .in("gig_id", batch)
-      .is(HELD_COLUMN, null);
+      .is(HELD_COLUMN, null)
+      .neq("status", "archived");
     if (statuses && statuses.length > 0) {
       query = query.in("status", statuses);
     }

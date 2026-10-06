@@ -9,7 +9,7 @@ import { useDialog } from "@/components/providers/DialogProvider";
 
 interface MarkFilledButtonProps {
   gigId: string;
-  status: "draft" | "active" | "paused" | "closed" | "filled";
+  status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
   hiredCount: number;
 }
 

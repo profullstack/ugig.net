@@ -12,6 +12,10 @@ interface RenewGigButtonProps {
   days: number;
   /** Only rendered for a gig the expiry cron paused; the page decides. */
   expired: boolean;
+  /** An archived gig (archive-stale cron or the owner): reactivate instead. */
+  archived?: boolean;
+  /** The gig was a draft when archived, so it goes back to being a draft. */
+  restoresToDraft?: boolean;
   size?: "sm" | "default";
   className?: string;
 }
@@ -21,12 +25,20 @@ interface RenewGigButtonProps {
  * owner card (anchored #renew, which the expiry email links to) and in
  * /dashboard/gigs.
  */
-export function RenewGigButton({ gigId, days, expired, size = "default", className }: RenewGigButtonProps) {
+export function RenewGigButton({
+  gigId,
+  days,
+  expired,
+  archived = false,
+  restoresToDraft = false,
+  size = "default",
+  className,
+}: RenewGigButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!expired) return null;
+  if (!expired && !archived) return null;
 
   const handleRenew = async () => {
     setIsLoading(true);
@@ -44,7 +56,11 @@ export function RenewGigButton({ gigId, days, expired, size = "default", classNa
   return (
     <div id="renew" className={`space-y-2 ${className ?? ""}`}>
       <p className="text-xs text-muted-foreground">
-        This gig expired and was paused. It is not listed until you renew it.
+        {archived
+          ? restoresToDraft
+            ? "This draft was archived after 30 days without changes."
+            : "This gig was archived. It is not listed until you reactivate it."
+          : "This gig expired and was paused. It is not listed until you renew it."}
       </p>
       <Button size={size} className="w-full gap-2" onClick={handleRenew} disabled={isLoading}>
         {isLoading ? (
@@ -52,7 +68,11 @@ export function RenewGigButton({ gigId, days, expired, size = "default", classNa
         ) : (
           <RefreshCw className="h-4 w-4" />
         )}
-        Renew for {days} days
+        {archived
+          ? restoresToDraft
+            ? "Restore draft"
+            : `Reactivate for ${days} days`
+          : `Renew for ${days} days`}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

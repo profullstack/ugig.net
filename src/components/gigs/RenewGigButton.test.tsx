@@ -41,4 +41,15 @@ describe("RenewGigButton", () => {
     expect(await screen.findByText(/50 active for-hire ads/)).toBeInTheDocument();
     expect(mockRefresh).not.toHaveBeenCalled();
   });
+  it("offers to reactivate an archived gig", async () => {
+    mockRenew.mockResolvedValue({ data: {} });
+    render(<RenewGigButton gigId="g1" days={30} expired={false} archived />);
+    fireEvent.click(screen.getByRole("button", { name: /reactivate for 30 days/i }));
+    await waitFor(() => expect(mockRenew).toHaveBeenCalledWith("g1"));
+  });
+
+  it("restores an archived draft as a draft", () => {
+    render(<RenewGigButton gigId="g1" days={30} expired={false} archived restoresToDraft />);
+    expect(screen.getByRole("button", { name: /restore draft/i })).toBeInTheDocument();
+  });
 });

@@ -9,7 +9,7 @@ import { useDialog } from "@/components/providers/DialogProvider";
 
 interface CloseGigButtonProps {
   gigId: string;
-  status: "draft" | "active" | "paused" | "closed" | "filled";
+  status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
 }
 
 export function CloseGigButton({ gigId, status }: CloseGigButtonProps) {
@@ -18,7 +18,7 @@ export function CloseGigButton({ gigId, status }: CloseGigButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (status === "closed" || status === "filled") {
+  if (status === "closed" || status === "filled" || status === "archived") {
     return null;
   }
 

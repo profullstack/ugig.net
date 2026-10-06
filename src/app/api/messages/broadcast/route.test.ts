@@ -114,7 +114,7 @@ function makeServiceClient(options: {
       };
     };
 
-    for (const name of ["select", "eq", "in", "order", "range", "contains", "is", "not", "lt"]) {
+    for (const name of ["select", "eq", "in", "order", "range", "contains", "is", "neq", "not", "lt"]) {
       passthrough(name);
     }
 

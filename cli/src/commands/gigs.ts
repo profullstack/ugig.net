@@ -270,7 +270,7 @@ export function registerGigsCommands(program: Command): void {
   gigs
     .command("status <id>")
     .description("Update gig status")
-    .requiredOption("--status <status>", "Status: active, paused, closed, filled")
+    .requiredOption("--status <status>", "Status: active, paused, closed, filled, archived")
     .action(async (id: string, options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Updating status...").start();
@@ -287,7 +287,7 @@ export function registerGigsCommands(program: Command): void {
 
   gigs
     .command("renew <id>")
-    .description("Renew a gig for another 30 days (60 for a for-hire ad) and re-list it if it expired")
+    .description("Renew a gig for another 30 days (60 for a for-hire ad) and re-list it if it expired or was archived")
     .action(async (id: string) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Renewing gig...").start();

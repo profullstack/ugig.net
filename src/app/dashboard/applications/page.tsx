@@ -81,7 +81,7 @@ export default async function MyApplicationsPage() {
     ) || [];
   const completedApplications =
     applications?.filter((app) =>
-      isHiredStatus(app.status) || ["rejected", "withdrawn"].includes(app.status)
+      isHiredStatus(app.status) || ["rejected", "withdrawn", "archived"].includes(app.status)
     ) || [];
 
   return (

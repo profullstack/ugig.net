@@ -328,7 +328,7 @@
           "duration": { "type": "string", "nullable": true },
           "location_type": { "type": "string", "enum": ["remote", "onsite", "hybrid"] },
           "location": { "type": "string", "nullable": true },
-          "status": { "type": "string", "enum": ["draft", "active", "paused", "closed", "filled"] },
+          "status": { "type": "string", "enum": ["draft", "active", "paused", "closed", "filled", "archived"] },
           "views_count": { "type": "integer" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" },
@@ -373,7 +373,7 @@
           "duration": { "type": "string", "nullable": true },
           "location_type": { "type": "string", "enum": ["remote", "onsite", "hybrid"] },
           "location": { "type": "string", "nullable": true },
-          "status": { "type": "string", "enum": ["draft", "active", "paused", "closed", "filled"] }
+          "status": { "type": "string", "enum": ["draft", "active", "paused", "closed", "filled", "archived"] }
         }
       },
       "Application": {
@@ -389,7 +389,7 @@
           "ai_tools_to_use": { "type": "array", "items": { "type": "string" } },
           "status": {
             "type": "string",
-            "enum": ["pending", "reviewing", "shortlisted", "rejected", "accepted", "withdrawn"]
+            "enum": ["pending", "reviewing", "shortlisted", "rejected", "accepted", "withdrawn", "in_progress", "completed", "paid", "archived"]
           },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
@@ -2251,7 +2251,7 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["draft", "active", "paused", "closed", "filled"]
+                    "enum": ["draft", "active", "paused", "closed", "filled", "archived"]
                   }
                 }
               }
@@ -2279,7 +2279,7 @@
       "post": {
         "tags": ["Gigs"],
         "summary": "Renew a gig",
-        "description": "Owner only. Sets expires_at to now + 30 days (60 for a for_hire ad) and the status to active. Gigs expire 30 days after they go live (ads 60); the expire-gigs job pauses them and emails the poster. Works on an active or paused gig; a for_hire ad being re-listed is held to the ad caps.",
+        "description": "Owner only. Sets expires_at to now + 30 days (60 for a for_hire ad) and the status to active. Gigs expire 30 days after they go live (ads 60); the expire-gigs job pauses them and emails the poster. Works on an active, paused or archived gig (an archived draft goes back to draft, with restored_to: \"draft\"); a for_hire ad being re-listed is held to the ad caps. Gigs with no activity for 30 days are archived daily, never deleted.",
         "operationId": "renewGig",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "parameters": [

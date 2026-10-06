@@ -14,6 +14,7 @@ import {
   Loader2,
   XCircle,
   Rocket,
+  Archive,
 } from "lucide-react";
 import Link from "next/link";
 import { useDialog } from "@/components/providers/DialogProvider";
@@ -41,7 +42,7 @@ export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsPr
 
     const result = await gigsApi.updateStatus(
       gigId,
-      newStatus as "draft" | "active" | "paused" | "closed" | "filled"
+      newStatus as "draft" | "active" | "paused" | "closed" | "filled" | "archived"
     );
 
     if (result.error) {
@@ -210,6 +211,17 @@ export function GigActions({ gigId, status, createdAt, boostedAt }: GigActionsPr
                       Close Gig
                     </button>
                   </>
+                )}
+
+                {["draft", "active", "paused", "closed"].includes(status) && (
+                  <button
+                    onClick={() => handleStatusChange("archived")}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded flex items-center gap-2"
+                    disabled={isLoading}
+                  >
+                    <Archive className="h-4 w-4" />
+                    Archive Gig
+                  </button>
                 )}
 
                 {(status === "draft" || status === "active" || status === "paused") && (

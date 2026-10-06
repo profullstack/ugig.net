@@ -27,6 +27,16 @@ shipped in this audit.
   viewers.
 - ✅ **#589:** the daily stats email now reports gig invoices (the real money), jobs
   vs for-hire ads, closed gigs, hires and spam-flagged profiles.
+- ✅ **Archive stale content (2026-10-06):** `archived` gig and application status
+  (with `archived_at`, `archived_reason`, `archived_from_status`), never a delete.
+  Daily `POST /api/cron/archive-stale` archives gigs and ads with no activity for 30
+  days (drafts too), every non-filled gig from an `is_spam` poster, applications
+  pending 30 days, open applications on closed/filled/archived gigs, and open
+  applications from `is_spam` applicants. No email, no notification. Filled gigs,
+  hired applications and anything with an invoice or escrow are untouched. Owners
+  reactivate from /dashboard/gigs, the gig page or `ugig gigs renew <id>`. Activity
+  is `gigs.last_activity_at`, because `updated_at` was bumped on every active gig by
+  the expiry backfill and moves on every application.
 
 ## P0: core loop (post, apply, hire, pay, review)
 
@@ -53,7 +63,7 @@ shipped in this audit.
 | 14 | For-hire ads: per-account daily/active caps and near-duplicate title check (one account posted 448 in two days) | 03 | M |
 | 15 | For-hire ad CTA: Contact / Hire (pre-filled hiring gig) instead of Apply | 03 | M |
 | 16 | Application quality: per-account daily cap, near-duplicate cover-letter check (429 with a reason) | 02 | M |
-| 17 | Auto-decline applications that are stale for N days | 02 | S |
+| 17 | ✅ Archive (not decline) applications pending 30 days, open ones on closed/filled/archived gigs, and spam applicants' open ones: `archive-stale` cron, 2026-10-06 | 02 | S |
 | 18 | One-click unsubscribe and `List-Unsubscribe` on all non-transactional email | 08 | M |
 | 19 | Honour all 10 notification settings | 08 | S |
 | 20 | Admin moderation queue: flagged users, not-spam/spam, gig takedown, verification requests, appeals | 09 | L |

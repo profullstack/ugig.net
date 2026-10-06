@@ -84,6 +84,7 @@ Prod, 2026-10-06: 0 of 1,944 gigs have ever been `filled`. 97 are `closed`.
 
 ## Open decisions (Anthony)
 
-- The expiry window N (suggest 30 days for hiring gigs).
+- The expiry window N (suggest 30 days for hiring gigs). **Decided 2026-10-06: 30 days of no activity
+  archives** (status `archived`, reversible by the owner), for jobs and ads alike.
 - Whether auto-fill-on-payment defaults on.
 - Whether a delete with hired applicants is refused or archived.
