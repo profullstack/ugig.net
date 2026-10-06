@@ -12,7 +12,10 @@
  * report: nothing gets sent unless every number was actually read.
  */
 
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
+
 type Client = { from: (table: string) => any };
+type Filter = Record<string, string | boolean | null | readonly string[]>;
 
 export class DailyStatsQueryError extends Error {
   constructor(what: string, message: string) {
@@ -23,13 +26,18 @@ export class DailyStatsQueryError extends Error {
 
 export interface DailyStats {
   date: string;
-  users: { total: number; new24h: number; new7d: number; new30d: number };
+  users: { total: number; new24h: number; new7d: number; new30d: number; spamFlagged: number };
   recentUsers: { username: string | null; full_name: string | null; created_at: string | null }[];
   gigs: {
     total: number;
     active: number;
     filled: number;
+    closed: number;
     draft: number;
+    /** Active gigs that are jobs (listing_type=hiring). The rest of "active" are for-hire ads. */
+    activeHiring: number;
+    /** Active for-hire ads ("I will ... for $X"); these can never be "filled". */
+    activeForHire: number;
     new24h: number;
     new7d: number;
     new30d: number;
@@ -39,6 +47,8 @@ export interface DailyStats {
     total: number;
     pending: number;
     accepted: number;
+    /** accepted + in_progress + completed + paid */
+    hired: number;
     rejected: number;
     new24h: number;
     new7d: number;
@@ -46,6 +56,9 @@ export interface DailyStats {
   posts: { total: number; new24h: number; new7d: number; comments: number; newComments24h: number };
   social: { follows: number; newFollows24h: number; endorsements: number; reviews: number; newReviews24h: number };
   messaging: { conversations: number; newConversations24h: number; messages: number; newMessages24h: number };
+  /** gig_invoices: worker -> poster invoices paid through CoinPay. This is where gig money moves. */
+  invoices: { total: number; paid: number; awaitingPayment: number; new24h: number; paid24h: number };
+  /** payments: Pro/lifetime/funding/tip checkouts only, not gig payments. */
   payments: { total: number; confirmed: number; forwarded: number; pending: number; new24h: number };
 }
 
@@ -56,29 +69,37 @@ function errMessage(error: unknown): string {
   return String(error);
 }
 
-async function count(
-  supabase: Client,
-  table: string,
-  filter?: Record<string, string | null>
-): Promise<number> {
-  let q = supabase.from(table).select("*", { count: "exact", head: true });
+function applyFilter(q: any, filter?: Filter) {
   if (filter) {
     for (const [col, val] of Object.entries(filter)) {
-      q = val === null ? q.is(col, null) : q.eq(col, val);
+      if (val === null) q = q.is(col, null);
+      else if (Array.isArray(val)) q = q.in(col, val);
+      else q = q.eq(col, val);
     }
   }
+  return q;
+}
+
+async function count(supabase: Client, table: string, filter?: Filter): Promise<number> {
+  const q = applyFilter(supabase.from(table).select("*", { count: "exact", head: true }), filter);
   const { count: c, error } = await q;
   if (error) throw new DailyStatsQueryError(`count(${table})`, errMessage(error));
   if (typeof c !== "number") throw new DailyStatsQueryError(`count(${table})`, "no count returned");
   return c;
 }
 
-async function countSince(supabase: Client, table: string, col: string, hours: number): Promise<number> {
+async function countSince(
+  supabase: Client,
+  table: string,
+  col: string,
+  hours: number,
+  filter?: Filter
+): Promise<number> {
   const since = new Date(Date.now() - hours * 3600_000).toISOString();
-  const { count: c, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .gte(col, since);
+  const { count: c, error } = await applyFilter(
+    supabase.from(table).select("*", { count: "exact", head: true }),
+    filter
+  ).gte(col, since);
   if (error) throw new DailyStatsQueryError(`countSince(${table}, ${hours}h)`, errMessage(error));
   if (typeof c !== "number") throw new DailyStatsQueryError(`countSince(${table}, ${hours}h)`, "no count returned");
   return c;
@@ -97,24 +118,30 @@ async function recent<T>(supabase: Client, table: string, columns: string, limit
 export async function collectDailyStats(supabase: Client, now: Date = new Date()): Promise<DailyStats> {
   const day = 24;
   const [
-    usersTotal, users24h, users7d, users30d, recentUsers,
-    gigsTotal, gigsActive, gigsFilled, gigsDraft, gigs24h, gigs7d, gigs30d, recentGigs,
-    appsTotal, appsPending, appsAccepted, appsRejected, apps24h, apps7d,
+    usersTotal, users24h, users7d, users30d, usersSpam, recentUsers,
+    gigsTotal, gigsActive, gigsFilled, gigsClosed, gigsDraft, gigsActiveHiring, gigsActiveForHire,
+    gigs24h, gigs7d, gigs30d, recentGigs,
+    appsTotal, appsPending, appsAccepted, appsHired, appsRejected, apps24h, apps7d,
     postsTotal, posts24h, posts7d, commentsTotal, comments24h,
     follows, follows24h, endorsements, reviews, reviews24h,
     convos, convos24h, messages, messages24h,
+    invTotal, invPaid, invSent, inv24h, invPaid24h,
     payTotal, payConfirmed, payForwarded, payPending, pay24h,
   ] = await Promise.all([
     count(supabase, "profiles"),
     countSince(supabase, "profiles", "created_at", day),
     countSince(supabase, "profiles", "created_at", 7 * day),
     countSince(supabase, "profiles", "created_at", 30 * day),
+    count(supabase, "profiles", { is_spam: true }),
     recent<DailyStats["recentUsers"][number]>(supabase, "profiles", "username, full_name, created_at", 5),
     // gig_status: draft | active | paused | closed | filled
     count(supabase, "gigs"),
     count(supabase, "gigs", { status: "active" }),
     count(supabase, "gigs", { status: "filled" }),
+    count(supabase, "gigs", { status: "closed" }),
     count(supabase, "gigs", { status: "draft" }),
+    count(supabase, "gigs", { status: "active", listing_type: "hiring" }),
+    count(supabase, "gigs", { status: "active", listing_type: "for_hire" }),
     countSince(supabase, "gigs", "created_at", day),
     countSince(supabase, "gigs", "created_at", 7 * day),
     countSince(supabase, "gigs", "created_at", 30 * day),
@@ -122,6 +149,7 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     count(supabase, "applications"),
     count(supabase, "applications", { status: "pending" }),
     count(supabase, "applications", { status: "accepted" }),
+    count(supabase, "applications", { status: HIRED_APPLICATION_STATUSES }),
     count(supabase, "applications", { status: "rejected" }),
     countSince(supabase, "applications", "created_at", day),
     countSince(supabase, "applications", "created_at", 7 * day),
@@ -139,6 +167,12 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     countSince(supabase, "conversations", "created_at", day),
     count(supabase, "messages"),
     countSince(supabase, "messages", "created_at", day),
+    // gig_invoices.status: draft | sent | paid | cancelled | expired | rejected
+    count(supabase, "gig_invoices"),
+    count(supabase, "gig_invoices", { status: "paid" }),
+    count(supabase, "gig_invoices", { status: "sent" }),
+    countSince(supabase, "gig_invoices", "created_at", day),
+    countSince(supabase, "gig_invoices", "updated_at", day, { status: "paid" }),
     // payment_status: pending | confirmed | forwarded | expired | failed
     count(supabase, "payments"),
     count(supabase, "payments", { status: "confirmed" }),
@@ -149,13 +183,16 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
 
   const stats: DailyStats = {
     date: now.toISOString().split("T")[0],
-    users: { total: usersTotal, new24h: users24h, new7d: users7d, new30d: users30d },
+    users: { total: usersTotal, new24h: users24h, new7d: users7d, new30d: users30d, spamFlagged: usersSpam },
     recentUsers,
     gigs: {
       total: gigsTotal,
       active: gigsActive,
       filled: gigsFilled,
+      closed: gigsClosed,
       draft: gigsDraft,
+      activeHiring: gigsActiveHiring,
+      activeForHire: gigsActiveForHire,
       new24h: gigs24h,
       new7d: gigs7d,
       new30d: gigs30d,
@@ -165,6 +202,7 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
       total: appsTotal,
       pending: appsPending,
       accepted: appsAccepted,
+      hired: appsHired,
       rejected: appsRejected,
       new24h: apps24h,
       new7d: apps7d,
@@ -172,6 +210,7 @@ export async function collectDailyStats(supabase: Client, now: Date = new Date()
     posts: { total: postsTotal, new24h: posts24h, new7d: posts7d, comments: commentsTotal, newComments24h: comments24h },
     social: { follows, newFollows24h: follows24h, endorsements, reviews, newReviews24h: reviews24h },
     messaging: { conversations: convos, newConversations24h: convos24h, messages, newMessages24h: messages24h },
+    invoices: { total: invTotal, paid: invPaid, awaitingPayment: invSent, new24h: inv24h, paid24h: invPaid24h },
     payments: { total: payTotal, confirmed: payConfirmed, forwarded: payForwarded, pending: payPending, new24h: pay24h },
   };
 
@@ -196,7 +235,7 @@ function esc(s: unknown): string {
 }
 
 export function renderDailyStats(s: DailyStats): { subject: string; html: string; text: string } {
-  const { users, gigs, applications: apps, posts, social, messaging, payments } = s;
+  const { users, gigs, applications: apps, posts, social, messaging, invoices, payments } = s;
 
   const text = `
 ugig.net Daily Report — ${s.date}
@@ -207,15 +246,17 @@ USERS
   New (24h): ${users.new24h}
   New (7d): ${users.new7d}
   New (30d): ${users.new30d}
+  Spam-flagged (all time): ${users.spamFlagged}
 
 RECENT SIGNUPS
 ${s.recentUsers.map((u) => `  • ${u.full_name || u.username || "(no name)"} @${u.username} (${u.created_at?.slice(0, 10)})`).join("\n") || "  (none)"}
 
 GIGS
   Total: ${gigs.total}
-  Active: ${gigs.active}
+  Active: ${gigs.active} (${gigs.activeHiring} jobs, ${gigs.activeForHire} for-hire ads)
   Draft: ${gigs.draft}
   Filled: ${gigs.filled}
+  Closed: ${gigs.closed}
   New (24h): ${gigs.new24h}
   New (7d): ${gigs.new7d}
   New (30d): ${gigs.new30d}
@@ -227,6 +268,7 @@ APPLICATIONS
   Total: ${apps.total}
   Pending: ${apps.pending}
   Accepted: ${apps.accepted}
+  Hired (accepted + in progress + completed + paid): ${apps.hired}
   Rejected: ${apps.rejected}
   New (24h): ${apps.new24h}
   New (7d): ${apps.new7d}
@@ -247,7 +289,13 @@ MESSAGING
   Conversations: ${messaging.conversations} (+${messaging.newConversations24h} 24h)
   Messages: ${messaging.messages} (+${messaging.newMessages24h} 24h)
 
-PAYMENTS
+GIG INVOICES (worker -> poster, via CoinPay)
+  Total: ${invoices.total}
+  Paid: ${invoices.paid} (+${invoices.paid24h} 24h)
+  Awaiting payment: ${invoices.awaitingPayment}
+  New (24h): ${invoices.new24h}
+
+PRO / FUNDING / TIP CHECKOUTS (payments table)
   Total: ${payments.total}
   Confirmed: ${payments.confirmed}
   Forwarded: ${payments.forwarded}
@@ -280,6 +328,7 @@ PAYMENTS
       row("New (24h)", users.new24h, green(users.new24h)),
       row("New (7d)", users.new7d),
       row("New (30d)", users.new30d),
+      row("Spam-flagged (all time)", users.spamFlagged),
     ])}
     ${s.recentUsers.length > 0 ? `
     <h3 style="font-size: 14px; color: #666; margin: 0 0 8px;">Recent Signups</h3>
@@ -290,8 +339,11 @@ PAYMENTS
     ${table([
       row("Total", gigs.total, " font-weight: bold;"),
       row("Active", gigs.active, " color: #16a34a;"),
+      row("&nbsp;&nbsp;jobs (hiring)", gigs.activeHiring),
+      row("&nbsp;&nbsp;for-hire ads", gigs.activeForHire),
       row("Draft", gigs.draft),
       row("Filled", gigs.filled),
+      row("Closed", gigs.closed),
       row("New (24h)", gigs.new24h, green(gigs.new24h)),
       row("New (7d)", gigs.new7d),
       row("New (30d)", gigs.new30d),
@@ -305,6 +357,7 @@ PAYMENTS
       row("Total", apps.total, " font-weight: bold;"),
       row("Pending", apps.pending),
       row("Accepted", apps.accepted, " color: #16a34a;"),
+      row("Hired (incl. in progress / completed / paid)", apps.hired),
       row("Rejected", apps.rejected, " color: #dc2626;"),
       row("New (24h)", apps.new24h, green(apps.new24h)),
       row("New (7d)", apps.new7d),
@@ -328,7 +381,14 @@ PAYMENTS
       row("Conversations", plus(messaging.conversations, messaging.newConversations24h), " font-weight: bold;"),
       row("Messages", plus(messaging.messages, messaging.newMessages24h)),
     ])}
-    ${h2("💰 Payments")}
+    ${h2("🧾 Gig invoices (worker → poster)")}
+    ${table([
+      row("Total", invoices.total, " font-weight: bold;"),
+      row("Paid", plus(invoices.paid, invoices.paid24h), " color: #16a34a;"),
+      row("Awaiting payment", invoices.awaitingPayment),
+      row("New (24h)", invoices.new24h, green(invoices.new24h)),
+    ])}
+    ${h2("💰 Pro / funding / tip checkouts")}
     ${table([
       row("Total", payments.total, " font-weight: bold;"),
       row("Confirmed", payments.confirmed, " color: #16a34a;"),

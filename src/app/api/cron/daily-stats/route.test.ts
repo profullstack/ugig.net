@@ -32,7 +32,7 @@ type Result = { count?: number | null; data?: unknown; error?: unknown };
 /** A PostgREST-ish builder: every method chains, awaiting it yields `result`. */
 function builder(result: Result) {
   const b: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "is", "gte", "order", "limit"]) {
+  for (const m of ["select", "eq", "in", "is", "gte", "order", "limit"]) {
     b[m] = vi.fn(() => b);
   }
   b.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
@@ -154,6 +154,45 @@ describe("POST /api/cron/daily-stats", () => {
     const html: string = mockSend.mock.calls[0][0].html;
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("reports gig invoices (where gig money moves) and splits jobs from for-hire ads", async () => {
+    const builders: { table: string; b: ReturnType<typeof builder> }[] = [];
+    mockFrom.mockImplementation((table: string) => {
+      const b = builder({ count: table === "gig_invoices" ? 267 : 3, data: [] });
+      builders.push({ table, b });
+      return b;
+    });
+
+    const res = await POST(makeRequest({ "x-cron-secret": "test-secret" }, "?dry_run=1"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.stats.invoices.paid).toBe(267);
+    expect(json.stats.gigs.activeHiring).toBe(3);
+    expect(json.stats.users.spamFlagged).toBe(3);
+
+    const eqCalls = builders.flatMap(({ table, b }) =>
+      (b.eq as ReturnType<typeof vi.fn>).mock.calls.map((c) => `${table}.${c[0]}=${c[1]}`)
+    );
+    expect(eqCalls).toContain("gig_invoices.status=paid");
+    expect(eqCalls).toContain("gigs.listing_type=hiring");
+    expect(eqCalls).toContain("gigs.listing_type=for_hire");
+    expect(eqCalls).toContain("profiles.is_spam=true");
+
+    const inCalls = builders.flatMap(({ table, b }) =>
+      (b.in as ReturnType<typeof vi.fn>).mock.calls.map((c) => `${table}.${c[0]}=${[...c[1]].join("|")}`)
+    );
+    expect(inCalls).toContain("applications.status=accepted|in_progress|completed|paid");
+  });
+
+  it("labels the payments table as checkouts, not gig payments", async () => {
+    mockFrom.mockImplementation(() => builder({ count: 9, data: [] }));
+    await POST(makeRequest({ "x-cron-secret": "test-secret" }));
+    const text: string = mockSend.mock.calls[0][0].text;
+    expect(text).toContain("GIG INVOICES");
+    expect(text).toContain("PRO / FUNDING / TIP CHECKOUTS");
+    expect(text).toContain("for-hire ads");
   });
 
   it("returns 502 when Resend rejects the send", async () => {
