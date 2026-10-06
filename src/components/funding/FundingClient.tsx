@@ -11,7 +11,6 @@ import {
   Clock,
   AlertCircle,
   Crown,
-  CreditCard,
   Heart,
   ArrowLeft,
 } from "lucide-react";
@@ -133,7 +132,7 @@ export function FundingClient() {
         return;
       }
 
-      // Card → CoinPay returns a Stripe checkout URL; redirect.
+      // CoinPay hosted checkout, when it returns one; redirect.
       if (data.checkout_url) {
         if (data.payment_id) sessionStorage.setItem("pending_card_payment_id", data.payment_id);
         window.location.href = data.checkout_url;
@@ -336,23 +335,9 @@ export function FundingClient() {
           </Button>
         </div>
 
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-3 h-14 text-base"
-          onClick={() => handleSelectCurrency("card")}
-          disabled={loading}
-        >
-          {loading && selectedCurrency === "card" ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <CreditCard className="h-5 w-5 text-blue-500" />
-          )}
-          Credit / Debit Card
-        </Button>
-
         <div>
           <p className="text-sm text-muted-foreground mb-3">
-            Or pay with crypto:
+            Pay with crypto:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {(

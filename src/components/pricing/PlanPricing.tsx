@@ -8,7 +8,7 @@ import {
   formatUsd,
 } from "@/lib/plans";
 
-/** Pro price block: monthly headline, then the crypto-only annual and lifetime options. */
+/** Pro price block: monthly headline, then the annual and lifetime options. All crypto, via CoinPay. */
 export function ProPriceDetails({ headlineClassName = "text-4xl font-bold mb-1" }: { headlineClassName?: string }) {
   return (
     <>
@@ -17,13 +17,13 @@ export function ProPriceDetails({ headlineClassName = "text-4xl font-bold mb-1" 
         <span className="text-lg font-normal text-muted-foreground">/month</span>
       </p>
       <p className="text-sm text-muted-foreground mb-2">
-        Monthly by {PRICE_RAILS_COPY.monthly}
+        Paid in {PRICE_RAILS_COPY.monthly}
       </p>
       <p className="text-sm text-muted-foreground mb-1">
-        or {formatUsd(PRO_ANNUAL_PRICE_USD)}/year ({PRICE_RAILS_COPY.annual})
+        or {formatUsd(PRO_ANNUAL_PRICE_USD)}/year
       </p>
       <p className="text-sm text-primary mb-1 font-medium">
-        Lifetime membership: {formatUsd(LIFETIME_PRICE_USD)} one-time ({PRICE_RAILS_COPY.lifetime})
+        Lifetime membership: {formatUsd(LIFETIME_PRICE_USD)} one-time
       </p>
       <p className="text-sm text-green-600 dark:text-green-400 mb-6 font-semibold">
         Fund ugig.net {formatUsd(FUNDING_LIFETIME_THRESHOLD_USD)}+ and lifetime is included free

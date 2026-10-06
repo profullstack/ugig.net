@@ -48,12 +48,17 @@ function SubscriptionPageContent() {
     text: string;
   } | null>(null);
 
-  // Check for success/canceled params from Stripe redirect
+  // Return from checkout: CoinPay sends ?payment=success
   useEffect(() => {
     const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
 
-    if (success) {
+    if (searchParams.get("payment") === "success") {
+      setMessage({
+        type: "success",
+        text: "Payment received. Your plan activates as soon as CoinPay confirms it on-chain.",
+      });
+    } else if (success) {
       setMessage({
         type: "success",
         text: "Your subscription has been activated! Welcome to Pro.",
@@ -80,32 +85,6 @@ function SubscriptionPageContent() {
     fetchSubscription();
   }, []);
 
-  const handleUpgrade = async () => {
-    setIsProcessing(true);
-    setMessage(null);
-
-    try {
-      const result = await subscriptionsApi.createCheckout();
-      if (result.error) {
-        setMessage({ type: "error", text: result.error });
-        return;
-      }
-
-      const data = result.data as { sessionId: string; url: string };
-
-      // Redirect to Stripe checkout
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setMessage({ type: "error", text: "Failed to get checkout URL" });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Failed to start checkout" });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleManageBilling = async () => {
     setIsProcessing(true);
 
@@ -127,7 +106,7 @@ function SubscriptionPageContent() {
     }
   };
 
-  // Crypto checkout through CoinPay: monthly, annual (crypto only) and lifetime (crypto only).
+  // Checkout through CoinPay (crypto), the only payment rail.
   const handleCryptoCheckout = async (plan: CoinPayPlan) => {
     setIsProcessing(true);
     setMessage(null);
@@ -395,7 +374,7 @@ function SubscriptionPageContent() {
             <div className="space-y-2">
               <Button
                 className="w-full"
-                onClick={handleUpgrade}
+                onClick={() => handleCryptoCheckout("monthly")}
                 disabled={isProcessing}
               >
                 {isProcessing ? (
@@ -405,18 +384,10 @@ function SubscriptionPageContent() {
                   </>
                 ) : (
                   <>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    {formatUsd(PLANS.pro.monthlyUsd)}/month by card
+                    <Crown className="h-4 w-4 mr-2" />
+                    Pay {formatUsd(PLANS.pro.monthlyUsd)}/month with crypto (CoinPay)
                   </>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleCryptoCheckout("monthly")}
-                disabled={isProcessing}
-              >
-                Pay {formatUsd(PLANS.pro.monthlyUsd)}/month with crypto (CoinPay)
               </Button>
               <Button
                 variant="outline"
@@ -427,7 +398,7 @@ function SubscriptionPageContent() {
                 Pay {formatUsd(PLANS.pro.annualUsd)}/year with crypto (CoinPay)
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                Annual billing is crypto only.
+                Paid in crypto via CoinPay. Pay again to extend; nothing renews automatically.
               </p>
             </div>
           )}

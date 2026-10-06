@@ -6,14 +6,14 @@ const mockGet = vi.fn();
 vi.mock("@/lib/api", () => ({
   subscriptions: {
     get: () => mockGet(),
-    createCheckout: vi.fn(),
     createPortalSession: vi.fn(),
     cancel: vi.fn(),
     reactivate: vi.fn(),
   },
 }));
+let searchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParams,
 }));
 vi.mock("@/components/providers/DialogProvider", () => ({
   useDialog: () => ({ confirm: vi.fn().mockResolvedValue(true) }),
@@ -29,14 +29,14 @@ describe("subscription page", () => {
     vi.clearAllMocks();
   });
 
-  it("shows plans.ts prices with crypto-only annual and lifetime, and no removed perks", async () => {
+  it("shows plans.ts prices, crypto only, no card checkout, and no removed perks", async () => {
     mockGet.mockResolvedValue({ data: { data: { plan: "free", status: "active", cancel_at_period_end: false } } });
     const { container } = render(<SubscriptionPage />);
     await screen.findByText(/\$90\/year with crypto/);
     const text = container.textContent || "";
-    expect(text).toContain("$9/month by card");
-    expect(text).toContain("Annual billing is crypto only.");
-    expect(text).toContain("Crypto only, via CoinPay");
+    expect(text).toContain("$9/month with crypto (CoinPay)");
+    expect(text).toContain("Crypto, via CoinPay");
+    expect(text).not.toMatch(/stripe|by card|credit card/i);
     expect(text).toContain("Unlimited gig posts, forever");
     expect(text).not.toMatch(/priority support|featured listings|premium features/i);
   });
@@ -72,7 +72,7 @@ describe("subscription page", () => {
     expect(screen.getByText(/Add a year with crypto \(\$90\)/)).toBeTruthy();
   });
 
-  it("card (Stripe) Pro keeps Manage Billing and Downgrade", async () => {
+  it("a legacy Stripe-billed Pro keeps Manage Billing and Downgrade", async () => {
     mockGet.mockResolvedValue({
       data: {
         data: {
@@ -98,5 +98,13 @@ describe("subscription page", () => {
     await userEvent.click(await screen.findByText(/\$9\/month with crypto/));
     await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ type: "subscription", plan: "monthly", currency: "usdc_pol" });
+  });
+
+  it("shows a confirmation when CoinPay returns the buyer with ?payment=success", async () => {
+    searchParams = new URLSearchParams("payment=success");
+    mockGet.mockResolvedValue({ data: { data: { plan: "free", status: "active", cancel_at_period_end: false } } });
+    render(<SubscriptionPage />);
+    expect(await screen.findByText(/activates as soon as CoinPay confirms/)).toBeTruthy();
+    searchParams = new URLSearchParams();
   });
 });

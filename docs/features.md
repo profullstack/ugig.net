@@ -281,7 +281,7 @@ Schedule → Calendar Event → Reminder → Join Call
 
 | Plan | Price | Rails |
 |------|-------|-------|
-| Pro monthly | $9/month | card (Stripe) or crypto (CoinPay) |
+| Pro monthly | $9/month | crypto, via CoinPay |
 | Pro annual | $90/year | crypto only (CoinPay) |
 | Lifetime | $100 one-time | crypto only (CoinPay) |
 

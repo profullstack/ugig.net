@@ -1,103 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { stripe, PLANS } from "@/lib/stripe";
-import { hasPaidAccess } from "@/lib/plans";
+import { NextResponse } from "next/server";
+import {
+  LIFETIME_PRICE_USD,
+  PRO_ANNUAL_PRICE_USD,
+  PRO_MONTHLY_PRICE_USD,
+  formatUsd,
+} from "@/lib/plans";
 
-// POST /api/subscriptions/checkout - Create Stripe checkout session
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get or create Stripe customer
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id, plan, status")
-      .eq("user_id", user.id)
-      .single();
-
-    // Already on Pro (active) or Lifetime: a Stripe subscription would only
-    // double-bill, and its webhooks would overwrite a Lifetime plan with Pro.
-    if (hasPaidAccess(subscription)) {
-      return NextResponse.json(
-        {
-          error:
-            subscription?.plan === "lifetime"
-              ? "You already have a Lifetime membership"
-              : "You already have an active Pro subscription",
-        },
-        { status: 400 }
-      );
-    }
-
-    let customerId = subscription?.stripe_customer_id;
-
-    if (!customerId) {
-      // Get user profile for customer creation
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, full_name")
-        .eq("id", user.id)
-        .single();
-
-      // Create Stripe customer
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: profile?.full_name || profile?.username || undefined,
-        metadata: {
-          supabase_user_id: user.id,
-        },
-      });
-
-      customerId = customer.id;
-
-      // Create or update subscription record with customer ID
-      await supabase.from("subscriptions").upsert(
-        {
-          user_id: user.id,
-          stripe_customer_id: customerId,
-          plan: "free",
-          status: "canceled",
-        },
-        { onConflict: "user_id" }
-      );
-    }
-
-    // Get base URL from request
-    const baseUrl = new URL(request.url).origin;
-
-    // Create checkout session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price: PLANS.pro.priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${baseUrl}/dashboard/subscription?success=true`,
-      cancel_url: `${baseUrl}/dashboard/subscription?canceled=true`,
-      metadata: {
-        user_id: user.id,
+/**
+ * POST /api/subscriptions/checkout - retired.
+ *
+ * Card checkout (Stripe) is no longer offered. Pro and Lifetime are sold only
+ * through CoinPay (crypto): POST /api/payments/coinpayportal/create with
+ * { type: "subscription", plan: "monthly" | "annual" | "lifetime", currency }.
+ * No subscription on prod was ever billed through Stripe, so nothing else
+ * depends on this route; the Stripe webhook and portal routes stay only so a
+ * legacy Stripe subscriber could still be managed.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: `Card checkout is no longer available. Pay with crypto through CoinPay: Pro ${formatUsd(
+        PRO_MONTHLY_PRICE_USD
+      )}/month or ${formatUsd(PRO_ANNUAL_PRICE_USD)}/year, Lifetime ${formatUsd(
+        LIFETIME_PRICE_USD
+      )} one-time.`,
+      checkout: {
+        method: "POST",
+        url: "/api/payments/coinpayportal/create",
+        body: { type: "subscription", plan: "monthly | annual | lifetime", currency: "usdc_pol" },
       },
-    });
-
-    return NextResponse.json({ sessionId: session.id, url: session.url });
-  } catch (error) {
-    console.error("Error creating checkout session:", error);
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
-    );
-  }
+      page: "/dashboard/subscription",
+    },
+    { status: 410 }
+  );
 }

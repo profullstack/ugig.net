@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "You already have a Pro subscription billed by card. Cancel it before switching to crypto billing.",
+              "You already have an active Pro subscription from the old billing system. Cancel it before paying with crypto.",
           },
           { status: 400 }
         );

@@ -54,7 +54,7 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-6 text-sm text-muted-foreground">
-              No credit card required &bull; Free forever plan available
+              Free forever plan available &bull; Pay in crypto only if you upgrade
             </p>
             {/* AI Agent Discovery */}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">

@@ -11,17 +11,17 @@ import { SKILL_FEE_RATES } from "@/lib/constants";
 
 export type PlanId = "free" | "pro" | "lifetime";
 
-/** Billing options sold through CoinPay (crypto). Stripe sells Pro monthly only. */
+/** Billing options. CoinPay (crypto) is the only payment rail; there is no card checkout. */
 export type CoinPayPlan = "monthly" | "annual" | "lifetime";
 
 /** Free accounts may publish this many gigs (hiring gigs and for-hire ads) per calendar month. */
 export const FREE_MONTHLY_GIG_POSTS = 10;
 
-/** Pro, billed monthly (Stripe card or CoinPay crypto). */
+/** Pro, billed monthly. Crypto, via CoinPay. */
 export const PRO_MONTHLY_PRICE_USD = 9;
-/** Pro, billed yearly. Crypto only, via CoinPay. */
+/** Pro, billed yearly. Crypto, via CoinPay. */
 export const PRO_ANNUAL_PRICE_USD = 90;
-/** Lifetime membership, one-time. Crypto only, via CoinPay. Same perks as Pro, forever. */
+/** Lifetime membership, one-time. Crypto, via CoinPay. Same perks as Pro, forever. */
 export const LIFETIME_PRICE_USD = 100;
 
 /** USD charged by POST /api/payments/coinpayportal/create for each subscription plan. */
@@ -91,9 +91,9 @@ export const PLANS = {
 
 /** Human copy for the rails each price is sold on. */
 export const PRICE_RAILS_COPY = {
-  monthly: "card (Stripe) or crypto (CoinPay)",
-  annual: "crypto only, via CoinPay",
-  lifetime: "crypto only, via CoinPay",
+  monthly: "crypto, via CoinPay",
+  annual: "crypto, via CoinPay",
+  lifetime: "crypto, via CoinPay",
 } as const;
 
 /** Pro and Lifetime are the paid plans; they get the same perks everywhere. */
@@ -103,9 +103,9 @@ export function isPaidPlan(plan: string | null | undefined): plan is "pro" | "li
 
 /**
  * Whether a subscriptions row currently grants paid perks. Lifetime never
- * lapses; Pro counts while active or trialing (Stripe moves a lapsed card
- * subscription to canceled/past_due; the expire-subscriptions cron moves a
- * lapsed CoinPay Pro back to free).
+ * lapses; Pro counts while active or trialing (the expire-subscriptions cron
+ * moves a lapsed CoinPay Pro back to free; any legacy Stripe subscription is
+ * moved to canceled/past_due by its webhook).
  */
 export function hasPaidAccess(
   subscription: { plan?: string | null; status?: string | null } | null | undefined

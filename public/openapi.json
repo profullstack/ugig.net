@@ -4944,66 +4944,6 @@
         }
       }
     },
-    "/api/subscriptions/checkout": {
-      "post": {
-        "tags": ["Subscriptions"],
-        "summary": "Create Stripe checkout session",
-        "description": "Generate a Stripe checkout URL for Pro subscription.",
-        "operationId": "createCheckout",
-        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
-        "responses": {
-          "200": {
-            "description": "Checkout URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": { "type": "string", "format": "uri" }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/subscriptions/portal": {
-      "post": {
-        "tags": ["Subscriptions"],
-        "summary": "Create Stripe billing portal session",
-        "description": "Generate a Stripe billing portal URL for managing the subscription.",
-        "operationId": "createPortal",
-        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
-        "responses": {
-          "200": {
-            "description": "Portal URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": { "type": "string", "format": "uri" }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
-            }
-          }
-        }
-      }
-    },
     "/api/payments/coinpayportal/create": {
       "post": {
         "tags": ["Payments"],

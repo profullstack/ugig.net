@@ -20,13 +20,14 @@ const REMOVED_COPY = [
 ];
 
 describe("ProPriceDetails", () => {
-  it("shows $9/month, $90/year crypto-only and $100 lifetime crypto-only", () => {
+  it("shows $9/month, $90/year and $100 lifetime, all crypto via CoinPay, never card", () => {
     const { container } = render(<ProPriceDetails />);
     const text = container.textContent || "";
     expect(text).toContain("$9/month");
-    expect(text).toContain("card (Stripe) or crypto (CoinPay)");
-    expect(text).toContain("$90/year (crypto only, via CoinPay)");
-    expect(text).toContain("$100 one-time (crypto only, via CoinPay)");
+    expect(text).toContain("Paid in crypto, via CoinPay");
+    expect(text).toContain("$90/year");
+    expect(text).toContain("$100 one-time");
+    expect(text).not.toMatch(/stripe|card/i);
     expect(text).toContain("$50+");
     for (const re of REMOVED_COPY) expect(text).not.toMatch(re);
   });
