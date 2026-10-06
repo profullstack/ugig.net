@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, PLANS } from "@/lib/stripe";
+import { hasPaidAccess } from "@/lib/plans";
 
 // POST /api/subscriptions/checkout - Create Stripe checkout session
 export async function POST(request: NextRequest) {
@@ -23,13 +24,16 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
-    // Check if already on Pro plan with active subscription
-    if (
-      subscription?.plan === "pro" &&
-      ["active", "trialing"].includes(subscription?.status || "")
-    ) {
+    // Already on Pro (active) or Lifetime: a Stripe subscription would only
+    // double-bill, and its webhooks would overwrite a Lifetime plan with Pro.
+    if (hasPaidAccess(subscription)) {
       return NextResponse.json(
-        { error: "You already have an active Pro subscription" },
+        {
+          error:
+            subscription?.plan === "lifetime"
+              ? "You already have a Lifetime membership"
+              : "You already have an active Pro subscription",
+        },
         { status: 400 }
       );
     }

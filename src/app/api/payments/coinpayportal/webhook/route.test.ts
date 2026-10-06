@@ -66,6 +66,7 @@ function chainResult(result: { data: any; error: any }) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   chain.single = vi.fn().mockResolvedValue(result);
+  chain.maybeSingle = vi.fn().mockResolvedValue(result);
   chain.insert = vi.fn().mockResolvedValue(result);
   return chain;
 }

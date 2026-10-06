@@ -1,78 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/get-user";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getPaymentStatus } from "@/lib/coinpayportal";
+import {
+  mapCoinPayStatus,
+  markCheckoutPaymentUnpaid,
+  settleCheckoutPayment,
+} from "@/lib/payments/checkout-settlement";
+
+/** Local statuses that a poll never changes. */
+const TERMINAL_STATUSES = ["forwarded", "failed", "expired"];
 
 /**
  * GET /api/payments/coinpayportal/status?payment_id=X
  *
- * Poll payment status — checks CoinPayPortal API directly,
- * falls back to local DB if the external call fails.
+ * Poll a checkout payment (payment_id is the local payments.id returned by
+ * POST /api/payments/coinpayportal/create). Checks CoinPay directly and, when
+ * the provider reports a change, applies it through the same settlement code
+ * as the webhook (so a poll that sees the payment first still activates the
+ * plan, once). Falls back to the local row if CoinPay is unreachable.
+ *
+ * Writes go through the service client: the payments UPDATE policy is
+ * service-role only, so the user's client could never write.
  */
 export async function GET(request: NextRequest) {
   try {
     const paymentId = request.nextUrl.searchParams.get("payment_id");
     if (!paymentId) {
-      return NextResponse.json(
-        { error: "payment_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "payment_id is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const service = createServiceClient();
+
     // Verify the payment belongs to this user
-    const { data: payment, error } = await supabase
+    const { data: payment, error } = await service
       .from("payments")
       .select("id, coinpay_payment_id, status, updated_at")
       .eq("id", paymentId)
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
 
     if (error || !payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
 
-    // If already in terminal state locally, return it
-    const terminalStatuses = ["forwarded", "failed", "expired", "forwarding_failed"];
-    if (terminalStatuses.includes(payment.status)) {
-      return NextResponse.json({
-        status: payment.status,
-        updated_at: payment.updated_at,
-      });
+    if (TERMINAL_STATUSES.includes(payment.status as string)) {
+      return NextResponse.json({ status: payment.status, updated_at: payment.updated_at });
     }
 
-    // Poll CoinPayPortal API for real-time status
     if (payment.coinpay_payment_id) {
       try {
         const cpStatus = await getPaymentStatus(payment.coinpay_payment_id);
         if (cpStatus.success && cpStatus.payment) {
-          const liveStatus = cpStatus.payment.status;
+          const providerStatus = cpStatus.payment.status;
+          const mapped = mapCoinPayStatus(providerStatus);
+          let status: string = payment.status as string;
 
-          // Update local DB if status changed
-          if (liveStatus && liveStatus !== payment.status) {
-            await supabase
-              .from("payments")
-              .update({
-                status: liveStatus as "pending" | "confirmed" | "forwarded" | "expired" | "failed",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", paymentId);
+          if (mapped === "confirmed" || mapped === "forwarded") {
+            if (mapped !== payment.status) {
+              await settleCheckoutPayment(service, {
+                coinpayPaymentId: payment.coinpay_payment_id,
+                status: mapped,
+                amountCrypto: cpStatus.payment.crypto_amount,
+                txHash: cpStatus.payment.tx_hash ?? null,
+                merchantTxHash: cpStatus.payment.forward_tx_hash ?? null,
+              });
+              status = mapped;
+            }
+          } else if ((mapped === "expired" || mapped === "failed") && payment.status === "pending") {
+            await markCheckoutPaymentUnpaid(service, payment.coinpay_payment_id, mapped);
+            status = mapped;
           }
 
           return NextResponse.json({
-            status: liveStatus || payment.status,
+            status,
+            provider_status: providerStatus,
             tx_hash: cpStatus.payment.tx_hash,
             updated_at: payment.updated_at,
           });
@@ -83,15 +90,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      status: payment.status,
-      updated_at: payment.updated_at,
-    });
+    return NextResponse.json({ status: payment.status, updated_at: payment.updated_at });
   } catch (error) {
     console.error("Payment status error:", error);
-    return NextResponse.json(
-      { error: "Failed to check payment status" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to check payment status" }, { status: 500 });
   }
 }

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, requireFullAccess } from "@/lib/auth/get-user";
 import { createPayment, type SupportedCurrency } from "@/lib/coinpayportal";
 import { z } from "zod";
+import {
+  COINPAY_PLAN_PRICES_USD,
+  formatUsd,
+  hasPaidAccess,
+  type CoinPayPlan,
+} from "@/lib/plans";
 
 const createPaymentSchema = z.object({
   type: z.enum(["subscription", "gig_payment", "tip", "funding"]),
@@ -45,17 +51,48 @@ export async function POST(request: NextRequest) {
     let amount: number;
     let description: string;
 
+    // Subscriptions default to monthly; the plan is stored on the local row so
+    // the webhook grants the right period (or Lifetime).
+    const subscriptionPlan: CoinPayPlan | undefined =
+      type === "subscription" ? (plan ?? "monthly") : undefined;
+
+    if (subscriptionPlan) {
+      const { data: currentSub } = await supabase
+        .from("subscriptions")
+        .select("plan, status, stripe_subscription_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (currentSub?.plan === "lifetime") {
+        return NextResponse.json(
+          { error: "You already have a Lifetime membership" },
+          { status: 400 }
+        );
+      }
+      if (
+        subscriptionPlan !== "lifetime" &&
+        currentSub?.stripe_subscription_id &&
+        hasPaidAccess(currentSub)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "You already have a Pro subscription billed by card. Cancel it before switching to crypto billing.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     switch (type) {
       case "subscription":
-        if (plan === "lifetime") {
-          amount = 100; // one-time lifetime membership
-          description = "ugig.net Lifetime Membership (One-time)";
-        } else if (plan === "annual") {
-          amount = 108; // $108/year ($9/month)
-          description = "ugig.net Pro Subscription (Annual - $9/mo)";
+        amount = COINPAY_PLAN_PRICES_USD[subscriptionPlan!];
+        if (subscriptionPlan === "lifetime") {
+          description = `ugig.net Lifetime Membership (One-time, ${formatUsd(amount)})`;
+        } else if (subscriptionPlan === "annual") {
+          description = `ugig.net Pro Subscription (Annual, ${formatUsd(amount)}/year)`;
         } else {
-          amount = 29; // $29/month
-          description = "ugig.net Pro Subscription (Monthly)";
+          description = `ugig.net Pro Subscription (Monthly, ${formatUsd(amount)}/month)`;
         }
         break;
       case "tip":
@@ -82,7 +119,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         user_id: user.id,
         type,
-        plan,
+        ...(subscriptionPlan ? { plan: subscriptionPlan } : {}),
       },
     });
 
@@ -99,6 +136,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           checkout_url: paymentResult.checkout_url,
           expires_at: paymentResult.expires_at,
+          ...(subscriptionPlan ? { plan: subscriptionPlan } : {}),
         },
       })
       .select()
