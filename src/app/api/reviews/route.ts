@@ -8,6 +8,7 @@ import { getUserDid, onReviewCreated } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
 import { parsePaginationParam } from "@/lib/api-pagination";
 import { usersAreBlocked, getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 const createReviewSchema = z.object({
   gig_id: z.string().uuid("Invalid gig ID"),
@@ -186,8 +187,9 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("gig_id", gig_id)
       .eq("applicant_id", user.id)
-      .eq("status", "accepted")
-      .single();
+      .in("status", HIRED_APPLICATION_STATUSES)
+      .limit(1)
+      .maybeSingle();
 
     const isAcceptedApplicant = !!application;
 
@@ -205,8 +207,9 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("gig_id", gig_id)
       .eq("applicant_id", reviewee_id)
-      .eq("status", "accepted")
-      .single();
+      .in("status", HIRED_APPLICATION_STATUSES)
+      .limit(1)
+      .maybeSingle();
 
     const revieweeIsAcceptedApplicant = !!revieweeApplication;
 

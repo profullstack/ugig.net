@@ -3,6 +3,7 @@ import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, gigFilledEmail } from "@/lib/email";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 const statusUpdateSchema = z.object({
   status: z.enum(["draft", "active", "paused", "closed", "filled"]),
@@ -122,7 +123,7 @@ export async function PATCH(
         .from("applications")
         .select("*", { count: "exact", head: true })
         .eq("gig_id", id)
-        .eq("status", "accepted");
+        .in("status", HIRED_APPLICATION_STATUSES);
 
       // Get poster email
       const adminClient = createServiceClient();

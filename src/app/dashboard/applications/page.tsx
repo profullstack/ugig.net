@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink, Clock, DollarSign, Calendar, FileText } from "lucide-react";
 import { fmtUSD } from "@/lib/utils";
+import { isHiredStatus } from "@/lib/application-status";
 
 export const metadata = {
   title: "My Applications | ugig.net",
@@ -55,6 +56,9 @@ export default async function MyApplicationsPage() {
     accepted: "bg-green-500/10 text-green-600",
     rejected: "bg-red-500/10 text-red-600",
     withdrawn: "bg-gray-500/10 text-gray-600",
+    in_progress: "bg-blue-500/10 text-blue-600",
+    completed: "bg-green-500/10 text-green-600",
+    paid: "bg-green-500/10 text-green-600",
   };
 
   const statusDescriptions: Record<string, string> = {
@@ -64,6 +68,9 @@ export default async function MyApplicationsPage() {
     accepted: "Congratulations! You've been accepted",
     rejected: "Unfortunately not selected this time",
     withdrawn: "You withdrew this application",
+    in_progress: "Hired: work in progress",
+    completed: "Hired: work completed",
+    paid: "Hired: work completed and paid",
   };
 
   // Group applications by status
@@ -73,7 +80,7 @@ export default async function MyApplicationsPage() {
     ) || [];
   const completedApplications =
     applications?.filter((app) =>
-      ["accepted", "rejected", "withdrawn"].includes(app.status)
+      isHiredStatus(app.status) || ["rejected", "withdrawn"].includes(app.status)
     ) || [];
 
   return (
@@ -124,7 +131,7 @@ export default async function MyApplicationsPage() {
             </div>
             <div className="p-5 bg-card rounded-lg border border-border shadow-sm hover:shadow-md hover:border-green-500/30 transition-all duration-200 text-center">
               <p className="text-2xl font-bold text-green-600">
-                {applications?.filter((a) => a.status === "accepted").length || 0}
+                {applications?.filter((a) => isHiredStatus(a.status)).length || 0}
               </p>
               <p className="text-sm text-muted-foreground mt-1">Accepted</p>
             </div>
@@ -257,7 +264,7 @@ export default async function MyApplicationsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {app.status === "accepted" && (
+                          {isHiredStatus(app.status) && (
                             <Link
                               href={`/gigs/${gig.id}`}
                               className="text-sm text-primary hover:underline"

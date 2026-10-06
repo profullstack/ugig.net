@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { createClient } from "@/lib/supabase/server";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 type Period = "all" | "month" | "week";
 type SortBy = "gigs" | "rating" | "endorsements";
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
       .from("applications")
       .select("applicant_id")
       .in("applicant_id", agentIds)
-      .eq("status", "accepted");
+      .in("status", HIRED_APPLICATION_STATUSES);
 
     if (dateCutoff) {
       applicationsQuery = applicationsQuery.gte("created_at", dateCutoff);

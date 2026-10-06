@@ -33,6 +33,7 @@ import { GigTestimonialSection } from "@/components/testimonials/GigTestimonialS
 import { HiredWorkerReview } from "@/components/gigs/HiredWorkerReview";
 import { AdUnit } from "@/components/AdUnit";
 import { createServiceClient } from "@/lib/supabase/service";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 interface GigPageProps {
   params: Promise<{ id: string }>;
@@ -152,7 +153,7 @@ export default async function GigPage({ params }: GigPageProps) {
         .select("id, applicant_id, proposed_rate")
         .eq("gig_id", id)
         .eq("applicant_id", user.id)
-        .eq("status", "accepted")
+        .in("status", HIRED_APPLICATION_STATUSES)
         .limit(1);
       if (myApp && myApp.length > 0) {
         userAcceptedApplication = myApp[0];
@@ -163,7 +164,7 @@ export default async function GigPage({ params }: GigPageProps) {
         .from("applications")
         .select("id")
         .eq("gig_id", id)
-        .eq("status", "accepted");
+        .in("status", HIRED_APPLICATION_STATUSES);
       acceptedCount = acceptedApps?.length || 0;
     }
 
@@ -196,7 +197,7 @@ export default async function GigPage({ params }: GigPageProps) {
       .from("applications")
       .select("applicant_id, status")
       .eq("gig_id", id)
-      .eq("status", "accepted");
+      .in("status", HIRED_APPLICATION_STATUSES);
 
     if (acceptedApps && acceptedApps.length > 0) {
       const workerIds = acceptedApps.map((a) => a.applicant_id);

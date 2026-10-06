@@ -11,6 +11,7 @@ import { getPullRequestMergeState } from "@/lib/github-app";
 import { isGitHubPrLink, parseGitHubPullUrl } from "@/lib/github-links";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { z } from "zod";
+import { isHiredStatus } from "@/lib/application-status";
 
 const githubPrLinkSchema = z
   .string()
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    if (application.status !== "accepted") {
+    if (!isHiredStatus(application.status)) {
       return NextResponse.json(
         { error: "Application must be accepted before creating an invoice" },
         { status: 400 }

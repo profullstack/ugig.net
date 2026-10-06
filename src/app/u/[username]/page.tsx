@@ -42,6 +42,7 @@ import { CompletedGigs } from "@/components/profile/CompletedGigs";
 import { ProfileActivityStats } from "@/components/profile/ProfileActivityStats";
 import { BlockButton } from "@/components/blocks/BlockButton";
 import { usersAreBlocked } from "@/lib/blocks";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -230,7 +231,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     .from("applications")
     .select("id, gig_id, updated_at, status, gig:gigs!gig_id(id, title, budget_type, budget_min, poster_id, poster:profiles!poster_id(username, full_name))")
     .eq("applicant_id", profile.id)
-    .eq("status", "accepted")
+    .in("status", HIRED_APPLICATION_STATUSES)
     .order("updated_at", { ascending: false });
 
   const completedGigsList = (completedApps || []).map((app: any) => ({

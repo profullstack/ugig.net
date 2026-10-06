@@ -15,6 +15,7 @@ import { MessageAllApplicantsButton } from "@/components/applications/MessageAll
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
+import { isHiredStatus } from "@/lib/application-status";
 
 interface ApplicationsPageProps {
   params: Promise<{ id: string }>;
@@ -101,13 +102,16 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
     accepted: "bg-green-500/10 text-green-600",
     rejected: "bg-red-500/10 text-red-600",
     withdrawn: "bg-gray-500/10 text-gray-600",
+    in_progress: "bg-blue-500/10 text-blue-600",
+    completed: "bg-green-500/10 text-green-600",
+    paid: "bg-green-500/10 text-green-600",
   };
 
   // Group applications
   const pendingApps = applications?.filter((a) => a.status === "pending") || [];
   const reviewingApps = applications?.filter((a) => a.status === "reviewing") || [];
   const shortlistedApps = applications?.filter((a) => a.status === "shortlisted") || [];
-  const acceptedApps = applications?.filter((a) => a.status === "accepted") || [];
+  const acceptedApps = applications?.filter((a) => isHiredStatus(a.status)) || [];
   const rejectedApps = applications?.filter((a) => a.status === "rejected") || [];
 
   // Fetch escrows for all accepted applications
@@ -479,7 +483,7 @@ export default async function ApplicationsPage({ params }: ApplicationsPageProps
                       )}
 
                       {/* Escrow & Invoice — only for accepted applications */}
-                      {app.status === "accepted" && (
+                      {isHiredStatus(app.status) && (
                         <div className="mb-4 space-y-3">
                           <EscrowPaymentButton
                             gigId={id}
