@@ -1666,6 +1666,9 @@ export type Database = {
         | "rejected"
         | "accepted"
         | "withdrawn"
+        | "in_progress"
+        | "completed"
+        | "paid"
       budget_type:
         | "fixed"
         | "hourly"
@@ -1843,6 +1846,9 @@ export const Constants = {
         "rejected",
         "accepted",
         "withdrawn",
+        "in_progress",
+        "completed",
+        "paid",
       ],
       budget_type: [
         "fixed",

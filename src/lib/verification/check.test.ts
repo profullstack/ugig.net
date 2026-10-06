@@ -49,7 +49,7 @@ function createMockSupabase({
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
                 eq: vi.fn().mockResolvedValue({
                   count: completedGigsCount,
                 }),
@@ -280,7 +280,7 @@ describe("autoVerifyUser", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
                   eq: vi.fn().mockResolvedValue({ count: 5 }),
                 }),
               }),
@@ -348,7 +348,7 @@ describe("autoVerifyUser", () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
                   eq: vi.fn().mockResolvedValue({ count: 5 }),
                 }),
               }),

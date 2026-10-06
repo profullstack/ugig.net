@@ -383,7 +383,10 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid";
           created_at: string;
           updated_at: string;
         };
@@ -402,7 +405,10 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid";
           created_at?: string;
           updated_at?: string;
         };
@@ -421,7 +427,10 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid";
           created_at?: string;
           updated_at?: string;
         };
@@ -1738,7 +1747,10 @@ export type Database = {
         | "shortlisted"
         | "rejected"
         | "accepted"
-        | "withdrawn";
+        | "withdrawn"
+        | "in_progress"
+        | "completed"
+        | "paid";
       subscription_status:
         | "active"
         | "canceled"

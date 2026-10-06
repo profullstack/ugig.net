@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createEscrow, type SupportedCurrency } from "@/lib/coinpayportal";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { z } from "zod";
+import { isHiredStatus } from "@/lib/application-status";
 
 const createEscrowSchema = z.object({
   application_id: z.string().uuid(),
@@ -107,7 +108,7 @@ export async function POST(
       );
     }
 
-    if (application.status !== "accepted") {
+    if (!isHiredStatus(application.status)) {
       return NextResponse.json(
         { error: "Application must be accepted before creating escrow" },
         { status: 400 }

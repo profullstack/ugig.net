@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 /**
  * Auto-verification criteria:
@@ -55,7 +56,7 @@ export async function checkAutoVerification(
     .from("applications")
     .select("id, gig:gigs!inner(status)", { count: "exact", head: true })
     .eq("applicant_id", userId)
-    .eq("status", "accepted")
+    .in("status", HIRED_APPLICATION_STATUSES)
     .eq("gig.status", "filled");
 
   const completedGigs = completedGigsCount ?? 0;
