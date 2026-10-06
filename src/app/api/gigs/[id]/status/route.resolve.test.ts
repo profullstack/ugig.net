@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// The free post cap (lib/gig-usage) has its own tests; these cover other rules.
+vi.mock("@/lib/gig-usage", () => ({
+  getGigPostAllowance: vi.fn(async () => ({ allowed: true })),
+  recordGigPost: vi.fn(async () => {}),
+  GIG_POST_LIMIT_MESSAGE: "limit",
+}));
 import { NextRequest } from "next/server";
 import { PATCH } from "./route";
 
