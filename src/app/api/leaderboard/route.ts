@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
 
 type Period = "all" | "month" | "week";
@@ -74,68 +76,59 @@ export async function GET(request: NextRequest) {
 
     const agentIds = agents.map((a) => a.id);
 
-    // 2. Count completed gigs per agent (accepted applications)
-    let applicationsQuery = supabase
-      .from("applications")
-      .select("applicant_id")
-      .in("applicant_id", agentIds)
-      .in("status", HIRED_APPLICATION_STATUSES);
+    // 2-4. Completed gigs, ratings and endorsements per agent.
+    //
+    // These used to be `.in("applicant_id", agentIds)` with ~670 uuids: a
+    // ~25 KB query string PostgREST answers with 400, and the error was
+    // ignored, so every agent showed 0 completed gigs and 0 endorsements.
+    // They also ran as the viewer, and RLS hides applications from anyone
+    // logged out. Read the (small) hired/review/endorsement sets with the
+    // service client instead, paged past the 1000-row cap, and keep only the
+    // listed agents. Only per-agent totals leave this route.
+    const agentIdSet = new Set(agentIds);
+    const svc = createServiceClient();
 
-    if (dateCutoff) {
-      applicationsQuery = applicationsQuery.gte("created_at", dateCutoff);
-    }
-
-    const { data: applications } = await applicationsQuery;
+    const [applications, reviews, endorsements] = await Promise.all([
+      fetchAllRows<{ applicant_id: string }>((from, to) => {
+        let q = svc
+          .from("applications")
+          .select("applicant_id")
+          .in("status", HIRED_APPLICATION_STATUSES);
+        if (dateCutoff) q = q.gte("created_at", dateCutoff);
+        return q.order("id").range(from, to);
+      }),
+      fetchAllRows<{ reviewee_id: string; rating: number }>((from, to) => {
+        let q = svc.from("reviews").select("reviewee_id, rating");
+        if (dateCutoff) q = q.gte("created_at", dateCutoff);
+        return q.order("id").range(from, to);
+      }),
+      fetchAllRows<{ endorsed_id: string }>((from, to) => {
+        let q = svc.from("endorsements").select("endorsed_id");
+        if (dateCutoff) q = q.gte("created_at", dateCutoff);
+        return q.order("id").range(from, to);
+      }),
+    ]);
 
     const gigsCount: Record<string, number> = {};
-    if (applications) {
-      for (const app of applications) {
-        gigsCount[app.applicant_id] =
-          (gigsCount[app.applicant_id] || 0) + 1;
-      }
+    for (const app of applications) {
+      if (!agentIdSet.has(app.applicant_id)) continue;
+      gigsCount[app.applicant_id] = (gigsCount[app.applicant_id] || 0) + 1;
     }
-
-    // 3. Get average review rating per agent
-    let reviewsQuery = supabase
-      .from("reviews")
-      .select("reviewee_id, rating")
-      .in("reviewee_id", agentIds);
-
-    if (dateCutoff) {
-      reviewsQuery = reviewsQuery.gte("created_at", dateCutoff);
-    }
-
-    const { data: reviews } = await reviewsQuery;
 
     const ratingsMap: Record<string, { sum: number; count: number }> = {};
-    if (reviews) {
-      for (const review of reviews) {
-        if (!ratingsMap[review.reviewee_id]) {
-          ratingsMap[review.reviewee_id] = { sum: 0, count: 0 };
-        }
-        ratingsMap[review.reviewee_id].sum += review.rating;
-        ratingsMap[review.reviewee_id].count += 1;
+    for (const review of reviews) {
+      if (!agentIdSet.has(review.reviewee_id)) continue;
+      if (!ratingsMap[review.reviewee_id]) {
+        ratingsMap[review.reviewee_id] = { sum: 0, count: 0 };
       }
+      ratingsMap[review.reviewee_id].sum += review.rating;
+      ratingsMap[review.reviewee_id].count += 1;
     }
-
-    // 4. Count endorsements per agent
-    let endorsementsQuery = supabase
-      .from("endorsements")
-      .select("endorsed_id")
-      .in("endorsed_id", agentIds);
-
-    if (dateCutoff) {
-      endorsementsQuery = endorsementsQuery.gte("created_at", dateCutoff);
-    }
-
-    const { data: endorsements } = await endorsementsQuery;
 
     const endorsementCount: Record<string, number> = {};
-    if (endorsements) {
-      for (const e of endorsements) {
-        endorsementCount[e.endorsed_id] =
-          (endorsementCount[e.endorsed_id] || 0) + 1;
-      }
+    for (const e of endorsements) {
+      if (!agentIdSet.has(e.endorsed_id)) continue;
+      endorsementCount[e.endorsed_id] = (endorsementCount[e.endorsed_id] || 0) + 1;
     }
 
     // 5. Build leaderboard entries
