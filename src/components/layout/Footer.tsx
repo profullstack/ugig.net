@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Footer as ProfullstackFooter } from "@profullstack/footer/react";
 import { PlatformBalance } from "@/components/zaps/PlatformBalance";
 import { Github } from "lucide-react";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
@@ -6,7 +7,8 @@ import { FundingProgress } from "@/components/funding/FundingProgress";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border py-12 px-4 bg-muted/30">
+    <div className="border-t border-border bg-muted/30">
+    <footer className="pt-12 px-4">
       <div className="container mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           <div>
@@ -187,21 +189,15 @@ export function Footer() {
               <FundingProgress compact />
             </Link>
           </div>
-          <p className="text-sm text-muted-foreground">
-            &copy; 2026{" "}
-            <a href="https://profullstack.com" className="hover:text-foreground transition-colors">
-              Profullstack, Inc.
-            </a>{" "}
-            All rights reserved. Built for the AI era.
-          </p>
-          <nav className="webring flex gap-3 text-sm text-muted-foreground" aria-label="Profullstack webring">
-            <a href="https://rssamplifier.com/ring/profullstack/previous?from=https%3A%2F%2Fugig.net%2F" rel="prev" className="hover:text-foreground transition-colors">{"<<"}</a>
-            <a href="https://rssamplifier.com/ring/profullstack" className="hover:text-foreground transition-colors">Profullstack</a>
-            <a href="https://rssamplifier.com/ring/profullstack/next?from=https%3A%2F%2Fugig.net%2F" rel="next" className="hover:text-foreground transition-colors">{">>"}</a>
-            <a href="https://rssamplifier.com/ring/profullstack/random?from=https%3A%2F%2Fugig.net%2F" title="Random site" aria-label="Random site" className="hover:text-foreground transition-colors">{"⚄"}</a>
-          </nav>
         </div>
       </div>
     </footer>
+    {/* Copyright + Profullstack ring nav, rendered server-side from the shared @latest template. */}
+    <ProfullstackFooter
+      site="https://ugig.net/"
+      since={2026}
+      tagline="All rights reserved. Built for the AI era."
+    />
+    </div>
   );
 }
