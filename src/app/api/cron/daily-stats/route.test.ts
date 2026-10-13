@@ -85,7 +85,7 @@ describe("POST /api/cron/daily-stats", () => {
     expect(json.id).toBe("email-1");
     expect(json.subject).toContain("2238 users");
     expect(mockSend).toHaveBeenCalledTimes(1);
-    expect(mockSend.mock.calls[0][0].to).toBe("anthony@profullstack.com");
+    expect(mockSend.mock.calls[0][0].to).toEqual(["anthony@profullstack.com", "preshy@profullstack.com"]);
   });
 
   it("does NOT send, and returns 500, when a query errors (no silent zeros)", async () => {
