@@ -470,12 +470,12 @@ PRO / FUNDING / TIP CHECKOUTS (payments table)
   };
 }
 
-export const DAILY_STATS_TO = "anthony@profullstack.com";
+export const DAILY_STATS_TO = ["anthony@profullstack.com", "preshy@profullstack.com"];
 export const DAILY_STATS_FROM = "ugig Stats <stats@ugig.net>";
 
 export async function sendDailyStatsEmail(
   report: { subject: string; html: string; text: string },
-  opts: { apiKey?: string; to?: string; from?: string } = {}
+  opts: { apiKey?: string; to?: string | string[]; from?: string } = {}
 ): Promise<string | null> {
   const apiKey = opts.apiKey ?? process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY not configured");

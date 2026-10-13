@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { collectDailyStats, renderDailyStats, sendDailyStatsEmail } from "@/lib/daily-stats";
 
 /**
- * Cron: the ugig.net daily stats email (08:00 UTC, to anthony@profullstack.com).
+ * Cron: the ugig.net daily stats email (08:00 UTC, to anthony@ and preshy@profullstack.com).
  *
  * Runs inside the app so it reads the same database and keys the site does.
  * It used to be scripts/daily-stats-email.ts run from a droplet with its own
