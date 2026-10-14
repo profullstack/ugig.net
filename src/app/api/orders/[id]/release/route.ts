@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { releaseEscrow } from "@/lib/coinpayportal";
-import { loadOrderForAction, notifyOrderParty, transitionOrder } from "@/lib/orders/buy-now";
+import { loadOrderForAction, notifyOrderParty, releasePaypalOrder, transitionOrder } from "@/lib/orders/buy-now";
 
 // POST /api/orders/[id]/release — buyer releases the escrow to the seller
 export async function POST(
@@ -24,6 +24,12 @@ export async function POST(
   if (order.status !== "funded" && order.status !== "delivered") {
     return NextResponse.json({ error: `Only a paid order can be released (this one is ${order.status})` }, { status: 409 });
   }
+  if (order.payment_rail === "paypal") {
+    const released = await releasePaypalOrder(supabase, order, "buyer");
+    if (!released) return NextResponse.json({ error: "Order was already released" }, { status: 409 });
+    return NextResponse.json({ ok: true, status: "released" });
+  }
+
   if (!order.coinpay_escrow_id || !order.coinpay_release_token) {
     return NextResponse.json({ error: "This order has no escrow to release" }, { status: 409 });
   }

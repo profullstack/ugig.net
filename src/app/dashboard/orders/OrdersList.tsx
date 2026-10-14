@@ -26,7 +26,11 @@ export interface OrderListItem {
   requirements: string | null;
   delivery_note: string | null;
   expires_at: string | null;
+  funded_at: string | null;
   created_at: string;
+  payment_rail?: "crypto" | "paypal";
+  payout_status?: "owed" | "paid" | null;
+  payout_tx_hash?: string | null;
   gig: { id: string; title: string } | null;
   buyer: Party | null;
   seller: Party | null;
@@ -154,15 +158,22 @@ function OrderCard({ order, isBuyer, onChange }: { order: OrderListItem; isBuyer
       {order.requirements && <p className="mt-2 text-sm whitespace-pre-wrap"><strong>Requirements:</strong> {order.requirements}</p>}
       {order.delivery_note && <p className="mt-2 text-sm whitespace-pre-wrap"><strong>Delivery:</strong> {order.delivery_note}</p>}
 
+      {order.payment_rail === "paypal" && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Paid by PayPal, held by ugig.
+          {!isBuyer && order.payout_status === "owed" && " Your payout is being sent to your CoinPay wallet."}
+          {!isBuyer && order.payout_status === "paid" && order.payout_tx_hash && ` Payout sent: ${order.payout_tx_hash}`}
+        </p>
+      )}
       {isBuyer && order.status === "pending_payment" && order.escrow_address && (
         <p className="mt-2 text-sm text-muted-foreground">
           Send {order.amount_crypto ?? ""} {order.currency.toUpperCase()} to{" "}
           <code className="break-all">{order.escrow_address}</code>
         </p>
       )}
-      {paid && order.expires_at && (
+      {paid && autoReleaseDate(order) && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Auto-releases to the seller on {new Date(order.expires_at).toLocaleDateString()} unless disputed.
+          Auto-releases to the seller on {autoReleaseDate(order)} unless disputed.
         </p>
       )}
 
@@ -208,4 +219,13 @@ function OrderCard({ order, isBuyer, onChange }: { order: OrderListItem; isBuyer
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   );
+}
+
+/** Crypto orders auto-release at the escrow's expiry; PayPal ones 14 days after payment. */
+function autoReleaseDate(order: OrderListItem): string | null {
+  if (order.payment_rail === "paypal") {
+    if (!order.funded_at) return null;
+    return new Date(new Date(order.funded_at).getTime() + 14 * 86400_000).toLocaleDateString();
+  }
+  return order.expires_at ? new Date(order.expires_at).toLocaleDateString() : null;
 }

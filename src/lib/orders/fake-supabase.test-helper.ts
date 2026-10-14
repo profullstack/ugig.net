@@ -20,13 +20,19 @@ export function fakeSupabase(tables: Record<string, Record<string, unknown>[]> =
       rows = rows.filter((r) => r[col] === val);
       return b;
     });
+    b.lt = vi.fn((col: string, val: string) => {
+      rows = rows.filter((r) => String(r[col]) < val);
+      return b;
+    });
     b.in = vi.fn((col: string, vals: unknown[]) => {
       rows = rows.filter((r) => vals.includes(r[col]));
       return b;
     });
     b.insert = vi.fn((row: Record<string, unknown>) => {
       (inserts[table] ||= []).push(row);
-      rows = [{ id: `${table}-new`, ...row }];
+      const stored = { id: `${table}-new`, ...row };
+      (tables[table] ||= []).push(stored);
+      rows = [stored];
       return b;
     });
     b.update = vi.fn((patch: Record<string, unknown>) => {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleGigOrderEscrowEvent } from "@/lib/orders/escrow-webhook";
+import { handleGigOrderEscrowEvent, handleGigOrderPaypalPayment } from "@/lib/orders/escrow-webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyWebhookSignature, type CoinPayWebhookPayload } from "@/lib/coinpayportal";
 import {
@@ -60,24 +60,28 @@ export async function processCoinPayWebhook(
 
     switch (payload.type) {
       case "payment.confirmed": {
+        if (await handleGigOrderPaypalPayment(supabase as any, payload as any)) break;
         if (await handleFunding(supabase, payload, "confirmed")) break;
         await handlePaymentSettled(supabase, payload, "confirmed");
         break;
       }
 
       case "payment.forwarded": {
+        if (await handleGigOrderPaypalPayment(supabase as any, payload as any)) break;
         if (await handleFunding(supabase, payload, "forwarded")) break;
         await handlePaymentSettled(supabase, payload, "forwarded");
         break;
       }
 
       case "payment.expired": {
+        if (await handleGigOrderPaypalPayment(supabase as any, payload as any)) break;
         if (await handleFunding(supabase, payload, "expired")) break;
         await handlePaymentExpired(supabase, payload);
         break;
       }
 
       case "payment.failed": {
+        if (await handleGigOrderPaypalPayment(supabase as any, payload as any)) break;
         if (await handleFunding(supabase, payload, "failed")) break;
         await markCheckoutPaymentUnpaid(supabase, payload.data.payment_id, "failed");
         break;

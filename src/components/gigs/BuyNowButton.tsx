@@ -16,6 +16,7 @@ interface BuyInfo {
   fee_percent?: number;
   escrow_days?: number;
   currencies?: { value: string; label: string }[];
+  paypal?: boolean;
 }
 
 interface CreatedOrder {
@@ -40,6 +41,7 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
   const [info, setInfo] = useState<BuyInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState("");
+  const [method, setMethod] = useState<"crypto" | "paypal">("crypto");
   const [refundAddress, setRefundAddress] = useState("");
   const [requirements, setRequirements] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -85,12 +87,20 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
       const res = await fetch(`/api/gigs/${gigId}/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency, refund_address: refundAddress, requirements: requirements || undefined }),
+        body: JSON.stringify(
+          method === "paypal"
+            ? { method: "paypal", requirements: requirements || undefined }
+            : { currency, refund_address: refundAddress, requirements: requirements || undefined }
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Could not start the order");
         if (data.order_id) setExistingOrderId(data.order_id);
+        return;
+      }
+      if (data.approve_url) {
+        window.location.href = data.approve_url;
         return;
       }
       setOrder(data.order);
@@ -138,11 +148,28 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
         Buy now — {price}, held in escrow
       </p>
       <p className="text-xs text-muted-foreground">
-        Your payment is held by CoinPay escrow. The seller is paid when you release it. If you do nothing it
+        Your payment is held until you release it to the seller. If you do nothing it
         releases to the seller after {info.escrow_days} days unless you open a dispute. The seller receives the
         price minus ugig&apos;s {info.fee_percent}% fee.
       </p>
 
+      {info.paypal && (
+        <div className="flex gap-2">
+          <Button type="button" size="sm" variant={method === "crypto" ? "default" : "outline"} onClick={() => setMethod("crypto")}>
+            Crypto
+          </Button>
+          <Button type="button" size="sm" variant={method === "paypal" ? "default" : "outline"} onClick={() => setMethod("paypal")}>
+            PayPal
+          </Button>
+        </div>
+      )}
+
+      {method === "paypal" ? (
+        <p className="text-xs text-muted-foreground">
+          You&apos;ll approve the payment on PayPal. ugig holds it and pays the seller when you release it.
+        </p>
+      ) : (
+      <>
       <div className="space-y-1">
         <Label htmlFor="buy-currency">Pay with</Label>
         <select
@@ -168,6 +195,8 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
           placeholder="Where a refund should go"
         />
       </div>
+      </>
+      )}
 
       <div className="space-y-1">
         <Label htmlFor="buy-reqs">What you need (optional)</Label>
@@ -193,8 +222,8 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
       )}
 
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={submit} disabled={submitting || !currency || refundAddress.trim().length < 10}>
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay ${price}`}
+        <Button className="flex-1" onClick={submit} disabled={submitting || (method === "crypto" && (!currency || refundAddress.trim().length < 10))}>
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : method === "paypal" ? `Continue to PayPal (${price})` : `Pay ${price}`}
         </Button>
         <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
           Cancel

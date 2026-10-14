@@ -957,6 +957,59 @@ export async function disputeEscrow(escrowId: string, releaseToken: string, reas
   return response.json();
 }
 
+// ─── PayPal (Buy now) ──────────────────────────────────────────────────────
+
+export interface CreatePaypalPaymentOptions {
+  amount_usd: number;
+  description: string;
+  success_url: string;
+  cancel_url: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PaypalPaymentResponse {
+  transaction_id: string;
+  order_id?: string;
+  approve_url: string;
+}
+
+/**
+ * Open a PayPal order on ugig's CoinPay business. The money captures into
+ * ugig's own PayPal account (CoinPay cannot escrow PayPal); CoinPay reports the
+ * capture as a `payment.confirmed` webhook whose `payment_id` is `transaction_id`.
+ */
+export async function createPaypalPayment(options: CreatePaypalPaymentOptions): Promise<PaypalPaymentResponse> {
+  const apiKey = process.env.COINPAY_API_KEY;
+  const merchantId = process.env.COINPAY_MERCHANT_ID;
+  if (!apiKey || !merchantId) {
+    throw new Error("CoinPayPortal credentials not configured");
+  }
+
+  const response = await coinpayFetch(`${COINPAY_API_URL}/paypal/payments/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      business_id: merchantId,
+      amount: options.amount_usd,
+      currency: "USD",
+      description: options.description,
+      success_url: options.success_url,
+      cancel_url: options.cancel_url,
+      metadata: options.metadata,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `PayPal checkout failed: ${response.status}`);
+  }
+  const approveUrl = data.approve_url || data.checkout_url;
+  if (!data.transaction_id || !approveUrl) {
+    throw new Error("PayPal checkout returned no approval link");
+  }
+  return { transaction_id: data.transaction_id, order_id: data.order_id, approve_url: approveUrl };
+}
+
 // ─── Invoice API ───────────────────────────────────────────────────────────
 
 export interface CreateInvoiceOptions {
