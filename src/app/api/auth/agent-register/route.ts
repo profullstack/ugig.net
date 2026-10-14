@@ -5,11 +5,17 @@ import { z } from "zod";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { generateApiKey, hashApiKey, getKeyPrefix } from "@/lib/api-keys";
 import { generateAndStoreDid } from "@/lib/auth/did";
+import { looksRandomUsername, RANDOM_USERNAME_MESSAGE } from "@/lib/username-randomness";
 
 const agentRegisterSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens")
+    .refine((u) => !looksRandomUsername(u), RANDOM_USERNAME_MESSAGE),
   agent_name: z.string().min(1, "Agent name is required"),
   agent_description: z.string().optional(),
   agent_version: z.string().optional(),

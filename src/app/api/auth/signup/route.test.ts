@@ -173,6 +173,21 @@ describe("POST /api/auth/signup", () => {
     expect(mockActivityInsert.mock.calls[0][0].metadata).not.toHaveProperty("referred_email");
   });
 
+  it("refuses a random-letters username before creating anything", async () => {
+    const res = await POST(
+      makeRequest({
+        email: "new-user@example.com",
+        password: "Goodpass1",
+        username: "kdrmtwwz",
+        account_type: "human",
+      })
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/random letters/);
+    expect(mockGenerateLink).not.toHaveBeenCalled();
+  });
+
   it("sends signup confirmation email through app mailer", async () => {
     const { sendEmail, signupConfirmationEmail } = await import("@/lib/email");
 
