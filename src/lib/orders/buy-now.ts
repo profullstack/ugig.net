@@ -174,7 +174,8 @@ function round2(n: number): number {
 export const ORDER_PUBLIC_COLUMNS =
   "id, gig_id, buyer_id, seller_id, status, amount_usd, currency, platform_fee_rate, platform_fee_usd, " +
   "requirements, delivery_note, coinpay_escrow_id, escrow_address, amount_crypto, buyer_refund_address, " +
-  "seller_payout_address, expires_at, funded_at, delivered_at, released_at, metadata, created_at, updated_at";
+  "seller_payout_address, expires_at, funded_at, delivered_at, released_at, metadata, created_at, updated_at, " +
+  "payment_rail, payout_currency, payout_status, payout_tx_hash, payout_paid_at";
 
 export interface OrderRow {
   id: string;
@@ -186,6 +187,7 @@ export interface OrderRow {
   platform_fee_usd: number;
   coinpay_escrow_id: string | null;
   coinpay_release_token?: string | null;
+  payment_rail?: "crypto" | "paypal";
 }
 
 /** Load an order with its token, for a server-side action by one of its parties. */
@@ -195,7 +197,7 @@ export async function loadOrderForAction(
 ): Promise<OrderRow | null> {
   const { data } = await supabase
     .from("gig_orders")
-    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, coinpay_escrow_id, coinpay_release_token")
+    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, coinpay_escrow_id, coinpay_release_token, payment_rail")
     .eq("id", orderId)
     .single();
   return (data as OrderRow | null) ?? null;
@@ -215,4 +217,73 @@ export async function transitionOrder(
     .in("status", from)
     .select("id");
   return Array.isArray(data) && data.length > 0;
+}
+
+// ─── PayPal ────────────────────────────────────────────────────────────────
+
+/**
+ * PayPal Buy now is off until ugig's CoinPay business has PayPal connected and
+ * UGIG_PAYPAL_BUY_NOW=true is set. A PayPal order is held by ugig, not escrow.
+ */
+export function paypalBuyNowEnabled(): boolean {
+  return process.env.UGIG_PAYPAL_BUY_NOW === "true";
+}
+
+/** Where ugig pays a PayPal order's seller: a stablecoin wallet when they have one. */
+export function pickPayoutWallet(wallets: CoinPayGlobalWallet[]): CoinPayGlobalWallet {
+  const preference: SupportedCurrency[] = ["usdc_sol", "usdc_pol", "usdc_eth"];
+  for (const currency of preference) {
+    const w = wallets.find((x) => x.currency === currency);
+    if (w) return w;
+  }
+  return wallets[0];
+}
+
+/**
+ * Release a PayPal order: the buyer's money is already in ugig's PayPal, so the
+ * seller's share becomes a payout an admin owes. Guarded on status so a release
+ * and the 14-day auto-release cannot both record it.
+ */
+export async function releasePaypalOrder(
+  supabase: SupabaseClient,
+  order: Pick<OrderRow, "id" | "gig_id" | "seller_id" | "amount_usd" | "platform_fee_usd">,
+  reason: "buyer" | "auto",
+): Promise<boolean> {
+  const moved = await transitionOrder(supabase, order.id, ["funded", "delivered"], {
+    status: "released",
+    released_at: new Date().toISOString(),
+    payout_status: "owed",
+  });
+  if (!moved) return false;
+
+  const net = Math.round((order.amount_usd - order.platform_fee_usd) * 100) / 100;
+  await notifyOrderParty(
+    supabase,
+    order.seller_id,
+    "payment_received",
+    "Payment released",
+    `${reason === "auto" ? "Your order auto-released" : "The buyer released payment"}: $${net} will be sent to your CoinPay wallet.`,
+    { gig_id: order.gig_id, order_id: order.id }
+  );
+  await alertOrderAdmin(
+    `PayPal payout owed: $${net}`,
+    `Order ${order.id} was ${reason === "auto" ? "auto-released after 14 days" : "released by the buyer"}. ` +
+      `Pay the seller $${net} and mark it paid at https://ugig.net/admin/payouts`
+  );
+  return true;
+}
+
+/** Email the ops address about an order that needs a human. Best effort. */
+export async function alertOrderAdmin(subject: string, text: string): Promise<void> {
+  const to = process.env.ORDER_ALERT_EMAIL;
+  if (!to) {
+    console.warn(`[orders] ORDER_ALERT_EMAIL unset; not emailing: ${subject}`);
+    return;
+  }
+  try {
+    const { sendEmail } = await import("@/lib/email");
+    await sendEmail({ to, subject: `[ugig orders] ${subject}`, text, html: `<p>${text.replace(/</g, "&lt;")}</p>` });
+  } catch (error) {
+    console.error("[orders] admin alert failed:", error);
+  }
 }

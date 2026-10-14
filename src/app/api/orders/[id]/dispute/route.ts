@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { disputeEscrow } from "@/lib/coinpayportal";
-import { loadOrderForAction, notifyOrderParty, transitionOrder } from "@/lib/orders/buy-now";
+import { alertOrderAdmin, loadOrderForAction, notifyOrderParty, transitionOrder } from "@/lib/orders/buy-now";
 
 const disputeSchema = z.object({
   reason: z.string().trim().min(10, "Describe what went wrong (at least 10 characters)").max(2000),
@@ -32,18 +32,24 @@ export async function POST(
   if (order.status !== "funded" && order.status !== "delivered") {
     return NextResponse.json({ error: `Only a paid order can be disputed (this one is ${order.status})` }, { status: 409 });
   }
-  if (!order.coinpay_escrow_id || !order.coinpay_release_token) {
-    return NextResponse.json({ error: "This order has no escrow to dispute" }, { status: 409 });
-  }
-
-  try {
-    await disputeEscrow(order.coinpay_escrow_id, order.coinpay_release_token, parsed.data.reason);
-  } catch (error) {
-    console.error(`[orders] dispute of ${id} failed:`, error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Dispute failed" },
-      { status: 502 }
+  if (order.payment_rail === "paypal") {
+    // ugig holds PayPal orders itself; a dispute is a ticket for an admin.
+    await alertOrderAdmin(
+      `PayPal order disputed ($${order.amount_usd})`,
+      `Order ${id}: ${parsed.data.reason} — decide refund or payout at https://ugig.net/admin/payouts`
     );
+  } else if (!order.coinpay_escrow_id || !order.coinpay_release_token) {
+    return NextResponse.json({ error: "This order has no escrow to dispute" }, { status: 409 });
+  } else {
+    try {
+      await disputeEscrow(order.coinpay_escrow_id, order.coinpay_release_token, parsed.data.reason);
+    } catch (error) {
+      console.error(`[orders] dispute of ${id} failed:`, error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Dispute failed" },
+        { status: 502 }
+      );
+    }
   }
 
   await transitionOrder(supabase, id, ["funded", "delivered"], { status: "disputed" });

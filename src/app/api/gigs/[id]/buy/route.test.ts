@@ -10,12 +10,12 @@ vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => state.db.c
 vi.mock("@/lib/coinpay-oauth", () => ({ getCoinpayLink: vi.fn() }));
 vi.mock("@/lib/coinpayportal", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/coinpayportal")>();
-  return { ...actual, createEscrow: vi.fn(), readCoinpayUserinfoWallets: vi.fn() };
+  return { ...actual, createEscrow: vi.fn(), createPaypalPayment: vi.fn(), readCoinpayUserinfoWallets: vi.fn() };
 });
 
 import { GET, POST } from "./route";
 import { getCoinpayLink } from "@/lib/coinpay-oauth";
-import { createEscrow, readCoinpayUserinfoWallets } from "@/lib/coinpayportal";
+import { createEscrow, createPaypalPayment, readCoinpayUserinfoWallets } from "@/lib/coinpayportal";
 
 const SELLER_SOL = "FX8QhU1TPUiTeVfkpRhzDvPFYvCwfPZxbHLnwNBoS3Ui";
 const BUYER_SOL = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
@@ -124,6 +124,30 @@ describe("/api/gigs/[id]/buy", () => {
     const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL }), params);
     expect(res.status).toBe(400);
     expect(createEscrow).not.toHaveBeenCalled();
+  });
+
+  it("POST with PayPal is refused while PayPal is off", async () => {
+    const res = await POST(req({ method: "paypal" }), params);
+    expect(res.status).toBe(400);
+    expect(createPaypalPayment).not.toHaveBeenCalled();
+  });
+
+  it("POST with PayPal opens a checkout on ugig's business and returns the approval link", async () => {
+    process.env.UGIG_PAYPAL_BUY_NOW = "true";
+    vi.mocked(createPaypalPayment).mockResolvedValue({ transaction_id: "ptx_1", approve_url: "https://paypal.test/approve" });
+    try {
+      const res = await POST({ json: async () => ({ method: "paypal" }), nextUrl: { origin: "https://ugig.net" } } as any, params);
+      expect(res.status).toBe(201);
+      expect((await res.json()).approve_url).toBe("https://paypal.test/approve");
+      expect(createPaypalPayment).toHaveBeenCalledWith(expect.objectContaining({ amount_usd: 50 }));
+      expect(state.db.inserts.gig_orders[0]).toMatchObject({
+        payment_rail: "paypal", currency: "paypal", seller_payout_address: SELLER_SOL, payout_currency: "sol",
+      });
+      expect(state.db.inserts.gig_orders[0].buyer_refund_address).toBeUndefined();
+      expect(state.db.updates.gig_orders[0]).toMatchObject({ paypal_transaction_id: "ptx_1" });
+    } finally {
+      delete process.env.UGIG_PAYPAL_BUY_NOW;
+    }
   });
 
   it("POST requires sign-in", async () => {

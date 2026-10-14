@@ -879,7 +879,7 @@
         ],
         "summary": "Buy now eligibility",
         "operationId": "getBuyNow",
-        "description": "Whether a fixed-price for-hire listing can be bought directly, its USD price, ugig's fee percent, the escrow window in days, and the coins the seller can receive. Works signed out.",
+        "description": "Whether a fixed-price for-hire listing can be bought directly, its USD price, ugig's fee percent, the escrow window in days, and the coins the seller can receive. Works signed out. paypal=true when PayPal checkout is enabled.",
         "parameters": [
           {
             "name": "id",
@@ -922,7 +922,7 @@
             "apiKey": []
           }
         ],
-        "description": "Opens a Buy now order: the listing's price is escrowed by CoinPay with the seller as beneficiary and ugig's 5% as a marketplace fee. Returns the escrow address to pay. Auto-releases to the seller after 14 days unless the buyer releases or disputes first.",
+        "description": "Opens a Buy now order: the listing's price is escrowed by CoinPay with the seller as beneficiary and ugig's 5% as a marketplace fee. Returns the escrow address to pay. Auto-releases to the seller after 14 days unless the buyer releases or disputes first. With method=paypal (when enabled) the buyer pays through ugig's PayPal instead: no refund address, and the response carries approve_url to redirect to. ugig holds PayPal orders and pays the seller on release.",
         "parameters": [
           {
             "name": "id",
@@ -940,10 +940,6 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "currency",
-                  "refund_address"
-                ],
                 "properties": {
                   "currency": {
                     "type": "string",
@@ -965,8 +961,17 @@
                   "requirements": {
                     "type": "string",
                     "maxLength": 5000
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "crypto",
+                      "paypal"
+                    ],
+                    "default": "crypto"
                   }
-                }
+                },
+                "description": "currency and refund_address are required for crypto; method=paypal needs neither."
               }
             }
           }
@@ -1045,6 +1050,10 @@
                           "format": "date-time"
                         }
                       }
+                    },
+                    "approve_url": {
+                      "type": "string",
+                      "description": "PayPal approval link (PayPal orders only)"
                     }
                   }
                 }

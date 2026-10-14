@@ -50,6 +50,16 @@ export default async function AdminPage() {
       </div>
 
       <section className="rounded-lg border bg-card p-6">
+        <h2 className="text-lg font-semibold">PayPal payouts</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Buy now orders paid by PayPal: sellers ugig owes, and disputes.</p>
+        <div className="mt-4">
+          <Link href="/admin/payouts" className="text-sm font-semibold underline hover:opacity-80">
+            Open payouts →
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-lg border bg-card p-6">
         <h2 className="text-lg font-semibold">Email broadcast</h2>
         <p className="mt-1 text-sm text-muted-foreground">Send a mass email to all registered users.</p>
         <div className="mt-4">

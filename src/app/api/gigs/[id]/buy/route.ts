@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   createEscrow,
+  createPaypalPayment,
   findCoinpayGlobalWallet,
   validateCoinpayReceivingAddress,
   type SupportedCurrency,
@@ -21,12 +22,20 @@ import {
   sellerEscrowWallets,
   sellerNotReadyMessage,
   ownerNotReadyMessage,
+  paypalBuyNowEnabled,
+  pickPayoutWallet,
   type BuyableGig,
 } from "@/lib/orders/buy-now";
 
-const buySchema = z.object({
+const cryptoBuySchema = z.object({
+  method: z.literal("crypto").optional(),
   currency: z.enum(BUY_NOW_CURRENCIES as [SupportedCurrency, ...SupportedCurrency[]]),
   refund_address: z.string().trim().min(10, "Enter the wallet address a refund should go to"),
+  requirements: z.string().trim().max(5000).optional(),
+});
+
+const paypalBuySchema = z.object({
+  method: z.literal("paypal"),
   requirements: z.string().trim().max(5000).optional(),
 });
 
@@ -86,6 +95,7 @@ export async function GET(
     fee_percent: BUY_NOW_FEE_PERCENT,
     escrow_days: ORDER_ESCROW_HOURS / 24,
     currencies: currencies.map((c) => ({ value: c, label: currencyLabel(c) })),
+    paypal: paypalBuyNowEnabled(),
   });
 }
 
@@ -100,7 +110,10 @@ export async function POST(
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const buyerId = auth.user.id;
 
-    const parsed = buySchema.safeParse(await request.json().catch(() => ({})));
+    const body = await request.json().catch(() => ({}));
+    if (body?.method === "paypal") return buyWithPaypal(request, gigId, buyerId, body);
+
+    const parsed = cryptoBuySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
@@ -241,4 +254,94 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+/**
+ * PayPal: the price captures into ugig's own PayPal (CoinPay cannot escrow it).
+ * ugig holds it and pays the seller's CoinPay wallet on release, so the seller
+ * still needs a usable CoinPay wallet, exactly as for crypto.
+ */
+async function buyWithPaypal(request: NextRequest, gigId: string, buyerId: string, body: unknown) {
+  if (!paypalBuyNowEnabled()) {
+    return NextResponse.json({ error: "PayPal isn't available yet" }, { status: 400 });
+  }
+  const parsed = paypalBuySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const gig = await loadGig(gigId);
+  if (!gig) return NextResponse.json({ error: "Gig not found" }, { status: 404 });
+  const blocker = buyNowBlocker(gig, buyerId);
+  if (blocker) return NextResponse.json({ error: blocker }, { status: 400 });
+
+  const price = await listingPriceUsd(gig);
+  if (!price.ok) return NextResponse.json({ error: price.error }, { status: price.status });
+
+  const seller = await sellerEscrowWallets(gig.poster_id);
+  if (!seller.ok) {
+    return NextResponse.json({ error: sellerNotReadyMessage(seller.reason) }, { status: 409 });
+  }
+  const payout = pickPayoutWallet(seller.wallets);
+
+  const supabase = createServiceClient();
+  const { data: inserted, error } = await supabase
+    .from("gig_orders" as never)
+    .insert({
+      gig_id: gigId,
+      buyer_id: buyerId,
+      seller_id: gig.poster_id,
+      payment_rail: "paypal",
+      amount_usd: price.usd,
+      currency: "paypal",
+      platform_fee_rate: BUY_NOW_FEE_PERCENT / 100,
+      platform_fee_usd: orderFeeUsd(price.usd),
+      requirements: parsed.data.requirements || null,
+      seller_payout_address: payout.address,
+      payout_currency: payout.currency,
+      metadata: {
+        native_amount: price.nativeAmount,
+        native_unit: price.nativeUnit,
+        ...(price.btcUsd ? { btc_usd_rate: price.btcUsd } : {}),
+      },
+    } as never)
+    .select("id")
+    .single();
+  if (error || !inserted) {
+    console.error("[buy-now] paypal order insert failed:", error);
+    return NextResponse.json({ error: "Failed to record the order" }, { status: 500 });
+  }
+  const orderId = (inserted as { id: string }).id;
+
+  const origin = request.nextUrl?.origin && !request.nextUrl.origin.includes("localhost")
+    ? request.nextUrl.origin
+    : process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+
+  let checkout;
+  try {
+    checkout = await createPaypalPayment({
+      amount_usd: price.usd,
+      description: `ugig order: ${gig.title}`.slice(0, 120),
+      success_url: `${origin}/dashboard/orders?paypal=return&order=${orderId}`,
+      cancel_url: `${origin}/gigs/${gigId}?paypal=cancelled`,
+      metadata: { kind: "gig_order", order_id: orderId, gig_id: gigId },
+    });
+  } catch (err) {
+    await supabase.from("gig_orders" as never).update({ status: "expired" } as never).eq("id", orderId);
+    console.error("[buy-now] paypal checkout failed:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "PayPal checkout failed" },
+      { status: 502 }
+    );
+  }
+
+  await supabase
+    .from("gig_orders" as never)
+    .update({ paypal_transaction_id: checkout.transaction_id } as never)
+    .eq("id", orderId);
+
+  return NextResponse.json(
+    { order: { id: orderId, status: "pending_payment", amount_usd: price.usd, currency: "paypal" }, approve_url: checkout.approve_url },
+    { status: 201 }
+  );
 }
