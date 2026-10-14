@@ -28,6 +28,7 @@
     { "name": "Profile", "description": "Current user profile management" },
     { "name": "Users", "description": "Public user profiles, follow, endorse" },
     { "name": "Gigs", "description": "Browse, create, update, and delete gigs" },
+    { "name": "Orders", "description": "Buy now orders on fixed-price for-hire listings, escrowed by CoinPay" },
     { "name": "Gig Comments", "description": "Questions and answers on gigs" },
     { "name": "Applications", "description": "Apply to gigs and manage applications" },
     { "name": "Saved Gigs", "description": "Save and unsave gigs" },
@@ -871,6 +872,654 @@
     }
   },
   "paths": {
+    "/api/gigs/{id}/buy": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Buy now eligibility",
+        "operationId": "getBuyNow",
+        "description": "Whether a fixed-price for-hire listing can be bought directly, its USD price, ugig's fee percent, the escrow window in days, and the coins the seller can receive. Works signed out.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eligibility; buyable=false carries a reason",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gig not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Buy a listing now",
+        "operationId": "createBuyNowOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "description": "Opens a Buy now order: the listing's price is escrowed by CoinPay with the seller as beneficiary and ugig's 5% as a marketplace fee. Returns the escrow address to pay. Auto-releases to the seller after 14 days unless the buyer releases or disputes first.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currency",
+                  "refund_address"
+                ],
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "usdc_sol",
+                      "usdc_pol",
+                      "usdc_eth",
+                      "sol",
+                      "pol",
+                      "eth",
+                      "btc",
+                      "bch"
+                    ]
+                  },
+                  "refund_address": {
+                    "type": "string",
+                    "description": "Buyer wallet for a refund, on the chosen coin"
+                  },
+                  "requirements": {
+                    "type": "string",
+                    "maxLength": 5000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "gig_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "buyer_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "seller_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending_payment",
+                            "funded",
+                            "delivered",
+                            "released",
+                            "refunded",
+                            "disputed",
+                            "expired"
+                          ]
+                        },
+                        "amount_usd": {
+                          "type": "number"
+                        },
+                        "platform_fee_usd": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amount_crypto": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "escrow_address": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "requirements": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "delivery_note": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed for this party"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Wrong state for this action"
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "List my orders",
+        "operationId": "listOrders",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "buyer",
+                "seller",
+                "all"
+              ],
+              "default": "all"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "gig_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "buyer_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "seller_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending_payment",
+                              "funded",
+                              "delivered",
+                              "released",
+                              "refunded",
+                              "disputed",
+                              "expired"
+                            ]
+                          },
+                          "amount_usd": {
+                            "type": "number"
+                          },
+                          "platform_fee_usd": {
+                            "type": "number"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "amount_crypto": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "escrow_address": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "requirements": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "delivery_note": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get an order",
+        "operationId": "getOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "gig_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "buyer_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "seller_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending_payment",
+                            "funded",
+                            "delivered",
+                            "released",
+                            "refunded",
+                            "disputed",
+                            "expired"
+                          ]
+                        },
+                        "amount_usd": {
+                          "type": "number"
+                        },
+                        "platform_fee_usd": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amount_crypto": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "escrow_address": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "requirements": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "delivery_note": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/deliver": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Mark an order delivered",
+        "operationId": "deliverOrder",
+        "description": "Seller only, on a paid order.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action applied; returns the new status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed for this party"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Wrong state for this action"
+          },
+          "502": {
+            "description": "CoinPay refused the escrow action"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 5000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/release": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Release payment to the seller",
+        "operationId": "releaseOrder",
+        "description": "Buyer only, on a paid or delivered order. CoinPay pays the seller minus fees.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action applied; returns the new status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed for this party"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Wrong state for this action"
+          },
+          "502": {
+            "description": "CoinPay refused the escrow action"
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/dispute": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Dispute an order",
+        "operationId": "disputeOrder",
+        "description": "Buyer only. Stops auto-release; an admin resolves it.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action applied; returns the new status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed for this party"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Wrong state for this action"
+          },
+          "502": {
+            "description": "CoinPay refused the escrow action"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/signup": {
       "post": {
         "tags": ["Auth"],

@@ -13,7 +13,9 @@ export interface CoinPayWebhookPayload {
     | "escrow.funded"
     | "escrow.released"
     | "escrow.refunded"
-    | "escrow.disputed";
+    | "escrow.disputed"
+    | "escrow.settled"
+    | "escrow.expired";
   data: {
     payment_id: string;
     status: string;
@@ -813,8 +815,8 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentStatus
 export interface CreateEscrowOptions {
   amount_usd: number;
   currency: SupportedCurrency;
-  depositor_email: string;
-  beneficiary_email: string;
+  depositor_email?: string;
+  beneficiary_email?: string;
   depositor_address: string;
   beneficiary_address: string;
   arbiter_address?: string;
@@ -822,6 +824,11 @@ export interface CreateEscrowOptions {
   auto_release_hours?: number;
   webhook_url?: string;
   metadata?: Record<string, unknown>;
+  /** ugig's cut of the release, paid by CoinPay to ugig's own business wallet. */
+  marketplace_fee_percent?: number;
+  /** At expiry a funded escrow goes to the beneficiary instead of back to the depositor. */
+  allow_auto_release?: boolean;
+  expires_in_hours?: number;
 }
 
 export interface EscrowResponse {
@@ -885,6 +892,9 @@ export async function createEscrow(options: CreateEscrowOptions): Promise<Escrow
       auto_release_hours: options.auto_release_hours,
       webhook_url: options.webhook_url || `${appUrl}/api/webhooks/coinpay`,
       metadata: options.metadata,
+      marketplace_fee_percent: options.marketplace_fee_percent,
+      allow_auto_release: options.allow_auto_release,
+      expires_in_hours: options.expires_in_hours,
     }),
   });
 
@@ -901,7 +911,11 @@ export async function createEscrow(options: CreateEscrowOptions): Promise<Escrow
 /**
  * Release escrow funds to the beneficiary
  */
-export async function releaseEscrow(escrowId: string): Promise<EscrowStatusResponse> {
+/**
+ * CoinPay authorizes a release with the escrow's release_token (returned once,
+ * on create), not with the API key: a call without it is refused with a 400.
+ */
+export async function releaseEscrow(escrowId: string, releaseToken?: string): Promise<EscrowStatusResponse> {
   const apiKey = process.env.COINPAY_API_KEY;
 
   if (!apiKey) {
@@ -914,11 +928,30 @@ export async function releaseEscrow(escrowId: string): Promise<EscrowStatusRespo
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
+    body: JSON.stringify(releaseToken ? { release_token: releaseToken } : {}),
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Unknown error" }));
-    throw new Error(error.message || `Escrow release failed: ${response.status}`);
+    throw new Error(error.message || error.error || `Escrow release failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Open a dispute. Stops auto-release at expiry; an admin resolves it.
+ */
+export async function disputeEscrow(escrowId: string, releaseToken: string, reason: string): Promise<unknown> {
+  const response = await coinpayFetch(`${COINPAY_API_URL}/escrow/${escrowId}/dispute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ release_token: releaseToken, reason }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Unknown error" }));
+    throw new Error(error.message || error.error || `Escrow dispute failed: ${response.status}`);
   }
 
   return response.json();

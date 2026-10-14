@@ -28,6 +28,7 @@ import { MarkFilledButton } from "@/components/gigs/MarkFilledButton";
 import { RenewGigButton } from "@/components/gigs/RenewGigButton";
 import { expiryDaysFor, isGigExpired } from "@/lib/limits";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
+import { BuyNowButton } from "@/components/gigs/BuyNowButton";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { SatsRangeToUsd } from "@/components/gigs/SatsToUsd";
 import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
@@ -500,6 +501,9 @@ export default async function GigPage({ params }: GigPageProps) {
 
               {gig.status === "active" && !isOwner && (
                   <>
+                    {isForHire && gig.budget_type === "fixed" && (
+                      <BuyNowButton gigId={id} loggedIn={!!user} />
+                    )}
                     {user ? (
                       hasApplied ? (
                         <>

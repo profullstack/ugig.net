@@ -17,6 +17,7 @@ import {
   HandCoins,
   Receipt,
   Target,
+  ShoppingCart,
 } from "lucide-react";
 import { FundingDashboard } from "@/components/funding/FundingDashboard";
 import { HELD_COLUMN } from "@/lib/limits";
@@ -346,6 +347,19 @@ export default async function DashboardPage() {
                   <h3 className="font-medium">Invoices</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     Pay accepted applicants and view invoices
+                  </p>
+                </Link>
+
+                <Link
+                  href="/dashboard/orders"
+                  className="p-4 border border-border rounded-lg shadow-sm hover:shadow-md hover:border-amber-500/40 hover:bg-amber-500/5 transition-all duration-200"
+                >
+                  <div className="p-2.5 bg-amber-500/10 rounded-xl w-fit mb-3">
+                    <ShoppingCart className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <h3 className="font-medium">Orders</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Buy now orders you placed or received
                   </p>
                 </Link>
 
