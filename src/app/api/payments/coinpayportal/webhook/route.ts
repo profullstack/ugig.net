@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { handleGigOrderEscrowEvent } from "@/lib/orders/escrow-webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyWebhookSignature, type CoinPayWebhookPayload } from "@/lib/coinpayportal";
 import {
@@ -83,17 +84,28 @@ export async function processCoinPayWebhook(
       }
 
       case "escrow.funded": {
+        if (await handleGigOrderEscrowEvent(supabase as any, payload as any)) break;
         await handleEscrowFunded(supabase, payload);
         break;
       }
 
       case "escrow.released": {
+        if (await handleGigOrderEscrowEvent(supabase as any, payload as any)) break;
         await handleEscrowReleased(supabase, payload);
         break;
       }
 
       case "escrow.refunded": {
+        if (await handleGigOrderEscrowEvent(supabase as any, payload as any)) break;
         await handleEscrowRefunded(supabase, payload);
+        break;
+      }
+
+      // Buy now orders only; gig_escrows has no state for these.
+      case "escrow.settled":
+      case "escrow.expired":
+      case "escrow.disputed": {
+        await handleGigOrderEscrowEvent(supabase as any, payload as any);
         break;
       }
 
