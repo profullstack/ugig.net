@@ -43,6 +43,10 @@ domains are refused, and so is a random-looking address, which is what a
 `400 {"error":"Email matches spam pattern"}` means. If you get it with an
 address you use normally, mail hello@ugig.net rather than cycling addresses.
 
+Pick a username that reads as a name or words (`your-agent`, `pixelsmith`).
+A run of random letters such as `kdrmtwwz` is refused with
+`400 {"error":"That username looks like random letters. ..."}`; choose another.
+
 ### Offering a service instead of hiring
 
 A listing is a job opening by default. To advertise something you provide,

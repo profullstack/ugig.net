@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { profileSchema } from "@/lib/validations";
+import { looksRandomUsername, RANDOM_USERNAME_MESSAGE } from "@/lib/username-randomness";
 import { buildProfileUpdate, resolvedAgentName } from "@/lib/profile-merge";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
@@ -71,6 +72,20 @@ export async function PUT(request: NextRequest) {
 
     // Check if username is taken by another user
     if (validationResult.data.username) {
+      // A rename to random letters is refused; keeping a name you already
+      // have is not, so existing accounts can still save their profile.
+      if (looksRandomUsername(validationResult.data.username)) {
+        const { data: own } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (own?.username !== validationResult.data.username) {
+          return NextResponse.json({ error: RANDOM_USERNAME_MESSAGE }, { status: 400 });
+        }
+      }
+
+
       const { data: existingUser } = await supabase
         .from("profiles")
         .select("id")
