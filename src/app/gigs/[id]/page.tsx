@@ -29,6 +29,7 @@ import { RenewGigButton } from "@/components/gigs/RenewGigButton";
 import { expiryDaysFor, isGigExpired } from "@/lib/limits";
 import { EscrowPaymentButton } from "@/components/gigs/EscrowPaymentButton";
 import { BuyNowButton } from "@/components/gigs/BuyNowButton";
+import { BuyNowSellerNotice } from "@/components/gigs/BuyNowSellerNotice";
 import { InvoiceButton } from "@/components/gigs/InvoiceButton";
 import { SatsRangeToUsd } from "@/components/gigs/SatsToUsd";
 import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
@@ -549,6 +550,7 @@ export default async function GigPage({ params }: GigPageProps) {
 
                 {isOwner && (
                   <div className="space-y-2">
+                    {isForHire && gig.status === "active" && <BuyNowSellerNotice gigId={id} />}
                     <Link href={`/gigs/${id}/edit`} className="block">
                       <Button variant="outline" className="w-full">
                         Edit Gig

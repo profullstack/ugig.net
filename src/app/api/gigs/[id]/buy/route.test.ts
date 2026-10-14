@@ -58,6 +58,29 @@ describe("/api/gigs/[id]/buy", () => {
     expect(body.currencies.map((c: any) => c.value)).toEqual(["sol"]);
   });
 
+  it("GET tells the owner Buy now is on when their CoinPay wallet is usable", async () => {
+    state.user = { id: "seller" };
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ buyable: false, owner: true, seller_ready: true, fee_percent: 5 });
+  });
+
+  it("GET tells the owner to connect CoinPay when they haven't", async () => {
+    state.user = { id: "seller" };
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ owner: true, seller_ready: false, fix: "not_connected" });
+    expect(body.reason).toMatch(/Connect your CoinPay wallet/);
+  });
+
+  it("GET tells the owner of an hourly listing why Buy now is off", async () => {
+    state.user = { id: "seller" };
+    state.db = fakeSupabase({ gigs: [{ ...gig, budget_type: "hourly" }] });
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ owner: true, seller_ready: false });
+    expect(body.reason).toMatch(/fixed-price/);
+    expect(body.fix).toBeUndefined();
+  });
+
   it("POST escrows the price to the seller with ugig's 5% marketplace fee and stores the token", async () => {
     const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL, requirements: "Make it pop" }), params);
     expect(res.status).toBe(201);

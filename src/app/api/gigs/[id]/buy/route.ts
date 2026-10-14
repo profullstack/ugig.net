@@ -20,6 +20,7 @@ import {
   orderFeeUsd,
   sellerEscrowWallets,
   sellerNotReadyMessage,
+  ownerNotReadyMessage,
   type BuyableGig,
 } from "@/lib/orders/buy-now";
 
@@ -47,6 +48,23 @@ export async function GET(
   const auth = await getAuthContext(request);
   const gig = await loadGig(gigId);
   if (!gig) return NextResponse.json({ error: "Gig not found" }, { status: 404 });
+
+  // The seller looking at their own listing gets told whether buyers can use
+  // Buy now on it, and what to fix if not.
+  if (auth && auth.user.id === gig.poster_id) {
+    const listingBlocker = buyNowBlocker(gig, null);
+    if (listingBlocker) {
+      return NextResponse.json({ buyable: false, owner: true, seller_ready: false, reason: listingBlocker });
+    }
+    const own = await sellerEscrowWallets(gig.poster_id);
+    return NextResponse.json({
+      buyable: false,
+      owner: true,
+      seller_ready: own.ok,
+      fee_percent: BUY_NOW_FEE_PERCENT,
+      ...(own.ok ? {} : { reason: ownerNotReadyMessage(own.reason), fix: own.reason }),
+    });
+  }
 
   const blocker = buyNowBlocker(gig, auth?.user.id ?? null);
   if (blocker) return NextResponse.json({ buyable: false, reason: blocker });
