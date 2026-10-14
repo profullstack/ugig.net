@@ -135,6 +135,17 @@ export function sellerNotReadyMessage(reason: "not_connected" | "needs_reconnect
   }
 }
 
+export function ownerNotReadyMessage(reason: "not_connected" | "needs_reconnect" | "no_wallets"): string {
+  switch (reason) {
+    case "not_connected":
+      return "Connect your CoinPay wallet to let buyers pay for this listing directly with Buy now.";
+    case "needs_reconnect":
+      return "Reconnect CoinPay to turn on Buy now: your link was made before ugig could read your wallet addresses.";
+    case "no_wallets":
+      return "Add a USDC, SOL, POL, ETH, BTC or BCH wallet in CoinPay to turn on Buy now (escrow can't hold USDT on Polygon or Solana).";
+  }
+}
+
 export function currencyLabel(currency: string): string {
   return SUPPORTED_CURRENCIES[currency as SupportedCurrency]?.name ?? currency.toUpperCase();
 }
