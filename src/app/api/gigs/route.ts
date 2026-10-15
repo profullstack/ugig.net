@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkGigListing, listingRefusalBody } from "@/lib/gig-listing-check";
 import { createClient } from "@/lib/supabase/server";
 import { gigSchema, gigFiltersSchema } from "@/lib/validations";
 import { getAuthContext } from "@/lib/auth/get-user";
@@ -234,6 +235,18 @@ export async function POST(request: NextRequest) {
 
     const isActivePost = validationResult.data.status === "active";
     const listingType = validationResult.data.listing_type || "hiring";
+
+    // Virtual-card sales are refused; a service offer posted as a job is
+    // sent back to be posted as for_hire unless the poster confirms it.
+    const listingVerdict = checkGigListing({
+      title: validationResult.data.title,
+      description: validationResult.data.description,
+      listingType,
+      confirmHiring: (body as { confirm_hiring?: unknown }).confirm_hiring === true,
+    });
+    if (!listingVerdict.ok) {
+      return NextResponse.json(listingRefusalBody(listingVerdict), { status: listingVerdict.status });
+    }
 
     // For-hire ad caps (PRD 03): new ads per day, then active ads and
     // near-duplicate titles for an ad that goes live now.

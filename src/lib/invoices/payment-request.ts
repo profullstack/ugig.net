@@ -2,6 +2,7 @@ import { createPayment, preferredCoinToPaymentCurrency } from "@/lib/coinpayport
 import { isCoinpayRateLimitError } from "@/lib/coinpay-throttle";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getStoredCoinpayLinkState, type CoinpayLinkState } from "@/lib/coinpay-oauth";
+import { loadProfilePayoutWallets } from "@/lib/profile-payout-wallets";
 
 /**
  * Creating the CoinPay payment request for an invoice.
@@ -102,6 +103,8 @@ export async function ensureInvoicePaymentRequest(
     deadline?: number;
     /** Injected for tests; defaults to the stored oauth_identities check. */
     workerLinkState?: (workerId: string) => Promise<CoinpayLinkState>;
+    /** Injected for tests; defaults to the worker's validated profile payout wallets. */
+    workerProfileWallets?: (workerId: string) => Promise<{ currency: string; address: string }[]>;
   } = {}
 ): Promise<PaymentRequestResult> {
   const metadata = metadataObject(invoice.metadata);
@@ -142,7 +145,30 @@ export async function ensureInvoicePaymentRequest(
   // link is gone can no longer prove that address is theirs, cannot see the
   // payment in CoinPay, and is the one person who can fix it. Block only on
   // positive evidence: a failed lookup is our problem, not the worker's.
-  if (invoice.worker_id) {
+  // An invoice addressed to the worker's ugig profile payout wallet (an agent
+  // with no CoinPay link) is checked against that profile instead: the
+  // address must still be one the worker lists, or they changed it and the
+  // payer needs a fresh invoice.
+  if (invoice.worker_id && metadata.receiver_wallet_source === "profile") {
+    let wallets: { currency: string; address: string }[] = [];
+    try {
+      wallets = await (options.workerProfileWallets ?? ((id: string) => loadProfilePayoutWallets(id)))(
+        invoice.worker_id
+      );
+    } catch (err) {
+      console.error("[invoice payment request] worker profile wallet lookup failed:", err);
+    }
+    const stillListed = wallets.some(
+      (w) => w.currency === wallet.currency && w.address.toLowerCase() === wallet.address.toLowerCase()
+    );
+    if (!stillListed) {
+      return {
+        ok: false,
+        code: "NO_WALLET",
+        error: "The worker has changed their payout wallet since this invoice was sent. Ask them for a fresh invoice.",
+      };
+    }
+  } else if (invoice.worker_id) {
     let linkState: CoinpayLinkState | null = null;
     try {
       linkState = await (options.workerLinkState ?? getStoredCoinpayLinkState)(invoice.worker_id);

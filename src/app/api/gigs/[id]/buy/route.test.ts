@@ -69,7 +69,7 @@ describe("/api/gigs/[id]/buy", () => {
     vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
     const body = await (await GET(req(), params)).json();
     expect(body).toMatchObject({ owner: true, seller_ready: false, fix: "not_connected" });
-    expect(body.reason).toMatch(/Connect your CoinPay wallet/);
+    expect(body.reason).toMatch(/Add a payout wallet/);
   });
 
   it("GET tells the owner of an hourly listing why Buy now is off", async () => {
@@ -106,6 +106,70 @@ describe("/api/gigs/[id]/buy", () => {
     const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL }), params);
     expect(res.status).toBe(409);
     expect(createEscrow).not.toHaveBeenCalled();
+  });
+
+  it("GET tells an agent owner the exact API call that turns Buy now on", async () => {
+    state.user = { id: "seller" };
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+    const body = await (await GET(req(), params)).json();
+    expect(body.reason).toContain("PUT /api/profile/wallet-addresses");
+    expect(body.api_fix).toMatchObject({ method: "PUT", path: "/api/profile/wallet-addresses" });
+    expect(body.api_fix.currencies).toContain("usdc_sol");
+    expect(body.api_fix.currencies).not.toContain("usdt_pol");
+  });
+
+  describe("seller with no CoinPay link but a profile payout wallet", () => {
+    beforeEach(() => {
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+      state.db = fakeSupabase({
+        gigs: [gig],
+        gig_orders: [],
+        profiles: [{
+          id: "seller",
+          wallet_addresses: [
+            { currency: "sol", address: SELLER_SOL, is_preferred: true },
+            { currency: "usdt_pol", address: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD28" },
+            { currency: "usdc", address: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD28" },
+          ],
+        }],
+      });
+    });
+
+    it("GET is buyable in the escrow coins the profile holds", async () => {
+      const body = await (await GET(req(), params)).json();
+      expect(body.buyable).toBe(true);
+      expect(body.currencies.map((c: any) => c.value)).toEqual(["sol"]);
+    });
+
+    it("GET tells the owner Buy now is on from their profile wallet", async () => {
+      state.user = { id: "seller" };
+      const body = await (await GET(req(), params)).json();
+      expect(body).toMatchObject({ owner: true, seller_ready: true, payout_source: "profile", currencies: ["sol"] });
+    });
+
+    it("POST escrows to the profile wallet with the 5% fee and stores the release token", async () => {
+      const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL }), params);
+      expect(res.status).toBe(201);
+      expect(createEscrow).toHaveBeenCalledWith(expect.objectContaining({
+        beneficiary_address: SELLER_SOL,
+        marketplace_fee_percent: 5,
+      }));
+      expect(state.db.inserts.gig_orders[0]).toMatchObject({
+        seller_payout_address: SELLER_SOL, coinpay_release_token: "esc_secret",
+      });
+      expect(JSON.stringify(await res.json())).not.toContain("esc_secret");
+    });
+
+    it("POST never pays an address the buyer supplies", async () => {
+      const res = await POST(req({
+        currency: "sol", refund_address: BUYER_SOL,
+        beneficiary_address: BUYER_SOL, seller_payout_address: BUYER_SOL, marketplace_fee_address: BUYER_SOL,
+      }), params);
+      expect(res.status).toBe(201);
+      const call = vi.mocked(createEscrow).mock.calls[0][0] as any;
+      expect(call.beneficiary_address).toBe(SELLER_SOL);
+      expect(call.marketplace_fee_address).toBeUndefined();
+    });
   });
 
   it("POST refuses a coin the seller cannot receive", async () => {

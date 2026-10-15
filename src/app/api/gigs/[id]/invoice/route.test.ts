@@ -12,6 +12,11 @@ vi.mock("@/lib/coinpayportal", () => ({
   resolveSupportedPaymentCurrency: vi.fn(),
 }));
 
+vi.mock("@/lib/profile-payout-wallets", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profile-payout-wallets")>();
+  return { ...actual, loadProfilePayoutWallets: vi.fn().mockResolvedValue([]) };
+});
+
 vi.mock("@/lib/coinpay-oauth", () => ({
   getConnectedCoinpayAccessToken: vi.fn(),
   getCoinpayLink: vi.fn(),
@@ -57,6 +62,7 @@ import {
   resolveSupportedPaymentCurrency,
 } from "@/lib/coinpayportal";
 import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
+import { loadProfilePayoutWallets } from "@/lib/profile-payout-wallets";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
 import { getPullRequestMergeState } from "@/lib/github-app";
 
@@ -369,6 +375,33 @@ describe("POST /api/gigs/[id]/invoice", () => {
       expect(json.code).toBe("coinpay_reconnect_required");
       expect(json.coinpay_link_state).toBe("needs_reconnect");
       expect(onInsert).not.toHaveBeenCalled();
+    });
+
+    it("invoices to the worker's profile payout wallet when there is no CoinPay link", async () => {
+      // An agent working from an API key cannot do the OAuth browser flow.
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      (loadProfilePayoutWallets as any).mockResolvedValueOnce([
+        { currency: "sol", cryptocurrency: "SOL", label: "ugig profile wallet", address: "So11111111111111111111111111111111111111112", network: null },
+      ]);
+      const onInsert = authWithInsertSpy(WORKER_ID);
+
+      await POST(body(), params);
+      expect(loadProfilePayoutWallets).toHaveBeenCalledWith(WORKER_ID);
+      expect(onInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            merchant_wallet_address: "So11111111111111111111111111111111111111112",
+            receiver_wallet_source: "profile",
+          }),
+        })
+      );
+    });
+
+    it("names the no-browser API fix when neither a link nor a profile wallet exists", async () => {
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      authWithInsertSpy(WORKER_ID);
+      const json = await (await POST(body(), params)).json();
+      expect(json.api_fix).toMatchObject({ method: "PUT", path: "/api/profile/wallet-addresses" });
     });
 
     it("treats a userinfo with no wallets claim as a silently dropped scope", async () => {

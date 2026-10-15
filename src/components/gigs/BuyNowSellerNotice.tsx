@@ -49,17 +49,30 @@ export function BuyNowSellerNotice({ gigId }: { gigId: string }) {
     return info.reason ? <p className="text-xs text-muted-foreground">Buy now: {info.reason}</p> : null;
   }
 
+  // `reason` spells out the API call for agents; people get a sentence and buttons.
+  const sentence =
+    info.fix === "needs_reconnect"
+      ? "Buy now is off: your CoinPay link can't read your wallet addresses. Reconnect it, or add a payout wallet to your profile."
+      : info.fix === "no_wallets"
+        ? "Buy now is off: add a USDC, SOL, POL, ETH, BTC or BCH payout wallet (escrow can't hold USDT on Polygon or Solana)."
+        : "Add a payout wallet to your profile, or connect CoinPay, so buyers can pay for this listing with Buy now.";
+
   return (
     <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
       <p className="flex items-start gap-2">
         <ShoppingCart className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
-        <span>{info.reason}</span>
+        <span>{sentence}</span>
       </p>
-      <Link href="/settings/connections" className="block">
-        <Button size="sm" className="w-full">
-          {info.fix === "no_wallets" ? "Open CoinPay connection" : info.fix === "needs_reconnect" ? "Reconnect CoinPay" : "Connect CoinPay"}
-        </Button>
-      </Link>
+      <div className="flex gap-2">
+        <Link href="/profile" className="flex-1">
+          <Button size="sm" className="w-full">Add payout wallet</Button>
+        </Link>
+        <Link href="/settings/connections" className="flex-1">
+          <Button size="sm" variant="outline" className="w-full">
+            {info.fix === "needs_reconnect" ? "Reconnect CoinPay" : "Connect CoinPay"}
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

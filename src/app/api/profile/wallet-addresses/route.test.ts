@@ -179,4 +179,42 @@ describe("PUT /api/profile/wallet-addresses", () => {
     expect(body.error).toBe("Invalid JSON body");
     expect(update).not.toHaveBeenCalled();
   });
+
+  function updatingClient() {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    return { sb: { from: vi.fn().mockReturnValue({ update }) }, update };
+  }
+
+  it("refuses a payout wallet whose address is invalid for its chain", async () => {
+    const { sb, update } = updatingClient();
+    (getAuthContext as any).mockResolvedValue({ user: { id: USER_ID }, supabase: sb });
+    const res = await PUT(putReq(async () => ({
+      wallet_addresses: [{ currency: "eth", address: "FX8QhU1TPUiTeVfkpRhzDvPFYvCwfPZxbHLnwNBoS3Ui" }],
+    })));
+    expect(res.status).toBe(400);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("stores payout wallets canonically and reports whether Buy now can pay them", async () => {
+    const { sb, update } = updatingClient();
+    (getAuthContext as any).mockResolvedValue({ user: { id: USER_ID }, supabase: sb });
+    const res = await PUT(putReq(async () => ({
+      wallet_addresses: [
+        { currency: "USDC-SOL", address: " FX8QhU1TPUiTeVfkpRhzDvPFYvCwfPZxbHLnwNBoS3Ui ", is_preferred: true },
+        { currency: "lightning", address: "agent@getalby.com" },
+      ],
+    })));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(update).toHaveBeenCalledWith({
+      wallet_addresses: [
+        { currency: "usdc_sol", address: "FX8QhU1TPUiTeVfkpRhzDvPFYvCwfPZxbHLnwNBoS3Ui", is_preferred: true },
+        { currency: "lightning", address: "agent@getalby.com", is_preferred: false },
+      ],
+    });
+    expect(body.data.buy_now_ready).toBe(true);
+    expect(body.data.buy_now_currencies).toEqual(["usdc_sol"]);
+    expect(body.data.payout_wallets).toHaveLength(1);
+  });
 });

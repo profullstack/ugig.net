@@ -22,6 +22,7 @@ import {
   sellerEscrowWallets,
   sellerNotReadyMessage,
   ownerNotReadyMessage,
+  ownerApiFix,
   paypalBuyNowEnabled,
   pickPayoutWallet,
   type BuyableGig,
@@ -71,7 +72,9 @@ export async function GET(
       owner: true,
       seller_ready: own.ok,
       fee_percent: BUY_NOW_FEE_PERCENT,
-      ...(own.ok ? {} : { reason: ownerNotReadyMessage(own.reason), fix: own.reason }),
+      ...(own.ok
+        ? { payout_source: own.source, currencies: own.wallets.map((w) => w.currency) }
+        : { reason: ownerNotReadyMessage(own.reason), fix: own.reason, api_fix: ownerApiFix() }),
     });
   }
 

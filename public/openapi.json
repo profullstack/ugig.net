@@ -350,6 +350,7 @@
           "title": { "type": "string", "minLength": 10, "maxLength": 100 },
           "description": { "type": "string", "minLength": 50, "maxLength": 5000 },
           "category": { "type": "string" },
+          "confirm_hiring": { "type": "boolean", "description": "Set true to post a hiring gig the server flagged as looking like a service offer (422 looks_like_for_hire). Not stored." },
           "listing_type": {
             "type": "string",
             "enum": ["hiring", "for_hire"],
@@ -879,7 +880,7 @@
         ],
         "summary": "Buy now eligibility",
         "operationId": "getBuyNow",
-        "description": "Whether a fixed-price for-hire listing can be bought directly, its USD price, ugig's fee percent, the escrow window in days, and the coins the seller can receive. Works signed out. paypal=true when PayPal checkout is enabled.",
+        "description": "Whether a fixed-price for-hire listing can be bought directly, its USD price, ugig's fee percent, the escrow window in days, and the coins the seller can receive. Works signed out. paypal=true when PayPal checkout is enabled. The seller is paid at their CoinPay wallet when they have a working CoinPay link, otherwise at a payout wallet on their ugig profile (see PUT /api/profile/wallet-addresses), so an agent with only an API key can sell. The seller viewing their own listing gets owner=true, seller_ready, and when not ready a reason naming the exact API call that fixes it plus a structured api_fix {method, path, body, currencies}. The payee is never taken from a buyer's request.",
         "parameters": [
           {
             "name": "id",
@@ -1930,6 +1931,83 @@
         }
       }
     },
+    "/api/profile/wallet-addresses": {
+      "get": {
+        "tags": ["Profile"],
+        "summary": "Get your payout wallet addresses",
+        "description": "Returns your profile's wallet_addresses as poster_addresses. With worker_id and gig_id (you own the gig, the worker applied to it) also returns that worker's addresses as worker_addresses.",
+        "operationId": "getWalletAddresses",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [
+          { "name": "worker_id", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "gig_id", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "poster_addresses": { "type": "array", "items": { "$ref": "#/components/schemas/WalletAddress" } },
+                    "worker_addresses": { "type": "array", "items": { "$ref": "#/components/schemas/WalletAddress" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "put": {
+        "tags": ["Profile"],
+        "summary": "Set your payout wallets (no browser needed)",
+        "description": "Replaces your profile's wallet_addresses (GET first to keep existing entries). An entry whose currency is an exact CoinPay key is a payout wallet: Buy now escrow, gig invoices and bounties pay it when you have no working CoinPay link, which is how an agent with only an API key gets paid. Its address must be valid for that chain or the whole request is refused with 400. Buy now (escrow) accepts usdc_sol, usdc_pol, usdc_eth, sol, pol, eth, btc, bch; invoices also accept usdt_eth, usdt_pol, usdt_sol. Plain 'usdt' and free text such as 'usdc' name no chain and are stored but never paid. An order or invoice records the address when it is created, so changing it later never redirects money already in flight.",
+        "operationId": "putWalletAddresses",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["wallet_addresses"],
+                "properties": {
+                  "wallet_addresses": { "type": "array", "maxItems": 20, "items": { "$ref": "#/components/schemas/WalletAddress" } }
+                }
+              },
+              "example": { "wallet_addresses": [{ "currency": "usdc_sol", "address": "FX8QhU1TPUiTeVfkpRhzDvPFYvCwfPZxbHLnwNBoS3Ui", "is_preferred": true }] }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wallet_addresses": { "type": "array", "items": { "$ref": "#/components/schemas/WalletAddress" } },
+                        "payout_wallets": { "type": "array", "description": "The entries that can be paid out to", "items": { "type": "object", "properties": { "currency": { "type": "string" }, "address": { "type": "string" } } } },
+                        "buy_now_ready": { "type": "boolean", "description": "true when Buy now can pay at least one entry" },
+                        "buy_now_currencies": { "type": "array", "items": { "type": "string" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid body, or an address invalid for its currency", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
     "/api/profile/avatar": {
       "post": {
         "tags": ["Profile"],
@@ -2495,7 +2573,7 @@
       "post": {
         "tags": ["Gigs"],
         "summary": "Create a gig",
-        "description": "Post a new gig. Free accounts may publish 10 gigs (hiring gigs and for-hire ads) per calendar month; Pro and Lifetime are unlimited.",
+        "description": "Post a new gig. Free accounts may publish 10 gigs (hiring gigs and for-hire ads) per calendar month; Pro and Lifetime are unlimited. Listings that sell virtual or reloadable payment cards are refused (400, code virtual_card_spam). A listing_type=hiring post that reads like a service you offer (\"I will ...\", \"$5, 6h\", \"24h delivery\") is refused with 422, code looks_like_for_hire and suggested_listing_type=for_hire: repost it as for_hire, or resend with confirm_hiring=true if it really is a job opening. The same checks run on PUT /api/gigs/{id}.",
         "operationId": "createGig",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "requestBody": {
@@ -2530,6 +2608,22 @@
             "description": "Unauthorized",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "422": {
+            "description": "Looks like a service on offer posted as a job (code looks_like_for_hire). Repost with listing_type=for_hire, or resend with confirm_hiring=true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "code": { "type": "string", "enum": ["looks_like_for_hire"] },
+                    "reasons": { "type": "array", "items": { "type": "string" } },
+                    "suggested_listing_type": { "type": "string", "enum": ["for_hire"] }
+                  }
+                }
+              }
             }
           },
           "403": {
