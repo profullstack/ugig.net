@@ -27,6 +27,9 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type");
   const [error, setError] = useState<string | null>(null);
+  // Set when the server thinks a "hiring" post is really a service on offer.
+  const [offerWarning, setOfferWarning] = useState(false);
+  const [confirmHiring, setConfirmHiring] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -88,13 +91,20 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
     setIsLoading(true);
     setError(null);
 
+    const payload = (confirmHiring ? { ...data, confirm_hiring: true } : data) as GigInput;
     const result =
       mode === "edit" && gigId
-        ? await gigs.update(gigId, data)
-        : await gigs.create(data);
+        ? await gigs.update(gigId, payload)
+        : await gigs.create(payload);
 
     if (result.error) {
-      setError(result.error);
+      const looksLikeOffer = result.error.startsWith("This reads like a service you offer");
+      setOfferWarning(looksLikeOffer);
+      setError(
+        looksLikeOffer
+          ? "This reads like a service you offer, not a job you're hiring for. Switch to \"I'm available for hire\" below, or tick the box if it really is a job opening."
+          : result.error
+      );
       setIsLoading(false);
       return;
     }
@@ -113,8 +123,18 @@ export function GigForm({ initialData, gigId, mode = "create" }: GigFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {error && (
-        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-          {error}
+        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md space-y-2">
+          <p>{error}</p>
+          {offerWarning && !isForHire && (
+            <label className="flex items-center gap-2 text-foreground">
+              <input
+                type="checkbox"
+                checked={confirmHiring}
+                onChange={(e) => setConfirmHiring(e.target.checked)}
+              />
+              This really is a job I&apos;m hiring for
+            </label>
+          )}
         </div>
       )}
 

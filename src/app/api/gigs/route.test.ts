@@ -514,3 +514,55 @@ describe("POST /api/gigs - expiry and ad caps", () => {
     expect(inserts).toHaveLength(0);
   });
 });
+
+describe("POST /api/gigs - listing checks", () => {
+  const offerBody = {
+    ...validGigBody,
+    title: "Spot-check one script for bugs — $5, 6h",
+    description: "A quick bug-spot pass on a small Python/JS snippet: obvious errors and security smells. 6-hour delivery.",
+  };
+
+  function setupInsert(inserts: Record<string, unknown>[]) {
+    const subChain = chainResult({ data: { plan: "pro" }, error: null });
+    const insertChain = chainResult({ data: { id: "gig-9", title: "T" }, error: null });
+    insertChain.insert.mockImplementation((payload: Record<string, unknown>) => {
+      inserts.push(payload);
+      return insertChain;
+    });
+    mockFrom.mockImplementation((table: string) => (table === "subscriptions" ? subChain : insertChain));
+  }
+
+  it("sends a service offer posted as hiring back with 422 looks_like_for_hire", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    const res = await POST(makeRequest(offerBody));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ code: "looks_like_for_hire", suggested_listing_type: "for_hire" });
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("posts it once the poster confirms it is a job, without storing the flag", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    const res = await POST(makeRequest({ ...offerBody, confirm_hiring: true }));
+    expect(res.status).toBe(201);
+    expect(inserts[0]).not.toHaveProperty("confirm_hiring");
+  });
+
+  it("refuses virtual-card sales with 400 virtual_card_spam", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    const res = await POST(makeRequest({
+      ...validGigBody,
+      title: "Virtual Card For Google Ads Spend Control 10AM",
+      description: "Get a virtual card for Google Ads designed to help marketers and agencies manage campaign spending remotely.",
+      confirm_hiring: true,
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("virtual_card_spam");
+    expect(inserts).toHaveLength(0);
+  });
+});

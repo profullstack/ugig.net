@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ESCROW_FEE_RATE } from "@/lib/constants";
 import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { getCoinpayLink } from "@/lib/coinpay-oauth";
+import { loadProfilePayoutWallets, payoutWalletApiFix } from "@/lib/profile-payout-wallets";
 import {
   readCoinpayUserinfoWallets,
   SUPPORTED_CURRENCIES,
@@ -102,48 +103,75 @@ export function orderFeeUsd(amountUsd: number): number {
   return round2(amountUsd * ESCROW_FEE_RATE);
 }
 
+export type SellerNotReadyReason = "not_connected" | "needs_reconnect" | "no_wallets";
+
 export type SellerWalletsResult =
-  | { ok: true; wallets: CoinPayGlobalWallet[] }
-  | { ok: false; reason: "not_connected" | "needs_reconnect" | "no_wallets" };
+  | { ok: true; wallets: CoinPayGlobalWallet[]; source: "coinpay" | "profile" }
+  | { ok: false; reason: SellerNotReadyReason };
 
 /**
- * The seller's CoinPay receiving wallets that escrow can pay out to. The seller
- * links CoinPay once (Settings > Connections) and keeps global wallets there;
- * the same link is what gig invoices pay into.
+ * The seller's receiving wallets that escrow can pay out to.
+ *
+ * A live CoinPay link (Settings > Connections) wins: it is the same link gig
+ * invoices pay into. Without one, the seller's own validated profile payout
+ * wallets are used, which is how an agent with only an API key becomes
+ * buyable (see profile-payout-wallets.ts). Either way the address comes from
+ * the seller's account, never from the buyer's request.
  */
 export async function sellerEscrowWallets(sellerId: string): Promise<SellerWalletsResult> {
+  let reason: SellerNotReadyReason;
   const link = await getCoinpayLink(sellerId);
   if (link.accessToken === null) {
-    return { ok: false, reason: link.state === "none" ? "not_connected" : "needs_reconnect" };
+    reason = link.state === "none" ? "not_connected" : "needs_reconnect";
+  } else {
+    const userinfo = await readCoinpayUserinfoWallets(link.accessToken);
+    if (userinfo.status !== "ok") {
+      reason = "needs_reconnect";
+    } else {
+      const wallets = userinfo.wallets.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
+      if (wallets.length > 0) return { ok: true, wallets, source: "coinpay" };
+      reason = "no_wallets";
+    }
   }
-  const userinfo = await readCoinpayUserinfoWallets(link.accessToken);
-  if (userinfo.status !== "ok") return { ok: false, reason: "needs_reconnect" };
 
-  const wallets = userinfo.wallets.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
-  if (wallets.length === 0) return { ok: false, reason: "no_wallets" };
-  return { ok: true, wallets };
+  const profileWallets = await loadProfilePayoutWallets(sellerId, BUY_NOW_CURRENCIES);
+  if (profileWallets.length > 0) return { ok: true, wallets: profileWallets, source: "profile" };
+  return { ok: false, reason };
 }
 
-export function sellerNotReadyMessage(reason: "not_connected" | "needs_reconnect" | "no_wallets"): string {
+const BUY_NOW_COIN_KEYS = BUY_NOW_CURRENCIES.join(", ");
+
+export function sellerNotReadyMessage(reason: SellerNotReadyReason): string {
   switch (reason) {
     case "not_connected":
-      return "This seller hasn't connected a CoinPay wallet yet, so they can't be paid. Message them instead.";
+      return "This seller hasn't added a payout wallet yet, so they can't be paid. Message them instead.";
     case "needs_reconnect":
       return "This seller's CoinPay connection needs to be renewed before they can be paid. Message them instead.";
     case "no_wallets":
-      return "This seller has no CoinPay wallet for a coin escrow supports. Message them instead.";
+      return "This seller has no payout wallet for a coin escrow supports. Message them instead.";
   }
 }
 
-export function ownerNotReadyMessage(reason: "not_connected" | "needs_reconnect" | "no_wallets"): string {
+/** The no-browser fix, spelled out for an agent reading the JSON. */
+const API_FIX_SENTENCE =
+  "From the API (no browser needed): PUT /api/profile/wallet-addresses with " +
+  `{"wallet_addresses":[{"currency":"usdc_sol","address":"<your address>","is_preferred":true}]}. ` +
+  `Currency must be one of: ${BUY_NOW_COIN_KEYS}. That call replaces your list, so GET it first to keep existing entries.`;
+
+export function ownerNotReadyMessage(reason: SellerNotReadyReason): string {
   switch (reason) {
     case "not_connected":
-      return "Connect your CoinPay wallet to let buyers pay for this listing directly with Buy now.";
+      return `Add a payout wallet to let buyers pay for this listing with Buy now. ${API_FIX_SENTENCE} Or connect CoinPay in Settings > Connections.`;
     case "needs_reconnect":
-      return "Reconnect CoinPay to turn on Buy now: your link was made before ugig could read your wallet addresses.";
+      return `Your CoinPay link can't read your wallet addresses, so Buy now is off. ${API_FIX_SENTENCE} Or reconnect CoinPay in Settings > Connections.`;
     case "no_wallets":
-      return "Add a USDC, SOL, POL, ETH, BTC or BCH wallet in CoinPay to turn on Buy now (escrow can't hold USDT on Polygon or Solana).";
+      return `Add a payout wallet in a coin escrow supports (USDT on Polygon or Solana is not one). ${API_FIX_SENTENCE}`;
   }
+}
+
+/** Structured form of the same fix, for clients that act on JSON. */
+export function ownerApiFix() {
+  return payoutWalletApiFix(BUY_NOW_CURRENCIES);
 }
 
 export function currencyLabel(currency: string): string {

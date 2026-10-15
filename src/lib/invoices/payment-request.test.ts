@@ -148,6 +148,29 @@ describe("ensureInvoicePaymentRequest", () => {
     expect(createPayment).not.toHaveBeenCalled();
   });
 
+  it("pays a profile-wallet invoice without a CoinPay link while the worker still lists that wallet", async () => {
+    serviceClient();
+    mockCoinPaySuccess();
+    const workerLinkState = vi.fn(async () => "none" as const);
+    const result = await ensureInvoicePaymentRequest(
+      invoice({ ...WALLET_METADATA, receiver_wallet_source: "profile" }),
+      { workerLinkState, workerProfileWallets: async () => [{ currency: "sol", address: WALLET }] }
+    );
+    expect(result.ok).toBe(true);
+    expect(workerLinkState).not.toHaveBeenCalled();
+    expect(createPayment).toHaveBeenCalledWith(expect.objectContaining({ merchant_wallet_address: WALLET }));
+  });
+
+  it("refuses a profile-wallet invoice once the worker has changed that wallet", async () => {
+    serviceClient();
+    const result = await ensureInvoicePaymentRequest(
+      invoice({ ...WALLET_METADATA, receiver_wallet_source: "profile" }),
+      { workerProfileWallets: async () => [{ currency: "sol", address: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU" }] }
+    );
+    expect(result).toMatchObject({ ok: false, code: "NO_WALLET" });
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
   it("still mints the request when the link lookup itself fails", async () => {
     // A database hiccup is not evidence that the worker's link is broken.
     serviceClient();

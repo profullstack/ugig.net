@@ -5,7 +5,10 @@ import {
   findCoinpayGlobalWallet,
   preferredCoinToPaymentCurrency,
   readCoinpayUserinfoWallets,
+  type CoinPayGlobalWallet,
+  type SupportedCurrency,
 } from "@/lib/coinpayportal";
+import { loadProfilePayoutWallets, payoutWalletApiFix } from "@/lib/profile-payout-wallets";
 import { coinpayReconnectBody } from "@/lib/coinpay-reconnect";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
 import { getPullRequestMergeState } from "@/lib/github-app";
@@ -89,8 +92,14 @@ const createInvoiceSchema = z
     }
   );
 
+/** Coins an invoice can pay a profile wallet in, most useful first (for the api_fix hint). */
+const INVOICE_PAYOUT_CURRENCIES: SupportedCurrency[] = [
+  "usdc_sol", "usdc_pol", "usdc_eth", "usdt_eth", "usdt_pol", "usdt_sol", "sol", "pol", "eth", "btc", "bch",
+];
+
 const COINPAY_WALLET_SETUP_INSTRUCTIONS = [
-  "Connect your CoinPay account from OAuth Connections.",
+  "Without a browser: PUT /api/profile/wallet-addresses with {\"wallet_addresses\":[{\"currency\":\"usdc_sol\",\"address\":\"<your address>\"}]} (currency must be a CoinPay key such as usdc_sol, usdc_pol, usdc_eth, sol, eth, btc). Invoices then pay that wallet.",
+  "Or connect your CoinPay account from OAuth Connections.",
   "Open CoinPayPortal and create or unlock your web wallet.",
   "Copy the receiving address for each coin you want to use.",
   "Paste those addresses into Settings > Global Wallet Addresses in CoinPay, then refresh the invoice form.",
@@ -458,50 +467,52 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    // Verify the worker's CoinPay link before anything is written. The invoice
-    // row is only payable if it carries the worker's receiving wallet, and that
-    // wallet can only be read through a live link with wallet:read. A link that
-    // cannot do that gets one machine-readable answer (409
-    // coinpay_reconnect_required) and no row, never a half-made invoice.
+    // Find the worker's receiving wallets before anything is written. A live
+    // CoinPay link with wallet:read is read first. Without one, the worker's
+    // own validated profile payout wallets are used (an API-key agent has no
+    // browser to link CoinPay with). Neither: one machine-readable 409
+    // (coinpay_reconnect_required) and no row, never a half-made invoice.
+    let workerWallets: CoinPayGlobalWallet[] = [];
+    let linkProblem: "none" | "needs_reconnect" | null = null;
     const workerCoinpayLink = await getCoinpayLink(workerId);
     if (workerCoinpayLink.accessToken === null) {
-      const state = workerCoinpayLink.state === "none" ? "none" : "needs_reconnect";
+      linkProblem = workerCoinpayLink.state === "none" ? "none" : "needs_reconnect";
+    } else {
+      // The stored scope can claim wallet:read while CoinPay has silently
+      // narrowed the grant (2026-08-16), or the token can be revoked. Both look
+      // "Connected" from our side; only the userinfo call tells the truth.
+      const userinfo = await readCoinpayUserinfoWallets(workerCoinpayLink.accessToken);
+      if (userinfo.status !== "ok") {
+        console.warn(
+          `[invoice] worker CoinPay link unusable: ${userinfo.status}${
+            userinfo.status === "unauthorized" ? ` ${userinfo.httpStatus}` : ""
+          }`
+        );
+        linkProblem = "needs_reconnect";
+      } else {
+        workerWallets = userinfo.wallets;
+      }
+    }
+
+    let walletSource: "coinpay" | "profile" = "coinpay";
+    if (workerWallets.length === 0) {
+      workerWallets = await loadProfilePayoutWallets(workerId);
+      walletSource = "profile";
+    }
+
+    if (workerWallets.length === 0 && linkProblem) {
       return NextResponse.json(
         {
-          ...coinpayReconnectBody({ state, callerIsWorker: isWorker, action: "invoice" }),
+          ...coinpayReconnectBody({ state: linkProblem, callerIsWorker: isWorker, action: "invoice" }),
           setup_instructions:
-            state === "needs_reconnect"
+            linkProblem === "needs_reconnect"
               ? COINPAY_RECONNECT_INSTRUCTIONS
               : COINPAY_WALLET_SETUP_INSTRUCTIONS,
+          api_fix: payoutWalletApiFix(INVOICE_PAYOUT_CURRENCIES),
         },
         { status: 409 }
       );
     }
-    const workerCoinpayToken = workerCoinpayLink.accessToken;
-
-    // The stored scope can claim wallet:read while CoinPay has silently
-    // narrowed the grant (2026-08-16), or the token can be revoked. Both look
-    // "Connected" from our side; only the userinfo call tells the truth.
-    const userinfo = await readCoinpayUserinfoWallets(workerCoinpayToken);
-    if (userinfo.status !== "ok") {
-      console.warn(
-        `[invoice] worker CoinPay link unusable: ${userinfo.status}${
-          userinfo.status === "unauthorized" ? ` ${userinfo.httpStatus}` : ""
-        }`
-      );
-      return NextResponse.json(
-        {
-          ...coinpayReconnectBody({
-            state: "needs_reconnect",
-            callerIsWorker: isWorker,
-            action: "invoice",
-          }),
-          setup_instructions: COINPAY_RECONNECT_INSTRUCTIONS,
-        },
-        { status: 409 }
-      );
-    }
-    const workerWallets = userinfo.wallets;
     if (workerWallets.length === 0) {
       return NextResponse.json(
         {
@@ -511,6 +522,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           oauth_required: false,
           setup_required: true,
           setup_instructions: COINPAY_WALLET_SETUP_INSTRUCTIONS,
+          api_fix: payoutWalletApiFix(INVOICE_PAYOUT_CURRENCIES),
         },
         { status: 409 }
       );
@@ -570,6 +582,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           receiver_payment_currency: selectedWallet.currency,
           merchant_wallet_address: selectedWallet.address,
           merchant_wallet_label: selectedWallet.label,
+          ...(walletSource === "profile" ? { receiver_wallet_source: "profile" } : {}),
           // Audit trail for the posting-native amount this USD total came from.
           posting_coin: gig.payment_coin || null,
           native_unit: nativeUnit,

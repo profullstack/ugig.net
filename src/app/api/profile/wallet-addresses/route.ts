@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { walletAddressSchema } from "@/lib/validations";
+import { checkPayoutWallet, payoutCurrencyKey, profilePayoutWallets } from "@/lib/profile-payout-wallets";
+import { BUY_NOW_CURRENCIES } from "@/lib/orders/buy-now";
 
 /**
  * GET /api/profile/wallet-addresses
@@ -102,6 +104,12 @@ export async function GET(request: NextRequest) {
  *
  * Used by the CLI to import CoinPay global wallet addresses into the profile
  * so they are visible to gig posters without requiring OAuth lookups.
+ *
+ * Entries whose currency is an exact CoinPay key (usdc_sol, eth, btc, ...) are
+ * payout wallets: Buy now escrow and gig invoices pay them when the account
+ * has no usable CoinPay link, which is how an API-key agent becomes payable.
+ * Such an entry with an address that is invalid for its chain is refused here
+ * rather than stored, because money would be sent to it.
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -129,16 +137,42 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    for (const entry of parsed.data.wallet_addresses) {
+      const check = checkPayoutWallet(entry);
+      if (!check.ok && check.reason === "invalid_address") {
+        return NextResponse.json(
+          { error: `"${entry.address}" is not a valid ${payoutCurrencyKey(entry.currency)} address` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Store payout entries under their canonical key and trimmed address, so
+    // what is displayed is exactly what would be paid.
+    const walletAddresses = parsed.data.wallet_addresses.map((entry) => {
+      const check = checkPayoutWallet(entry);
+      return check.ok ? { ...entry, currency: check.currency, address: check.address } : entry;
+    });
+
     const { error } = await supabase
       .from("profiles")
-      .update({ wallet_addresses: parsed.data.wallet_addresses })
+      .update({ wallet_addresses: walletAddresses })
       .eq("id", user.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: { wallet_addresses: parsed.data.wallet_addresses } });
+    const payout = profilePayoutWallets(walletAddresses);
+    const buyNow = payout.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
+    return NextResponse.json({
+      data: {
+        wallet_addresses: walletAddresses,
+        payout_wallets: payout.map((w) => ({ currency: w.currency, address: w.address })),
+        buy_now_ready: buyNow.length > 0,
+        buy_now_currencies: buyNow.map((w) => w.currency),
+      },
+    });
   } catch {
     return NextResponse.json(
       { error: "Failed to update wallet addresses" },

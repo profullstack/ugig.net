@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkGigListing, listingRefusalBody } from "@/lib/gig-listing-check";
 import { createClient } from "@/lib/supabase/server";
 import { gigSchema } from "@/lib/validations";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
@@ -96,7 +97,7 @@ export async function PUT(
     // Check ownership
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id, status, listing_type, title")
+      .select("poster_id, status, listing_type, title, description")
       .eq("id", id)
       .single();
 
@@ -136,6 +137,24 @@ export async function PUT(
       const activation = await checkForHireAdActivation(supabase, user.id, nextTitle, id);
       if (!activation.ok) return limitResponse(activation);
     }
+    // Same listing check as POST /api/gigs whenever what the board shows changes.
+    if (
+      isActivation ||
+      update.title !== undefined ||
+      update.description !== undefined ||
+      update.listing_type !== undefined
+    ) {
+      const listingVerdict = checkGigListing({
+        title: nextTitle,
+        description: update.description ?? existingGig.description ?? "",
+        listingType: nextListingType === "for_hire" ? "for_hire" : "hiring",
+        confirmHiring: (body as { confirm_hiring?: unknown })?.confirm_hiring === true,
+      });
+      if (!listingVerdict.ok) {
+        return NextResponse.json(listingRefusalBody(listingVerdict), { status: listingVerdict.status });
+      }
+    }
+
     // Activating through an edit counts against the free cap like PATCH /status
     if (isActivation) {
       const allowance = await getGigPostAllowance(supabase, user.id);

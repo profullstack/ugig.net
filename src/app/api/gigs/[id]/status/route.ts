@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { virtualCardSpamCheck, VIRTUAL_CARD_SPAM_THRESHOLD } from "@/lib/gig-listing-check";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
@@ -30,7 +31,7 @@ export async function PATCH(
     // Check ownership and get current status
     const { data: existingGig } = await supabase
       .from("gigs")
-      .select("poster_id, status, created_at, title, listing_type, poster:profiles!poster_id(full_name, username)")
+      .select("poster_id, status, created_at, title, description, listing_type, poster:profiles!poster_id(full_name, username)")
       .eq("id", id)
       .single();
 
@@ -66,6 +67,17 @@ export async function PATCH(
         id
       );
       if (!activation.ok) return limitResponse(activation);
+    }
+
+    // Card-selling spam stays down; it is archived, and re-activating it is refused.
+    if (isActivation) {
+      const vcc = virtualCardSpamCheck(existingGig.title || "", (existingGig as { description?: string }).description || "");
+      if (vcc.score >= VIRTUAL_CARD_SPAM_THRESHOLD) {
+        return NextResponse.json(
+          { error: "ugig doesn't allow listings that sell virtual or reloadable payment cards.", code: "virtual_card_spam" },
+          { status: 400 }
+        );
+      }
     }
 
     // Publishing a draft or re-activating a gig counts against the free cap
