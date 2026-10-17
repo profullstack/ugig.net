@@ -142,6 +142,7 @@ export function colorizeStatus(value) {
         case "filled":
             return chalk.red(s);
         case "draft":
+        case "archived":
             return chalk.dim(s);
         case "shortlisted":
             return chalk.blue(s);

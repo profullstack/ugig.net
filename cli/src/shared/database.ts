@@ -164,6 +164,7 @@ export type Database = {
           timezone: string | null;
           is_available: boolean;
           profile_completed: boolean;
+          is_spam: boolean;
           resume_url: string | null;
           resume_filename: string | null;
           website: string | null;
@@ -208,6 +209,7 @@ export type Database = {
           timezone?: string | null;
           is_available?: boolean;
           profile_completed?: boolean;
+          is_spam?: boolean;
           resume_url?: string | null;
           resume_filename?: string | null;
           website?: string | null;
@@ -252,6 +254,7 @@ export type Database = {
           timezone?: string | null;
           is_available?: boolean;
           profile_completed?: boolean;
+          is_spam?: boolean;
           resume_url?: string | null;
           resume_filename?: string | null;
           website?: string | null;
@@ -307,7 +310,12 @@ export type Database = {
           created_at: string;
           updated_at: string;
           boosted_at: string | null;
+          last_activity_at: string | null;
+          archived_at: string | null;
+          archived_reason: string | null;
+          archived_from_status: string | null;
           ranked_at: string | null;
+          expires_at: string | null;
         };
         Insert: {
           id?: string;
@@ -332,6 +340,11 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          last_activity_at?: string | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
+          expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -356,6 +369,11 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           boosted_at?: string | null;
+          last_activity_at?: string | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
+          expires_at?: string | null;
         };
         Relationships: [
           {
@@ -383,9 +401,17 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid"
+            | "archived";
           created_at: string;
           updated_at: string;
+          metadata: Json | null;
+          archived_at: string | null;
+          archived_reason: string | null;
+          archived_from_status: string | null;
         };
         Insert: {
           id?: string;
@@ -402,9 +428,17 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid"
+            | "archived";
           created_at?: string;
           updated_at?: string;
+          metadata?: Json | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
         };
         Update: {
           id?: string;
@@ -421,9 +455,17 @@ export type Database = {
             | "shortlisted"
             | "rejected"
             | "accepted"
-            | "withdrawn";
+            | "withdrawn"
+            | "in_progress"
+            | "completed"
+            | "paid"
+            | "archived";
           created_at?: string;
           updated_at?: string;
+          metadata?: Json | null;
+          archived_at?: string | null;
+          archived_reason?: string | null;
+          archived_from_status?: string | null;
         };
         Relationships: [
           {
@@ -451,6 +493,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
           archived_at: string | null;
+          is_broadcast: boolean;
+          broadcast_audience: string | null;
+          broadcast_owner_id: string | null;
         };
         Insert: {
           id?: string;
@@ -460,6 +505,9 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           archived_at?: string | null;
+          is_broadcast?: boolean;
+          broadcast_audience?: string | null;
+          broadcast_owner_id?: string | null;
         };
         Update: {
           id?: string;
@@ -469,6 +517,9 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           archived_at?: string | null;
+          is_broadcast?: boolean;
+          broadcast_audience?: string | null;
+          broadcast_owner_id?: string | null;
         };
         Relationships: [
           {
@@ -788,7 +839,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title: string;
           body: string | null;
           data: Json;
@@ -809,7 +861,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title: string;
           body?: string | null;
           data?: Json;
@@ -830,7 +883,8 @@ export type Database = {
             | "new_comment"
             | "new_follower"
             | "endorsement_received"
-            | "mention";
+            | "mention"
+            | "review_request";
           title?: string;
           body?: string | null;
           data?: Json;
@@ -1208,6 +1262,45 @@ export type Database = {
           {
             foreignKeyName: "follows_following_id_fkey";
             columns: ["following_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_blocks: {
+        Row: {
+          id: string;
+          blocker_id: string;
+          blocked_id: string;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          blocker_id: string;
+          blocked_id: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          blocker_id?: string;
+          blocked_id?: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey";
+            columns: ["blocked_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1632,6 +1725,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      users_are_blocked: {
+        Args: {
+          user_a: string;
+          user_b: string;
+        };
+        Returns: boolean;
+      };
+      blocked_user_ids: {
+        Args: {
+          for_user: string;
+        };
+        Returns: {
+          user_id: string;
+        }[];
+      };
       increment_gig_usage: {
         Args: {
           p_user_id: string;
@@ -1675,7 +1783,11 @@ export type Database = {
         | "shortlisted"
         | "rejected"
         | "accepted"
-        | "withdrawn";
+        | "withdrawn"
+        | "in_progress"
+        | "completed"
+        | "paid"
+        | "archived";
       subscription_status:
         | "active"
         | "canceled"
@@ -1694,7 +1806,8 @@ export type Database = {
         | "new_comment"
         | "new_follower"
         | "endorsement_received"
-            | "mention";
+        | "mention"
+        | "review_request";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
       verification_type: "manual" | "auto" | "premium";

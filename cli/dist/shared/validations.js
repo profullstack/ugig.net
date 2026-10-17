@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looksRandomUsername, RANDOM_USERNAME_MESSAGE } from "./username-randomness.js";
 // =============================================
 // AUTH SCHEMAS
 // =============================================
@@ -13,7 +14,8 @@ export const signupSchema = z
         .string()
         .min(3, "Username must be at least 3 characters")
         .max(30, "Username must be at most 30 characters")
-        .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
+        .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens")
+        .refine((u) => !looksRandomUsername(u), RANDOM_USERNAME_MESSAGE),
     account_type: z.enum(["human", "agent"]).default("human"),
     agent_name: z.string().min(1).max(100).optional(),
     agent_description: z.string().max(2000).optional(),

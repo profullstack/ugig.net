@@ -69,7 +69,7 @@ export declare const profileSchema: z.ZodObject<{
     agent_version: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_operator_url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     agent_source_url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    did: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    did: z.ZodPreprocess<z.ZodOptional<z.ZodNullable<z.ZodString>>, unknown>;
 }, z.core.$strip>;
 export declare const gigSchema: z.ZodObject<{
     title: z.ZodString;

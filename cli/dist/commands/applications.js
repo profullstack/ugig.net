@@ -1,3 +1,4 @@
+import { Option } from "commander";
 import ora from "ora";
 import { createClient, handleError, parseList } from "../helpers.js";
 import { printTable, printSuccess, truncateId, truncate, colorizeStatus, relativeDate, } from "../output.js";
@@ -100,21 +101,32 @@ export function registerApplyShortcut(program) {
     program
         .command("apply <gig-id>")
         .description("Apply to a gig")
-        .requiredOption("--cover-letter <text>", "Cover letter (50-2000 chars)")
+        // --cover-letter is required, but checked by hand so the hidden aliases
+        // below can satisfy it. Older docs (and agents trained on them) used
+        // --message and --proposed-rate; accepting them costs nothing and saves a
+        // failed first call.
+        .option("--cover-letter <text>", "Cover letter (50-2000 chars, required)")
         .option("--rate <rate>", "Proposed rate", parseFloat)
+        .addOption(new Option("--message <text>", "Alias for --cover-letter").hideHelp())
+        .addOption(new Option("--proposed-rate <rate>", "Alias for --rate").argParser(parseFloat).hideHelp())
         .option("--timeline <timeline>", "Proposed timeline")
         .option("--portfolio <urls>", "Portfolio URLs (comma-separated)")
         .option("--ai-tools <tools>", "AI tools you'll use (comma-separated)")
-        .action(async (gigId, options) => {
+        .action(async (gigId, options, command) => {
         const opts = program.opts();
+        const coverLetter = options.coverLetter ?? options.message;
+        const rate = options.rate ?? options.proposedRate;
+        if (!coverLetter) {
+            command.error("error: required option '--cover-letter <text>' not specified");
+        }
         const spinner = opts.json ? null : ora("Submitting application...").start();
         try {
             const client = createClient(opts);
             const body = {
-                cover_letter: options.coverLetter,
+                cover_letter: coverLetter,
             };
-            if (options.rate !== undefined)
-                body.proposed_rate = options.rate;
+            if (rate !== undefined)
+                body.proposed_rate = rate;
             if (options.timeline)
                 body.proposed_timeline = options.timeline;
             if (options.portfolio)

@@ -159,6 +159,7 @@ export type Database = {
                     timezone: string | null;
                     is_available: boolean;
                     profile_completed: boolean;
+                    is_spam: boolean;
                     resume_url: string | null;
                     resume_filename: string | null;
                     website: string | null;
@@ -203,6 +204,7 @@ export type Database = {
                     timezone?: string | null;
                     is_available?: boolean;
                     profile_completed?: boolean;
+                    is_spam?: boolean;
                     resume_url?: string | null;
                     resume_filename?: string | null;
                     website?: string | null;
@@ -247,6 +249,7 @@ export type Database = {
                     timezone?: string | null;
                     is_available?: boolean;
                     profile_completed?: boolean;
+                    is_spam?: boolean;
                     resume_url?: string | null;
                     resume_filename?: string | null;
                     website?: string | null;
@@ -295,14 +298,19 @@ export type Database = {
                     duration: string | null;
                     location_type: "remote" | "onsite" | "hybrid";
                     location: string | null;
-                    status: "draft" | "active" | "paused" | "closed" | "filled";
+                    status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
                     listing_type: "hiring" | "for_hire";
                     applications_count: number;
                     views_count: number;
                     created_at: string;
                     updated_at: string;
                     boosted_at: string | null;
+                    last_activity_at: string | null;
+                    archived_at: string | null;
+                    archived_reason: string | null;
+                    archived_from_status: string | null;
                     ranked_at: string | null;
+                    expires_at: string | null;
                 };
                 Insert: {
                     id?: string;
@@ -320,13 +328,18 @@ export type Database = {
                     duration?: string | null;
                     location_type?: "remote" | "onsite" | "hybrid";
                     location?: string | null;
-                    status?: "draft" | "active" | "paused" | "closed" | "filled";
+                    status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
                     listing_type?: "hiring" | "for_hire";
                     applications_count?: number;
                     views_count?: number;
                     created_at?: string;
                     updated_at?: string;
                     boosted_at?: string | null;
+                    last_activity_at?: string | null;
+                    archived_at?: string | null;
+                    archived_reason?: string | null;
+                    archived_from_status?: string | null;
+                    expires_at?: string | null;
                 };
                 Update: {
                     id?: string;
@@ -344,13 +357,18 @@ export type Database = {
                     duration?: string | null;
                     location_type?: "remote" | "onsite" | "hybrid";
                     location?: string | null;
-                    status?: "draft" | "active" | "paused" | "closed" | "filled";
+                    status?: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
                     listing_type?: "hiring" | "for_hire";
                     applications_count?: number;
                     views_count?: number;
                     created_at?: string;
                     updated_at?: string;
                     boosted_at?: string | null;
+                    last_activity_at?: string | null;
+                    archived_at?: string | null;
+                    archived_reason?: string | null;
+                    archived_from_status?: string | null;
+                    expires_at?: string | null;
                 };
                 Relationships: [
                     {
@@ -372,9 +390,13 @@ export type Database = {
                     proposed_timeline: string | null;
                     portfolio_items: string[];
                     ai_tools_to_use: string[];
-                    status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
+                    status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn" | "in_progress" | "completed" | "paid" | "archived";
                     created_at: string;
                     updated_at: string;
+                    metadata: Json | null;
+                    archived_at: string | null;
+                    archived_reason: string | null;
+                    archived_from_status: string | null;
                 };
                 Insert: {
                     id?: string;
@@ -385,9 +407,13 @@ export type Database = {
                     proposed_timeline?: string | null;
                     portfolio_items?: string[];
                     ai_tools_to_use?: string[];
-                    status?: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
+                    status?: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn" | "in_progress" | "completed" | "paid" | "archived";
                     created_at?: string;
                     updated_at?: string;
+                    metadata?: Json | null;
+                    archived_at?: string | null;
+                    archived_reason?: string | null;
+                    archived_from_status?: string | null;
                 };
                 Update: {
                     id?: string;
@@ -398,9 +424,13 @@ export type Database = {
                     proposed_timeline?: string | null;
                     portfolio_items?: string[];
                     ai_tools_to_use?: string[];
-                    status?: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
+                    status?: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn" | "in_progress" | "completed" | "paid" | "archived";
                     created_at?: string;
                     updated_at?: string;
+                    metadata?: Json | null;
+                    archived_at?: string | null;
+                    archived_reason?: string | null;
+                    archived_from_status?: string | null;
                 };
                 Relationships: [
                     {
@@ -428,6 +458,9 @@ export type Database = {
                     created_at: string;
                     updated_at: string;
                     archived_at: string | null;
+                    is_broadcast: boolean;
+                    broadcast_audience: string | null;
+                    broadcast_owner_id: string | null;
                 };
                 Insert: {
                     id?: string;
@@ -437,6 +470,9 @@ export type Database = {
                     created_at?: string;
                     updated_at?: string;
                     archived_at?: string | null;
+                    is_broadcast?: boolean;
+                    broadcast_audience?: string | null;
+                    broadcast_owner_id?: string | null;
                 };
                 Update: {
                     id?: string;
@@ -446,6 +482,9 @@ export type Database = {
                     created_at?: string;
                     updated_at?: string;
                     archived_at?: string | null;
+                    is_broadcast?: boolean;
+                    broadcast_audience?: string | null;
+                    broadcast_owner_id?: string | null;
                 };
                 Relationships: [
                     {
@@ -754,7 +793,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
                     title: string;
                     body: string | null;
                     data: Json;
@@ -764,7 +803,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
                     title: string;
                     body?: string | null;
                     data?: Json;
@@ -774,7 +813,7 @@ export type Database = {
                 Update: {
                     id?: string;
                     user_id?: string;
-                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention";
+                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
                     title?: string;
                     body?: string | null;
                     data?: Json;
@@ -1152,6 +1191,45 @@ export type Database = {
                     {
                         foreignKeyName: "follows_following_id_fkey";
                         columns: ["following_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            user_blocks: {
+                Row: {
+                    id: string;
+                    blocker_id: string;
+                    blocked_id: string;
+                    reason: string | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    blocker_id: string;
+                    blocked_id: string;
+                    reason?: string | null;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    blocker_id?: string;
+                    blocked_id?: string;
+                    reason?: string | null;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "user_blocks_blocker_id_fkey";
+                        columns: ["blocker_id"];
+                        isOneToOne: false;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "user_blocks_blocked_id_fkey";
+                        columns: ["blocked_id"];
                         isOneToOne: false;
                         referencedRelation: "profiles";
                         referencedColumns: ["id"];
@@ -1576,6 +1654,21 @@ export type Database = {
             [_ in never]: never;
         };
         Functions: {
+            users_are_blocked: {
+                Args: {
+                    user_a: string;
+                    user_b: string;
+                };
+                Returns: boolean;
+            };
+            blocked_user_ids: {
+                Args: {
+                    for_user: string;
+                };
+                Returns: {
+                    user_id: string;
+                }[];
+            };
             increment_gig_usage: {
                 Args: {
                     p_user_id: string;
@@ -1610,13 +1703,13 @@ export type Database = {
         };
         Enums: {
             account_type: "human" | "agent";
-            gig_status: "draft" | "active" | "paused" | "closed" | "filled";
+            gig_status: "draft" | "active" | "paused" | "closed" | "filled" | "archived";
             budget_type: "fixed" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "per_task" | "per_unit" | "revenue_share" | "bounty";
             location_type: "remote" | "onsite" | "hybrid";
-            application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn";
+            application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn" | "in_progress" | "completed" | "paid" | "archived";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
             subscription_plan: "free" | "pro" | "lifetime" | "lifetime";
-            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention";
+            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";
             verification_type: "manual" | "auto" | "premium";

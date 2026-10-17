@@ -11,6 +11,10 @@ mkdirSync(sharedDir, { recursive: true });
 
 const files = [
   ["src/lib/validations.ts", "src/shared/validations.ts"],
+  // validations.ts imports these (#610); without them `npm run build` exits
+  // non-zero and install.sh, which runs under `set -e`, aborts.
+  ["src/lib/username-randomness.ts", "src/shared/username-randomness.ts"],
+  ["src/lib/username-model.ts", "src/shared/username-model.ts"],
   ["src/types/index.ts", "src/shared/types.ts"],
   ["src/types/database.ts", "src/shared/database.ts"],
 ];

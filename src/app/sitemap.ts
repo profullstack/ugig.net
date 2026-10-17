@@ -139,6 +139,7 @@ function getStaticPages(): MetadataRoute.Sitemap {
   return [
     { url: BASE_URL, changeFrequency: "daily", priority: 1.0 },
     { url: `${BASE_URL}/gigs`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${BASE_URL}/residents`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/skills`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/for-hire`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/candidates`, changeFrequency: "hourly", priority: 0.8 },

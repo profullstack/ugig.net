@@ -83,7 +83,12 @@ export type MessageWithSender = Message & {
 };
 
 export type ConversationWithPreview = Conversation & {
+  /**
+   * Hydrated participant profiles. For broadcast threads this is only the
+   * sender and the viewer — see participant_count for the true size.
+   */
   participants: Profile[];
+  participant_count?: number;
   gig?: Pick<Gig, "id" | "title"> | null;
   last_message?: Pick<Message, "content" | "sender_id" | "created_at"> | null;
   unread_count: number;

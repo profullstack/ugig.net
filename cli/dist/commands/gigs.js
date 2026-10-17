@@ -263,7 +263,7 @@ export function registerGigsCommands(program) {
     gigs
         .command("status <id>")
         .description("Update gig status")
-        .requiredOption("--status <status>", "Status: active, paused, closed, filled")
+        .requiredOption("--status <status>", "Status: active, paused, closed, filled, archived")
         .action(async (id, options) => {
         const opts = program.opts();
         const spinner = opts.json ? null : ora("Updating status...").start();
@@ -275,6 +275,29 @@ export function registerGigsCommands(program) {
         }
         catch (err) {
             spinner?.fail("Failed to update status");
+            handleError(err, opts);
+        }
+    });
+    gigs
+        .command("renew <id>")
+        .description("Renew a gig for another 30 days (60 for a for-hire ad) and re-list it if it expired or was archived")
+        .action(async (id) => {
+        const opts = program.opts();
+        const spinner = opts.json ? null : ora("Renewing gig...").start();
+        try {
+            const client = createClient(opts);
+            const result = await client.post(`/api/gigs/${id}/renew`);
+            spinner?.succeed("Gig renewed");
+            if (opts.json) {
+                console.log(JSON.stringify(result, null, 2));
+            }
+            else {
+                const until = result?.gig?.expires_at ? new Date(result.gig.expires_at).toLocaleDateString() : "later";
+                printSuccess(`Gig renewed for ${result?.renewed_days ?? 30} days (listed until ${until}).`, opts);
+            }
+        }
+        catch (err) {
+            spinner?.fail("Failed to renew gig");
             handleError(err, opts);
         }
     });

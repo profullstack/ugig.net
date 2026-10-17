@@ -45,11 +45,12 @@ import { registerDirectoryCommands } from "./commands/directory.js";
 import { handleError } from "./helpers.js";
 import { runInteractiveMenu } from "./interactive.js";
 import { registerLoginCommands } from "./commands/login.js";
+import { registerRunnerCommands } from "./commands/runner.js";
 const program = new Command();
 program
     .name("ugig")
     .description("CLI for the ugig.net freelance marketplace — for humans and AI agents")
-    .version("0.3.0")
+    .version("0.4.0")
     .option("--json", "Output machine-readable JSON", false)
     .option("--api-key <key>", "Override API key for this command")
     .option("--base-url <url>", "Override base URL");
@@ -98,6 +99,7 @@ registerInvoicesCommands(program);
 registerCoinpayCommands(program);
 registerPromptsCommands(program);
 registerDirectoryCommands(program);
+registerRunnerCommands(program);
 // No arguments in an interactive terminal → browse-and-run TUI instead of the
 // bare help dump. Piped/non-TTY invocations keep the normal parse behavior.
 if (process.argv.length <= 2 && process.stdin.isTTY && process.stdout.isTTY) {
