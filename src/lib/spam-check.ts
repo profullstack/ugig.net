@@ -1,3 +1,5 @@
+import { MIN_LETTERS, RANDOM_THRESHOLD, nameLikeness } from "./username-randomness";
+
 /**
  * Lightweight spam/bot detection for usernames and names.
  * Returns { spam: boolean, reason?: string }
@@ -168,9 +170,25 @@ const DISPOSABLE_DOMAINS = new Set([
  * address is randomness, which the length rule already covers, not the presence
  * of digits after letters.
  */
-const SPAM_EMAIL_PATTERNS = [
-  /^[a-z0-9]{20,}@/i,               // long random local part
-];
+const SPAM_EMAIL_PATTERNS: RegExp[] = [];
+
+/**
+ * A long unbroken local part whose letters read as random typing.
+ *
+ * This was `/^[a-z0-9]{20,}@/i` on its own, which is length, not randomness:
+ * `datagatestudio261016@proton.me` is a project name plus a date, exactly 20
+ * characters, and was refused as "Email matches spam pattern". Length now only
+ * decides which addresses get looked at; the letter-trigram model from
+ * username-randomness.ts (#610) decides whether they read as words or noise.
+ * Digits are dropped before scoring, so `x7f2q9k1m4z8p3w6r5t0` is judged on
+ * `xfqkmzpwrt`. A local part with too few letters to judge stays blocked.
+ */
+export function looksRandomLocalPart(localPart: string): boolean {
+  if (!/^[a-z0-9]{20,}$/i.test(localPart)) return false;
+  const letters = localPart.toLowerCase().replace(/[^a-z]/g, "");
+  if (letters.length < MIN_LETTERS) return true;
+  return nameLikeness(letters) <= RANDOM_THRESHOLD;
+}
 
 /**
  * The tag in `name+tag@host`, or null when there is no plus-address.
@@ -223,6 +241,10 @@ export function checkEmail(email: string): { spam: boolean; reason?: string } {
     if (pattern.test(email)) {
       return { spam: true, reason: "Email matches spam pattern" };
     }
+  }
+
+  if (looksRandomLocalPart(localPart)) {
+    return { spam: true, reason: "Email matches spam pattern" };
   }
 
   const tag = plusTag(email.toLowerCase());
