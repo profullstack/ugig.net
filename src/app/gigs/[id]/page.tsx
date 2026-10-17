@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { LinkifiedText } from "@/components/ui/LinkifiedText";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import {
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { usersAreBlocked } from "@/lib/blocks";
+import { recordGigView } from "@/lib/view-count";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
@@ -109,12 +111,8 @@ export default async function GigPage({ params }: GigPageProps) {
   // Normalize poster - Supabase can return array or object depending on relation config
   const poster = Array.isArray(gig.poster) ? gig.poster[0] : gig.poster;
 
-  // Increment view count (fire and forget)
-  supabase
-    .from("gigs")
-    .update({ views_count: gig.views_count + 1 })
-    .eq("id", id)
-    .then();
+  // Count the view (fire and forget). Skips crawlers here and the poster in SQL.
+  void recordGigView(supabase, id, (await headers()).get("user-agent"));
 
   // Get current user to check if they can apply
   const {

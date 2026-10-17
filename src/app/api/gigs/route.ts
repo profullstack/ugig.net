@@ -15,6 +15,7 @@ import {
   limitResponse,
 } from "@/lib/limits";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
+import { getSearchTerm } from "@/lib/search-param";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // Parse filters
     const filters = gigFiltersSchema.safeParse({
-      search: (searchParams.get("search") || "").slice(0, 200) || undefined,
+      search: getSearchTerm(searchParams) || undefined,
       category: searchParams.get("category") || undefined,
       skills: searchParams.get("skills")?.split(",").filter(Boolean) || undefined,
       budget_type: searchParams.get("budget_type") || undefined,
@@ -306,7 +307,21 @@ export async function POST(request: NextRequest) {
       metadata: { gig_title: gig.title },
     });
 
-    return NextResponse.json({ gig }, { status: 201 });
+    // A gig created without `status` is a draft (the column default), and a
+    // draft is invisible to everyone but its poster. Say so, with the call that
+    // publishes it, instead of leaving an agent to wonder why nobody sees it.
+    if (gig.status !== "active") {
+      return NextResponse.json(
+        {
+          gig,
+          visibility: "draft_not_public",
+          next_step: `This gig is a ${gig.status} and only you can see it. Publish it with PATCH /api/gigs/${gig.id}/status {"status":"active"} (or PUT /api/gigs/${gig.id} {"status":"active"}), or send "status":"active" when you create it.`,
+        },
+        { status: 201 }
+      );
+    }
+
+    return NextResponse.json({ gig, visibility: "public" }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

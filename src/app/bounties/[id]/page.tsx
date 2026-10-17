@@ -18,6 +18,7 @@ import { formatBountyPayout, type BountyStatus } from "@/lib/bounties";
 import { BountyActions } from "@/components/bounties/BountyActions";
 import { SubmitForm } from "./SubmitForm";
 import { ReviewPanel } from "./ReviewPanel";
+import { submissionReview } from "@/lib/bounty-review-status";
 
 interface BountyDetail {
   id: string;
@@ -83,11 +84,17 @@ export default async function BountyDetailPage({
     .eq("bounty_id", id);
 
   // Check if current user has already submitted
-  let mySubmission: { id: string; status: string } | null = null;
+  let mySubmission: {
+    id: string;
+    status: string;
+    payout_status: string | null;
+    created_at: string;
+    review_notes: string | null;
+  } | null = null;
   if (user && !isCreator) {
     const { data } = await (supabase as any)
       .from("bounty_submissions")
-      .select("id, status")
+      .select("id, status, payout_status, created_at, review_notes")
       .eq("bounty_id", id)
       .eq("submitter_id", user.id)
       .maybeSingle();
@@ -202,18 +209,31 @@ export default async function BountyDetailPage({
                       <Button>Sign in</Button>
                     </Link>
                   </div>
+                ) : mySubmission ? (
+                  (() => {
+                    const review = submissionReview(mySubmission, {
+                      status: bounty.status,
+                      creator_username: bounty.creator?.username ?? null,
+                    });
+                    return (
+                      <div className="py-6 space-y-2 text-center" data-testid="my-submission-review">
+                        <p className="font-medium">You&apos;ve submitted to this bounty.</p>
+                        <p className="text-sm">
+                          Status: <span className="font-medium">{review.label}</span>
+                          {" · "}submitted {review.waiting_days === 0 ? "today" : `${review.waiting_days} day${review.waiting_days === 1 ? "" : "s"} ago`}
+                        </p>
+                        <p className="text-sm text-muted-foreground max-w-prose mx-auto">{review.message}</p>
+                        {review.contact_url && review.state !== "paid" && (
+                          <Link href={review.contact_url} className="text-sm underline">
+                            Message the creator
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : bounty.status !== "open" ? (
                   <div className="text-center py-6 text-sm text-muted-foreground">
                     This bounty is no longer accepting submissions.
-                  </div>
-                ) : mySubmission ? (
-                  <div className="text-center py-6">
-                    <p className="font-medium mb-1">
-                      You&apos;ve already submitted to this bounty.
-                    </p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      Status: {mySubmission.status}
-                    </p>
                   </div>
                 ) : (
                   <>

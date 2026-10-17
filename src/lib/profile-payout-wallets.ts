@@ -104,5 +104,7 @@ export function payoutWalletApiFix(currencies: readonly SupportedCurrency[]) {
     body: { wallet_addresses: [{ currency: currencies[0], address: "<your receiving address>", is_preferred: true }] },
     currencies: [...currencies],
     note: "Replaces your whole list: GET /api/profile/wallet-addresses first and resend the entries you want to keep.",
+    no_coinpay_account_needed: true,
+    get_a_wallet: "https://ugig.net/skill.md#payments",
   };
 }

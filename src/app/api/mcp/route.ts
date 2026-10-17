@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { mcpListingSchema, slugify } from "@/lib/mcp/validation";
 import { combinedScan, MCP_SCANNER_VERSION } from "@/lib/mcp/security-scan";
 import { escapePostgrestSearchValue, sanitizeSearchParams } from "@/lib/security/sanitize";
+import { getSearchTerm } from "@/lib/search-param";
 
 const MAX_PAGE = 100_000;
 
@@ -22,7 +23,7 @@ function parsePage(value: string | null) {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.searchParams.get("search") || "";
+    const search = getSearchTerm(url.searchParams);
     const category = url.searchParams.get("category") || "";
     const tag = sanitizeSearchParams(url, "tag");
     const sort = url.searchParams.get("sort") || "newest";

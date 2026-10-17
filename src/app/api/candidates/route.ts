@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { getBlockedUserIds } from "@/lib/blocks";
 import { buildCandidatesQuery } from "@/lib/queries/candidates";
+import { getSearchTerm } from "@/lib/search-param";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     : [];
 
   const query = buildCandidatesQuery(supabase, {
-    q: searchParams.get("q") || undefined,
+    q: getSearchTerm(searchParams) || undefined,
     sort: searchParams.get("sort") || undefined,
     page: searchParams.get("page") || undefined,
     available: searchParams.get("available") || undefined,

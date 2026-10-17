@@ -7,6 +7,8 @@ import { createBountySchema, BOUNTY_STATUSES, type BountyStatus } from "@/lib/bo
 import { bountyPostedCommentBody } from "@/lib/bounty-issue-comments";
 import { parseGitHubIssueUrl } from "@/lib/github-links";
 import { postIssueComment } from "@/lib/github-app";
+import { getSearchTerm } from "@/lib/search-param";
+import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 
 // Post the "bounty posted" status comment on the funded GitHub issue.
 // Returns the comment id (to store for later editing) or null. Best-effort.
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
       ? await getBlockedUserIds(listAuth.supabase, listAuth.user.id)
       : [];
 
-    const { data, error, count } = await excludeBlocked(
+    let listQuery = excludeBlocked(
       supabase
         .from("bounties" as any)
         .select(
@@ -81,7 +83,16 @@ export async function GET(request: NextRequest) {
         .eq("status", status),
       "creator_id",
       blockedIds
-    )
+    );
+
+    // Free-text filter (`search`, `q` or `query`) over title and description.
+    const search = getSearchTerm(params);
+    if (search) {
+      const safe = escapePostgrestSearchValue(search);
+      listQuery = listQuery.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
+    }
+
+    const { data, error, count } = await listQuery
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 

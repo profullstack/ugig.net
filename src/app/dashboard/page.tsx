@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProfileCompletion } from "@/components/profile/ProfileCompletion";
+import { ListingStatusCard } from "@/components/profile/ListingStatusCard";
 import {
   BarChart3,
   Briefcase,
@@ -555,6 +556,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Profile Completion */}
+            {profile && <ListingStatusCard profile={profile} />}
             {profile && <ProfileCompletion profile={profile} />}
 
             {/* Navigation */}

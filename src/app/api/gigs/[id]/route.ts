@@ -9,6 +9,7 @@ import {
 } from "@/lib/application-status";
 import { HELD_COLUMN } from "@/lib/limits";
 import { usersAreBlocked } from "@/lib/blocks";
+import { recordGigView } from "@/lib/view-count";
 import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
@@ -61,15 +62,12 @@ export async function GET(
       return NextResponse.json({ error: "Gig not found" }, { status: 404 });
     }
 
-    // Increment view count atomically (#83)
-    // Use RPC if available, fallback to standard update
-    const { error: rpcError } = await supabase.rpc("increment_gig_views" as any, { gig_id: id });
-    if (rpcError) {
-      // Fallback: standard update (still better than client-computed increment)
-      await supabase
-        .from("gigs")
-        .update({ views_count: (gig.views_count || 0) + 1 })
-        .eq("id", id);
+    // Count the view atomically (#83). The SQL function skips the poster; the
+    // old fallback (a direct UPDATE as the viewer) was refused by RLS for
+    // everyone else, so it is gone.
+    // API-key callers have no auth.uid() in SQL, so skip the poster here too.
+    if (auth?.user.id !== gig.poster_id) {
+      await recordGigView(supabase, id, request.headers.get("user-agent"));
     }
 
     return NextResponse.json({ gig });

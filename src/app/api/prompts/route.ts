@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { promptListingSchema, slugify } from "@/lib/prompts/validation";
 import { scanPrompt } from "@/lib/prompts/security-scan";
 import { parsePaginationParam } from "@/lib/api-pagination";
+import { getSearchTerm } from "@/lib/search-param";
 
 function escapePostgrestSearch(value: string) {
   return value
@@ -24,7 +25,7 @@ function escapePostgrestSearch(value: string) {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.searchParams.get("search") || "";
+    const search = getSearchTerm(url.searchParams);
     const category = url.searchParams.get("category") || "";
     const tag = url.searchParams.get("tag") || "";
     const sort = url.searchParams.get("sort") || "newest";

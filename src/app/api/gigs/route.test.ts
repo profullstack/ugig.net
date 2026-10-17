@@ -141,6 +141,27 @@ describe("GET /api/gigs", () => {
     expect(chain.eq).not.toHaveBeenCalledWith("poster:profiles!poster_id.account_type", accountType);
   });
 
+  it.each(["search", "q", "query"])("filters by free text given as ?%s=", async (param) => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    const res = await GET(makeGetRequest({ [param]: "zzzqqq" }));
+
+    expect(res.status).toBe(200);
+    expect(chain.or).toHaveBeenCalledWith("title.ilike.%zzzqqq%,description.ilike.%zzzqqq%");
+  });
+
+  it("applies no text filter when no search param is given", async () => {
+    const chain = chainResult({ data: null, error: null });
+    chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+    mockFrom.mockReturnValue(chain);
+
+    await GET(makeGetRequest());
+
+    expect(chain.or.mock.calls.some(([f]) => String(f).includes("title.ilike"))).toBe(false);
+  });
+
   it("keeps the default left join when no account type is requested", async () => {
     const chain = chainResult({ data: null, error: null });
     chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
@@ -410,6 +431,22 @@ describe("POST /api/gigs", () => {
 
     expect(res.status).toBe(201);
     expect(json.gig.listing_type).toBe("hiring");
+  });
+
+  it("says a gig created as a draft is not public and how to publish it", async () => {
+    mockAuth();
+
+    const gigData = { id: "gig-d", title: "Draft", status: "draft", listing_type: "for_hire" };
+    const subChain = chainResult({ data: { plan: "pro" }, error: null });
+    const insertChain = chainResult({ data: gigData, error: null });
+    mockFrom.mockImplementation((table: string) => (table === "subscriptions" ? subChain : insertChain));
+
+    const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.visibility).toBe("draft_not_public");
+    expect(json.next_step).toContain('PATCH /api/gigs/gig-d/status {"status":"active"}');
   });
 
   it("does not log activity on insert error", async () => {

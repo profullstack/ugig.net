@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { parsePaginationParam } from "@/lib/api-pagination";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
+import { getSearchTerm } from "@/lib/search-param";
 
 // GET /api/users/search?q=<query>&limit=10
 export async function GET(request: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const query = (searchParams.get("q") || "").trim();
+    const query = getSearchTerm(searchParams);
     const limit = parsePaginationParam(searchParams.get("limit"), 10, 1, 20);
 
     if (!query || query.length < 1) {
