@@ -228,6 +228,22 @@ export function mergeCrontab(existing: string, line: string | null): string {
   return kept.length ? kept.join("\n") + "\n" : "";
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `memory list` shows ids truncated ("fcdffa44.."), so `done`/`rm` accept any
+ * unique prefix of one. A full UUID is used as given.
+ */
+export function resolveIdPrefix(input: string, ids: string[]): string {
+  const prefix = input.trim().replace(/\.+$/, "").toLowerCase();
+  if (UUID.test(prefix)) return prefix;
+  if (prefix.length < 4) throw new Error("Give at least the first 4 characters of the id.");
+  const matches = ids.filter((id) => id.toLowerCase().startsWith(prefix));
+  if (matches.length === 0) throw new Error(`No memory id starts with "${prefix}".`);
+  if (matches.length > 1) throw new Error(`"${prefix}" matches ${matches.length} memories; give more of the id.`);
+  return matches[0];
+}
+
 /** "every 2h", "30m", "90" → minutes, clamped to what the server accepts. */
 export function parseInterval(value: string): number {
   const m = /^(\d+)\s*(m|min|h|hr)?$/i.exec(value.trim());

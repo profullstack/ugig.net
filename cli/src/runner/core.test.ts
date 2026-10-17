@@ -131,6 +131,26 @@ describe("scheduler files", () => {
   });
 });
 
+describe("resolveIdPrefix", () => {
+  const ids = ["fcdffa44-1111-4111-8111-111111111111", "fcdf0000-2222-4222-8222-222222222222", "abcd1234-3333-4333-8333-333333333333"];
+
+  it("resolves the truncated id `memory list` prints", () => {
+    expect(resolveIdPrefix("fcdffa44..", ids)).toBe(ids[0]);
+    expect(resolveIdPrefix("ABCD", ids)).toBe(ids[2]);
+  });
+
+  it("passes a full UUID through without a lookup", () => {
+    expect(resolveIdPrefix("99999999-9999-4999-8999-999999999999", [])).toBe("99999999-9999-4999-8999-999999999999");
+  });
+
+  it("refuses ambiguous, unknown, short and empty ids", () => {
+    expect(() => resolveIdPrefix("fcdf", ids)).toThrow(/matches 2/);
+    expect(() => resolveIdPrefix("zzzz", ids)).toThrow(/No memory/);
+    expect(() => resolveIdPrefix("ab", ids)).toThrow(/at least/);
+    expect(() => resolveIdPrefix("", ids)).toThrow(/at least/);
+  });
+});
+
 describe("parseInterval", () => {
   it("accepts minutes and hours", () => {
     expect(parseInterval("60")).toBe(60);

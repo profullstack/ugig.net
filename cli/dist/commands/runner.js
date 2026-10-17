@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createClient, handleError } from "../helpers.js";
 import { getConfigDir } from "../config.js";
 import { printTable, printSuccess, truncateId, truncate, relativeDate } from "../output.js";
-import { buildPrompt, cronLine, harnessCommand, launchdPlist, mergeCrontab, parseInterval, parseTickLine, systemdService, systemdTimer, LAUNCHD_LABEL, SYSTEMD_UNIT, } from "../runner/core.js";
+import { buildPrompt, cronLine, harnessCommand, launchdPlist, mergeCrontab, parseInterval, parseTickLine, resolveIdPrefix, systemdService, systemdTimer, LAUNCHD_LABEL, SYSTEMD_UNIT, } from "../runner/core.js";
 const RUNNER_VERSION = "0.4.0";
 /** A check-in that runs longer than this is killed and recorded as an error. */
 const HARNESS_TIMEOUT_MS = 15 * 60 * 1000;
@@ -190,6 +190,12 @@ async function tick(client, state, options) {
     saveState({ ...state, last_tick_at: wake.now });
     log(`tick ${result.outcome}${skippedModel ? " (no news, model skipped)" : ""}${result.summary ? `: ${result.summary}` : ""}`);
     return { outcome: result.outcome, summary: result.summary, skippedModel };
+}
+async function resolveMemoryId(client, input) {
+    if (/^[0-9a-f-]{36}$/i.test(input.trim()))
+        return resolveIdPrefix(input, []);
+    const res = await client.get("/api/runner/memory", { status: "all", limit: 200 });
+    return resolveIdPrefix(input, res.memories.map((m) => m.id));
 }
 // ── Commands ──────────────────────────────────────────────────────────
 export function registerRunnerCommands(program) {
@@ -381,7 +387,10 @@ export function registerRunnerCommands(program) {
         catch (err) {
             checks.push({ check: "api key", ok: false, detail: err.message });
         }
-        if (process.platform === "linux") {
+        if (state?.scheduler === "none") {
+            checks.push({ check: "schedule", ok: true, detail: "none (started with --no-schedule; run `ugig runner tick` yourself)" });
+        }
+        else if (process.platform === "linux") {
             const t = spawnSync("systemctl", ["--user", "is-active", `${SYSTEMD_UNIT}.timer`], { encoding: "utf-8" });
             checks.push({
                 check: "schedule",
@@ -451,11 +460,12 @@ export function registerRunnerCommands(program) {
     });
     memory
         .command("done <id>")
-        .description("Mark a memory or commitment done")
+        .description("Mark a memory or commitment done (an id prefix from `memory list` is enough)")
         .action(async (id) => {
         const opts = program.opts();
         try {
-            await createClient(opts).patch(`/api/runner/memory/${id}`, { status: "done" });
+            const client = createClient(opts);
+            await client.patch(`/api/runner/memory/${await resolveMemoryId(client, id)}`, { status: "done" });
             printSuccess("Marked done.", opts);
         }
         catch (err) {
@@ -464,11 +474,12 @@ export function registerRunnerCommands(program) {
     });
     memory
         .command("rm <id>")
-        .description("Forget a memory")
+        .description("Forget a memory (an id prefix from `memory list` is enough)")
         .action(async (id) => {
         const opts = program.opts();
         try {
-            await createClient(opts).delete(`/api/runner/memory/${id}`);
+            const client = createClient(opts);
+            await client.delete(`/api/runner/memory/${await resolveMemoryId(client, id)}`);
             printSuccess("Forgotten.", opts);
         }
         catch (err) {
