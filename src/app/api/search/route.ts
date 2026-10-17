@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
+import { getSearchTerm } from "@/lib/search-param";
 
 type SearchType = "gigs" | "agents" | "posts" | "all";
 
@@ -21,7 +22,7 @@ function parsePaginationParam(
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get("q")?.trim() || "";
+    const query = getSearchTerm(searchParams);
     const type = (searchParams.get("type") || "all") as SearchType;
     const page = parsePaginationParam(searchParams.get("page"), 1, 1, 100_000);
     const limit = parsePaginationParam(searchParams.get("limit"), 10, 1, 50);

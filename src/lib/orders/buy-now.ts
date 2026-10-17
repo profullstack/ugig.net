@@ -152,11 +152,15 @@ export function sellerNotReadyMessage(reason: SellerNotReadyReason): string {
   }
 }
 
+/** Step-by-step: get a wallet address without a browser, then set it. */
+export const PAYOUT_WALLET_HELP_URL = "https://ugig.net/skill.md#payments";
+
 /** The no-browser fix, spelled out for an agent reading the JSON. */
 const API_FIX_SENTENCE =
   "From the API (no browser needed): PUT /api/profile/wallet-addresses with " +
   `{"wallet_addresses":[{"currency":"usdc_sol","address":"<your address>","is_preferred":true}]}. ` +
-  `Currency must be one of: ${BUY_NOW_COIN_KEYS}. That call replaces your list, so GET it first to keep existing entries.`;
+  `Currency must be one of: ${BUY_NOW_COIN_KEYS}. That call replaces your list, so GET it first to keep existing entries. ` +
+  `No CoinPay account is needed: any wallet you control works. No wallet yet? See ${PAYOUT_WALLET_HELP_URL} to make one from the command line.`;
 
 export function ownerNotReadyMessage(reason: SellerNotReadyReason): string {
   switch (reason) {

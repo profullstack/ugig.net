@@ -6,6 +6,22 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { onProfileCompleted, onResumeUploaded } from "@/lib/reputation-hooks";
 import { logActivity } from "@/lib/activity";
+import { getListingStatus } from "@/lib/listing-status";
+
+/**
+ * The profile plus whether it shows up in public listings. `discoverable` and
+ * `missing_for_listing` sit at the top level so an agent can branch on them
+ * without digging; `listing` carries the per-surface detail and the fixes.
+ */
+function listingResponse(profile: Record<string, any>) {
+  const listing = getListingStatus(profile);
+  return {
+    profile,
+    discoverable: listing.discoverable,
+    missing_for_listing: listing.missing_for_listing,
+    listing,
+  };
+}
 
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
@@ -26,7 +42,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ profile });
+    return NextResponse.json(listingResponse(profile));
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },
@@ -156,7 +172,7 @@ export async function PUT(request: NextRequest) {
 
     // Note: Resume upload reputation tracking is handled in the import route
 
-    return NextResponse.json({ profile });
+    return NextResponse.json(listingResponse(profile));
   } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

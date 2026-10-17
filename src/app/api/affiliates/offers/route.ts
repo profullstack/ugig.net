@@ -3,6 +3,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
+import { getSearchTerm } from "@/lib/search-param";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const tag = searchParams.get("tag");
     const sort = searchParams.get("sort") || "newest";
-    const search = (searchParams.get("q") || "").slice(0, 200) || null;
+    const search = getSearchTerm(searchParams) || null;
 
     const admin = createServiceClient();
     const from = (page - 1) * limit;

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatBountyPayout, type BountyStatus } from "@/lib/bounties";
 import { BountyActions } from "@/components/bounties/BountyActions";
+import { submissionReview } from "@/lib/bounty-review-status";
 
 export const metadata = {
   title: "My Bounties | ugig.net",
@@ -89,8 +90,8 @@ export default async function DashboardBountiesPage({
     .from("bounty_submissions")
     .select(
       `
-      id, status, payout_status, pay_url, created_at,
-      bounty:bounties (id, title, payout_usd, payment_coin)
+      id, status, payout_status, pay_url, created_at, review_notes,
+      bounty:bounties (id, title, payout_usd, payment_coin, status, creator:profiles!creator_id (username))
     `
     )
     .eq("submitter_id", user.id)
@@ -101,7 +102,15 @@ export default async function DashboardBountiesPage({
     payout_status: "unpaid" | "invoiced" | "paid";
     pay_url: string | null;
     created_at: string;
-    bounty: { id: string; title: string; payout_usd: number; payment_coin: string | null } | null;
+    review_notes: string | null;
+    bounty: {
+      id: string;
+      title: string;
+      payout_usd: number;
+      payment_coin: string | null;
+      status: string | null;
+      creator: { username: string | null } | null;
+    } | null;
   }>;
 
   return (
@@ -265,7 +274,8 @@ export default async function DashboardBountiesPage({
                   <div className="flex items-center gap-2">
                     {s.status === "pending" && (
                       <Badge variant="secondary" className="gap-1">
-                        <Clock className="h-3 w-3" /> Pending
+                        <Clock className="h-3 w-3" />{" "}
+                        {s.bounty?.status && s.bounty.status !== "open" ? "Not reviewed" : "Awaiting creator review"}
                       </Badge>
                     )}
                     {s.status === "approved" && (
@@ -291,6 +301,16 @@ export default async function DashboardBountiesPage({
                     <> · {formatBountyPayout(s.bounty.payout_usd, s.bounty.payment_coin)}</>
                   )}
                 </p>
+                {s.status !== "approved" || s.payout_status !== "paid" ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {
+                      submissionReview(s, {
+                        status: s.bounty?.status ?? null,
+                        creator_username: s.bounty?.creator?.username ?? null,
+                      }).message
+                    }
+                  </p>
+                ) : null}
               </Link>
             ))}
           </div>

@@ -8,6 +8,7 @@ import { slugify } from "@/lib/skills/validation";
 import { importSkillFromUrl } from "@/lib/skills/url-import";
 import { isScanAcceptable } from "@/lib/skills/security-scan";
 import { escapePostgrestSearchValue, sanitizeSearchParams } from "@/lib/security/sanitize";
+import { getSearchTerm } from "@/lib/search-param";
 
 const MAX_PAGE = 100_000;
 
@@ -38,7 +39,7 @@ function isMcpSubmission(title: string, tags: string[]): boolean {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = url.searchParams.get("search") || "";
+    const search = getSearchTerm(url.searchParams);
     const category = url.searchParams.get("category") || "";
     const tag = sanitizeSearchParams(url, "tag");
     const sort = url.searchParams.get("sort") || "newest";

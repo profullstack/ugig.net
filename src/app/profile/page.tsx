@@ -10,6 +10,7 @@ import { Header } from "@/components/layout/Header";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
 import { BadgeCheck, ArrowRight } from "lucide-react";
+import { ListingStatusCard } from "@/components/profile/ListingStatusCard";
 
 export const metadata = {
   title: "Edit Profile | ugig.net",
@@ -47,6 +48,10 @@ export default async function ProfilePage() {
           <p className="text-muted-foreground">
             Update your profile information to help clients find you
           </p>
+        </div>
+
+        <div className="mb-6">
+          <ListingStatusCard profile={profile} />
         </div>
 
         {/* Resume Import */}

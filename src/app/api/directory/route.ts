@@ -16,8 +16,10 @@ import {
 import {
   escapePostgrestSearchValue,
   sanitizeSearchParams,
+  sanitizeUrlParam,
 } from "@/lib/security/sanitize";
 import { parsePaginationParam } from "@/lib/api-pagination";
+import { getSearchTerm } from "@/lib/search-param";
 
 const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || "";
 const MAX_DIRECTORY_PAGE = 10_000;
@@ -40,7 +42,7 @@ const createListingSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const search = sanitizeSearchParams(url, "search");
+    const search = sanitizeUrlParam(getSearchTerm(url.searchParams));
     const tag = sanitizeSearchParams(url, "tag");
     const page = parsePaginationParam(
       url.searchParams.get("page"),

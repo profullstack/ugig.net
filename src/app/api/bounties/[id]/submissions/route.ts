@@ -6,6 +6,15 @@ import {
   formatSubmitAnswersError,
   BountyQuestion,
 } from "@/lib/bounties";
+import { submissionReview } from "@/lib/bounty-review-status";
+
+function bountyForReview(bounty: { status?: string | null; creator?: unknown }) {
+  const creator = Array.isArray(bounty.creator) ? bounty.creator[0] : bounty.creator;
+  return {
+    status: bounty.status ?? null,
+    creator_username: (creator as { username?: string } | null)?.username ?? null,
+  };
+}
 
 // GET /api/bounties/[id]/submissions — creator sees all, submitter sees own
 export async function GET(
@@ -22,7 +31,7 @@ export async function GET(
 
     const { data: bounty } = await (supabase as any)
       .from("bounties")
-      .select("id, creator_id")
+      .select("id, creator_id, status, creator:profiles!creator_id (username)")
       .eq("id", id)
       .single();
 
@@ -49,7 +58,14 @@ export async function GET(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ data: data || [] });
+    // Every row says who reviews it, what happens next and how long it has
+    // waited, so a submitter is never left with a bare "pending".
+    const reviewBounty = bountyForReview(bounty);
+    const rows = (data || []).map((row: any) => ({
+      ...row,
+      review: submissionReview(row, reviewBounty),
+    }));
+    return NextResponse.json({ data: rows });
   } catch {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
@@ -80,7 +96,7 @@ export async function POST(
     // Load the bounty to validate answers + enforce open/max_submissions
     const { data: bounty } = await (supabase as any)
       .from("bounties")
-      .select("id, creator_id, title, status, max_submissions, questions")
+      .select("id, creator_id, title, status, max_submissions, questions, creator:profiles!creator_id (username)")
       .eq("id", id)
       .single();
     if (!bounty) {
@@ -176,7 +192,10 @@ export async function POST(
       data: { bounty_id: id, submission_id: data.id },
     });
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json(
+      { data: { ...data, review: submissionReview(data, bountyForReview(bounty)) } },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }

@@ -63,6 +63,12 @@ export function BuyNowSellerNotice({ gigId }: { gigId: string }) {
         <ShoppingCart className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
         <span>{sentence}</span>
       </p>
+      <p className="pl-6 text-xs text-muted-foreground">
+        You don&apos;t need a CoinPay account: any wallet address you control works.{" "}
+        <a href="/skill.md#payments" className="underline" target="_blank" rel="noreferrer">
+          How to get one from the command line
+        </a>
+      </p>
       <div className="flex gap-2">
         <Link href="/profile" className="flex-1">
           <Button size="sm" className="w-full">Add payout wallet</Button>
