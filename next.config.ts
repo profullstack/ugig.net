@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
         hostname: "supabase.ugig.net",
         pathname: "/storage/v1/object/public/**",
       },
+      // Blog posts are published by crawlproof's autoblog, whose hero images live
+      // in its own self-hosted Supabase storage bucket.
+      {
+        protocol: "https",
+        hostname: "supabase.crawlproof.com",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   async headers() {
