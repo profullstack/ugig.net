@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { profileSchema } from "@/lib/validations";
@@ -14,6 +14,25 @@ import { Badge } from "@/components/ui/badge";
 import { AI_TOOLS, SKILLS, WALLET_CURRENCIES, PAYMENT_COINS, type Profile, type WalletAddress } from "@/types";
 import { X, Plus, Star, Wallet } from "lucide-react";
 
+const FIELD_LABELS: Record<string, string> = {
+  username: "Username",
+  full_name: "Full name",
+  bio: "Bio",
+  skills: "Skills",
+  ai_tools: "AI tools",
+  hourly_rate: "Hourly rate",
+  rate_type: "Rate type",
+  rate_amount: "Rate amount",
+  rate_unit: "Rate unit",
+  preferred_coin: "Preferred coin",
+  ln_address: "Lightning address",
+  portfolio_urls: "Portfolio",
+  wallet_addresses: "Wallet addresses",
+  did: "DID",
+  location: "Location",
+  timezone: "Timezone",
+};
+
 interface ProfileFormProps {
   profile: Profile;
 }
@@ -21,6 +40,7 @@ interface ProfileFormProps {
 export function ProfileForm({ profile }: ProfileFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
@@ -199,9 +219,18 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     );
   };
 
+  // Without this a validation failure on a field with no inline message
+  // (rate type, say) made Save do nothing at all.
+  const onInvalid = (fieldErrors: FieldErrors<z.output<typeof profileSchema>>) => {
+    setSaved(false);
+    const fields = Object.keys(fieldErrors).map((k) => FIELD_LABELS[k] ?? k);
+    setError(`Profile not saved. Check: ${fields.join(", ")}.`);
+  };
+
   const onSubmit = async (data: z.output<typeof profileSchema>) => {
     setIsLoading(true);
     setError(null);
+    setSaved(false);
 
     try {
       const response = await fetch("/api/profile", {
@@ -218,7 +247,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         return;
       }
 
-      router.push("/dashboard");
+      // Stay here so the confirmation and the refreshed listing status show.
+      setSaved(true);
+      setIsLoading(false);
       router.refresh();
     } catch {
       setError("An unexpected error occurred");
@@ -227,12 +258,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      {error && (
-        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8">
 
       {/* Basic Info Section */}
       <div className="space-y-5">
@@ -750,6 +776,26 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       </div>
 
       <div className="border-t border-border" />
+
+      {error && (
+        <div
+          role="alert"
+          className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20"
+        >
+          {error}
+        </div>
+      )}
+      {saved && (
+        <div
+          role="status"
+          className="p-3 text-sm text-green-500 bg-green-500/10 rounded-lg border border-green-500/20"
+        >
+          Profile saved.{" "}
+          <a href={`/u/${watch("username") || profile.username}`} className="underline">
+            View your public profile
+          </a>
+        </div>
+      )}
 
       {/* Submit */}
       <div className="flex gap-4 pt-2">

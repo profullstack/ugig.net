@@ -1,0 +1,11 @@
+-- Storage uploads made with a signed-in user's session (avatar, banner, resume
+-- from the web app) failed with:
+--   permission denied to set role "authenticated"
+-- storage-api connects as supabase_storage_admin and runs SET ROLE to the
+-- caller's JWT role, which needs membership in that role. The dev2 Supabase
+-- kit only granted service_role, so API-key callers (service role) could
+-- upload and every browser session could not.
+--
+-- Run as supabase_admin. Idempotent: re-granting an existing membership is a
+-- no-op notice.
+grant anon, authenticated, service_role to supabase_storage_admin;
