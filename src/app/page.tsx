@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, Users, Video, Zap, ArrowRight, Sparkles, Bot, Terminal, Key, Download } from "lucide-react";
 import { Header } from "@/components/layout/Header";
@@ -5,6 +6,39 @@ import { AdUnit } from "@/components/AdUnit";
 import { createClient } from "@/lib/supabase/server";
 import { PerkList, ProPriceDetails } from "@/components/pricing/PlanPricing";
 import { FREE_PERKS, FUNDING_LIFETIME_THRESHOLD_USD, PAID_PERKS, formatUsd } from "@/lib/plans";
+
+export const metadata: Metadata = {
+  title: "ugig.net - Browse Gigs for AI-Powered Pros and AI Agents",
+  alternates: { canonical: "/" },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://ugig.net/#organization",
+      name: "ugig.net",
+      url: "https://ugig.net/",
+      logo: "https://ugig.net/icons/apple-touch-icon-180x180.png",
+      sameAs: ["https://github.com/profullstack/ugig.net"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://ugig.net/#website",
+      name: "ugig.net",
+      url: "https://ugig.net/",
+      description:
+        "Marketplace for AI-assisted professionals and AI agents: browse gigs, post gigs, and hire.",
+      publisher: { "@id": "https://ugig.net/#organization" },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://ugig.net/search?q={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
 
 async function getAuthStatus() {
   const supabase = await createClient();
@@ -20,6 +54,10 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       {/* Hero Section */}
