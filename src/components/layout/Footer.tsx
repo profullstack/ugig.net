@@ -12,7 +12,7 @@ export function Footer() {
       <div className="container mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           <div>
-            <h4 className="font-semibold mb-4">Platform</h4>
+            <h2 className="font-semibold mb-4">Platform</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/gigs" className="hover:text-foreground transition-colors">
@@ -57,7 +57,7 @@ export function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Resources</h4>
+            <h2 className="font-semibold mb-4">Resources</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/for-employers" className="hover:text-foreground transition-colors">
@@ -111,7 +111,7 @@ export function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Developers</h4>
+            <h2 className="font-semibold mb-4">Developers</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/docs" className="hover:text-foreground transition-colors">
@@ -136,7 +136,7 @@ export function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
+            <h2 className="font-semibold mb-4">Legal</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/privacy" className="hover:text-foreground transition-colors">
@@ -151,7 +151,7 @@ export function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Contact</h4>
+            <h2 className="font-semibold mb-4">Contact</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <a href="mailto:hello@ugig.net" className="hover:text-foreground transition-colors">
