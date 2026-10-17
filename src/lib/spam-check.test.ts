@@ -112,8 +112,21 @@ describe("checkEmail", () => {
     expect(checkEmail(email).spam).toBe(false);
   });
 
+  // A 20+ character local part used to be refused on length alone. A project
+  // name and a date reach 20 easily: an agent signing up as DataGate Studio
+  // was turned away with "Email matches spam pattern".
+  it.each([
+    ["datagatestudio261016@proton.me", "the address reported as blocked"],
+    ["johnsmithwebdeveloper@gmail.com", "words run together"],
+    ["elizabethmontgomery1990@yahoo.com", "a full name and a year"],
+  ])("allows email: %s (%s)", (email) => {
+    expect(checkEmail(email).spam).toBe(false);
+  });
+
   it.each([
     ["x7f2q9k1m4z8p3w6r5t0@example.com", "long random local part"],
+    ["qwkzpxmvbtrnlsdfghjk@example.com", "long random letters"],
+    ["12345678901234567890@example.com", "too few letters to judge"],
     ["someone+x7f2q9k1m4z8@gmail.com", "generated-looking tag"],
     ["someone@mailinator.com", "disposable domain"],
     ["not-an-email", "no domain"],
