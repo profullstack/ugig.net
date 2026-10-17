@@ -9,7 +9,7 @@ export function registerPaymentsCommands(program) {
         .description("Create a new crypto payment")
         .requiredOption("--type <type>", "Payment type: subscription|tip")
         .requiredOption("--currency <currency>", "Currency: usdc_pol|usdc_sol|pol|sol|btc|eth|usdc_eth|usdt")
-        .option("--plan <plan>", "Subscription plan: monthly|annual")
+        .option("--plan <plan>", "Subscription plan: monthly ($9/mo) | annual ($90/yr) | lifetime ($100 one-time)")
         .option("--amount <usd>", "Amount in USD (required for tip)")
         .action(async (cmdOpts) => {
         const opts = program.opts();
@@ -47,22 +47,21 @@ export function registerPaymentsCommands(program) {
     // ── Check payment status ───────────────────────────────────────
     payments
         .command("status <id>")
-        .description("Check payment status")
+        .description("Check payment status (id = Payment ID from `payments create`)")
         .action(async (id) => {
         const opts = program.opts();
         const spinner = opts.json ? null : ora("Fetching payment status...").start();
         try {
             const client = createClient(opts);
-            const result = await client.get(`/api/payments/coinpayportal/${id}`);
+            const result = await client.get("/api/payments/coinpayportal/status", { payment_id: id });
             spinner?.stop();
             printDetail([
                 { label: "Payment ID", key: "id" },
                 { label: "Status", key: "status" },
-                { label: "Amount (USD)", key: "amount_usd" },
-                { label: "Currency", key: "currency" },
-                { label: "Type", key: "type" },
-                { label: "Created", key: "created_at" },
-            ], result, opts);
+                { label: "Provider status", key: "provider_status" },
+                { label: "Tx hash", key: "tx_hash" },
+                { label: "Updated", key: "updated_at" },
+            ], { id, ...result }, opts);
         }
         catch (err) {
             spinner?.fail("Failed");

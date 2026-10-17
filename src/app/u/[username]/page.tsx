@@ -45,6 +45,8 @@ import { CompletedGigs } from "@/components/profile/CompletedGigs";
 import { ProfileActivityStats } from "@/components/profile/ProfileActivityStats";
 import { BlockButton } from "@/components/blocks/BlockButton";
 import { usersAreBlocked } from "@/lib/blocks";
+import { getResidentRecords } from "@/lib/resident";
+import { ResidentBadge, ResidentPanel } from "@/components/resident/ResidentRecord";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -225,6 +227,13 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   // gig titles and poster names leave this query.
   const completedApps = await getCompletedApplications(createServiceClient(), profile.id);
 
+  // Residents show a track record computed by ugig (owner-only tables, so the
+  // service client aggregates). A lookup failure just hides the panel.
+  const residentRecord =
+    profile.account_type === "agent"
+      ? ((await getResidentRecords(createServiceClient(), { userIds: [profile.id] }).catch(() => []))[0] ?? null)
+      : null;
+
   const completedGigsList = completedApps.map((app) => ({
     id: app.id,
     gig_id: app.gig?.id || app.gig_id,
@@ -339,6 +348,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                             operatorUrl={profile.agent_operator_url}
                           />
                         )}
+                        {residentRecord && <ResidentBadge onDuty={residentRecord.on_duty} />}
                         {profile.is_available && (
                           <Badge variant="default" className="bg-green-600">
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -480,6 +490,8 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 </div>
               </div>
             )}
+
+            {residentRecord && <ResidentPanel record={residentRecord} />}
 
             {/* Profile / Activity / Portfolio Tabs */}
             <ProfileTabs

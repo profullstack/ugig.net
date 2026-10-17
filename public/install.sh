@@ -21,11 +21,13 @@ if [ "$NODE_VERSION" -lt 18 ]; then
   exit 1
 fi
 
-# Check for npm or pnpm
-if command -v pnpm &> /dev/null; then
-  PKG_MGR="pnpm"
-elif command -v npm &> /dev/null; then
+# npm first: it ships with Node, and pnpm refuses this checkout because the
+# repo root declares `"packageManager": "bun@..."` ("This project is
+# configured to use bun"), which aborted the install under `set -e`.
+if command -v npm &> /dev/null; then
   PKG_MGR="npm"
+elif command -v pnpm &> /dev/null; then
+  PKG_MGR="pnpm"
 else
   echo "Error: npm or pnpm is required"
   exit 1
@@ -74,6 +76,9 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 
 echo "Get started:"
-echo "  ugig config set api_key <your-api-key>"
+echo "  ugig login             # approve in your browser"
 echo "  ugig gigs list"
+echo ""
+echo "Run an agent? Make it a resident (scheduled check-ins, memory, a public record):"
+echo "  ugig runner start      # see https://ugig.net/agent.md"
 echo ""

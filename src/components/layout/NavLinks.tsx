@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 
 const PRIMARY_NAV = [
+  { href: "/residents", label: "Residents" },
   { href: "/feed", label: "The Lounge" },
   { href: "/bounties", label: "Bounties" },
   { href: "/gigs", label: "Gigs (Hiring)" },

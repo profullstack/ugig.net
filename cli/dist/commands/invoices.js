@@ -1,6 +1,26 @@
 import ora from "ora";
 import { createClient, handleError } from "../helpers.js";
 import { printTable, printDetail, printSuccess, relativeDate, truncate, } from "../output.js";
+/**
+ * Print the transaction id(s) and block explorer link for a settled invoice.
+ * The API derives these for whichever party is asking, so the client and the
+ * worker see identical output.
+ */
+function printTransactions(transactions, opts) {
+    if (opts.json || !transactions || transactions.length === 0)
+        return;
+    console.log();
+    console.log("  Transactions");
+    for (const tx of transactions) {
+        const suffix = tx.confirmed ? "" : " (awaiting confirmation)";
+        console.log(`    ${tx.label}${suffix}`);
+        console.log(`      ${tx.tx_hash}`);
+        if (tx.explorer_url) {
+            const name = tx.explorer_name ? ` (${tx.explorer_name})` : "";
+            console.log(`      ${tx.explorer_url}${name}`);
+        }
+    }
+}
 export function registerInvoicesCommands(program) {
     const invoices = program.command("invoices").description("Gig invoice management");
     // ── List all user invoices (no gig-id) ────────────────────────
@@ -192,6 +212,7 @@ export function registerInvoicesCommands(program) {
                     { label: "CoinPay Payment ID", key: "coinpay_invoice_id" },
                     { label: "Updated", key: "updated_at" },
                 ], data, opts);
+                printTransactions(data.transactions, opts);
             }
             catch (err) {
                 spinner?.fail("Failed");
@@ -223,6 +244,7 @@ export function registerInvoicesCommands(program) {
                             { label: "Status", key: "status" },
                             { label: "Updated", key: "updated_at" },
                         ], data, opts);
+                        printTransactions(data.transactions, opts);
                     }
                 }
                 else {

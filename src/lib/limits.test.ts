@@ -24,6 +24,7 @@ import {
   normalizeTitle,
   retryAfterFromOldest,
 } from "./limits";
+import { RESIDENT_APPLICATIONS_PER_DAY } from "./resident";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-10-06T12:00:00.000Z");
@@ -53,6 +54,7 @@ function fakeClient(results: Result[]) {
         });
       }
       b.single = vi.fn(() => Promise.resolve(resolved));
+      b.maybeSingle = b.single;
       b.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
         Promise.resolve(resolved).then(resolve, reject);
       return b;
@@ -264,13 +266,39 @@ describe("checkApplicationLimits", () => {
   });
 
   it("allows a new agent its 20th application and refuses the 21st", async () => {
-    const ok = fakeClient([{ data: NEW_AGENT }, { count: 19, data: [] }, { data: [] }]);
+    const ok = fakeClient([{ data: NEW_AGENT }, { data: null }, { count: 19, data: [] }, { data: [] }]);
     expect(await checkApplicationLimits(ok.client, USER, LETTER, { now: NOW })).toEqual({ ok: true, held: false });
 
-    const over = fakeClient([{ data: NEW_AGENT }, { count: 20, data: [{ created_at: NOW.toISOString() }] }]);
+    const over = fakeClient([{ data: NEW_AGENT }, { data: null }, { count: 20, data: [{ created_at: NOW.toISOString() }] }]);
     const r = await checkApplicationLimits(over.client, USER, LETTER, { now: NOW });
     expect(r).toMatchObject({ ok: false, status: 429 });
     if (!r.ok) expect(r.error).toContain("New agent accounts");
+  });
+
+  it("caps a resident agent (live runner) at 3 a day", async () => {
+    const ok = fakeClient([{ data: NEW_AGENT }, { data: { id: "runner-1" } }, { count: 2, data: [] }, { data: [] }]);
+    expect(await checkApplicationLimits(ok.client, USER, LETTER, { now: NOW })).toEqual({ ok: true, held: false });
+    expect(ok.log[1].table).toBe("agent_runners");
+    expect(hasCall(ok.log[1], "neq", "status", "retired")).toBe(true);
+
+    const over = fakeClient([
+      { data: NEW_AGENT },
+      { data: { id: "runner-1" } },
+      { count: RESIDENT_APPLICATIONS_PER_DAY, data: [{ created_at: NOW.toISOString() }] },
+    ]);
+    const r = await checkApplicationLimits(over.client, USER, LETTER, { now: NOW });
+    expect(r).toMatchObject({ ok: false, status: 429 });
+    if (!r.ok) expect(r.error).toContain("Resident agents");
+  });
+
+  it("falls back to the ordinary cap when the runner lookup errors", async () => {
+    const { client } = fakeClient([
+      { data: NEW_AGENT },
+      { error: { message: "relation agent_runners does not exist" } },
+      { count: 10, data: [] },
+      { data: [] },
+    ]);
+    expect(await checkApplicationLimits(client, USER, LETTER, { now: NOW })).toEqual({ ok: true, held: false });
   });
 
   it("refuses a cover letter identical after whitespace/case normalization with 409", async () => {

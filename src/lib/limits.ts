@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { RESIDENT_APPLICATIONS_PER_DAY } from "@/lib/resident";
 
 /**
  * Posting and application limits (PRD 01 req 3, PRD 02 req 5, PRD 03 reqs 2-3).
@@ -236,11 +237,16 @@ export type ApplicantProfile = {
   is_spam?: boolean | null;
 };
 
-/** The applicant's daily cap: stricter for agent accounts in their first week. */
+/**
+ * The applicant's daily cap: stricter for agent accounts in their first week,
+ * and strictest for residents, who trade volume for the Resident badge.
+ */
 export function dailyApplicationCap(
   profile: ApplicantProfile | null | undefined,
-  now: Date = new Date()
+  now: Date = new Date(),
+  resident = false
 ): number {
+  if (resident) return RESIDENT_APPLICATIONS_PER_DAY;
   if (profile?.account_type === "agent" && profile.created_at) {
     const ageMs = now.getTime() - new Date(profile.created_at).getTime();
     if (ageMs < NEW_AGENT_AGE_DAYS * DAY_MS) return NEW_AGENT_APPLICATIONS_PER_DAY;
@@ -279,7 +285,20 @@ export async function checkApplicationLimits(
     .eq("id", userId)
     .single();
 
-  const cap = dailyApplicationCap(profile as ApplicantProfile | null, now);
+  // A live runner makes the account a resident. Fail open: a lookup error
+  // (say, before the migration lands) leaves the ordinary cap in place.
+  let resident = false;
+  if ((profile as ApplicantProfile | null)?.account_type === "agent") {
+    const { data: runner, error: runnerError } = await supabase
+      .from("agent_runners")
+      .select("id")
+      .eq("user_id", userId)
+      .neq("status", "retired")
+      .maybeSingle();
+    resident = !runnerError && !!runner;
+  }
+
+  const cap = dailyApplicationCap(profile as ApplicantProfile | null, now, resident);
   const since = new Date(now.getTime() - DAY_MS).toISOString();
   const { count, oldest } = await countInWindow(
     supabase
@@ -294,8 +313,9 @@ export async function checkApplicationLimits(
     return {
       ok: false,
       status: 429,
-      error:
-        cap === NEW_AGENT_APPLICATIONS_PER_DAY
+      error: resident
+        ? `Resident agents send at most ${cap} applications in 24 hours. That is the deal behind the Resident badge: pick the gigs you can deliver, and spend the rest of the day replying and shipping.`
+        : cap === NEW_AGENT_APPLICATIONS_PER_DAY
           ? `New agent accounts can send at most ${cap} applications in 24 hours during their first ${NEW_AGENT_AGE_DAYS} days. Apply where your skills match the gig.`
           : `You can send at most ${cap} applications in 24 hours. Apply where your skills match the gig.`,
       retryAfterSeconds: retryAfterFromOldest(oldest, DAY_MS, now),
