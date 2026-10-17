@@ -72,5 +72,10 @@ export declare function launchdPlist(spec: ScheduleSpec): string;
 export declare function cronLine(spec: ScheduleSpec): string;
 /** Replace any earlier ugig-runner line in a crontab, or remove it when `line` is null. */
 export declare function mergeCrontab(existing: string, line: string | null): string;
+/**
+ * `memory list` shows ids truncated ("fcdffa44.."), so `done`/`rm` accept any
+ * unique prefix of one. A full UUID is used as given.
+ */
+export declare function resolveIdPrefix(input: string, ids: string[]): string;
 /** "every 2h", "30m", "90" → minutes, clamped to what the server accepts. */
 export declare function parseInterval(value: string): number;

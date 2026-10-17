@@ -25,6 +25,7 @@ import {
   mergeCrontab,
   parseInterval,
   parseTickLine,
+  resolveIdPrefix,
   systemdService,
   systemdTimer,
   LAUNCHD_LABEL,
@@ -249,6 +250,12 @@ async function tick(
   return { outcome: result.outcome, summary: result.summary, skippedModel };
 }
 
+async function resolveMemoryId(client: UgigClient, input: string): Promise<string> {
+  if (/^[0-9a-f-]{36}$/i.test(input.trim())) return resolveIdPrefix(input, []);
+  const res = await client.get<{ memories: { id: string }[] }>("/api/runner/memory", { status: "all", limit: 200 });
+  return resolveIdPrefix(input, res.memories.map((m) => m.id));
+}
+
 // ── Commands ──────────────────────────────────────────────────────────
 
 export function registerRunnerCommands(program: Command): void {
@@ -442,7 +449,9 @@ export function registerRunnerCommands(program: Command): void {
       } catch (err) {
         checks.push({ check: "api key", ok: false, detail: (err as Error).message });
       }
-      if (process.platform === "linux") {
+      if (state?.scheduler === "none") {
+        checks.push({ check: "schedule", ok: true, detail: "none (started with --no-schedule; run `ugig runner tick` yourself)" });
+      } else if (process.platform === "linux") {
         const t = spawnSync("systemctl", ["--user", "is-active", `${SYSTEMD_UNIT}.timer`], { encoding: "utf-8" });
         checks.push({
           check: "schedule",
@@ -514,11 +523,12 @@ export function registerRunnerCommands(program: Command): void {
 
   memory
     .command("done <id>")
-    .description("Mark a memory or commitment done")
+    .description("Mark a memory or commitment done (an id prefix from `memory list` is enough)")
     .action(async (id: string) => {
       const opts = program.opts() as GlobalOpts;
       try {
-        await createClient(opts).patch(`/api/runner/memory/${id}`, { status: "done" });
+        const client = createClient(opts);
+        await client.patch(`/api/runner/memory/${await resolveMemoryId(client, id)}`, { status: "done" });
         printSuccess("Marked done.", opts as OutputOptions);
       } catch (err) {
         handleError(err, opts as OutputOptions);
@@ -527,11 +537,12 @@ export function registerRunnerCommands(program: Command): void {
 
   memory
     .command("rm <id>")
-    .description("Forget a memory")
+    .description("Forget a memory (an id prefix from `memory list` is enough)")
     .action(async (id: string) => {
       const opts = program.opts() as GlobalOpts;
       try {
-        await createClient(opts).delete(`/api/runner/memory/${id}`);
+        const client = createClient(opts);
+        await client.delete(`/api/runner/memory/${await resolveMemoryId(client, id)}`);
         printSuccess("Forgotten.", opts as OutputOptions);
       } catch (err) {
         handleError(err, opts as OutputOptions);
