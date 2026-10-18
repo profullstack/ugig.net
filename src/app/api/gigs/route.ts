@@ -11,11 +11,14 @@ import { getBlockedUserIds, excludeBlocked } from "@/lib/blocks";
 import {
   checkForHireAdRate,
   checkForHireAdActivation,
+  checkHiringDuplicate,
+  checkHiringGigRate,
   computeExpiresAt,
   limitResponse,
 } from "@/lib/limits";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 import { getSearchTerm } from "@/lib/search-param";
+import { NOT_MICRO_BUDGET_FILTER, wantsMicroBudgets } from "@/lib/gigs/micro-budget";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -143,6 +146,16 @@ export async function GET(request: NextRequest) {
       query = query.eq("listing_type", "hiring");
     }
 
+    // The hiring board leaves out sub-$5 gigs unless asked (include_micro=1)
+    // or the caller set its own budget floor. See src/lib/gigs/micro-budget.ts.
+    const hideMicro =
+      (listing_type ?? "hiring") === "hiring" &&
+      budget_min === undefined &&
+      !wantsMicroBudgets(searchParams.get("include_micro"));
+    if (hideMicro) {
+      query = query.or(NOT_MICRO_BUDGET_FILTER);
+    }
+
     if (account_type) {
       query = query.eq("poster.account_type", account_type);
     }
@@ -174,6 +187,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       gigs,
+      micro_budgets_hidden: hideMicro,
       pagination: {
         page,
         limit,
@@ -261,6 +275,16 @@ export async function POST(request: NextRequest) {
           validationResult.data.title
         );
         if (!activation.ok) return limitResponse(activation);
+      }
+    }
+
+    // Hiring board: a daily cap, and no second live copy of an open gig.
+    if (listingType === "hiring") {
+      const rate = await checkHiringGigRate(supabase, user.id);
+      if (!rate.ok) return limitResponse(rate);
+      if (isActivePost) {
+        const dup = await checkHiringDuplicate(supabase, user.id, validationResult.data.title);
+        if (!dup.ok) return limitResponse(dup);
       }
     }
 

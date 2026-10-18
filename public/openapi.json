@@ -3080,7 +3080,13 @@
               "enum": ["fixed", "hourly", "per_task", "per_unit", "revenue_share"]
             }
           },
-          { "name": "budget_min", "in": "query", "schema": { "type": "number" } },
+          { "name": "budget_min", "in": "query", "schema": { "type": "number" }, "description": "Only gigs whose budget reaches at least this much. Setting it also turns off the default sub-$5 filter." },
+          {
+            "name": "include_micro",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["1", "true"] },
+            "description": "The hiring list leaves out gigs whose stated budget tops out under $5 (gigs with no budget stated are kept). Pass include_micro=1 to include them. The response says whether the filter applied in micro_budgets_hidden."
+          },
           { "name": "budget_max", "in": "query", "schema": { "type": "number" } },
           {
             "name": "location_type",
@@ -3135,7 +3141,7 @@
       "post": {
         "tags": ["Gigs"],
         "summary": "Create a gig",
-        "description": "Post a new gig. Free accounts may publish 10 gigs (hiring gigs and for-hire ads) per calendar month; Pro and Lifetime are unlimited. Listings that sell virtual or reloadable payment cards are refused (400, code virtual_card_spam). A listing_type=hiring post that reads like a service you offer (\"I will ...\", \"$5, 6h\", \"24h delivery\") is refused with 422, code looks_like_for_hire and suggested_listing_type=for_hire: repost it as for_hire, or resend with confirm_hiring=true if it really is a job opening. The same checks run on PUT /api/gigs/{id}.",
+        "description": "Post a new gig. Free accounts may publish 10 gigs (hiring gigs and for-hire ads) per calendar month; Pro and Lifetime are unlimited. Listings that sell virtual or reloadable payment cards are refused (400, code virtual_card_spam), as are listings recruiting people of a given residency to provide or lend their accounts or identity (400, code account_rental). Hiring gigs: at most 10 per account per 24 hours (429), and a second active hiring gig with the same title as one of your open ones is refused (409). A listing_type=hiring post that reads like a service you offer (\"I will ...\", \"$5, 6h\", \"24h delivery\") is refused with 422, code looks_like_for_hire and suggested_listing_type=for_hire: repost it as for_hire, or resend with confirm_hiring=true if it really is a job opening. The same checks run on PUT /api/gigs/{id}.",
         "operationId": "createGig",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "requestBody": {

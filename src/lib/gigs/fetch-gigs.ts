@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 import { excludeBlocked } from "@/lib/blocks";
 import { BOOST_ACTIVE_MS } from "@/lib/boost";
+import { NOT_MICRO_BUDGET_FILTER } from "@/lib/gigs/micro-budget";
 
 // Shared gig-listing fetch used by /gigs and /for-hire. Beyond the usual filters
 // and sorting it pins "active" boosts (boosted within BOOST_ACTIVE_MS) to the very
@@ -39,11 +40,19 @@ export interface FetchGigsOptions {
    * count queries too, so pagination matches what is actually shown.
    */
   excludeUserIds?: string[];
+  /**
+   * Leave out gigs whose stated budget tops out under $5 (see micro-budget.ts).
+   * The hiring board's default view sets this; the count of what was left out
+   * comes back as `hiddenMicro` so the page can offer to show them.
+   */
+  hideMicroBudgets?: boolean;
 }
 
 export interface FetchGigsResult {
   gigs: Record<string, unknown>[];
   count: number;
+  /** Gigs matching the filters that hideMicroBudgets left out (0 when not hiding). */
+  hiddenMicro: number;
 }
 
 const PINNED_SORTS = new Set([undefined, "", "newest"]);
@@ -89,9 +98,9 @@ function applyFilters(query: GigQuery, filters: GigListFilters): GigQuery {
 
 export async function fetchGigs(
   supabase: SupabaseClient,
-  { listingType, filters, sort, page, limit, excludeUserIds = [] }: FetchGigsOptions
+  { listingType, filters, sort, page, limit, excludeUserIds = [], hideMicroBudgets = false }: FetchGigsOptions
 ): Promise<FetchGigsResult> {
-  const base = (opts?: { select?: string; head?: boolean }): GigQuery => {
+  const unfiltered = (opts?: { select?: string; head?: boolean }): GigQuery => {
     const query = supabase
       .from("gigs")
       .select(opts?.select ?? GIG_LIST_SELECT, {
@@ -101,6 +110,14 @@ export async function fetchGigs(
       .eq("status", "active")
       .eq("listing_type", listingType);
     return excludeBlocked(applyFilters(query, filters), "poster_id", excludeUserIds);
+  };
+  const base = (opts?: { select?: string; head?: boolean }): GigQuery =>
+    hideMicroBudgets ? unfiltered(opts).or(NOT_MICRO_BUDGET_FILTER) : unfiltered(opts);
+
+  const countHiddenMicro = async (shown: number): Promise<number> => {
+    if (!hideMicroBudgets) return 0;
+    const { count } = await unfiltered({ select: "id", head: true });
+    return Math.max(0, (count ?? 0) - shown);
   };
 
   const offset = (page - 1) * limit;
@@ -122,7 +139,7 @@ export async function fetchGigs(
         query = query.order("created_at", { ascending: false });
     }
     const { data, count } = await query.range(offset, offset + limit - 1);
-    return { gigs: data ?? [], count: count ?? 0 };
+    return { gigs: data ?? [], count: count ?? 0, hiddenMicro: await countHiddenMicro(count ?? 0) };
   }
 
   // Default (newest): pinned active boosts first, then the rest by recency.
@@ -168,5 +185,6 @@ export async function fetchGigs(
     normalTotal = count ?? 0;
   }
 
-  return { gigs: [...boosted, ...normal], count: boostedTotal + normalTotal };
+  const total = boostedTotal + normalTotal;
+  return { gigs: [...boosted, ...normal], count: total, hiddenMicro: await countHiddenMicro(total) };
 }

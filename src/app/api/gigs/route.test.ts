@@ -39,13 +39,21 @@ const { mockAdRate, mockAdActivation } = vi.hoisted(() => ({
   mockAdRate: vi.fn(),
   mockAdActivation: vi.fn(),
 }));
+const { mockHiringRate, mockHiringDuplicate } = vi.hoisted(() => ({
+  mockHiringRate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+  mockHiringDuplicate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+}));
+
 vi.mock("@/lib/limits", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/limits")>()),
   checkForHireAdRate: mockAdRate,
   checkForHireAdActivation: mockAdActivation,
+  checkHiringGigRate: mockHiringRate,
+  checkHiringDuplicate: mockHiringDuplicate,
 }));
 
 import { GET, POST } from "./route";
+import { NOT_MICRO_BUDGET_FILTER } from "@/lib/gigs/micro-budget";
 import { getAuthContext } from "@/lib/auth/get-user";
 
 const mockGetAuthContext = vi.mocked(getAuthContext);
@@ -96,6 +104,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAdRate.mockResolvedValue({ ok: true });
   mockAdActivation.mockResolvedValue({ ok: true });
+  mockHiringRate.mockResolvedValue({ ok: true });
+  mockHiringDuplicate.mockResolvedValue({ ok: true });
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -280,6 +290,36 @@ describe("GET /api/gigs", () => {
     );
     expect(listingTypeCall).toBeDefined();
     expect(listingTypeCall![1]).toBe("hiring");
+  });
+
+  describe("sub-$5 gigs on the hiring list", () => {
+    async function orCalls(params: Record<string, string>) {
+      const chain = chainResult({ data: null, error: null });
+      chain.select = vi.fn().mockReturnValue(chain);
+      chain.range = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+      mockFrom.mockReturnValue(chain);
+      const res = await GET(makeGetRequest(params));
+      const json = await res.json();
+      return { calls: chain.or.mock.calls.map((c: unknown[]) => c[0]), json };
+    }
+
+    it("leaves them out by default and says so", async () => {
+      const { calls, json } = await orCalls({});
+      expect(calls).toContain(NOT_MICRO_BUDGET_FILTER);
+      expect(json.micro_budgets_hidden).toBe(true);
+    });
+
+    it("includes them with include_micro=1", async () => {
+      const { calls, json } = await orCalls({ include_micro: "1" });
+      expect(calls).not.toContain(NOT_MICRO_BUDGET_FILTER);
+      expect(json.micro_budgets_hidden).toBe(false);
+    });
+
+    it("never filters the for_hire list or a caller's own budget floor", async () => {
+      expect((await orCalls({ listing_type: "for_hire" })).calls).not.toContain(NOT_MICRO_BUDGET_FILTER);
+      expect((await orCalls({ listing_type: "all" })).calls).not.toContain(NOT_MICRO_BUDGET_FILTER);
+      expect((await orCalls({ budget_min: "1" })).calls).not.toContain(NOT_MICRO_BUDGET_FILTER);
+    });
   });
 
   it("hides gigs posted by a blocked user", async () => {
@@ -549,6 +589,55 @@ describe("POST /api/gigs - expiry and ad caps", () => {
     const res = await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
     expect(res.status).toBe(409);
     expect(inserts).toHaveLength(0);
+  });
+});
+
+describe("POST /api/gigs - hiring board limits", () => {
+  function setupInsert(inserts: Record<string, unknown>[]) {
+    const subChain = chainResult({ data: { plan: "pro" }, error: null });
+    const insertChain = chainResult({ data: { id: "gig-9", title: "T" }, error: null });
+    insertChain.insert.mockImplementation((payload: Record<string, unknown>) => {
+      inserts.push(payload);
+      return insertChain;
+    });
+    mockFrom.mockImplementation((table: string) => (table === "subscriptions" ? subChain : insertChain));
+  }
+
+  it("checks the daily cap and duplicates for an active hiring gig", async () => {
+    mockAuth();
+    setupInsert([]);
+    const res = await POST(makeRequest(validGigBody));
+    expect(res.status).toBe(201);
+    expect(mockHiringRate).toHaveBeenCalledWith(supabaseClient, "user-1");
+    expect(mockHiringDuplicate).toHaveBeenCalledWith(supabaseClient, "user-1", validGigBody.title);
+  });
+
+  it("refuses an 11th hiring gig in 24h with 429 and inserts nothing", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    mockHiringRate.mockResolvedValue({ ok: false, status: 429, error: "You can post at most 10 gigs in 24 hours." });
+    const res = await POST(makeRequest(validGigBody));
+    expect(res.status).toBe(429);
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("refuses a copy of an open hiring gig with 409", async () => {
+    mockAuth();
+    const inserts: Record<string, unknown>[] = [];
+    setupInsert(inserts);
+    mockHiringDuplicate.mockResolvedValue({ ok: false, status: 409, error: "duplicate" });
+    const res = await POST(makeRequest(validGigBody));
+    expect(res.status).toBe(409);
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("does not apply either to a for_hire ad", async () => {
+    mockAuth();
+    setupInsert([]);
+    await POST(makeRequest({ ...validGigBody, listing_type: "for_hire" }));
+    expect(mockHiringRate).not.toHaveBeenCalled();
+    expect(mockHiringDuplicate).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchGigs } from "./fetch-gigs";
+import { NOT_MICRO_BUDGET_FILTER } from "./micro-budget";
 
 const BLOCKED_A = "00000000-0000-4000-a000-00000000000a";
 const BLOCKED_B = "00000000-0000-4000-a000-00000000000b";
@@ -106,5 +107,32 @@ describe("fetchGigs status filter", () => {
     const { supabase, chain } = clientWith({ data: [], count: 0 });
     await fetchGigs(supabase, baseOptions);
     expect(chain.eq as ReturnType<typeof vi.fn>).toHaveBeenCalledWith("status", "active");
+  });
+});
+
+describe("fetchGigs micro-budget filter", () => {
+  it("leaves sub-$5 gigs out and reports how many it hid", async () => {
+    // The mock answers every query with count 7; the unfiltered count query
+    // shares it, so hiddenMicro is 0 here. What matters is the filter call.
+    const { supabase, chain } = clientWith({ data: [], count: 7 });
+    const result = await fetchGigs(supabase, { ...baseOptions, hideMicroBudgets: true });
+    expect(chain.or as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(NOT_MICRO_BUDGET_FILTER);
+    expect(result.hiddenMicro).toBe(0);
+  });
+
+  it("filters every query of the default sort, so pages and counts agree", async () => {
+    const { supabase, chain } = clientWith({ data: [], count: 0 });
+    await fetchGigs(supabase, { ...baseOptions, sort: "newest", hideMicroBudgets: true });
+    const microCalls = (chain.or as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([f]) => f === NOT_MICRO_BUDGET_FILTER
+    );
+    expect(microCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not filter when not asked to (for-hire, include_micro)", async () => {
+    const { supabase, chain } = clientWith({ data: [], count: 3 });
+    const result = await fetchGigs(supabase, baseOptions);
+    expect(chain.or as ReturnType<typeof vi.fn>).not.toHaveBeenCalledWith(NOT_MICRO_BUDGET_FILTER);
+    expect(result.hiddenMicro).toBe(0);
   });
 });

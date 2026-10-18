@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // The free post cap (lib/gig-usage) has its own tests; these cover other rules.
+vi.mock("@/lib/limits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/limits")>()),
+  checkHiringGigRate: vi.fn(async () => ({ ok: true })),
+  checkHiringDuplicate: vi.fn(async () => ({ ok: true })),
+}));
 vi.mock("@/lib/gig-usage", () => ({
   getGigPostAllowance: vi.fn(async () => ({ allowed: true })),
   recordGigPost: vi.fn(async () => {}),

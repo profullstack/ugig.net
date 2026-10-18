@@ -9,6 +9,11 @@ import { FREE_MONTHLY_GIG_POSTS } from "@/lib/plans";
 
 let db: FakeSupabase;
 
+vi.mock("@/lib/limits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/limits")>()),
+  checkHiringGigRate: vi.fn(async () => ({ ok: true })),
+  checkHiringDuplicate: vi.fn(async () => ({ ok: true })),
+}));
 vi.mock("@/lib/auth/get-user", () => ({
   getAuthContext: vi.fn(async () => ({ user: { id: "user-1" }, supabase: db })),
   createServiceClient: vi.fn(() => db),

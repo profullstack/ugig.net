@@ -11,6 +11,7 @@ import { AdUnit } from "@/components/AdUnit";
 import { hasActiveGigFilters } from "@/lib/gigs/filter-state";
 import { parsePageParam } from "@/lib/pagination";
 import { fetchGigs } from "@/lib/gigs/fetch-gigs";
+import { MICRO_BUDGET_USD, wantsMicroBudgets } from "@/lib/gigs/micro-budget";
 import { getSessionBlockedIds } from "@/lib/blocks";
 import type { GigCardData } from "@/components/gigs/GigCard";
 import { Briefcase } from "lucide-react";
@@ -25,6 +26,7 @@ interface GigsPageProps {
     sort?: string;
     page?: string;
     skill?: string;
+    include_micro?: string;
   }>;
 }
 
@@ -80,7 +82,10 @@ async function GigsList({
   // A blocked user must not appear in the listing at all.
   const blockedIds = await getSessionBlockedIds(supabase);
 
-  const { gigs, count } = await fetchGigs(supabase, {
+  // Sub-$5 gigs are left out of the default view, one click brings them back.
+  const includeMicro = wantsMicroBudgets(queryParams.include_micro);
+
+  const { gigs, count, hiddenMicro } = await fetchGigs(supabase, {
     listingType: "hiring",
     filters: {
       search: queryParams.search,
@@ -93,8 +98,23 @@ async function GigsList({
     page,
     limit,
     excludeUserIds: blockedIds,
+    hideMicroBudgets: !includeMicro,
   });
   const hasActiveFilters = hasActiveGigFilters(queryParams, tagList);
+
+  const microToggleUrl = (show: boolean) => {
+    const params = new URLSearchParams();
+    if (queryParams.search) params.set("search", queryParams.search);
+    if (queryParams.category) params.set("category", queryParams.category);
+    if (queryParams.location_type) params.set("location_type", queryParams.location_type);
+    if (queryParams.budget_type) params.set("budget_type", queryParams.budget_type);
+    if (queryParams.sort && queryParams.sort !== "newest") params.set("sort", queryParams.sort);
+    if (show) params.set("include_micro", "1");
+    const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
+    const qs = params.toString();
+    return `/gigs${tagPath}${qs ? `?${qs}` : ""}`;
+  };
+
 
   if (!gigs || gigs.length === 0) {
     return (
@@ -105,6 +125,14 @@ async function GigsList({
             ? "No gigs found matching your criteria."
             : "No gigs posted yet. Be the first to post one!"}
         </p>
+        {hiddenMicro > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {hiddenMicro} gig{hiddenMicro === 1 ? "" : "s"} under ${MICRO_BUDGET_USD} hidden.{" "}
+            <Link href={microToggleUrl(true)} className="text-primary hover:underline">
+              Show them
+            </Link>
+          </p>
+        )}
         <div className="flex items-center justify-center gap-3 mt-4">
           {hasActiveFilters && (
             <Link href="/gigs" className="text-primary hover:underline">
@@ -129,6 +157,7 @@ async function GigsList({
     if (queryParams.location_type) params.set("location_type", queryParams.location_type);
     if (queryParams.budget_type) params.set("budget_type", queryParams.budget_type);
     if (queryParams.sort && queryParams.sort !== "newest") params.set("sort", queryParams.sort);
+    if (includeMicro) params.set("include_micro", "1");
     params.set("page", String(newPage));
     const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
     return `/gigs${tagPath}?${params.toString()}`;
@@ -138,6 +167,23 @@ async function GigsList({
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Showing {gigs.length} of {count} gigs
+        {hiddenMicro > 0 && (
+          <>
+            {" · "}
+            {hiddenMicro} under ${MICRO_BUDGET_USD} hidden{" "}
+            <Link href={microToggleUrl(true)} className="text-primary hover:underline">
+              Show them
+            </Link>
+          </>
+        )}
+        {includeMicro && (
+          <>
+            {" · "}
+            <Link href={microToggleUrl(false)} className="text-primary hover:underline">
+              Hide gigs under ${MICRO_BUDGET_USD}
+            </Link>
+          </>
+        )}
       </p>
 
       <div className="space-y-4">

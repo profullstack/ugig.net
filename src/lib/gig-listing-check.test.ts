@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkGigListing, forHireAsHiringCheck, virtualCardSpamCheck, VIRTUAL_CARD_SPAM_THRESHOLD } from "./gig-listing-check";
+import { accountRentalCheck, checkGigListing, forHireAsHiringCheck, virtualCardSpamCheck, VIRTUAL_CARD_SPAM_THRESHOLD } from "./gig-listing-check";
 
 // Real titles and openings from the prod hiring board (2026-10-15).
 const VCC = [
@@ -64,5 +64,54 @@ describe("service offer posted as a job", () => {
   it("does not count a rhetorical 'Need a site?' as hiring language", () => {
     const res = forHireAsHiringCheck("Landing pages — $50, 24h", "Need a landing page? I build them fast. Send me your copy.");
     expect(res.score).toBeGreaterThanOrEqual(0.6);
+  });
+});
+
+// Offers still on the active hiring board on 2026-10-18 that the 10-15 rules missed.
+const OFFERS_2026_10_18 = [
+  ["Quick CSV/JSON conversion + validation — 12h, $12", "Fast, correct CSV/JSON conversion and schema validation. Send the file and the target format; you get clean, validated data plus a short note on anything malformed. 12-hour turnaround."],
+  ["Source-cited research briefs, decision-ready, 24h delivery", "One bounded research question turned into a decision-ready brief with explicit sources. Delivered as clean Markdown. Fixed price per brief, delivered within 24 hours."],
+  ["French Audiobook Narration (AI Voice) — Fiction, E-learning, Meditation — $0.05/min", "Professional French narration with an AI voice. Launch price. What you get: MP3 and WAV files."],
+  ["Research Brief in 48 Hours — Any Topic, Comprehensive, Cited", "I research any topic and produce a comprehensive brief with citations."],
+  ["SEO-Optimized Blog Post Generation", "I will generate a complete, publication-ready SEO blog post for your website. What's included: keyword-optimized title. Delivery: 24-48 hours."],
+  ["AI Research, Technical Writing & Python Automation — $10 fixed (USDC/SOL)", "Research, writing and scripts. My services: research, docs, automation."],
+];
+
+// Real job posts that share words with offers; none of these may trip the check.
+const JOBS_2026_10_18 = [
+  ["Angry Email Rewriter - Turn Rage Into Professionalism", "so basically i write a LOT of angry emails late at night. need an AI that can take my furious rants and make them sound professional. Deliverables: - an interface or tool where i can paste my angry draft and get alternatives back"],
+  ["I will pay you to subscribe to my live channel", "Subscribe and leave a comment, you will receive 100 sats for each one."],
+  ["Need a logo in 24h", "We need a logo for our startup by tomorrow. You will get paid $40 on delivery."],
+  ["Turn 60-90 Minute Video into 10-15 Short Clips for Social Media", "I have a long video and need it cut into short clips. Must be good at captions."],
+];
+
+describe("service offers the 2026-10-18 cues catch", () => {
+  it.each(OFFERS_2026_10_18)("sends %s back as for_hire", (title, description) => {
+    expect(checkGigListing({ title, description, listingType: "hiring" })).toMatchObject({ ok: false, code: "looks_like_for_hire" });
+  });
+
+  it.each(JOBS_2026_10_18)("leaves the real job %s alone", (title, description) => {
+    expect(checkGigListing({ title, description, listingType: "hiring" })).toEqual({ ok: true });
+  });
+});
+
+describe("account rental", () => {
+  const RENTAL = [
+    "I'm looking for U.S. resident who can work with me and get extra money weekly or monthly",
+    "We're building AI agency company so we need U.S. resident who can provide AI platform accounts and get salary monthly.",
+  ] as const;
+
+  it("refuses a residency requirement plus handing over accounts, on both boards and even with confirm_hiring", () => {
+    for (const listingType of ["hiring", "for_hire"] as const) {
+      expect(checkGigListing({ title: RENTAL[0], description: RENTAL[1], listingType, confirmHiring: true })).toMatchObject({
+        ok: false, code: "account_rental", status: 400,
+      });
+    }
+  });
+
+  it("needs both halves", () => {
+    expect(accountRentalCheck("Support agent, US residents only", "Must live in the United States. Remote, full time.").score).toBe(0);
+    expect(accountRentalCheck("Set up accounts for our team", "Provide our team with Google Workspace accounts and SSO.").score).toBe(0);
+    expect(accountRentalCheck("QA tester", "US citizens preferred. You will create test accounts on staging.").score).toBe(0);
   });
 });

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { virtualCardSpamCheck, VIRTUAL_CARD_SPAM_THRESHOLD } from "@/lib/gig-listing-check";
+import { virtualCardSpamCheck, accountRentalCheck, VIRTUAL_CARD_SPAM_THRESHOLD } from "@/lib/gig-listing-check";
 import { isEmailNotificationEnabled } from "@/lib/notification-settings";
 import { getAuthContext, createServiceClient } from "@/lib/auth/get-user";
 import { z } from "zod";
 import { dispatchWebhookAsync } from "@/lib/webhooks/dispatch";
 import { sendEmail, gigFilledEmail } from "@/lib/email";
 import { HIRED_APPLICATION_STATUSES } from "@/lib/application-status";
-import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
+import { checkForHireAdActivation, checkHiringDuplicate, computeExpiresAt, limitResponse } from "@/lib/limits";
 import { rejectOpenApplications } from "@/lib/application-resolution";
 import { emailApplicantsAboutStatusInBackground } from "@/lib/application-emails";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
@@ -69,12 +69,27 @@ export async function PATCH(
       if (!activation.ok) return limitResponse(activation);
     }
 
+    if (isActivation && existingGig.listing_type !== "for_hire") {
+      const dup = await checkHiringDuplicate(supabase, user.id, existingGig.title || "", id);
+      if (!dup.ok) return limitResponse(dup);
+    }
+
     // Card-selling spam stays down; it is archived, and re-activating it is refused.
     if (isActivation) {
       const vcc = virtualCardSpamCheck(existingGig.title || "", (existingGig as { description?: string }).description || "");
       if (vcc.score >= VIRTUAL_CARD_SPAM_THRESHOLD) {
         return NextResponse.json(
           { error: "ugig doesn't allow listings that sell virtual or reloadable payment cards.", code: "virtual_card_spam" },
+          { status: 400 }
+        );
+      }
+      const rental = accountRentalCheck(existingGig.title || "", (existingGig as { description?: string }).description || "");
+      if (rental.score >= 1) {
+        return NextResponse.json(
+          {
+            error: "ugig doesn't allow listings that recruit people to provide or lend their accounts or identity based on where they live.",
+            code: "account_rental",
+          },
           { status: 400 }
         );
       }

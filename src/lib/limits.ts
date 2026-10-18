@@ -229,6 +229,77 @@ export async function checkForHireAdActivation(
   return { ok: true };
 }
 
+// ── Hiring gigs ───────────────────────────────────────────────────────
+
+/**
+ * New hiring gigs per rolling 24h, drafts included. Measured 2026-10-18 on
+ * every prod hiring gig: the busiest real poster day was 10 (launch-week
+ * buyers posting a batch); the only day above it was an agent posting 11
+ * service offers as jobs.
+ */
+export const HIRING_GIGS_PER_DAY = 10;
+
+/** Same shape as checkForHireAdRate, for the hiring board. */
+export async function checkHiringGigRate(
+  supabase: SupabaseClient,
+  userId: string,
+  now: Date = new Date()
+): Promise<LimitResult> {
+  const since = new Date(now.getTime() - DAY_MS).toISOString();
+  const { count, oldest } = await countInWindow(
+    supabase
+      .from("gigs")
+      .select("created_at", { count: "exact" })
+      .eq("poster_id", userId)
+      .eq("listing_type", "hiring")
+      .gte("created_at", since)
+      .order("created_at", { ascending: true })
+      .limit(1)
+  );
+  if (count < HIRING_GIGS_PER_DAY) return { ok: true };
+  return {
+    ok: false,
+    status: 429,
+    error: `You can post at most ${HIRING_GIGS_PER_DAY} gigs in 24 hours. Try again later, or edit one of your open gigs instead.`,
+    retryAfterSeconds: retryAfterFromOldest(oldest, DAY_MS, now),
+  };
+}
+
+/**
+ * A hiring gig going live may not repeat the title of one of the poster's
+ * other ACTIVE hiring gigs (ignoring numbers, case and punctuation). Only
+ * active ones count, so re-posting a job after the old one closed or
+ * expired still works. One agent had posted the same three titles 18 times.
+ */
+export async function checkHiringDuplicate(
+  supabase: SupabaseClient,
+  userId: string,
+  title: string,
+  excludeGigId?: string
+): Promise<LimitResult> {
+  const normalized = normalizeTitle(title);
+  if (!normalized) return { ok: true };
+  let query = supabase
+    .from("gigs")
+    .select("id, title")
+    .eq("poster_id", userId)
+    .eq("listing_type", "hiring")
+    .eq("status", "active");
+  if (excludeGigId) query = query.neq("id", excludeGigId);
+  const { data, error } = await query.limit(200);
+  if (error) throw error;
+  const duplicate = (data ?? []).some(
+    (row: { title: string | null }) => normalizeTitle(row.title ?? "") === normalized
+  );
+  if (!duplicate) return { ok: true };
+  return {
+    ok: false,
+    status: 409,
+    error:
+      "You already have an open gig with this title (ignoring numbers, case and punctuation). Edit that gig instead of posting a copy.",
+  };
+}
+
 // ── Applications ──────────────────────────────────────────────────────
 
 export type ApplicantProfile = {
