@@ -87,10 +87,23 @@ const OFFER_TITLE = [
   { re: /(^|[\s,(—–-])\d+(-\d+)?\s?(h|hrs?)\s*(,|\)|$)|\bin\s+\d+\s+hours\b|^\s*\d+-hour\b/i, w: 0.35, why: "turnaround in title" },
   // A rate card: "$0.05/min", "$0.05 SOL per post", "$10 fixed"
   { re: /\$\s?\d+(\.\d+)?\s*(usd|usdc|sol)?\s*(\/\s?|per\s+)(min|minute|post|page|word|article|brief|report|file|call)\b|\$\s?\d+(\.\d+)?\s+fixed\b|,\s*\$\s?\d+(\.\d+)?\s*$/i, w: 0.35, why: "rate card in title" },
+  // 2026-10-18 (mira): catalog titles. "— Keep Your Agent Working While You Sleep", "— Replace Your Slow Spreadsheets"
+  { re: /[—–]\s*([\w'/-]+\s+){0,4}(your|you)\b|\bwhile\s+you\s+(sleep|focus|work|rest)\b|\bwhat\s+your\s+(company|site|brand|business)\b/i, w: 0.35, why: "pitch tagline addressed to the buyer" },
+  { re: /\b(ai\s+)?agent\s+services?\b|\bservices?\s*:/i, w: 0.4, why: "service list in title" },
+  { re: /\brefer\s+clients\b|\bregister\s+on\s+[\w.-]+\.[a-z]{2,}\b|\bget\s+discovered\b|\bmarketplace\s+listing\b/i, w: 0.6, why: "platform promo in title" },
+  // "Name — tagline": the em dash is how agent catalogs title a product. Weak alone.
+  { re: /\S\s+—\s+\S/, w: 0.3, why: "catalog-style title" },
+  { re: /\bwith\s+(tests|patched\s+snippets|receipts)\b|\bcompliant\s*\+\s*tested\b|\+\s*(eval[\s-]set|validation)\b|^\s*tested\b|^\s*(severity[\s-]rated|source[\s-]cited)\b/i, w: 0.3, why: "deliverable boasting" },
 ];
 
 const OFFER_BODY = [
-  { re: /\b(i|we)\s+(will\s+|'ll\s+|can\s+)?(build|deliver|design|migrate|set\s+up|automate|research|review|fix|write|create|audit|produce|turn|parse|clean|convert|specialize|answer|perform|generate|analy[sz]e|extract)\b/i, w: 0.35, why: "body describes what the poster delivers" },
+  { re: /\b(i|we)(\s+will|'ll|\s+can)?\s+(build|deliver|design|migrate|set\s+up|automate|research|review|fix|write|create|audit|produce|turn|parse|clean|convert|specialize|answer|perform|generate|analy[sz]e|extract|run|crawl|evaluate|handle|integrate|keep|manage|monitor|ship|offer|operate|security-audit)\b/i, w: 0.35, why: "body describes what the poster delivers" },
+  // 2026-10-18 (mira): agents saying outright that the post is their service.
+  { re: /\bautonomous\s+(ai\s+)?(agent\s+)?service\b|\bfor[\s-]hire\s+service\b|\bservice\s+offer\b|\bi\s+am\s+an?\s+(autonomous\s+)?ai\s+agent\b|\b(professional\s+)?ai\s+agent\s+services\b|\bservice\s+by\s+[A-Z]\w+|^\s*ai(-powered)?\s+(agent\s+)?(that|diagnostic)\b/im, w: 0.6, why: "body says this is a service on offer" },
+  { re: /^\W*(what\s+i\s+(do|build|integrate|deliver|need(\s+from\s+you)?)|my\s+solution|topics\s+i\s+specialize\s+in|who\s+this\s+is\s+(not\s+)?for|format\s+options|what\s+gets\s+\w+|what\s+a\s+\w+\s+includes|tiers?\s*:|buyers\s*:|capabilities\s*:|services(\s+included)?\s*:)/im, w: 0.3, why: "service-page headings" },
+  { re: /\b(usdc|sol)(\s*\/\s*sol)?\s+(preferred|accepted)\b|\bpay\s+in\s+usdc\b|\bfixed\s+(scope|price)\s+per\s+(task|repository|repo|project)\b|\bpayment\s+on\s+delivery\b|\b\d+h\s+turnaround\b|\bdelivery\s*:\s*\d+|\bbounded\s+(build|audit|task)\b|\bbest\s+(for|fits?)\s*:|\blivrable\s*:/i, w: 0.3, why: "seller's own terms" },
+  { re: /^\s*(i|we)(\s+will|'ll|\s+can)\s+(?!pay|hire|give|reward|tip|need|be\s+paying)|^\W*(your\s+(?!role|task|job|work|mission)\w+|(promote|stress-test|stop|grow|boost|scale)\s+your)\b/i, w: 0.3, why: "body opens with a pitch" },
+  { re: /\bkarma\s+\d+|\b\d+\+?\s+(posts|articles|molts|followers)\b|\bcves?\s+found\b|\bpublic\s+proof\s+repo\b|\boperate\s+24\/7\b|\bdeliver\s+fast\b|\b\d\+?\s+years\s+of\s+experience\b|\bavailable\s+immediately\b|\b(register|list\s+your\s+(ai\s+)?agent)\b[^.\n]{0,40}\b(here|on\s+[\w.-]+\.[a-z]{2,})\b|\bearn\s+\d+%\s+commission\b|\bfounding\s+(agents?|slots)\b|(^|[.!]\s+)(built|shipped|deployed\s+on)\s+[\w-]+/im, w: 0.3, why: "seller credentials or platform promo" },
   // Telling a buyer what arrives: "you get clean, validated data", "Deliverables:", "Delivery within 24 hours".
   // "you get paid" / "you will receive $5" is a job paying someone, so money is excluded.
   { re: /\byou(\s+will|'ll)?\s+(get|receive)\s+(?!paid|\$|\d|payment|usd|sol|sats|bitcoin|a\s+(bonus|tip|reward))|\bwhat'?s\s+included\b|\bdelivered\s+(as|within)\b|\bdelivery\s*(:|within)|\b\d+(-\d+)?\s?(h|hours?)\s+(turnaround|delivery)\b|\bfixed\s+price\s+per\b|\b(i\s+cover|specialties|services\s+included)\s*:|\bideal\s+for\b/i, w: 0.3, why: "body tells the buyer what they get" },
@@ -100,7 +113,7 @@ const OFFER_BODY = [
 
 /** A poster asking for someone. Questions are dropped first: "Need a site?" is a pitch. */
 const HIRING_CUES =
-  /\b((i|we)('ll|\s+will)\s+(pay|hire|reward|tip)\b|pay\s+you\b|paying\s+(you|for)\b|per\s+(feature|bug|fix|submission|review)\b|we\s*('re|\s+are)\s+(hiring|looking)|i('m|\s+am)\s+looking\s+for|looking\s+for\s+(a|an|someone|somebody|developers?|engineers?|designers?|freelancers?|agents?|people|help)\b|(i|we)\s+need\b|(is|are)\s+needed\b|needed\s+(for|to|asap|urgently)\b|\bseeking\b|\bwanted\b|\bhiring\b|your\s+role\b|you\s+will\s+(build|be|work|create|help|need)|you'll\s+(be|work|build)\b|responsibilit(y|ies)|requirements?:|must\s+(have|be)\b|applicants?|candidates?|budget\s+is|users\s+should\s+be\s+able|i\s+have\s+(an?|existing|some|a\s+few)\b|our\s+(company|startup|app|website|product|platform|business)\b|(^|[.!\n]\s*)need\s+(an?|someone|somebody|help|people)\b)/im;
+  /\b((i|we)('ll|\s+will)\s+(pay|hire|reward|tip)\b|pay\s+you\b|paying\s+(you|for)\b|per\s+(feature|bug|fix|submission|review)\b|we\s*('re|\s+are)\s+(hiring|looking)|i('m|\s+am)\s+looking\s+for|(^|[.!\n:]\s*|(we|i)('re|'m|\s+are|\s+am)\s+)looking\s+for\s+(a|an|someone|somebody|developers?|engineers?|designers?|freelancers?|agents?|people|help)\b|(?<!\bwhat\s)(i|we)\s+need\b(?!\s+from\s+you)|(is|are)\s+needed\b|needed\s+(for|to|asap|urgently)\b|\bseeking\b|\bwanted\b|\bopen\s+bount(y|ies)\b|\bfirst\s+(working\s+)?(pr|submission)\s+(gets|wins)\b|\b(we('re|\s+are)|i('m|\s+am)|now|currently)\s+hiring\b|(^|[.!\n]\s*)hiring\b|\bhiring\s+(ai\s+)?(a|an|agents?|humans?|developers?|engineers?|designers?|writers?|freelancers?|people|someone)\b|your\s+role\b|you\s+will\s+(build|be|work|create|help|need)|you'll\s+(be|work|build)\b|responsibilit(y|ies)|requirements?:|(^|[.!\n•-]\s*|you\s+)must\s+(have|be)\b|applicants?|\bcandidates?\s+(should|must|will|who|with)\b|\bideal\s+candidate|budget\s+is|users\s+should\s+be\s+able|i\s+have\s+(an?|existing|some|a\s+few)\b|our\s+(company|startup|app|website|product|platform|business)\b|(^|[.!\n]\s*)need\s+(an?|someone|somebody|help|people)\b)/im;
 const HIRING_TITLE = /^\s*(need(ed)?|looking\s+for|hiring|seeking|wanted)\b|\bneeded\b/i;
 
 function withoutQuestions(text: string): string {
@@ -122,9 +135,11 @@ export function forHireAsHiringCheck(title: string, description: string): Listin
       reasons.push(s.why);
     }
   }
-  if (HIRING_TITLE.test(withoutQuestions(title)) || HIRING_CUES.test(withoutQuestions(`${title}\n${description}`))) {
+  const asks =
+    withoutQuestions(title).match(HIRING_TITLE) || withoutQuestions(`${title}\n${description}`).match(HIRING_CUES);
+  if (asks) {
     score -= 0.6;
-    reasons.push("asks for someone (hiring language)");
+    reasons.push(`asks for someone (hiring language: "${asks[0].trim()}")`);
   }
   return { score: clamp(score), reasons };
 }

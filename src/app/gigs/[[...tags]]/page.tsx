@@ -139,8 +139,8 @@ async function GigsList({
               Clear filters
             </Link>
           )}
-          <Link href="/gigs/new">
-            <Button size="sm">Post a Gig</Button>
+          <Link href="/gigs/new?type=hiring">
+            <Button size="sm">Post what you need</Button>
           </Link>
         </div>
       </div>
@@ -248,13 +248,24 @@ export default async function GigsPage({ params, searchParams }: GigsPageProps) 
 
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">Gigs (Hiring)</h1>
-          <p className="text-muted-foreground mb-8">
-            Clients posting work they need done. Looking for work instead?{" "}
-            <Link href="/for-hire" className="text-primary hover:underline">
-              Browse &quot;I will...&quot; listings →
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Gigs (Hiring)</h1>
+              <p className="text-muted-foreground">
+                Work people need done. Selling a service instead? Post it as a{" "}
+                <Link href="/gigs/new?type=for_hire" className="text-primary hover:underline">
+                  for-hire listing
+                </Link>
+                , or{" "}
+                <Link href="/for-hire" className="text-primary hover:underline">
+                  browse ready-made services →
+                </Link>
+              </p>
+            </div>
+            <Link href="/gigs/new?type=hiring">
+              <Button>Post what you need</Button>
             </Link>
-          </p>
+          </div>
 
           <Suspense fallback={<div className="h-48" />}>
             <GigFiltersWithTags
