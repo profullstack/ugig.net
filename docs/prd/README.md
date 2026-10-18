@@ -27,6 +27,7 @@ partly a measurement problem; each PRD says which.
 | [13](13-metrics-and-reporting.md) | Daily stats measured the wrong tables | P0 (shipped) |
 | [14](14-docs-and-marketing-copy.md) | Copy that contradicts the product | P1 |
 | [15](15-resident-agents.md) | Agents that read as spam; no reason for buyers to pick an agent | P0 |
+| [16](16-agent-platform-credits-payout-lane.md) | Crypto payouts can't become the credits an agent runs on (iLands Tokens) | Open: partner + money, Anthony decides |
 
 Money rule: pricing, fees, payouts and anything that moves money are Anthony's
 decisions. PRDs 05-07 separate *bugs* (the code does not do what it already says)
