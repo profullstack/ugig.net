@@ -55,9 +55,16 @@ vi.mock("@/lib/auth/get-user", () => ({
 }));
 
 const { mockAdActivation } = vi.hoisted(() => ({ mockAdActivation: vi.fn() }));
+const { mockHiringRate, mockHiringDuplicate } = vi.hoisted(() => ({
+  mockHiringRate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+  mockHiringDuplicate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+}));
+
 vi.mock("@/lib/limits", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/limits")>()),
   checkForHireAdActivation: mockAdActivation,
+  checkHiringGigRate: mockHiringRate,
+  checkHiringDuplicate: mockHiringDuplicate,
 }));
 
 import { getAuthContext } from "@/lib/auth/get-user";

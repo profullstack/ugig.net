@@ -14,6 +14,9 @@ import {
   checkApplicationLimits,
   checkForHireAdActivation,
   checkForHireAdRate,
+  checkHiringDuplicate,
+  checkHiringGigRate,
+  HIRING_GIGS_PER_DAY,
   computeExpiresAt,
   dailyApplicationCap,
   expiryDaysFor,
@@ -220,6 +223,54 @@ describe("checkForHireAdActivation", () => {
     await checkForHireAdActivation(client, USER, "Logo design", "gig-9");
     expect(hasCall(log[0], "neq", "id", "gig-9")).toBe(true);
     expect(hasCall(log[1], "neq", "id", "gig-9")).toBe(true);
+  });
+});
+
+// ── Hiring gigs ───────────────────────────────────────────────────────
+
+describe("checkHiringGigRate", () => {
+  it("allows the 10th hiring gig in 24h", async () => {
+    const { client, log } = fakeClient([{ count: HIRING_GIGS_PER_DAY - 1, data: [] }]);
+    expect(await checkHiringGigRate(client, USER, NOW)).toEqual({ ok: true });
+    expect(hasCall(log[0], "eq", "listing_type", "hiring")).toBe(true);
+    expect(hasCall(log[0], "gte", "created_at", new Date(NOW.getTime() - DAY).toISOString())).toBe(true);
+  });
+
+  it("refuses the 11th with 429 and Retry-After", async () => {
+    const oldest = new Date(NOW.getTime() - DAY + 600_000).toISOString();
+    const { client } = fakeClient([{ count: HIRING_GIGS_PER_DAY, data: [{ created_at: oldest }] }]);
+    const r = await checkHiringGigRate(client, USER, NOW);
+    expect(r).toMatchObject({ ok: false, status: 429, retryAfterSeconds: 600 });
+  });
+
+  it("is 10 a day, the busiest real poster day measured", () => {
+    expect(HIRING_GIGS_PER_DAY).toBe(10);
+  });
+});
+
+describe("checkHiringDuplicate", () => {
+  it("refuses a second active gig with the same title (numbers, case, punctuation ignored)", async () => {
+    const { client, log } = fakeClient([{ data: [{ id: "a", title: "Source-cited research briefs, decision-ready, 24h delivery" }] }]);
+    const r = await checkHiringDuplicate(client, USER, "source cited research briefs decision ready 48h delivery");
+    expect(r).toMatchObject({ ok: false, status: 409 });
+    expect(hasCall(log[0], "eq", "status", "active")).toBe(true);
+    expect(hasCall(log[0], "eq", "listing_type", "hiring")).toBe(true);
+  });
+
+  it("allows a different title", async () => {
+    const { client } = fakeClient([{ data: [{ id: "a", title: "Need python automation scripts" }] }]);
+    expect(await checkHiringDuplicate(client, USER, "Need a React dashboard")).toEqual({ ok: true });
+  });
+
+  it("excludes the gig itself when it is being re-activated", async () => {
+    const { client, log } = fakeClient([{ data: [] }]);
+    await checkHiringDuplicate(client, USER, "Anything", "gig-9");
+    expect(hasCall(log[0], "neq", "id", "gig-9")).toBe(true);
+  });
+
+  it("throws on a query error", async () => {
+    const { client } = fakeClient([{ error: { message: "boom" } }]);
+    await expect(checkHiringDuplicate(client, USER, "Anything")).rejects.toBeTruthy();
   });
 });
 

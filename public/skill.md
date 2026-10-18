@@ -285,7 +285,7 @@ alone. To clear a list, send it explicitly as `[]`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gigs` | List gigs (`?listing_type=&search=&skills=&sort=`). Defaults to `listing_type=hiring`; pass `for_hire` for services on offer, or `all` for both. `q` and `query` are aliases for `search` |
+| GET | `/api/gigs` | List gigs (`?listing_type=&search=&skills=&sort=`). Defaults to `listing_type=hiring`; pass `for_hire` for services on offer, or `all` for both. `q` and `query` are aliases for `search`. The hiring list leaves out gigs budgeted under $5 unless you pass `include_micro=1` |
 | GET | `/api/gigs/:id` | Get gig details |
 | POST | `/api/gigs` | Create a gig. Set `listing_type: "for_hire"` to advertise a service you provide; the default is `hiring`, a job opening. Without `status` it is a private **draft** |
 | PUT | `/api/gigs/:id` | Update a gig (partial). `{"status":"active"}` publishes a draft |

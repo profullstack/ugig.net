@@ -24,9 +24,16 @@ vi.mock("@/lib/webhooks/dispatch", () => ({ dispatchWebhookAsync: vi.fn() }));
 vi.mock("@/lib/email", () => ({ sendEmail: vi.fn(), gigFilledEmail: vi.fn(() => ({})) }));
 
 const { mockAdActivation } = vi.hoisted(() => ({ mockAdActivation: vi.fn() }));
+const { mockHiringRate, mockHiringDuplicate } = vi.hoisted(() => ({
+  mockHiringRate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+  mockHiringDuplicate: vi.fn(async () => ({ ok: true }) as { ok: true } | { ok: false; status: 409 | 429; error: string }),
+}));
+
 vi.mock("@/lib/limits", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/limits")>()),
   checkForHireAdActivation: mockAdActivation,
+  checkHiringGigRate: mockHiringRate,
+  checkHiringDuplicate: mockHiringDuplicate,
 }));
 
 import { PATCH } from "./route";

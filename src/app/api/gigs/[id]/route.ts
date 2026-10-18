@@ -10,7 +10,7 @@ import {
 import { HELD_COLUMN } from "@/lib/limits";
 import { usersAreBlocked } from "@/lib/blocks";
 import { recordGigView } from "@/lib/view-count";
-import { checkForHireAdActivation, computeExpiresAt, limitResponse } from "@/lib/limits";
+import { checkForHireAdActivation, checkHiringDuplicate, computeExpiresAt, limitResponse } from "@/lib/limits";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
 // GET /api/gigs/[id] - Get a single gig
@@ -134,6 +134,16 @@ export async function PUT(
     ) {
       const activation = await checkForHireAdActivation(supabase, user.id, nextTitle, id);
       if (!activation.ok) return limitResponse(activation);
+    }
+    if (
+      nextStatus === "active" &&
+      nextListingType !== "for_hire" &&
+      (isActivation ||
+        existingGig.listing_type === "for_hire" ||
+        (update.title !== undefined && update.title !== existingGig.title))
+    ) {
+      const dup = await checkHiringDuplicate(supabase, user.id, nextTitle, id);
+      if (!dup.ok) return limitResponse(dup);
     }
     // Same listing check as POST /api/gigs whenever what the board shows changes.
     if (

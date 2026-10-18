@@ -82,18 +82,25 @@ const OFFER_TITLE = [
   { re: /\$\s?\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(\+|\/\s?(min|post|page|word|hr|hour|message))?\s*,?\s*(\d+(-\d+)?\s?(h|hrs?|hours?|min|mins|days?)\b|fast\s+delivery)/i, w: 0.6, why: "price and turnaround in title" },
   { re: /\(\s*\$\s?\d+(\.\d+)?\s*\)\s*$|[—–-]\s*\$\s?\d+(\.\d+)?(\s*(fixed|usd|sol|usdc))?\s*$/i, w: 0.35, why: "title ends in its own price" },
   { re: /\b\d+(-\d+)?\s?(h|hrs?|hours?|min|minutes?)\s+delivery\b|\bdelivered\s+in\s+(hours|\d+\s?(h|hours?))\b|\(\s*\d+\s?(min|h)(\s+delivery)?\s*\)|[—–-]\s*\d+\s?(h|min)\s*$|\b24\/7\s+agent\b|\bagent[\s-]delivered\b|\bfast\s+delivery\b/i, w: 0.35, why: "delivery time promised" },
-  { re: /\b(tested|receipted|documented)\s*(,|and|&)\s*(tested|receipted|documented|delivered)\b|\bwith\s+(receipts|proof)\b/i, w: 0.25, why: "deliverable boasting" },
+  { re: /\b(tested|receipted|documented)\s*(,|and|&)\s*(tested|receipted|documented|delivered)\b|\bwith\s+(receipts|proof)\b|\b(source[\s-]cited|decision[\s-]ready|severity[\s-]rated|evidence[\s-]based|verified\s+sources)\b/i, w: 0.25, why: "deliverable boasting" },
+  // 2026-10-18: "— 12h, $12", "Research Brief in 48 Hours", "48-hour ... sprint", ", 24h delivery"
+  { re: /(^|[\s,(—–-])\d+(-\d+)?\s?(h|hrs?)\s*(,|\)|$)|\bin\s+\d+\s+hours\b|^\s*\d+-hour\b/i, w: 0.35, why: "turnaround in title" },
+  // A rate card: "$0.05/min", "$0.05 SOL per post", "$10 fixed"
+  { re: /\$\s?\d+(\.\d+)?\s*(usd|usdc|sol)?\s*(\/\s?|per\s+)(min|minute|post|page|word|article|brief|report|file|call)\b|\$\s?\d+(\.\d+)?\s+fixed\b|,\s*\$\s?\d+(\.\d+)?\s*$/i, w: 0.35, why: "rate card in title" },
 ];
 
 const OFFER_BODY = [
-  { re: /\b(i|we)\s+(will\s+|'ll\s+|can\s+)?(build|deliver|design|migrate|set\s+up|automate|research|review|fix|write|create|audit|produce|turn|parse|clean|convert|specialize|answer)\b/i, w: 0.35, why: "body describes what the poster delivers" },
+  { re: /\b(i|we)\s+(will\s+|'ll\s+|can\s+)?(build|deliver|design|migrate|set\s+up|automate|research|review|fix|write|create|audit|produce|turn|parse|clean|convert|specialize|answer|perform|generate|analy[sz]e|extract)\b/i, w: 0.35, why: "body describes what the poster delivers" },
+  // Telling a buyer what arrives: "you get clean, validated data", "Deliverables:", "Delivery within 24 hours".
+  // "you get paid" / "you will receive $5" is a job paying someone, so money is excluded.
+  { re: /\byou(\s+will|'ll)?\s+(get|receive)\s+(?!paid|\$|\d|payment|usd|sol|sats|bitcoin|a\s+(bonus|tip|reward))|\bwhat'?s\s+included\b|\bdelivered\s+(as|within)\b|\bdelivery\s*(:|within)|\b\d+(-\d+)?\s?(h|hours?)\s+(turnaround|delivery)\b|\bfixed\s+price\s+per\b|\b(i\s+cover|specialties|services\s+included)\s*:|\bideal\s+for\b/i, w: 0.3, why: "body tells the buyer what they get" },
   { re: /\b(send\s+(me|us|one|a|your)|you\s+send|ask\s+(me\s+)?one|share\s+your)\b/i, w: 0.3, why: "body asks the reader to send work" },
   { re: /\b(for[\s-]hire\s+service|service\s+offer|turnaround|launch\s+price|free\s+sample|zero[\s-]risk|revisions?\s+included|commercial\s+rights\s+included|powered\s+by\s+[\w\s]{0,20}agent|order\s+now|hire\s+me|my\s+(services?|rate|portfolio)|services:|what\s+(you\s+get|i\s+(set\s+up|deliver|build))|what\s+gets\s+\w+|(\d+|one)[\s-](hour|day)\s+delivery)\b/i, w: 0.3, why: "sales copy" },
 ];
 
 /** A poster asking for someone. Questions are dropped first: "Need a site?" is a pitch. */
 const HIRING_CUES =
-  /\b((i|we)('ll|\s+will)\s+(pay|hire|reward|tip)\b|pay\s+you\b|paying\s+(you|for)\b|per\s+(feature|bug|fix|submission|review)\b|we\s*('re|\s+are)\s+(hiring|looking)|i('m|\s+am)\s+looking\s+for|looking\s+for\s+(a|an|someone|somebody|developers?|engineers?|designers?|freelancers?|agents?|people|help)\b|(i|we)\s+need\b|(is|are)\s+needed\b|needed\s+(for|to|asap|urgently)\b|\bseeking\b|\bwanted\b|\bhiring\b|your\s+role\b|you\s+will\s+(build|be|work|create|help|need)|you'll\s+(be|work|build)\b|responsibilit(y|ies)|requirements?:|must\s+(have|be)\b|applicants?|candidates?|budget\s+is|users\s+should\s+be\s+able|i\s+have\s+(an?|existing|some|a\s+few)\b|our\s+(company|startup|app|website|product|platform|business)\b)/i;
+  /\b((i|we)('ll|\s+will)\s+(pay|hire|reward|tip)\b|pay\s+you\b|paying\s+(you|for)\b|per\s+(feature|bug|fix|submission|review)\b|we\s*('re|\s+are)\s+(hiring|looking)|i('m|\s+am)\s+looking\s+for|looking\s+for\s+(a|an|someone|somebody|developers?|engineers?|designers?|freelancers?|agents?|people|help)\b|(i|we)\s+need\b|(is|are)\s+needed\b|needed\s+(for|to|asap|urgently)\b|\bseeking\b|\bwanted\b|\bhiring\b|your\s+role\b|you\s+will\s+(build|be|work|create|help|need)|you'll\s+(be|work|build)\b|responsibilit(y|ies)|requirements?:|must\s+(have|be)\b|applicants?|candidates?|budget\s+is|users\s+should\s+be\s+able|i\s+have\s+(an?|existing|some|a\s+few)\b|our\s+(company|startup|app|website|product|platform|business)\b|(^|[.!\n]\s*)need\s+(an?|someone|somebody|help|people)\b)/im;
 const HIRING_TITLE = /^\s*(need(ed)?|looking\s+for|hiring|seeking|wanted)\b|\bneeded\b/i;
 
 function withoutQuestions(text: string): string {
@@ -124,9 +131,31 @@ export function forHireAsHiringCheck(title: string, description: string): Listin
 
 export const FOR_HIRE_AS_HIRING_THRESHOLD = 0.6;
 
+/**
+ * 3. Account rental (2026-10-18): "I'm looking for U.S. resident who can work
+ *    with me ... provide AI platform accounts and get salary monthly". The job
+ *    is lending your identity and your accounts to someone abroad, which is how
+ *    platform bans and fraud get laundered. Needs both halves: a residency or
+ *    citizenship requirement AND handing over accounts or ID. A US-only job
+ *    alone, or "set up accounts for our team", is not this.
+ */
+const RESIDENCY_CUE =
+  /\b(u\.?s\.?a?\.?|united\s+states|american|uk|canad(a|ian)|eu)\s+(residents?|citizens?|nationals?|persons?|people)\b|\b(residents?|citizens?)\s+of\s+(the\s+)?(u\.?s\.?a?|united\s+states|uk|canada)\b/i;
+const ACCOUNT_HANDOVER_CUE =
+  /\b(provide|lend|rent|share|give|sell|use)\s+(us\s+|me\s+)?(your\s+)?(own\s+)?([\w.-]+\s+){0,3}(accounts?|identity|id\s+documents?|ssn|bank\s+details)\b|\baccount\s+(rental|renting|holder\s+needed)\b|\b(rent|use)\s+your\s+(identity|account)\b/i;
+
+export function accountRentalCheck(title: string, description: string): ListingCheck {
+  const text = `${title}\n${description}`;
+  const reasons: string[] = [];
+  if (RESIDENCY_CUE.test(text)) reasons.push("residency or citizenship requirement");
+  if (ACCOUNT_HANDOVER_CUE.test(text)) reasons.push("asks the worker to hand over accounts or identity");
+  return { score: reasons.length === 2 ? 1 : 0, reasons };
+}
+
 export type ListingVerdict =
   | { ok: true }
   | { ok: false; code: "virtual_card_spam"; status: 400; error: string; reasons: string[] }
+  | { ok: false; code: "account_rental"; status: 400; error: string; reasons: string[] }
   | {
       ok: false;
       code: "looks_like_for_hire";
@@ -157,6 +186,18 @@ export function checkGigListing(input: {
       status: 400,
       error: "ugig doesn't allow listings that sell virtual or reloadable payment cards.",
       reasons: vcc.reasons,
+    };
+  }
+
+  const rental = accountRentalCheck(title, description);
+  if (rental.score >= 1) {
+    return {
+      ok: false,
+      code: "account_rental",
+      status: 400,
+      error:
+        "ugig doesn't allow listings that recruit people to provide or lend their accounts or identity based on where they live.",
+      reasons: rental.reasons,
     };
   }
 
