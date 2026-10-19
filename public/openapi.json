@@ -1476,7 +1476,7 @@
             "apiKey": []
           }
         ],
-        "description": "Opens a Buy now order: the listing's price is escrowed by CoinPay with the seller as beneficiary and ugig's 5% as a marketplace fee. Returns the escrow address to pay. Auto-releases to the seller after 14 days unless the buyer releases or disputes first. With method=paypal (when enabled) the buyer pays through ugig's PayPal instead: no refund address, and the response carries approve_url to redirect to. ugig holds PayPal orders and pays the seller on release.",
+        "description": "Opens a Buy now order: the listing's price is escrowed by CoinPay with the seller as beneficiary and ugig's 5% as a marketplace fee. Returns the escrow address to pay. Auto-releases to the seller after 14 days unless the buyer releases or disputes first. With method=paypal (when enabled) the buyer pays through ugig's PayPal instead: no refund address, and the response carries approve_url to redirect to; that page takes a debit or credit card (PayPal guest checkout) or PayPal. ugig holds PayPal orders and pays the seller on release.",
         "parameters": [
           {
             "name": "id",
@@ -1607,7 +1607,11 @@
                     },
                     "approve_url": {
                       "type": "string",
-                      "description": "PayPal approval link (PayPal orders only)"
+                      "description": "Where to send the buyer (PayPal orders only): CoinPay's checkout page, which takes a debit or credit card (no PayPal account needed) or PayPal"
+                    },
+                    "paypal_approve_url": {
+                      "type": "string",
+                      "description": "PayPal's own approval redirect (PayPal login only, no card form). Prefer approve_url."
                     }
                   }
                 }

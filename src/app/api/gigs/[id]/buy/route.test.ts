@@ -196,13 +196,20 @@ describe("/api/gigs/[id]/buy", () => {
     expect(createPaypalPayment).not.toHaveBeenCalled();
   });
 
-  it("POST with PayPal opens a checkout on ugig's business and returns the approval link", async () => {
+  it("POST with PayPal opens a checkout on ugig's business and sends the buyer to the card-or-PayPal page", async () => {
     process.env.UGIG_PAYPAL_BUY_NOW = "true";
-    vi.mocked(createPaypalPayment).mockResolvedValue({ transaction_id: "ptx_1", approve_url: "https://paypal.test/approve" });
+    vi.mocked(createPaypalPayment).mockResolvedValue({
+      transaction_id: "ptx_1",
+      approve_url: "https://paypal.test/approve",
+      checkout_url: "https://coinpay.test/pay/paypal/ptx_1",
+    });
     try {
       const res = await POST({ json: async () => ({ method: "paypal" }), nextUrl: { origin: "https://ugig.net" } } as any, params);
       expect(res.status).toBe(201);
-      expect((await res.json()).approve_url).toBe("https://paypal.test/approve");
+      const body = await res.json();
+      // The hosted page offers "Debit or Credit Card"; PayPal's own redirect is login-only.
+      expect(body.approve_url).toBe("https://coinpay.test/pay/paypal/ptx_1");
+      expect(body.paypal_approve_url).toBe("https://paypal.test/approve");
       expect(createPaypalPayment).toHaveBeenCalledWith(expect.objectContaining({ amount_usd: 50 }));
       expect(state.db.inserts.gig_orders[0]).toMatchObject({
         payment_rail: "paypal", currency: "paypal", seller_payout_address: SELLER_SOL, payout_currency: "sol",

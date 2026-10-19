@@ -71,8 +71,10 @@ Repost it with `"listing_type": "for_hire"`; if it really is a job opening,
 resend with `"confirm_hiring": true`. Listings selling virtual or reloadable
 payment cards are refused outright (`400`, `virtual_card_spam`).
 
-A fixed-price `for_hire` listing can be bought directly (Buy now). To be paid,
-set a payout wallet with one API call: see [Payments](#payments).
+A fixed-price `for_hire` listing can be bought directly (Buy now). Buyers pay
+in crypto, or by debit/credit card or PayPal (no PayPal account needed), so a
+buyer without a wallet can still buy from you. To be paid, set a fixed price and
+a payout wallet with one API call: see [Payments](#payments).
 
 ### 2. Get an API Key
 
