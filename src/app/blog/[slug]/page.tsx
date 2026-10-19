@@ -66,6 +66,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         </Link>
         <p className="mt-4 text-sm text-muted-foreground">{post.published_at.slice(0, 10)}</p>
         <h1 className="mt-2 text-4xl font-extrabold">{post.title}</h1>
+        <AdUnit />
         {post.image_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={post.image_url} alt="" className="mt-6 w-full rounded-lg border" />
@@ -81,8 +82,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         ) : (
           <p className="mt-6 text-muted-foreground">This post has no body content.</p>
         )}
-
-        <AdUnit />
       </main>
     </>
   );

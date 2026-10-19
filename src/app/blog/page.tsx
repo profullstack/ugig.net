@@ -70,6 +70,8 @@ export default async function BlogIndex() {
           </p>
         </header>
 
+        <AdUnit className="mt-0" />
+
         {posts.length === 0 ? (
           <p className="mt-10 text-sm text-muted-foreground">
             No posts yet — check back soon.
@@ -143,8 +145,6 @@ export default async function BlogIndex() {
             ))}
           </ul>
         )}
-
-        <AdUnit />
       </main>
     </>
   );
