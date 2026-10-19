@@ -23,6 +23,7 @@ function chainMock(result: { data: unknown[]; count: number }) {
     "overlaps",
     "order",
     "range",
+    "in",
   ]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
@@ -134,5 +135,93 @@ describe("fetchGigs micro-budget filter", () => {
     const result = await fetchGigs(supabase, baseOptions);
     expect(chain.or as ReturnType<typeof vi.fn>).not.toHaveBeenCalledWith(NOT_MICRO_BUDGET_FILTER);
     expect(result.hiddenMicro).toBe(0);
+  });
+});
+
+const VERIFIED = "00000000-0000-4000-a000-0000000000f1";
+
+/**
+ * A fake that knows which tier each query is for: boosted (gte boosted_at),
+ * verified (in poster_id) or the rest (not poster_id in). Head queries get the
+ * tier's count; row queries get `range`-sliced rows labelled with the tier.
+ */
+function tieredClient(counts: { boosted: number; verified: number; rest: number }) {
+  const ranges: { tier: string; from: number; to: number }[] = [];
+  const from = vi.fn().mockImplementation(() => {
+    let tier = "rest";
+    let head = false;
+    let slice: [number, number] | null = null;
+    const chain: Record<string, unknown> = {};
+    for (const m of ["eq", "or", "overlaps", "order", "lt"]) chain[m] = vi.fn().mockReturnValue(chain);
+    chain.select = vi.fn().mockImplementation((_s: string, o?: { head?: boolean }) => {
+      head = !!o?.head;
+      return chain;
+    });
+    chain.gte = vi.fn().mockImplementation(() => ((tier = "boosted"), chain));
+    chain.in = vi.fn().mockImplementation(() => ((tier = "verified"), chain));
+    chain.not = vi.fn().mockReturnValue(chain);
+    chain.range = vi.fn().mockImplementation((a: number, b: number) => {
+      slice = [a, b];
+      ranges.push({ tier, from: a, to: b });
+      return chain;
+    });
+    chain.then = (resolve: (v: unknown) => void) => {
+      const count = counts[tier as keyof typeof counts];
+      if (head || !slice) return resolve({ data: null, count });
+      const [a, b] = slice;
+      const n = Math.max(0, Math.min(b, count - 1) - a + 1);
+      resolve({ data: Array.from({ length: n }, (_, i) => ({ id: `${tier}-${a + i}`, tier })), count });
+    };
+    return chain;
+  });
+  return { supabase: { from } as unknown as SupabaseClient, ranges };
+}
+
+describe("fetchGigs verified-poster tier", () => {
+  it("lists boosts, then verified posters, then the rest", async () => {
+    const { supabase } = tieredClient({ boosted: 1, verified: 2, rest: 30 });
+    const result = await fetchGigs(supabase, {
+      ...baseOptions,
+      sort: "newest",
+      limit: 5,
+      verifiedPosterIds: [VERIFIED],
+    });
+    expect(result.gigs.map((g) => g.id)).toEqual([
+      "boosted-0",
+      "verified-0",
+      "verified-1",
+      "rest-0",
+      "rest-1",
+    ]);
+    expect(result.count).toBe(33);
+  });
+
+  it("pages across the tier boundary without skipping or repeating", async () => {
+    const { supabase } = tieredClient({ boosted: 0, verified: 3, rest: 30 });
+    const result = await fetchGigs(supabase, {
+      ...baseOptions,
+      sort: "newest",
+      page: 2,
+      limit: 2,
+      verifiedPosterIds: [VERIFIED],
+    });
+    expect(result.gigs.map((g) => g.id)).toEqual(["verified-2", "rest-0"]);
+  });
+
+  it("verifiedOnly with no verified posters returns nothing without querying", async () => {
+    const { supabase } = tieredClient({ boosted: 0, verified: 0, rest: 9 });
+    const result = await fetchGigs(supabase, {
+      ...baseOptions,
+      sort: "newest",
+      verifiedOnly: true,
+      verifiedPosterIds: [],
+    });
+    expect(result).toEqual({ gigs: [], count: 0, hiddenMicro: 0 });
+  });
+
+  it("keeps the plain boosted-then-newest order when no ids are given", async () => {
+    const { supabase } = tieredClient({ boosted: 1, verified: 0, rest: 5 });
+    const result = await fetchGigs(supabase, { ...baseOptions, sort: "newest", limit: 3 });
+    expect(result.gigs.map((g) => g.id)).toEqual(["boosted-0", "rest-0", "rest-1"]);
   });
 });

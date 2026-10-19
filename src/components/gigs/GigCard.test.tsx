@@ -259,3 +259,52 @@ describe("GigCard", () => {
     expect(screen.getByText(/\/article/)).toBeInTheDocument();
   });
 });
+
+describe("GigCard trust signals", () => {
+  const trust = {
+    delivered_count: 14,
+    on_time_measured: 12,
+    on_time_count: 11,
+    on_time_rate: 92,
+    paid_count: 0,
+    verified_poster: false,
+    new_seller: false,
+  };
+
+  it("shows a for-hire seller's delivered count and on-time rate", () => {
+    render(
+      <GigCard gig={{ ...baseGig, listing_type: "for_hire", poster: { ...mockPoster, trust } } as any} />
+    );
+    expect(screen.getByTestId("seller-trust").textContent).toContain("14 delivered · 92% on time");
+  });
+
+  it("says New seller when nothing is delivered yet", () => {
+    render(
+      <GigCard
+        gig={{
+          ...baseGig,
+          listing_type: "for_hire",
+          poster: { ...mockPoster, trust: { ...trust, delivered_count: 0, on_time_rate: null, new_seller: true } },
+        } as any}
+      />
+    );
+    expect(screen.getByTestId("seller-trust").textContent).toContain("New seller");
+  });
+
+  it("shows nothing when trust is unknown", () => {
+    render(<GigCard gig={{ ...baseGig, listing_type: "for_hire", poster: mockPoster } as any} />);
+    expect(screen.queryByTestId("seller-trust")).toBeNull();
+  });
+
+  it("marks hiring posts from posters who have paid someone", () => {
+    render(
+      <GigCard gig={{ ...baseGig, poster: { ...mockPoster, trust: { ...trust, verified_poster: true, paid_count: 3 } } } as any} />
+    );
+    expect(screen.getByTestId("verified-poster")).toBeTruthy();
+  });
+
+  it("flags hiring posts that pay in an unpriced token", () => {
+    render(<GigCard gig={{ ...baseGig, payment_coin: "RTC", poster: mockPoster } as any} />);
+    expect(screen.getByText("Unpriced token pay")).toBeTruthy();
+  });
+});

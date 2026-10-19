@@ -16,8 +16,11 @@ import {
   Shield,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { usersAreBlocked } from "@/lib/blocks";
+import { getSessionBlockedIds, usersAreBlocked } from "@/lib/blocks";
 import { recordGigView } from "@/lib/view-count";
+import { fetchSellerTrust } from "@/lib/trust/seller-trust";
+import { fetchRelatedGigs } from "@/lib/gigs/related-gigs";
+import { SellerTrustBadge, VerifiedPosterBadge } from "@/components/trust/SellerTrustBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatRelativeTime, formatDate } from "@/lib/utils";
@@ -113,6 +116,21 @@ export default async function GigPage({ params }: GigPageProps) {
 
   // Count the view (fire and forget). Skips crawlers here and the poster in SQL.
   void recordGigView(supabase, id, (await headers()).get("user-agent"));
+
+  // Seller track record for the sidebar, and a few less-seen listings in the
+  // same category (new listings sink off page one of /for-hire within a day).
+  const [posterTrust, relatedGigs] = await Promise.all([
+    poster?.id
+      ? fetchSellerTrust(supabase, [poster.id]).then((m) => m.get(poster.id) ?? null)
+      : Promise.resolve(null),
+    getSessionBlockedIds(supabase).then((blocked) =>
+      fetchRelatedGigs(
+        supabase,
+        { id: gig.id, category: gig.category, listingType: isForHire ? "for_hire" : "hiring" },
+        blocked
+      )
+    ),
+  ]);
 
   // Get current user to check if they can apply
   const {
@@ -609,9 +627,39 @@ export default async function GigPage({ params }: GigPageProps) {
                 {poster.bio && (
                   <MarkdownContent content={poster.bio} className="text-sm mt-4" />
                 )}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {isForHire ? (
+                    <SellerTrustBadge trust={posterTrust} />
+                  ) : (
+                    <VerifiedPosterBadge trust={posterTrust} />
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mt-4">
                   Member since {formatDate(poster.created_at)}
                 </p>
+              </div>
+            )}
+
+            {relatedGigs.length > 0 && (
+              <div className="border border-border rounded-lg p-6 bg-card" data-testid="related-gigs">
+                <h3 className="font-semibold mb-3">
+                  More {isForHire ? "services" : "gigs"} in {gig.category}
+                </h3>
+                <ul className="space-y-3">
+                  {relatedGigs.map((related) => (
+                    <li key={related.id}>
+                      <Link
+                        href={isForHire ? `/for-hire/${related.id}` : `/gigs/${related.id}`}
+                        className="text-sm font-medium hover:text-primary line-clamp-2"
+                      >
+                        {related.title}
+                      </Link>
+                      {related.poster_username && (
+                        <p className="text-xs text-muted-foreground">@{related.poster_username}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 

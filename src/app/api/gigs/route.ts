@@ -19,6 +19,7 @@ import {
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 import { getSearchTerm } from "@/lib/search-param";
 import { NOT_MICRO_BUDGET_FILTER, wantsMicroBudgets } from "@/lib/gigs/micro-budget";
+import { attachSellerTrust, fetchVerifiedPosterIds } from "@/lib/trust/seller-trust";
 
 const MAX_GIG_PAGE = 100_000;
 const MAX_GIG_LIMIT = 50;
@@ -160,6 +161,21 @@ export async function GET(request: NextRequest) {
       query = query.eq("poster.account_type", account_type);
     }
 
+    // ?verified_only=1: only posters who have paid someone on ugig.
+    const verifiedOnly = wantsMicroBudgets(searchParams.get("verified_only"));
+    if (verifiedOnly) {
+      const verifiedIds = await fetchVerifiedPosterIds(supabase);
+      if (verifiedIds.length === 0) {
+        return NextResponse.json({
+          gigs: [],
+          micro_budgets_hidden: hideMicro,
+          verified_only: true,
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        });
+      }
+      query = query.in("poster_id", verifiedIds);
+    }
+
     // Apply sorting
     switch (sort) {
       case "oldest":
@@ -185,9 +201,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // poster.trust: delivered jobs, on-time rate, verified poster.
+    await attachSellerTrust(supabase, (gigs || []) as Record<string, unknown>[]);
+
     return NextResponse.json({
       gigs,
       micro_budgets_hidden: hideMicro,
+      verified_only: verifiedOnly,
       pagination: {
         page,
         limit,
@@ -258,6 +278,7 @@ export async function POST(request: NextRequest) {
       description: validationResult.data.description,
       listingType,
       confirmHiring: (body as { confirm_hiring?: unknown }).confirm_hiring === true,
+      paymentCoin: validationResult.data.payment_coin ?? null,
     });
     if (!listingVerdict.ok) {
       return NextResponse.json(listingRefusalBody(listingVerdict), { status: listingVerdict.status });

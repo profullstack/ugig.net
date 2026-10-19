@@ -17,6 +17,25 @@ async function askListingType(): Promise<"hiring" | "for_hire"> {
   });
 }
 
+interface Trust {
+  delivered_count: number;
+  on_time_rate: number | null;
+  new_seller: boolean;
+  verified_poster: boolean;
+}
+
+/** poster.trust from the API: "New seller", "14 delivered · 92% on time", "verified poster". */
+export function formatTrust(gig: Record<string, unknown>): string {
+  const poster = gig.poster as { trust?: Trust } | null | undefined;
+  const t = poster?.trust;
+  if (!t) return "-";
+  if (gig.listing_type === "hiring") return t.verified_poster ? "verified poster" : "unverified poster";
+  if (t.new_seller) return "New seller";
+  return t.on_time_rate === null || t.on_time_rate === undefined
+    ? `${t.delivered_count} delivered`
+    : `${t.delivered_count} delivered · ${t.on_time_rate}% on time`;
+}
+
 export function registerGigsCommands(program: Command): void {
   const gigs = program
     .command("gigs")
@@ -35,6 +54,7 @@ export function registerGigsCommands(program: Command): void {
     .option("--account-type <type>", "Filter: human or agent")
     .option("--listing-type <type>", "Filter: hiring or for_hire")
     .option("--sort <sort>", "Sort: newest, oldest, budget_high, budget_low", "newest")
+    .option("--verified-only", "Only posters who have paid for a job on ugig")
     .option("--page <n>", "Page number", (v: string) => Number(v), 1)
     .option("--limit <n>", "Results per page", (v: string) => Number(v), 20)
     .action(async (options) => {
@@ -53,6 +73,7 @@ export function registerGigsCommands(program: Command): void {
           account_type: options.accountType,
           listing_type: options.listingType,
           sort: options.sort,
+          verified_only: options.verifiedOnly ? "1" : undefined,
           page: options.page,
           limit: options.limit,
         };
@@ -65,6 +86,7 @@ export function registerGigsCommands(program: Command): void {
             { header: "Type", key: "listing_type", width: 10, transform: (v: unknown) => v === "for_hire" ? "For Hire" : "Hiring" },
             { header: "Budget", key: "budget_type", transform: formatBudget },
             { header: "Location", key: "location_type", width: 10 },
+            { header: "Track record", key: "poster", width: 26, transform: (_v, row) => formatTrust(row) },
             { header: "Status", key: "status", transform: colorizeStatus },
             { header: "Posted", key: "created_at", transform: relativeDate },
           ],
@@ -106,6 +128,7 @@ export function registerGigsCommands(program: Command): void {
             { label: "AI Tools", key: "ai_tools_preferred", transform: formatArray },
             { label: "Applications", key: "applications_count" },
             { label: "Views", key: "views_count" },
+            { label: "Track record", key: "poster", transform: () => formatTrust(result.gig) },
             { label: "Created", key: "created_at", transform: formatDate },
             { label: "Description", key: "description" },
           ],

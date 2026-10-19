@@ -35,6 +35,7 @@ const VCC_SALES_CUES = [
 /** Engineering work on cards, which is a legitimate job. */
 const VCC_BUILD_CUES =
   /\b(api|sdk|integrat\w*|implement\w*|develop\w*|build\s+(a|an|our|the)|issuing\s+platform|marqeta|lithic|stripe\s+issuing)\b/i;
+import { isPricedPaymentCoin, PRICED_PAYMENT_COINS } from "@/lib/gigs/payment-coin";
 
 export interface ListingCheck {
   /** 0..1, higher = more confident. */
@@ -169,6 +170,14 @@ export function accountRentalCheck(title: string, description: string): ListingC
 
 export type ListingVerdict =
   | { ok: true }
+  | {
+      ok: false;
+      code: "unpriced_payment_coin";
+      status: 400;
+      error: string;
+      reasons: string[];
+      accepted_payment_coins: readonly string[];
+    }
   | { ok: false; code: "virtual_card_spam"; status: 400; error: string; reasons: string[] }
   | { ok: false; code: "account_rental"; status: 400; error: string; reasons: string[] }
   | {
@@ -189,9 +198,24 @@ export function checkGigListing(input: {
   description: string;
   listingType: "hiring" | "for_hire";
   confirmHiring?: boolean;
+  /** Only checked on hiring posts; undefined skips the check (unchanged on edit). */
+  paymentCoin?: string | null;
 }): ListingVerdict {
   const title = input.title || "";
   const description = input.description || "";
+
+  if (input.listingType === "hiring" && input.paymentCoin !== undefined && !isPricedPaymentCoin(input.paymentCoin)) {
+    return {
+      ok: false,
+      code: "unpriced_payment_coin",
+      status: 400,
+      error:
+        `Hiring posts must pay in a currency workers can price and cash out. "${input.paymentCoin}" isn't one. ` +
+        "Leave payment_coin blank for USD, or use one of accepted_payment_coins.",
+      reasons: [`payment_coin ${input.paymentCoin} has no USD price on ugig`],
+      accepted_payment_coins: PRICED_PAYMENT_COINS,
+    };
+  }
 
   const vcc = virtualCardSpamCheck(title, description);
   if (vcc.score >= VIRTUAL_CARD_SPAM_THRESHOLD) {
