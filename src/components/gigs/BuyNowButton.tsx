@@ -17,6 +17,8 @@ interface BuyInfo {
   escrow_days?: number;
   currencies?: { value: string; label: string }[];
   paypal?: boolean;
+  /** "paypal" alone when the seller is paid by PayPal and takes no crypto. */
+  methods?: ("crypto" | "paypal")[];
 }
 
 interface CreatedOrder {
@@ -57,6 +59,7 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
         if (cancelled) return;
         setInfo(data);
         if (data.currencies?.length) setCurrency(data.currencies[0].value);
+        if (data.methods && !data.methods.includes("crypto")) setMethod("paypal");
       })
       .catch(() => !cancelled && setInfo({ buyable: false }));
     return () => {
@@ -153,7 +156,7 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
         price minus ugig&apos;s {info.fee_percent}% fee.
       </p>
 
-      {info.paypal && (
+      {info.paypal && (info.currencies?.length ?? 0) > 0 && (
         <div className="flex gap-2">
           <Button type="button" size="sm" variant={method === "crypto" ? "default" : "outline"} onClick={() => setMethod("crypto")}>
             Crypto

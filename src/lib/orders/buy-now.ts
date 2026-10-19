@@ -162,7 +162,17 @@ const API_FIX_SENTENCE =
   `Currency must be one of: ${BUY_NOW_COIN_KEYS}. That call replaces your list, so GET it first to keep existing entries. ` +
   `No CoinPay account is needed: any wallet you control works. No wallet yet? See ${PAYOUT_WALLET_HELP_URL} to make one from the command line.`;
 
+/** Added to the owner's message when PayPal Buy now is on: the no-crypto route. */
+export const PAYPAL_PAYOUT_SENTENCE =
+  "No crypto? Save a PayPal payout email instead: PUT /api/profile/payout-paypal with " +
+  '{"paypal_email":"you@example.com"}. Buyers can then pay by card or PayPal, and you are paid to that PayPal account.';
+
 export function ownerNotReadyMessage(reason: SellerNotReadyReason): string {
+  const base = ownerNotReadyBase(reason);
+  return paypalBuyNowEnabled() ? `${base} ${PAYPAL_PAYOUT_SENTENCE}` : base;
+}
+
+function ownerNotReadyBase(reason: SellerNotReadyReason): string {
   switch (reason) {
     case "not_connected":
       return `Add a payout wallet to let buyers pay for this listing with Buy now. ${API_FIX_SENTENCE} Or connect CoinPay in Settings > Connections.`;
@@ -220,6 +230,8 @@ export interface OrderRow {
   coinpay_escrow_id: string | null;
   coinpay_release_token?: string | null;
   payment_rail?: "crypto" | "paypal";
+  /** PayPal orders: "paypal" when the seller is paid to a PayPal email, else the coin. */
+  payout_currency?: string | null;
 }
 
 /** Load an order with its token, for a server-side action by one of its parties. */
@@ -229,7 +241,7 @@ export async function loadOrderForAction(
 ): Promise<OrderRow | null> {
   const { data } = await supabase
     .from("gig_orders")
-    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, coinpay_escrow_id, coinpay_release_token, payment_rail")
+    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, coinpay_escrow_id, coinpay_release_token, payment_rail, payout_currency")
     .eq("id", orderId)
     .single();
   return (data as OrderRow | null) ?? null;
@@ -278,7 +290,7 @@ export function pickPayoutWallet(wallets: CoinPayGlobalWallet[]): CoinPayGlobalW
  */
 export async function releasePaypalOrder(
   supabase: SupabaseClient,
-  order: Pick<OrderRow, "id" | "gig_id" | "seller_id" | "amount_usd" | "platform_fee_usd">,
+  order: Pick<OrderRow, "id" | "gig_id" | "seller_id" | "amount_usd" | "platform_fee_usd" | "payout_currency">,
   reason: "buyer" | "auto",
 ): Promise<boolean> {
   const moved = await transitionOrder(supabase, order.id, ["funded", "delivered"], {
@@ -289,18 +301,20 @@ export async function releasePaypalOrder(
   if (!moved) return false;
 
   const net = Math.round((order.amount_usd - order.platform_fee_usd) * 100) / 100;
+  const toPaypal = order.payout_currency === "paypal";
   await notifyOrderParty(
     supabase,
     order.seller_id,
     "payment_received",
     "Payment released",
-    `${reason === "auto" ? "Your order auto-released" : "The buyer released payment"}: $${net} will be sent to your CoinPay wallet.`,
+    `${reason === "auto" ? "Your order auto-released" : "The buyer released payment"}: $${net} will be sent to your ${toPaypal ? "PayPal account" : "payout wallet"}.`,
     { gig_id: order.gig_id, order_id: order.id }
   );
   await alertOrderAdmin(
     `PayPal payout owed: $${net}`,
     `Order ${order.id} was ${reason === "auto" ? "auto-released after 14 days" : "released by the buyer"}. ` +
-      `Pay the seller $${net} and mark it paid at https://ugig.net/admin/payouts`
+      `Pay the seller $${net} ${toPaypal ? "by PayPal (to their payout email)" : "in crypto (to their payout wallet)"} ` +
+      `and mark it paid at https://ugig.net/admin/payouts`
   );
   return true;
 }

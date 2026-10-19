@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ORDER_PUBLIC_COLUMNS } from "@/lib/orders/buy-now";
+import { maskOrderPayout } from "@/lib/orders/paypal-payout";
 
 // GET /api/orders/[id] — one order, for its buyer or seller
 export async function GET(
@@ -21,5 +22,5 @@ export async function GET(
   if (!order || (order.buyer_id !== auth.user.id && order.seller_id !== auth.user.id)) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
-  return NextResponse.json({ order });
+  return NextResponse.json({ order: maskOrderPayout(order as Record<string, unknown>, auth.user.id) });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ORDER_PUBLIC_COLUMNS } from "@/lib/orders/buy-now";
+import { maskOrderPayout } from "@/lib/orders/paypal-payout";
 
 // GET /api/orders?role=buyer|seller|all — the caller's Buy now orders
 export async function GET(request: NextRequest) {
@@ -29,5 +30,7 @@ export async function GET(request: NextRequest) {
     console.error("[orders] list failed:", error);
     return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });
   }
-  return NextResponse.json({ orders: data ?? [] });
+  return NextResponse.json({
+    orders: ((data ?? []) as Record<string, unknown>[]).map((o) => maskOrderPayout(o, userId)),
+  });
 }

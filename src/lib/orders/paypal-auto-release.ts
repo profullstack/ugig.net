@@ -20,12 +20,15 @@ export async function autoReleasePaypalOrders(
 
   const { data: due } = await supabase
     .from("gig_orders")
-    .select("id, gig_id, seller_id, amount_usd, platform_fee_usd")
+    .select("id, gig_id, seller_id, amount_usd, platform_fee_usd, payout_currency")
     .eq("payment_rail", "paypal")
     .in("status", ["funded", "delivered"])
     .lt("funded_at", releaseBefore)
     .limit(500);
-  const dueRows = (due ?? []) as Pick<OrderRow, "id" | "gig_id" | "seller_id" | "amount_usd" | "platform_fee_usd">[];
+  const dueRows = (due ?? []) as Pick<
+    OrderRow,
+    "id" | "gig_id" | "seller_id" | "amount_usd" | "platform_fee_usd" | "payout_currency"
+  >[];
 
   let released = 0;
   let expired = 0;

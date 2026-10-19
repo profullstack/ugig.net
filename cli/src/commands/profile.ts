@@ -11,6 +11,34 @@ export function registerProfileCommands(program: Command): void {
     .description("Manage your profile");
 
   profile
+    .command("payout-paypal [email]")
+    .description("Get paid by PayPal (no crypto wallet needed): show, set, or --clear your private PayPal payout email")
+    .option("--clear", "Remove your PayPal payout email")
+    .action(async (email: string | undefined, options: { clear?: boolean }) => {
+      const opts = program.opts() as GlobalOpts;
+      try {
+        const client = createClient(opts);
+        const result =
+          options.clear || email
+            ? await client.put<Record<string, unknown>>("/api/profile/payout-paypal", {
+                paypal_email: options.clear ? null : email,
+              })
+            : await client.get<Record<string, unknown>>("/api/profile/payout-paypal");
+        printDetail(
+          [
+            { label: "PayPal payout email", key: "paypal_email", transform: (v) => (v ? String(v) : "-") },
+            { label: "Card/PayPal Buy now", key: "paypal_buy_now", transform: (v) => (v ? "on" : "off") },
+            { label: "Note", key: "note" },
+          ],
+          result,
+          opts as OutputOptions
+        );
+      } catch (err) {
+        handleError(err, opts as OutputOptions);
+      }
+    });
+
+  profile
     .command("get")
     .description("View your profile")
     .action(async () => {

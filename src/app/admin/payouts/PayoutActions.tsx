@@ -29,7 +29,7 @@ export function PayoutActions({ orderId, mode }: { orderId: string; mode: "owed"
     <div className="pt-2 space-y-2">
       {mode === "owed" ? (
         <div className="flex gap-2">
-          <Input value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="Payout transaction hash" />
+          <Input value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="Tx hash or PayPal transaction ID" />
           <Button size="sm" disabled={busy || txHash.trim().length < 8} onClick={() => act({ action: "paid", tx_hash: txHash })}>
             Mark paid
           </Button>

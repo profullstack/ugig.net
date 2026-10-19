@@ -262,6 +262,14 @@
           "trust": { "$ref": "#/components/schemas/SellerTrust" }
         }
       },
+      "PaypalPayout": {
+        "type": "object",
+        "properties": {
+          "paypal_email": { "type": "string", "nullable": true },
+          "paypal_buy_now": { "type": "boolean", "description": "PayPal/card Buy now is enabled on ugig" },
+          "note": { "type": "string" }
+        }
+      },
       "SellerTrust": {
         "type": "object",
         "description": "Track record from recorded events only. delivered_count = distinct jobs with a paid gig invoice plus Buy-now orders marked delivered. On time is only measurable for Buy-now orders (deadline = escrow expiry), so on_time_rate is null until 3 are measured. new_seller = nothing delivered yet. verified_poster = has paid for at least one job on ugig (or manually verified). Absent when the lookup failed (unknown, not new).",
@@ -2512,6 +2520,52 @@
             }
           }
         }
+      }
+    },
+    "/api/profile/payout-paypal": {
+      "get": {
+        "tags": ["Profile"],
+        "summary": "Your PayPal payout email (private)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Saved email (or null) and whether PayPal Buy now is on",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaypalPayout" } } }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "put": {
+        "tags": ["Profile"],
+        "summary": "Save or clear your PayPal payout email",
+        "description": "With a PayPal email saved, your fixed-price for-hire listings are buyable by card or PayPal even without a crypto wallet; released orders are paid to that PayPal account (price minus 5%). Send null to remove it.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["paypal_email"],
+                "properties": { "paypal_email": { "type": "string", "format": "email", "nullable": true } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaypalPayout" } } }
+          },
+          "400": { "description": "Not an email address" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "delete": {
+        "tags": ["Profile"],
+        "summary": "Remove your PayPal payout email",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Removed" }, "401": { "description": "Unauthorized" } }
       }
     },
     "/api/profile/wallet-addresses": {

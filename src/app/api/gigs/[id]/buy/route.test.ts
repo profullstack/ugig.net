@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fakeSupabase } from "@/lib/orders/fake-supabase.test-helper";
 
 const state = vi.hoisted(() => ({ db: null as any, user: { id: "buyer" } as { id: string } | null }));
@@ -236,5 +236,75 @@ describe("/api/gigs/[id]/buy", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).order_id).toBe("o1");
     expect(createEscrow).not.toHaveBeenCalled();
+  });
+
+  describe("seller paid by PayPal (no crypto wallet)", () => {
+    const PAYPAL = "lily@example.com";
+    beforeEach(() => {
+      process.env.UGIG_PAYPAL_BUY_NOW = "true";
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+      state.db = fakeSupabase({
+        gigs: [gig],
+        gig_orders: [],
+        seller_payout_settings: [{ user_id: "seller", paypal_email: PAYPAL }],
+      });
+      vi.mocked(createPaypalPayment).mockResolvedValue({
+        transaction_id: "ptx_2",
+        approve_url: "https://paypal.test/approve",
+        checkout_url: "https://coinpay.test/pay/paypal/ptx_2",
+      });
+    });
+    afterEach(() => {
+      delete process.env.UGIG_PAYPAL_BUY_NOW;
+    });
+
+    it("GET is buyable by card or PayPal only, and never shows the email", async () => {
+      const res = await GET(req(), params);
+      const body = await res.json();
+      expect(body).toMatchObject({ buyable: true, paypal: true, methods: ["paypal"], currencies: [] });
+      expect(JSON.stringify(body)).not.toContain(PAYPAL);
+    });
+
+    it("GET tells the owner Buy now is on, by PayPal, with the email masked", async () => {
+      state.user = { id: "seller" };
+      const body = await (await GET(req(), params)).json();
+      expect(body).toMatchObject({
+        owner: true,
+        seller_ready: true,
+        buyer_methods: ["paypal"],
+        payout_methods: { crypto: false, paypal: "l***@example.com" },
+      });
+    });
+
+    it("POST with PayPal records a PayPal payout to the seller's email", async () => {
+      const res = await POST({ json: async () => ({ method: "paypal" }), nextUrl: { origin: "https://ugig.net" } } as any, params);
+      expect(res.status).toBe(201);
+      expect(state.db.inserts.gig_orders[0]).toMatchObject({
+        payment_rail: "paypal",
+        seller_payout_address: PAYPAL,
+        payout_currency: "paypal",
+        platform_fee_usd: 2.5,
+      });
+    });
+
+    it("POST with crypto is refused with a pointer to card / PayPal", async () => {
+      const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL }), params);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ methods: ["paypal"] });
+      expect(createEscrow).not.toHaveBeenCalled();
+    });
+
+    it("prefers PayPal payout for a PayPal-paid order even when the seller also has a wallet", async () => {
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "connected", accessToken: "tok" } as any);
+      const res = await POST({ json: async () => ({ method: "paypal" }), nextUrl: { origin: "https://ugig.net" } } as any, params);
+      expect(res.status).toBe(201);
+      expect(state.db.inserts.gig_orders[0]).toMatchObject({ payout_currency: "paypal" });
+    });
+
+    it("is not buyable when PayPal Buy now is off", async () => {
+      delete process.env.UGIG_PAYPAL_BUY_NOW;
+      const body = await (await GET(req(), params)).json();
+      expect(body.buyable).toBe(false);
+    });
   });
 });
