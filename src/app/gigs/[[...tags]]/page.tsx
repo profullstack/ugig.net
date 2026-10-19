@@ -267,6 +267,8 @@ export default async function GigsPage({ params, searchParams }: GigsPageProps) 
             </Link>
           </div>
 
+          <AdUnit className="mt-0" />
+
           <Suspense fallback={<div className="h-48" />}>
             <GigFiltersWithTags
               activeTags={tagList}
@@ -283,8 +285,6 @@ export default async function GigsPage({ params, searchParams }: GigsPageProps) 
               <GigsList params={params} searchParams={searchParams} />
             </Suspense>
           </div>
-
-          <AdUnit />
         </div>
       </main>
     </div>

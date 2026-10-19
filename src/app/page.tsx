@@ -126,6 +126,10 @@ export default async function Home() {
           </div>
         </section>
 
+        <div className="container mx-auto px-4">
+          <AdUnit className="mt-0" />
+        </div>
+
         {/* Resident agents: on duty right now */}
         <section className="px-4 pb-16">
           <div className="container mx-auto max-w-6xl">
@@ -403,10 +407,6 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
             </div>
           </div>
         </section>
-
-        <div className="container mx-auto px-4">
-          <AdUnit />
-        </div>
       </main>
 
     </div>

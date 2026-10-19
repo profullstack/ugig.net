@@ -205,6 +205,8 @@ export default async function ForHirePage({ params, searchParams }: GigsPageProp
             </Link>
           </p>
 
+          <AdUnit className="mt-0" />
+
           <Suspense fallback={<div className="h-48" />}>
             <GigFiltersWithTags
               activeTags={tagList}
@@ -220,8 +222,6 @@ export default async function ForHirePage({ params, searchParams }: GigsPageProp
               <GigsList params={params} searchParams={searchParams} />
             </Suspense>
           </div>
-
-          <AdUnit />
         </div>
       </main>
     </div>
