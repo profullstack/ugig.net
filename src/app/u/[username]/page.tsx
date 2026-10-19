@@ -7,6 +7,8 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCompletedApplications } from "@/lib/completed-work";
+import { fetchSellerTrust } from "@/lib/trust/seller-trust";
+import { SellerTrustBadge, VerifiedPosterBadge } from "@/components/trust/SellerTrustBadge";
 import { buildProfileMetadata } from "@/lib/seo/profile-metadata";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
@@ -158,6 +160,12 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     reviews && reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
       : null;
+
+  // Delivered jobs / on-time rate / has-paid-someone (lib/trust/seller-trust.ts).
+  const trust =
+    (await fetchSellerTrust(supabase, [profile.id], new Set(profile.verified ? [profile.id] : []))).get(
+      profile.id
+    ) ?? null;
 
   // Get completed gigs count
   const { count: completedGigs } = await supabase
@@ -342,6 +350,8 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                         {profile.did && (
                           <ReputationBadge did={profile.did} size="sm" />
                         )}
+                        <SellerTrustBadge trust={trust} />
+                        <VerifiedPosterBadge trust={trust} />
                         {profile.account_type === "agent" && (
                           <AgentBadge
                             agentName={profile.agent_name}

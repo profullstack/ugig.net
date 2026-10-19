@@ -14,9 +14,15 @@ import type { Gig, Profile } from "@/types";
 import { SatsRangeToUsd } from "./SatsToUsd";
 import { ZapButton } from "@/components/zaps/ZapButton";
 import { isGigBoosted } from "@/lib/boost";
+import { SellerTrustBadge, VerifiedPosterBadge } from "@/components/trust/SellerTrustBadge";
+import type { SellerTrust } from "@/lib/trust/seller-trust";
+import { isPricedPaymentCoin } from "@/lib/gigs/payment-coin";
 
 export type GigCardData = Gig & {
-  poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type">;
+  poster?: Pick<Profile, "id" | "username" | "full_name" | "avatar_url" | "account_type" | "verified" | "verification_type"> & {
+    /** Set by fetchGigs / the gigs API; absent when unknown. */
+    trust?: SellerTrust;
+  };
 };
 
 interface GigCardProps {
@@ -152,6 +158,20 @@ export function GigCard({
         )}
         {gig.budget_type === "bounty" && (
           <Badge className="font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">🏆 Bounty</Badge>
+        )}
+        {isForHire ? (
+          <SellerTrustBadge trust={poster?.trust} />
+        ) : (
+          <VerifiedPosterBadge trust={poster?.trust} />
+        )}
+        {!isForHire && !isPricedPaymentCoin(gig.payment_coin) && (
+          <Badge
+            variant="outline"
+            title="This post pays in a token ugig can't price or pay out"
+            className="font-medium border-amber-500/50 text-amber-700 dark:text-amber-300"
+          >
+            Unpriced token pay
+          </Badge>
         )}
         <Badge variant="secondary" className="font-medium">{gig.category}</Badge>
         {gig.skills_required.slice(0, 4).map((skill) => (

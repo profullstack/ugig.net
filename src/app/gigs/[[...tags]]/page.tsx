@@ -13,6 +13,7 @@ import { parsePageParam } from "@/lib/pagination";
 import { fetchGigs } from "@/lib/gigs/fetch-gigs";
 import { MICRO_BUDGET_USD, wantsMicroBudgets } from "@/lib/gigs/micro-budget";
 import { getSessionBlockedIds } from "@/lib/blocks";
+import { fetchVerifiedPosterIds } from "@/lib/trust/seller-trust";
 import type { GigCardData } from "@/components/gigs/GigCard";
 import { Briefcase } from "lucide-react";
 
@@ -27,6 +28,7 @@ interface GigsPageProps {
     page?: string;
     skill?: string;
     include_micro?: string;
+    verified?: string;
   }>;
 }
 
@@ -85,6 +87,11 @@ async function GigsList({
   // Sub-$5 gigs are left out of the default view, one click brings them back.
   const includeMicro = wantsMicroBudgets(queryParams.include_micro);
 
+  // Posts by people who have paid someone on ugig rank first; ?verified=1
+  // shows only those.
+  const verifiedOnly = ["1", "true", "yes"].includes((queryParams.verified ?? "").toLowerCase());
+  const verifiedPosterIds = await fetchVerifiedPosterIds(supabase);
+
   const { gigs, count, hiddenMicro } = await fetchGigs(supabase, {
     listingType: "hiring",
     filters: {
@@ -99,8 +106,24 @@ async function GigsList({
     limit,
     excludeUserIds: blockedIds,
     hideMicroBudgets: !includeMicro,
+    verifiedPosterIds,
+    verifiedOnly,
   });
   const hasActiveFilters = hasActiveGigFilters(queryParams, tagList);
+
+  const verifiedToggleUrl = (only: boolean) => {
+    const params = new URLSearchParams();
+    if (queryParams.search) params.set("search", queryParams.search);
+    if (queryParams.category) params.set("category", queryParams.category);
+    if (queryParams.location_type) params.set("location_type", queryParams.location_type);
+    if (queryParams.budget_type) params.set("budget_type", queryParams.budget_type);
+    if (queryParams.sort && queryParams.sort !== "newest") params.set("sort", queryParams.sort);
+    if (includeMicro) params.set("include_micro", "1");
+    if (only) params.set("verified", "1");
+    const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
+    const qs = params.toString();
+    return `/gigs${tagPath}${qs ? `?${qs}` : ""}`;
+  };
 
   const microToggleUrl = (show: boolean) => {
     const params = new URLSearchParams();
@@ -110,6 +133,7 @@ async function GigsList({
     if (queryParams.budget_type) params.set("budget_type", queryParams.budget_type);
     if (queryParams.sort && queryParams.sort !== "newest") params.set("sort", queryParams.sort);
     if (show) params.set("include_micro", "1");
+    if (verifiedOnly) params.set("verified", "1");
     const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
     const qs = params.toString();
     return `/gigs${tagPath}${qs ? `?${qs}` : ""}`;
@@ -121,10 +145,19 @@ async function GigsList({
       <div className="text-center py-12 bg-muted/30 rounded-lg">
         <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground mb-2">
-          {hasActiveFilters
-            ? "No gigs found matching your criteria."
-            : "No gigs posted yet. Be the first to post one!"}
+          {verifiedOnly
+            ? "No posts from verified posters match. Verified posters have paid someone on ugig."
+            : hasActiveFilters
+              ? "No gigs found matching your criteria."
+              : "No gigs posted yet. Be the first to post one!"}
         </p>
+        {verifiedOnly && (
+          <p className="text-sm text-muted-foreground">
+            <Link href={verifiedToggleUrl(false)} className="text-primary hover:underline">
+              Show all posters
+            </Link>
+          </p>
+        )}
         {hiddenMicro > 0 && (
           <p className="text-sm text-muted-foreground">
             {hiddenMicro} gig{hiddenMicro === 1 ? "" : "s"} under ${MICRO_BUDGET_USD} hidden.{" "}
@@ -158,6 +191,7 @@ async function GigsList({
     if (queryParams.budget_type) params.set("budget_type", queryParams.budget_type);
     if (queryParams.sort && queryParams.sort !== "newest") params.set("sort", queryParams.sort);
     if (includeMicro) params.set("include_micro", "1");
+    if (verifiedOnly) params.set("verified", "1");
     params.set("page", String(newPage));
     const tagPath = tagList.length > 0 ? `/${tagList.map(encodeURIComponent).join(",")}` : "";
     return `/gigs${tagPath}?${params.toString()}`;
@@ -167,6 +201,20 @@ async function GigsList({
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Showing {gigs.length} of {count} gigs
+        {" · "}
+        {verifiedOnly ? (
+          <Link href={verifiedToggleUrl(false)} className="text-primary hover:underline">
+            Show all posters
+          </Link>
+        ) : (
+          <Link
+            href={verifiedToggleUrl(true)}
+            className="text-primary hover:underline"
+            title="Posters who have paid someone on ugig. Their posts are listed first."
+          >
+            Verified posters only
+          </Link>
+        )}
         {hiddenMicro > 0 && (
           <>
             {" · "}

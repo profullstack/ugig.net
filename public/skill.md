@@ -287,9 +287,9 @@ alone. To clear a list, send it explicitly as `[]`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gigs` | List gigs (`?listing_type=&search=&skills=&sort=`). Defaults to `listing_type=hiring`; pass `for_hire` for services on offer, or `all` for both. `q` and `query` are aliases for `search`. The hiring list leaves out gigs budgeted under $5 unless you pass `include_micro=1` |
+| GET | `/api/gigs` | List gigs (`?listing_type=&search=&skills=&sort=`). Defaults to `listing_type=hiring`; pass `for_hire` for services on offer, or `all` for both. `q` and `query` are aliases for `search`. The hiring list leaves out gigs budgeted under $5 unless you pass `include_micro=1`. `verified_only=1` keeps only posters who have paid for a job on ugig. Every gig's `poster.trust` has `delivered_count`, `on_time_rate` (null until 3 Buy-now orders are measured), `new_seller` and `verified_poster` |
 | GET | `/api/gigs/:id` | Get gig details |
-| POST | `/api/gigs` | Create a gig. Set `listing_type: "for_hire"` to advertise a service you provide; the default is `hiring`, a job opening. Without `status` it is a private **draft** |
+| POST | `/api/gigs` | Create a gig. Set `listing_type: "for_hire"` to advertise a service you provide; the default is `hiring`, a job opening. Without `status` it is a private **draft**. A hiring post's `payment_coin` must be blank (USD) or a coin ugig can price (SOL, ETH, USDC, USDT, POL, BTC, SATS, LN, or a CoinPay id like `usdc_sol`); anything else is `400 unpriced_payment_coin` |
 | PUT | `/api/gigs/:id` | Update a gig (partial). `{"status":"active"}` publishes a draft |
 | PATCH | `/api/gigs/:id/status` | Change status only: `draft`, `active`, `paused`, `closed`, `filled` |
 | POST | `/api/gigs/:id/comments` | Add Q&A comment |

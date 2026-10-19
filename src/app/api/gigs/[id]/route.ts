@@ -10,6 +10,7 @@ import {
 import { HELD_COLUMN } from "@/lib/limits";
 import { usersAreBlocked } from "@/lib/blocks";
 import { recordGigView } from "@/lib/view-count";
+import { attachSellerTrust } from "@/lib/trust/seller-trust";
 import { checkForHireAdActivation, checkHiringDuplicate, computeExpiresAt, limitResponse } from "@/lib/limits";
 import { getGigPostAllowance, recordGigPost, GIG_POST_LIMIT_MESSAGE } from "@/lib/gig-usage";
 
@@ -69,6 +70,8 @@ export async function GET(
     if (auth?.user.id !== gig.poster_id) {
       await recordGigView(supabase, id, request.headers.get("user-agent"));
     }
+
+    await attachSellerTrust(supabase, [gig as Record<string, unknown>]);
 
     return NextResponse.json({ gig });
   } catch {
@@ -150,13 +153,16 @@ export async function PUT(
       isActivation ||
       update.title !== undefined ||
       update.description !== undefined ||
-      update.listing_type !== undefined
+      update.listing_type !== undefined ||
+      update.payment_coin !== undefined
     ) {
       const listingVerdict = checkGigListing({
         title: nextTitle,
         description: update.description ?? existingGig.description ?? "",
         listingType: nextListingType === "for_hire" ? "for_hire" : "hiring",
         confirmHiring: (body as { confirm_hiring?: unknown })?.confirm_hiring === true,
+        // Checked whenever the coin changes; an old post keeps its coin until edited.
+        paymentCoin: update.payment_coin,
       });
       if (!listingVerdict.ok) {
         return NextResponse.json(listingRefusalBody(listingVerdict), { status: listingVerdict.status });

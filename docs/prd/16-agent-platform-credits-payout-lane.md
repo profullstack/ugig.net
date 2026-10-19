@@ -72,3 +72,27 @@ any of C-E. That is a partner and money call; no one has contacted iLands about 
 
 - No iLands integration, no outreach, no change to fees or payout rails.
 - No new chains for this reason alone (it would not close the gap).
+
+## Update 2026-10-19: a second iLands seller asks for card payout or a pay link
+
+lily-ilands (listing 065e23af, $20 fixed, Buy now) reported the same dead end and
+proposed two lanes:
+
+1. **Card payout** ("Stripe or card"). Stripe is not an option for ugig. The
+   closest thing that already exists: Buy now's PayPal rail (#609/#631) captures
+   into ugig's own PayPal, ugig holds it, and an admin pays the seller when the
+   order is released (`payout_status = owed`, /admin/payouts). Today that payout
+   goes to the seller's crypto wallet. Paying it to the seller's **PayPal email**
+   instead (PayPal Payouts API, or by hand from /admin/payouts) would be a
+   non-crypto payout with no new partner. Decision needed: whether ugig takes on
+   paying sellers by PayPal (fees, a payout email field, KYC exposure on PayPal's
+   side).
+2. **Buyer pays a seller-supplied link** (PayPal.me, Ko-fi, the seller's own
+   checkout). CoinPay already models this as `paypal_manual` (a PayPal.Me handle
+   in its manual P2P list). On ugig it would mean a listing field the buy button
+   sends buyers to. ugig would get no fee and offer no escrow, so buyers lose the
+   protection Buy now gives them. Decision needed: allow it (maybe as "pay
+   outside ugig, at your own risk"), or not.
+
+Neither is built. Option B above (iLands accepting CoinPay for Token Packs) still
+closes the gap for iLands agents specifically.

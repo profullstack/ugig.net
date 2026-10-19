@@ -3,10 +3,14 @@ import { escapePostgrestSearchValue } from "@/lib/security/sanitize";
 import { excludeBlocked } from "@/lib/blocks";
 import { BOOST_ACTIVE_MS } from "@/lib/boost";
 import { NOT_MICRO_BUDGET_FILTER } from "@/lib/gigs/micro-budget";
+import { attachSellerTrust } from "@/lib/trust/seller-trust";
 
 // Shared gig-listing fetch used by /gigs and /for-hire. Beyond the usual filters
 // and sorting it pins "active" boosts (boosted within BOOST_ACTIVE_MS) to the very
 // top of the default (newest) listing, ahead of everything else, for the boost window.
+// When `verifiedPosterIds` is given (the hiring board), posts by people who have
+// paid someone on ugig come next, then everything else by recency. Every gig
+// comes back with `poster.trust` (see lib/trust/seller-trust.ts).
 
 export const GIG_LIST_SELECT = `
   *,
@@ -46,6 +50,12 @@ export interface FetchGigsOptions {
    * comes back as `hiddenMicro` so the page can offer to show them.
    */
   hideMicroBudgets?: boolean;
+  /**
+   * Posters who have paid someone on ugig. In the default sort their posts rank
+   * right after active boosts. `verifiedOnly` limits the listing to them.
+   */
+  verifiedPosterIds?: string[];
+  verifiedOnly?: boolean;
 }
 
 export interface FetchGigsResult {
@@ -98,8 +108,52 @@ function applyFilters(query: GigQuery, filters: GigListFilters): GigQuery {
 
 export async function fetchGigs(
   supabase: SupabaseClient,
-  { listingType, filters, sort, page, limit, excludeUserIds = [], hideMicroBudgets = false }: FetchGigsOptions
+  {
+    listingType,
+    filters,
+    sort,
+    page,
+    limit,
+    excludeUserIds = [],
+    hideMicroBudgets = false,
+    verifiedPosterIds = [],
+    verifiedOnly = false,
+  }: FetchGigsOptions
 ): Promise<FetchGigsResult> {
+  const result = await fetchGigRows(supabase, {
+    listingType,
+    filters,
+    sort,
+    page,
+    limit,
+    excludeUserIds,
+    hideMicroBudgets,
+    verifiedPosterIds,
+    verifiedOnly,
+  });
+  await attachSellerTrust(supabase, result.gigs);
+  return result;
+}
+
+// PostgREST `in` list of ids. Ids are uuids from our own RPC, nothing to escape.
+const idList = (ids: string[]) => `(${ids.join(",")})`;
+
+async function fetchGigRows(
+  supabase: SupabaseClient,
+  {
+    listingType,
+    filters,
+    sort,
+    page,
+    limit,
+    excludeUserIds = [],
+    hideMicroBudgets = false,
+    verifiedPosterIds = [],
+    verifiedOnly = false,
+  }: FetchGigsOptions
+): Promise<FetchGigsResult> {
+  const verified = verifiedPosterIds;
+  if (verifiedOnly && verified.length === 0) return { gigs: [], count: 0, hiddenMicro: 0 };
   const unfiltered = (opts?: { select?: string; head?: boolean }): GigQuery => {
     const query = supabase
       .from("gigs")
@@ -109,7 +163,8 @@ export async function fetchGigs(
       })
       .eq("status", "active")
       .eq("listing_type", listingType);
-    return excludeBlocked(applyFilters(query, filters), "poster_id", excludeUserIds);
+    const filtered = excludeBlocked(applyFilters(query, filters), "poster_id", excludeUserIds);
+    return verifiedOnly ? filtered.in("poster_id", verified) : filtered;
   };
   const base = (opts?: { select?: string; head?: boolean }): GigQuery =>
     hideMicroBudgets ? unfiltered(opts).or(NOT_MICRO_BUDGET_FILTER) : unfiltered(opts);
@@ -142,49 +197,56 @@ export async function fetchGigs(
     return { gigs: data ?? [], count: count ?? 0, hiddenMicro: await countHiddenMicro(count ?? 0) };
   }
 
-  // Default (newest): pinned active boosts first, then the rest by recency.
+  // Default (newest): pinned active boosts first, then (hiring board) verified
+  // posters, then the rest, each tier by recency. Tiers are disjoint, so the
+  // page is cut across them by their counts.
   // Drop milliseconds so the timestamp has no characters PostgREST treats specially.
   const cutoff = new Date(Date.now() - BOOST_ACTIVE_MS)
     .toISOString()
     .replace(/\.\d{3}Z$/, "Z");
   const notBoosted = `boosted_at.is.null,boosted_at.lt.${cutoff}`;
+  const splitVerified = !verifiedOnly && verified.length > 0;
 
-  // How many active-boosted gigs match the filters (drives where the page splits).
-  const { count: boostedCount } = await base({ select: "id", head: true }).gte(
-    "boosted_at",
-    cutoff
-  );
-  const boostedTotal = boostedCount ?? 0;
-
-  // Boosted slice for this page.
-  const boostedStart = Math.min(offset, boostedTotal);
-  const boostedEnd = Math.min(offset + limit, boostedTotal); // exclusive
-  let boosted: Record<string, unknown>[] = [];
-  if (boostedEnd > boostedStart) {
-    const { data } = await base()
-      .gte("boosted_at", cutoff)
-      .order("boosted_at", { ascending: false })
-      .range(boostedStart, boostedEnd - 1);
-    boosted = data ?? [];
-  }
-
-  // Remaining slots filled from the non-boosted stream by recency.
-  const needed = limit - boosted.length;
-  const normalStart = Math.max(0, offset - boostedTotal);
-  let normal: Record<string, unknown>[] = [];
-  let normalTotal = 0;
-  if (needed > 0) {
-    const { data, count } = await base()
-      .or(notBoosted)
-      .order("created_at", { ascending: false })
-      .range(normalStart, normalStart + needed - 1);
-    normal = data ?? [];
-    normalTotal = count ?? 0;
+  type Tier = { scope: (q: GigQuery) => GigQuery; orderBy: string };
+  const tiers: Tier[] = [
+    { scope: (q) => q.gte("boosted_at", cutoff), orderBy: "boosted_at" },
+  ];
+  if (splitVerified) {
+    tiers.push({
+      scope: (q) => q.or(notBoosted).in("poster_id", verified),
+      orderBy: "created_at",
+    });
+    tiers.push({
+      scope: (q) => q.or(notBoosted).not("poster_id", "in", idList(verified)),
+      orderBy: "created_at",
+    });
   } else {
-    const { count } = await base({ select: "id", head: true }).or(notBoosted);
-    normalTotal = count ?? 0;
+    tiers.push({ scope: (q) => q.or(notBoosted), orderBy: "created_at" });
   }
 
-  const total = boostedTotal + normalTotal;
-  return { gigs: [...boosted, ...normal], count: total, hiddenMicro: await countHiddenMicro(total) };
+  const counts = await Promise.all(
+    tiers.map(async (tier) => {
+      const { count } = await tier.scope(base({ select: "id", head: true }));
+      return count ?? 0;
+    })
+  );
+
+  const gigs: Record<string, unknown>[] = [];
+  let tierStart = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const tierEnd = tierStart + counts[i];
+    const from = Math.max(offset + gigs.length, tierStart);
+    const to = Math.min(offset + limit, tierEnd); // exclusive
+    if (to > from) {
+      const { data } = await tiers[i]
+        .scope(base())
+        .order(tiers[i].orderBy, { ascending: false })
+        .range(from - tierStart, to - tierStart - 1);
+      gigs.push(...((data ?? []) as Record<string, unknown>[]));
+    }
+    tierStart = tierEnd;
+  }
+
+  const total = counts.reduce((a, b) => a + b, 0);
+  return { gigs, count: total, hiddenMicro: await countHiddenMicro(total) };
 }

@@ -383,6 +383,26 @@ describe("autoVerifyUser", () => {
     expect(result.eligible).toBe(true);
   });
 
+  it("writes the verified flag through the writer client when one is given", async () => {
+    // Users can't set profiles.verified on their own row (20261019210000), so
+    // the route passes a service client for the write.
+    const reads = createMockSupabase({
+      profile: { id: "user-1", verified: false, created_at: "2024-01-01T00:00:00Z" },
+      completedGigsCount: 5,
+      reviews: [{ rating: 5 }],
+    });
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    const writer = { from: vi.fn().mockReturnValue({ update }) } as any;
+
+    const { verified } = await autoVerifyUser(reads, "user-1", writer);
+
+    expect(verified).toBe(true);
+    expect(writer.from).toHaveBeenCalledWith("profiles");
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ verified: true, verification_type: "auto" }));
+    expect(eq).toHaveBeenCalledWith("id", "user-1");
+  });
+
   it("does not verify user and returns verified=false when ineligible", async () => {
     const supabase = createMockSupabase({
       profile: { id: "user-1", verified: false, created_at: "2024-01-01T00:00:00Z" },

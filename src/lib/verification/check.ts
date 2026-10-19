@@ -105,12 +105,15 @@ export async function checkAutoVerification(
  */
 export async function autoVerifyUser(
   supabase: SupabaseClient<Database>,
-  userId: string
+  userId: string,
+  // profiles.verified is only writable by the service role (migration
+  // 20261019210000), so callers acting as a user pass a service client here.
+  writer: SupabaseClient<Database> = supabase
 ): Promise<{ verified: boolean; result: VerificationCheckResult }> {
   const result = await checkAutoVerification(supabase, userId);
 
   if (result.eligible) {
-    const { error } = await supabase
+    const { error } = await writer
       .from("profiles")
       .update({
         verified: true,

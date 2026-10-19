@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { fetchSellerTrust } from "@/lib/trust/seller-trust";
 
 // GET /api/users/[username] - Get public profile
 export async function GET(
@@ -55,9 +56,12 @@ export async function GET(
       .eq("poster_id", profile.id)
       .eq("status", "filled");
 
+    const trust = (await fetchSellerTrust(supabase, [profile.id])).get(profile.id) ?? null;
+
     return NextResponse.json({
       profile: {
         ...profile,
+        trust,
         average_rating: averageRating,
         reviews_count: reviews?.length || 0,
         completed_gigs: completedGigs || 0,
