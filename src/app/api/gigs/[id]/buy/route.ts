@@ -344,7 +344,7 @@ async function buyWithPaypal(request: NextRequest, gigId: string, buyerId: strin
     .eq("id", orderId);
 
   return NextResponse.json(
-    { order: { id: orderId, status: "pending_payment", amount_usd: price.usd, currency: "paypal" }, approve_url: checkout.approve_url },
+    { order: { id: orderId, status: "pending_payment", amount_usd: price.usd, currency: "paypal" }, approve_url: checkout.checkout_url, paypal_approve_url: checkout.approve_url },
     { status: 201 }
   );
 }

@@ -970,7 +970,14 @@ export interface CreatePaypalPaymentOptions {
 export interface PaypalPaymentResponse {
   transaction_id: string;
   order_id?: string;
+  /** PayPal's own redirect: PayPal login only. */
   approve_url: string;
+  /**
+   * CoinPay's hosted page with PayPal's Smart Buttons. It offers "Debit or Credit
+   * Card" (PayPal guest checkout, no PayPal account, no Stripe) next to PayPal,
+   * and captures as soon as the buyer approves. Send buyers here.
+   */
+  checkout_url: string;
 }
 
 /**
@@ -1007,7 +1014,12 @@ export async function createPaypalPayment(options: CreatePaypalPaymentOptions): 
   if (!data.transaction_id || !approveUrl) {
     throw new Error("PayPal checkout returned no approval link");
   }
-  return { transaction_id: data.transaction_id, order_id: data.order_id, approve_url: approveUrl };
+  return {
+    transaction_id: data.transaction_id,
+    order_id: data.order_id,
+    approve_url: approveUrl,
+    checkout_url: data.hosted_checkout_url || data.checkout_url || approveUrl,
+  };
 }
 
 // ─── Invoice API ───────────────────────────────────────────────────────────

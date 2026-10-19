@@ -159,14 +159,15 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
             Crypto
           </Button>
           <Button type="button" size="sm" variant={method === "paypal" ? "default" : "outline"} onClick={() => setMethod("paypal")}>
-            PayPal
+            Card or PayPal
           </Button>
         </div>
       )}
 
       {method === "paypal" ? (
         <p className="text-xs text-muted-foreground">
-          You&apos;ll approve the payment on PayPal. ugig holds it and pays the seller when you release it.
+          Pay by debit or credit card (no PayPal account needed) or with PayPal, on the next page. ugig holds the
+          payment and pays the seller when you release it.
         </p>
       ) : (
       <>
@@ -223,7 +224,7 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
 
       <div className="flex gap-2">
         <Button className="flex-1" onClick={submit} disabled={submitting || (method === "crypto" && (!currency || refundAddress.trim().length < 10))}>
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : method === "paypal" ? `Continue to PayPal (${price})` : `Pay ${price}`}
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : method === "paypal" ? `Continue to card or PayPal (${price})` : `Pay ${price}`}
         </Button>
         <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
           Cancel
