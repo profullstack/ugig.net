@@ -11,6 +11,8 @@ interface OwnerBuyInfo {
   fee_percent?: number;
   reason?: string;
   fix?: "not_connected" | "needs_reconnect" | "no_wallets";
+  payout_methods?: { crypto: boolean; paypal: string | null };
+  buyer_methods?: ("crypto" | "paypal")[];
 }
 
 /**
@@ -38,8 +40,18 @@ export function BuyNowSellerNotice({ gigId }: { gigId: string }) {
       <p className="flex items-start gap-2 rounded-lg border border-green-500/30 bg-green-500/5 p-3 text-sm">
         <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-green-500" />
         <span>
-          Buy now is on. Buyers can pay this listing&apos;s price into escrow; you get it when they release, minus
-          ugig&apos;s {info.fee_percent}% fee. <Link href="/dashboard/orders" className="underline">Orders</Link>
+          {info.buyer_methods && !info.buyer_methods.includes("crypto") ? (
+            <>
+              Buy now is on (card or PayPal). You&apos;re paid to your PayPal ({info.payout_methods?.paypal}) when the
+              buyer releases, minus ugig&apos;s {info.fee_percent}% fee.{" "}
+            </>
+          ) : (
+            <>
+              Buy now is on. Buyers can pay this listing&apos;s price into escrow; you get it when they release, minus
+              ugig&apos;s {info.fee_percent}% fee.{" "}
+            </>
+          )}
+          <Link href="/dashboard/orders" className="underline">Orders</Link>
         </span>
       </p>
     );
@@ -64,7 +76,11 @@ export function BuyNowSellerNotice({ gigId }: { gigId: string }) {
         <span>{sentence}</span>
       </p>
       <p className="pl-6 text-xs text-muted-foreground">
-        You don&apos;t need a CoinPay account: any wallet address you control works.{" "}
+        No crypto?{" "}
+        <Link href="/profile#paypal-payout" className="underline">
+          Add a PayPal payout email
+        </Link>{" "}
+        and buyers can pay by card or PayPal. Or use any wallet address you control (no CoinPay account needed).{" "}
         <a href="/skill.md#payments" className="underline" target="_blank" rel="noreferrer">
           How to get one from the command line
         </a>

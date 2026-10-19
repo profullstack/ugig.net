@@ -27,6 +27,12 @@ import {
   pickPayoutWallet,
   type BuyableGig,
 } from "@/lib/orders/buy-now";
+import { loadPaypalPayoutEmail, maskEmail } from "@/lib/orders/paypal-payout";
+
+/** The seller's PayPal payout email, when PayPal Buy now is on at all. */
+async function sellerPaypalEmail(sellerId: string): Promise<string | null> {
+  return paypalBuyNowEnabled() ? loadPaypalPayoutEmail(sellerId) : null;
+}
 
 const cryptoBuySchema = z.object({
   method: z.literal("crypto").optional(),
@@ -66,15 +72,35 @@ export async function GET(
     if (listingBlocker) {
       return NextResponse.json({ buyable: false, owner: true, seller_ready: false, reason: listingBlocker });
     }
-    const own = await sellerEscrowWallets(gig.poster_id);
+    const [own, paypalEmail] = await Promise.all([
+      sellerEscrowWallets(gig.poster_id),
+      sellerPaypalEmail(gig.poster_id),
+    ]);
+    const payoutMethods = {
+      crypto: own.ok,
+      paypal: paypalEmail ? maskEmail(paypalEmail) : null,
+    };
+    if (own.ok || paypalEmail) {
+      return NextResponse.json({
+        buyable: false,
+        owner: true,
+        seller_ready: true,
+        fee_percent: BUY_NOW_FEE_PERCENT,
+        payout_methods: payoutMethods,
+        // Without a wallet, buyers only see card / PayPal.
+        buyer_methods: own.ok ? (paypalBuyNowEnabled() ? ["crypto", "paypal"] : ["crypto"]) : ["paypal"],
+        ...(own.ok ? { payout_source: own.source, currencies: own.wallets.map((w) => w.currency) } : {}),
+      });
+    }
     return NextResponse.json({
       buyable: false,
       owner: true,
-      seller_ready: own.ok,
+      seller_ready: false,
       fee_percent: BUY_NOW_FEE_PERCENT,
-      ...(own.ok
-        ? { payout_source: own.source, currencies: own.wallets.map((w) => w.currency) }
-        : { reason: ownerNotReadyMessage(own.reason), fix: own.reason, api_fix: ownerApiFix() }),
+      payout_methods: payoutMethods,
+      reason: ownerNotReadyMessage(own.reason),
+      fix: own.reason,
+      api_fix: ownerApiFix(),
     });
   }
 
@@ -84,12 +110,16 @@ export async function GET(
   const price = await listingPriceUsd(gig);
   if (!price.ok) return NextResponse.json({ buyable: false, reason: price.error });
 
-  const seller = await sellerEscrowWallets(gig.poster_id);
-  if (!seller.ok) {
+  const [seller, paypalEmail] = await Promise.all([
+    sellerEscrowWallets(gig.poster_id),
+    sellerPaypalEmail(gig.poster_id),
+  ]);
+  if (!seller.ok && !paypalEmail) {
     return NextResponse.json({ buyable: false, reason: sellerNotReadyMessage(seller.reason) });
   }
 
-  const currencies = [...new Set(seller.wallets.map((w) => w.currency))];
+  // A seller paid by PayPal only has no coins: card / PayPal is the one way in.
+  const currencies = seller.ok ? [...new Set(seller.wallets.map((w) => w.currency))] : [];
   return NextResponse.json({
     buyable: true,
     amount_usd: price.usd,
@@ -99,6 +129,7 @@ export async function GET(
     escrow_days: ORDER_ESCROW_HOURS / 24,
     currencies: currencies.map((c) => ({ value: c, label: currencyLabel(c) })),
     paypal: paypalBuyNowEnabled(),
+    methods: seller.ok ? (paypalBuyNowEnabled() ? ["crypto", "paypal"] : ["crypto"]) : ["paypal"],
   });
 }
 
@@ -140,6 +171,12 @@ export async function POST(
 
     const seller = await sellerEscrowWallets(gig.poster_id);
     if (!seller.ok) {
+      if (await sellerPaypalEmail(gig.poster_id)) {
+        return NextResponse.json(
+          { error: "This seller is paid by PayPal: pay by card or PayPal instead", methods: ["paypal"] },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: sellerNotReadyMessage(seller.reason) }, { status: 409 });
     }
     const sellerWallet = seller.wallets.find((w) => w.currency === currency);
@@ -261,8 +298,8 @@ export async function POST(
 
 /**
  * PayPal: the price captures into ugig's own PayPal (CoinPay cannot escrow it).
- * ugig holds it and pays the seller's CoinPay wallet on release, so the seller
- * still needs a usable CoinPay wallet, exactly as for crypto.
+ * ugig holds it and pays the seller on release: to their PayPal payout email
+ * when they saved one, otherwise to their payout wallet.
  */
 async function buyWithPaypal(request: NextRequest, gigId: string, buyerId: string, body: unknown) {
   if (!paypalBuyNowEnabled()) {
@@ -281,11 +318,17 @@ async function buyWithPaypal(request: NextRequest, gigId: string, buyerId: strin
   const price = await listingPriceUsd(gig);
   if (!price.ok) return NextResponse.json({ error: price.error }, { status: price.status });
 
-  const seller = await sellerEscrowWallets(gig.poster_id);
-  if (!seller.ok) {
-    return NextResponse.json({ error: sellerNotReadyMessage(seller.reason) }, { status: 409 });
+  const paypalEmail = await loadPaypalPayoutEmail(gig.poster_id);
+  let payout: { address: string; currency: string };
+  if (paypalEmail) {
+    payout = { address: paypalEmail, currency: "paypal" };
+  } else {
+    const seller = await sellerEscrowWallets(gig.poster_id);
+    if (!seller.ok) {
+      return NextResponse.json({ error: sellerNotReadyMessage(seller.reason) }, { status: 409 });
+    }
+    payout = pickPayoutWallet(seller.wallets);
   }
-  const payout = pickPayoutWallet(seller.wallets);
 
   const supabase = createServiceClient();
   const { data: inserted, error } = await supabase

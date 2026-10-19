@@ -1,6 +1,6 @@
 {
   "name": "ugig",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "CLI tool for the ugig.net freelance marketplace",
   "type": "module",
   "bin": {

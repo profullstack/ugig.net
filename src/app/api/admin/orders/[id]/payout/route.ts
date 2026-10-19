@@ -7,7 +7,10 @@ import { notifyOrderParty, releasePaypalOrder, transitionOrder } from "@/lib/ord
 
 const actionSchema = z.discriminatedUnion("action", [
   // ugig paid the seller their share of a released PayPal order.
-  z.object({ action: z.literal("paid"), tx_hash: z.string().trim().min(8, "Paste the payout transaction hash") }),
+  z.object({
+    action: z.literal("paid"),
+    tx_hash: z.string().trim().min(8, "Paste the payout transaction hash or PayPal transaction ID"),
+  }),
   // Resolve a dispute (or settle early) in the seller's favour: payout becomes owed.
   z.object({ action: z.literal("release") }),
   // The buyer was refunded in PayPal.
@@ -32,12 +35,13 @@ export async function POST(
 
   const { data } = await supabase
     .from("gig_orders")
-    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, payment_rail, payout_status")
+    .select("id, gig_id, buyer_id, seller_id, status, amount_usd, platform_fee_usd, payment_rail, payout_status, payout_currency")
     .eq("id", id)
     .single();
   const order = data as {
     id: string; gig_id: string; buyer_id: string; seller_id: string; status: string;
     amount_usd: number; platform_fee_usd: number; payment_rail: string; payout_status: string | null;
+    payout_currency: string | null;
   } | null;
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.payment_rail !== "paypal") {
