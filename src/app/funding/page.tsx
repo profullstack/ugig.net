@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { FundingClient } from "@/components/funding/FundingClient";
 import { FundingProgress } from "@/components/funding/FundingProgress";
 import { PaymentStatus } from "@/components/funding/PaymentStatus";
@@ -46,7 +45,6 @@ export default async function FundingPage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   );
 }

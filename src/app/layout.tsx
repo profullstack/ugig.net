@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { ReferralTracker } from "@/components/referral/ReferralTracker";
 import { Footer } from "@/components/layout/Footer";
+import { PitFooter } from "@/components/layout/PitFooter";
 import { BtcRateProvider } from "@/components/providers/BtcRateProvider";
 import { DialogProvider } from "@/components/providers/DialogProvider";
 import "./globals.css";
@@ -99,8 +100,9 @@ export default function RootLayout({
           data-key="Zm2tXU5XNvv8dLpoexiurQ"
           strategy="afterInteractive"
         />
-              <Script data-site="3b787b18-f8e1-473f-8285-b90d657f5642" src="https://crawlproof.com/stats.js" strategy="afterInteractive" />
-      <Script src="https://crawlproof.com/ad.js" strategy="afterInteractive" />
+        <Script data-site="3b787b18-f8e1-473f-8285-b90d657f5642" src="https://crawlproof.com/stats.js" strategy="afterInteractive" />
+        <Script src="https://crawlproof.com/ad.js" strategy="afterInteractive" />
+        <PitFooter />
       </body>
     </html>
   );
