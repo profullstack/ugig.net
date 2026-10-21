@@ -3,7 +3,6 @@ import { render } from "@testing-library/react";
 import { PAID_PERKS } from "@/lib/plans";
 
 vi.mock("@/components/layout/Header", () => ({ Header: () => null }));
-vi.mock("@/components/AdUnit", () => ({ AdUnit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: null } }) },
