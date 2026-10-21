@@ -17,7 +17,7 @@ describe("landing page pricing", () => {
     const text = container.textContent || "";
     expect(text).toContain("$9/month");
     expect(text).toContain("$90/year");
-    expect(text).toContain("Paid in crypto, via CoinPay");
+    expect(text).toContain("Paid in crypto, PayPal or card, via CoinPay");
     expect(text).not.toMatch(/stripe|by card/i);
     expect(text).toContain("$100 one-time");
     expect(text).toContain("Post up to 10 gigs per month");
@@ -25,5 +25,12 @@ describe("landing page pricing", () => {
     for (const re of [/priority support/i, /featured profile badge/i, /advanced analytics/i, /\$29/]) {
       expect(text).not.toMatch(re);
     }
+  });
+});
+
+describe("landing page Upgrade to Pro", () => {
+  it("goes to checkout, not signup", async () => {
+    const { getByText } = render(await Home());
+    expect(getByText("Upgrade to Pro").closest("a")?.getAttribute("href")).toBe("/checkout?plan=monthly");
   });
 });

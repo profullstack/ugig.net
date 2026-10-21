@@ -159,6 +159,7 @@ async function handlePaymentSettled(
     txHash: paymentData.tx_hash ?? null,
     merchantTxHash: paymentData.merchant_tx_hash ?? null,
     providerMetadata: paymentData.metadata ?? null,
+    currency: paymentData.currency ?? null,
   });
   if (result.found) return;
 

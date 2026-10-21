@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   COINPAY_PLAN_PERIOD_MONTHS,
+  COINPAY_PLAN_PRICES_USD,
   FUNDING_LIFETIME_THRESHOLD_USD,
   type CoinPayPlan,
 } from "@/lib/plans";
@@ -74,6 +75,8 @@ export interface SettlementEvent {
   merchantTxHash?: string | null;
   /** The metadata CoinPay echoes back (what the create route sent). */
   providerMetadata?: Record<string, unknown> | null;
+  /** The coin actually paid, when CoinPay reports it. */
+  currency?: string | null;
 }
 
 export interface SettlementResult {
@@ -97,27 +100,28 @@ export async function settleCheckoutPayment(
   supabase: Db,
   event: SettlementEvent
 ): Promise<SettlementResult> {
-  const { data: payment } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("coinpay_payment_id", event.coinpayPaymentId)
-    .maybeSingle();
-
+  const payment = await findCheckoutPayment(supabase, event);
   if (!payment) return { found: false, activated: false };
 
   const now = new Date().toISOString();
+  const baseLink: Record<string, unknown> = {};
   const existingMetadata = asRecord(payment.metadata);
   const providerMetadata = asRecord(event.providerMetadata);
   const plan = normalizePlan(existingMetadata.plan) ?? normalizePlan(providerMetadata.plan);
 
   const metadata: Record<string, unknown> = { ...existingMetadata };
+  // Hosted-session rows learn their CoinPay payment id (and coin) here.
+  if (!payment.coinpay_payment_id) baseLink.coinpay_payment_id = event.coinpayPaymentId;
+  if (payment.currency === "hosted" && typeof event.currency === "string" && event.currency) {
+    baseLink.currency = event.currency.toLowerCase();
+  }
   if (plan && !existingMetadata.plan) metadata.plan = plan;
   if (event.txHash) metadata.tx_hash = event.txHash;
   if (event.merchantTxHash) metadata.merchant_tx_hash = event.merchantTxHash;
   if (event.status === "forwarded") metadata.forwarded_at = now;
 
   const amountCrypto = toNumber(event.amountCrypto);
-  const baseUpdate: Record<string, unknown> = { metadata, updated_at: now };
+  const baseUpdate: Record<string, unknown> = { ...baseLink, metadata, updated_at: now };
   if (amountCrypto !== null) baseUpdate.amount_crypto = amountCrypto;
 
   // Claim the transition: only one caller moves the row out of unsettled.
@@ -152,6 +156,79 @@ export async function settleCheckoutPayment(
   });
 
   return { found: true, activated: true };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Find the local payments row for a CoinPay event:
+ * 1. by coinpay_payment_id (direct crypto and PayPal payments);
+ * 2. by metadata.ugig_payment_id, the local row id every payment carries
+ *    (hosted checkout sessions, whose payment id is only known once paid);
+ * 3. failing both, rebuild the row from the signed metadata (property ugig.net,
+ *    user_id, type subscription, plan) so a paid Pro is never lost because a
+ *    local insert failed. The amount must cover the plan price.
+ */
+async function findCheckoutPayment(
+  supabase: Db,
+  event: SettlementEvent
+): Promise<Record<string, any> | null> {
+  const { data: byCoinpayId } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("coinpay_payment_id", event.coinpayPaymentId)
+    .maybeSingle();
+  if (byCoinpayId) return byCoinpayId;
+
+  const meta = asRecord(event.providerMetadata);
+  const localId = typeof meta.ugig_payment_id === "string" ? meta.ugig_payment_id : null;
+  if (localId && UUID_RE.test(localId)) {
+    const { data: byLocalId } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("id", localId)
+      .maybeSingle();
+    if (byLocalId) {
+      const userId = typeof meta.user_id === "string" ? meta.user_id : null;
+      if (userId && byLocalId.user_id !== userId) {
+        console.error("[coinpay] ugig_payment_id belongs to another user; ignoring", { localId });
+        return null;
+      }
+      return byLocalId;
+    }
+  }
+
+  const plan = normalizePlan(meta.plan);
+  const userId = typeof meta.user_id === "string" && UUID_RE.test(meta.user_id) ? meta.user_id : null;
+  if (meta.property !== "ugig.net" || meta.type !== "subscription" || !plan || !userId) return null;
+  const paid = toNumber(event.amountUsd);
+  if (paid === null || paid < COINPAY_PLAN_PRICES_USD[plan] * 0.97) {
+    console.error("[coinpay] orphan subscription payment under plan price; not granting", {
+      coinpay_payment_id: event.coinpayPaymentId,
+      paid,
+      plan,
+    });
+    return null;
+  }
+  const { data: inserted, error } = await supabase
+    .from("payments")
+    .insert({
+      ...(localId && UUID_RE.test(localId) ? { id: localId } : {}),
+      user_id: userId,
+      coinpay_payment_id: event.coinpayPaymentId,
+      amount_usd: paid,
+      currency: (typeof event.currency === "string" && event.currency.toLowerCase()) || "unknown",
+      status: "pending",
+      type: "subscription",
+      metadata: { plan, property: "ugig.net", rebuilt_from_webhook: true },
+    })
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    console.error("[coinpay] could not rebuild payment row:", error);
+    return null;
+  }
+  return inserted ?? null;
 }
 
 async function activatePurchase(
@@ -196,9 +273,14 @@ async function activatePurchase(
   }
 }
 
+/** Add calendar months, clamping to the last day (Jan 31 + 1 month = Feb 28/29, not Mar 3). */
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
   d.setMonth(d.getMonth() + months);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
   return d;
 }
 

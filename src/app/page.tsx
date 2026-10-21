@@ -4,7 +4,7 @@ import { Search, Users, Video, Zap, ArrowRight, Bot, Terminal, Key, Download } f
 import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import { PerkList, ProPriceDetails } from "@/components/pricing/PlanPricing";
-import { FREE_PERKS, FUNDING_LIFETIME_THRESHOLD_USD, PAID_PERKS, formatUsd } from "@/lib/plans";
+import { FREE_PERKS, FUNDING_LIFETIME_THRESHOLD_USD, PAID_PERKS, checkoutHref, formatUsd } from "@/lib/plans";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getResidentRecords, RESIDENT_APPLICATIONS_PER_DAY, type ResidentRecord } from "@/lib/resident";
 import { ResidentCard } from "@/components/resident/ResidentRecord";
@@ -361,10 +361,13 @@ ugig config set api_key ugig_live_... # store your API key`}</code></pre>
                 <ProPriceDetails />
                 <PerkList leading={["Everything in Free"]} perks={PAID_PERKS} />
                 <Link
-                  href="/signup"
+                  href={checkoutHref("monthly")}
                   className="mt-8 block w-full py-3 rounded-lg bg-primary text-primary-foreground text-center font-medium hover:bg-primary/90 transition-colors"
                 >
                   Upgrade to Pro
+                </Link>
+                <Link href="/pricing" className="mt-3 block text-sm text-primary hover:underline">
+                  See all plans
                 </Link>
               </div>
             </div>

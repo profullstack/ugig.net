@@ -11,7 +11,7 @@ import { SKILL_FEE_RATES } from "@/lib/constants";
 
 export type PlanId = "free" | "pro" | "lifetime";
 
-/** Billing options. CoinPay (crypto) is the only payment rail; there is no card checkout. */
+/** Billing options. CoinPay is the only payment processor: any coin it supports, or PayPal / card through CoinPay's PayPal rail. Never Stripe. */
 export type CoinPayPlan = "monthly" | "annual" | "lifetime";
 
 /** Free accounts may publish this many gigs (hiring gigs and for-hire ads) per calendar month. */
@@ -91,10 +91,19 @@ export const PLANS = {
 
 /** Human copy for the rails each price is sold on. */
 export const PRICE_RAILS_COPY = {
-  monthly: "crypto, via CoinPay",
-  annual: "crypto, via CoinPay",
-  lifetime: "crypto, via CoinPay",
+  monthly: "crypto, PayPal or card, via CoinPay",
+  annual: "crypto, PayPal or card, via CoinPay",
+  lifetime: "crypto, PayPal or card, via CoinPay",
 } as const;
+
+/** Where every "Upgrade to Pro" / "Buy Lifetime" link goes. Signed-out buyers sign in, then land back here. */
+export function checkoutHref(plan: CoinPayPlan = "monthly"): string {
+  return `/checkout?plan=${plan}`;
+}
+
+export function isCoinPayPlan(value: unknown): value is CoinPayPlan {
+  return value === "monthly" || value === "annual" || value === "lifetime";
+}
 
 /** Pro and Lifetime are the paid plans; they get the same perks everywhere. */
 export function isPaidPlan(plan: string | null | undefined): plan is "pro" | "lifetime" {

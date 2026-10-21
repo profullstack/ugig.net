@@ -152,6 +152,7 @@ function getStaticPages(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/leaderboard/zaps`, changeFrequency: "daily", priority: 0.5 },
     { url: `${BASE_URL}/skills/library`, changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE_URL}/search`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/about`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${BASE_URL}/docs`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/docs/cli`, changeFrequency: "weekly", priority: 0.5 },

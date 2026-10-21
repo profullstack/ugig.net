@@ -33,20 +33,14 @@ export interface CoinPayWebhookPayload {
 
 export interface CreatePaymentOptions {
   amount_usd: number;
-  currency:
-    | "usdc_pol"
-    | "usdc_sol"
-    | "usdc_eth"
-    | "usdt"
-    | "usdt_eth"
-    | "usdt_pol"
-    | "usdt_sol"
-    | "pol"
-    | "sol"
-    | "btc"
-    | "bch"
-    | "eth";
+  /**
+   * CoinPay currency code (lowercase, e.g. "usdc_pol", "doge", "usdc_base").
+   * Any coin the business's /supported-coins lists is accepted by CoinPay.
+   */
+  currency: SupportedCurrency | (string & {});
   description?: string;
+  /** Sent as CoinPay's idempotency_key so a retry returns the same payment. */
+  idempotency_key?: string;
   redirect_url?: string;
   expires_at?: string;
   expires_in?: number;
@@ -169,6 +163,7 @@ export async function createPayment(options: CreatePaymentOptions): Promise<Crea
         webhook_url: `${appUrl}/api/webhooks/coinpay`,
         merchant_wallet_address: options.merchant_wallet_address,
         metadata: options.metadata,
+        idempotency_key: options.idempotency_key,
       }),
     },
     { label: "payments/create", deadline: options.deadline }
@@ -965,6 +960,8 @@ export interface CreatePaypalPaymentOptions {
   success_url: string;
   cancel_url: string;
   metadata?: Record<string, unknown>;
+  customer_email?: string;
+  customer_name?: string;
 }
 
 export interface PaypalPaymentResponse {
@@ -1003,6 +1000,8 @@ export async function createPaypalPayment(options: CreatePaypalPaymentOptions): 
       success_url: options.success_url,
       cancel_url: options.cancel_url,
       metadata: options.metadata,
+      customer_email: options.customer_email,
+      customer_name: options.customer_name,
     }),
   });
 
@@ -1020,6 +1019,95 @@ export async function createPaypalPayment(options: CreatePaypalPaymentOptions): 
     approve_url: approveUrl,
     checkout_url: data.hosted_checkout_url || data.checkout_url || approveUrl,
   };
+}
+
+// ─── Hosted checkout sessions ──────────────────────────────────────────────
+
+export interface CreateCheckoutSessionOptions {
+  amount_usd: number;
+  description: string;
+  customer_email?: string;
+  /** ugig user id: lets CoinPay show the payment against the buyer's account. */
+  account_id: string;
+  property: string;
+  metadata: Record<string, unknown>;
+  success_url: string;
+  cancel_url: string;
+  expires_in_minutes?: number;
+}
+
+export interface CheckoutSessionResponse {
+  id: string;
+  url: string;
+}
+
+/** When the endpoint last answered "not here", so we stop asking for a while. */
+let checkoutSessionsMissingUntil = 0;
+const CHECKOUT_SESSIONS_RECHECK_MS = 5 * 60 * 1000;
+
+/** Test hook: forget a cached "sessions endpoint missing" answer. */
+export function resetCheckoutSessionDetection() {
+  checkoutSessionsMissingUntil = 0;
+}
+
+/**
+ * Open a CoinPay hosted checkout session: one page where the buyer picks any
+ * coin CoinPay supports, PayPal or card (PayPal guest checkout).
+ *
+ * Feature-detected: returns null when CoinPay does not serve the endpoint yet
+ * (404/405/501), and remembers that for a few minutes, so callers fall back to
+ * their own coin picker. Any other failure throws.
+ */
+export async function createCheckoutSession(
+  options: CreateCheckoutSessionOptions
+): Promise<CheckoutSessionResponse | null> {
+  if (Date.now() < checkoutSessionsMissingUntil) return null;
+
+  const apiKey = process.env.COINPAY_API_KEY;
+  const merchantId = process.env.COINPAY_MERCHANT_ID;
+  if (!apiKey || !merchantId) {
+    throw new Error("CoinPayPortal credentials not configured");
+  }
+
+  const response = await coinpayFetch(
+    `${COINPAY_API_URL}/checkout/sessions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      cache: "no-store",
+      body: JSON.stringify({
+        business_id: merchantId,
+        amount: options.amount_usd,
+        currency: "USD",
+        description: options.description,
+        customer_email: options.customer_email,
+        account_id: options.account_id,
+        property: options.property,
+        metadata: options.metadata,
+        success_url: options.success_url,
+        cancel_url: options.cancel_url,
+        expires_in_minutes: options.expires_in_minutes ?? 60,
+      }),
+    },
+    { label: "checkout/sessions" }
+  );
+
+  if (response.status === 404 || response.status === 405 || response.status === 501) {
+    checkoutSessionsMissingUntil = Date.now() + CHECKOUT_SESSIONS_RECHECK_MS;
+    return null;
+  }
+
+  const data = (await response.json().catch(() => ({}))) as Record<string, any>;
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `CoinPay checkout session failed: ${response.status}`);
+  }
+  const session = (data.session as Record<string, any> | undefined) ?? data;
+  const id = session.id;
+  const url = session.url || session.checkout_url;
+  if (typeof id !== "string" || typeof url !== "string") {
+    throw new Error("CoinPay checkout session returned no id or url");
+  }
+  return { id, url };
 }
 
 // ─── Invoice API ───────────────────────────────────────────────────────────

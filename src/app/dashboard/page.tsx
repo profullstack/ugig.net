@@ -27,6 +27,7 @@ import {
   PAID_PERKS,
   PRO_MONTHLY_PRICE_USD,
   formatUsd,
+  checkoutHref,
   hasPaidAccess,
 } from "@/lib/plans";
 
@@ -540,7 +541,7 @@ export default async function DashboardPage() {
                   <p className="text-muted-foreground mb-4">
                     Upgrade to Pro: {PAID_PERKS.join(", ").toLowerCase()}.
                   </p>
-                  <Link href="/settings/billing">
+                  <Link href={checkoutHref("monthly")}>
                     <Button className="w-full">Upgrade to Pro - {formatUsd(PRO_MONTHLY_PRICE_USD)}/mo</Button>
                   </Link>
                 </div>

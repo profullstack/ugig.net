@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext, requireFullAccess } from "@/lib/auth/get-user";
-import { createPayment, type SupportedCurrency } from "@/lib/coinpayportal";
+import { randomUUID } from "node:crypto";
+import { createCheckoutSession, createPayment, createPaypalPayment } from "@/lib/coinpayportal";
+import {
+  isCoinRefusal,
+  listCheckoutCoins,
+  markCoinBroken,
+  paymentMetadata,
+  paypalCheckoutEnabled,
+  PAYMENT_PROPERTY,
+} from "@/lib/payments/pro-checkout";
 import { z } from "zod";
 import {
   COINPAY_PLAN_PRICES_USD,
@@ -12,8 +21,16 @@ import {
 const createPaymentSchema = z.object({
   type: z.enum(["subscription", "gig_payment", "tip", "funding"]),
   plan: z.enum(["monthly", "annual", "lifetime"]).optional(),
-  currency: z.enum(["usdc_pol", "usdc_sol", "pol", "sol", "btc", "eth", "usdc_eth", "usdt"]),
-  amount_usd: z.number().min(1).optional(),
+  /** "crypto" (default) or "paypal" (PayPal, or debit/credit card via PayPal guest checkout). */
+  method: z.enum(["crypto", "paypal"]).default("crypto"),
+  /** Any CoinPay coin code the business accepts (checked live), e.g. "usdc_pol", "doge". */
+  currency: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9_]{2,20}$/, "Invalid currency")
+    .optional(),
+  amount_usd: z.number().min(1).max(10000).optional(),
 });
 
 // POST /api/payments/coinpayportal/create - Create a new payment
@@ -38,7 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, plan, currency, amount_usd } = validationResult.data;
+    const { type, plan, method, currency, amount_usd } = validationResult.data;
 
     if (type === "gig_payment") {
       return NextResponse.json(
@@ -107,35 +124,143 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid payment type" }, { status: 400 });
     }
 
-    const businessId = process.env.COINPAY_MERCHANT_ID;
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
+    const successUrl = `${appUrl}/settings/billing?payment=success`;
+    const cancelUrl =
+      type === "subscription" ? `${appUrl}/checkout?plan=${subscriptionPlan}&canceled=1` : `${appUrl}/funding`;
 
-    // Create payment with the site-wide CoinPay business.
-    const paymentResult = await createPayment({
-      amount_usd: amount,
-      currency: currency as SupportedCurrency,
-      description,
-      business_id: businessId,
-      redirect_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net"}/settings/billing?payment=success`,
-      metadata: {
-        user_id: user.id,
+    // Validate the rail before anything is created.
+    if (method === "paypal") {
+      if (!paypalCheckoutEnabled()) {
+        return NextResponse.json({ error: "PayPal is not available right now. Pay with crypto." }, { status: 400 });
+      }
+    } else {
+      if (!currency) {
+        return NextResponse.json({ error: "Choose a coin to pay with" }, { status: 400 });
+      }
+      const coins = await listCheckoutCoins();
+      if (!coins.some((c) => c.value === currency)) {
+        return NextResponse.json({ error: `CoinPay does not accept ${currency} for ugig.net` }, { status: 400 });
+      }
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle();
+    const username = (profile as { username?: string } | null)?.username ?? null;
+
+    // The local row id is known before CoinPay is called, so every CoinPay
+    // payment carries it and the webhook can always find its way back.
+    const localId = randomUUID();
+    const metadata = paymentMetadata(
+      { userId: user.id, email: user.email, username },
+      {
+        ugig_payment_id: localId,
         type,
-        ...(subscriptionPlan ? { plan: subscriptionPlan } : {}),
-      },
+        plan: subscriptionPlan,
+        rail: method === "paypal" ? "paypal" : "crypto",
+      }
+    );
+
+    let coinpayId: string | null = null;
+    let checkoutUrl: string | null = null;
+    let rail: "hosted" | "paypal" | "crypto";
+    let rowCurrency: string;
+    let cryptoResult: Awaited<ReturnType<typeof createPayment>> | null = null;
+
+    // Prefer CoinPay's hosted checkout session (every coin, PayPal and card on
+    // one page) when CoinPay serves it; otherwise use the rail picked here.
+    const session = await createCheckoutSession({
+      amount_usd: amount,
+      description,
+      customer_email: user.email,
+      account_id: user.id,
+      property: PAYMENT_PROPERTY,
+      metadata: { ...metadata, rail: "hosted" },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      expires_in_minutes: 60,
+    }).catch((err) => {
+      console.error("[coinpay] checkout session failed, using direct rail:", err);
+      return null;
     });
 
-    // Create local payment record
+    if (session) {
+      rail = "hosted";
+      rowCurrency = "hosted";
+      checkoutUrl = session.url;
+    } else if (method === "paypal") {
+      const paypal = await createPaypalPayment({
+        amount_usd: amount,
+        description,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata,
+        customer_email: user.email,
+        customer_name: username ?? undefined,
+      });
+      rail = "paypal";
+      rowCurrency = "paypal";
+      coinpayId = paypal.transaction_id;
+      checkoutUrl = paypal.checkout_url;
+    } else {
+      try {
+        cryptoResult = await createPayment({
+          amount_usd: amount,
+          currency: currency!,
+          description,
+          business_id: process.env.COINPAY_MERCHANT_ID,
+          redirect_url: successUrl,
+          metadata,
+          idempotency_key: localId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (isCoinRefusal(message)) {
+          markCoinBroken(currency!);
+          return NextResponse.json(
+            { error: `CoinPay cannot take ${currency!.toUpperCase()} right now. Pick another coin, or pay with PayPal or card.` },
+            { status: 502 }
+          );
+        }
+        throw err;
+      }
+      rail = "crypto";
+      rowCurrency = currency!;
+      const cp = (cryptoResult.payment || cryptoResult) as any;
+      coinpayId = cryptoResult.payment_id || cp?.id || null;
+      // CoinPay's hosted crypto page (QR, live status, return link) when the
+      // create response carries no checkout_url of its own.
+      checkoutUrl =
+        cryptoResult.checkout_url ||
+        cp?.checkout_url ||
+        (coinpayId ? `https://coinpayportal.com/pay/${encodeURIComponent(coinpayId)}` : null);
+    }
+
+    const cpPayment = (cryptoResult?.payment || cryptoResult || {}) as any;
+    const expiresAt =
+      cryptoResult?.expires_at ||
+      cpPayment.expires_at ||
+      (rail === "crypto" ? undefined : new Date(Date.now() + 60 * 60 * 1000).toISOString());
+
     const { data: payment, error } = await supabase
       .from("payments")
       .insert({
+        id: localId,
         user_id: user.id,
-        coinpay_payment_id: paymentResult.payment_id || (paymentResult.payment as any)?.id,
+        coinpay_payment_id: coinpayId,
         amount_usd: amount,
-        currency,
+        currency: rowCurrency,
         status: "pending",
         type: type as any,
         metadata: {
-          checkout_url: paymentResult.checkout_url,
-          expires_at: paymentResult.expires_at,
+          checkout_url: checkoutUrl,
+          expires_at: expiresAt,
+          rail,
+          property: PAYMENT_PROPERTY,
+          ...(session ? { checkout_session_id: session.id } : {}),
           ...(subscriptionPlan ? { plan: subscriptionPlan } : {}),
         },
       })
@@ -143,26 +268,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      // The CoinPay payment still carries user_id/plan/ugig_payment_id, so the
+      // webhook can settle it without this row.
       console.error("Failed to create payment record:", error);
       return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
     }
 
-    // Extract fields from CoinPayPortal response (may be at root or nested in .payment)
-    const cpPayment = paymentResult.payment || paymentResult;
-    const paymentAddress = (cpPayment as any).payment_address || paymentResult.address || null;
-    const checkoutUrl = paymentResult.checkout_url || (cpPayment as any).checkout_url || null;
+    const paymentAddress = cpPayment.payment_address || cryptoResult?.address || null;
     const amountCrypto =
-      paymentResult.amount_crypto ||
-      (cpPayment as any).amount_crypto ||
-      (cpPayment as any).crypto_amount;
-    const expiresAt = paymentResult.expires_at || (cpPayment as any).expires_at;
+      cryptoResult?.amount_crypto || cpPayment.amount_crypto || cpPayment.crypto_amount || null;
 
     return NextResponse.json({
       payment_id: payment.id,
+      rail,
       checkout_url: checkoutUrl,
       address: paymentAddress,
       amount_crypto: amountCrypto,
-      currency: paymentResult.currency || (cpPayment as any).currency,
+      currency: rail === "crypto" ? cryptoResult?.currency || cpPayment.currency || currency : rowCurrency,
       expires_at: expiresAt,
     });
   } catch (error) {

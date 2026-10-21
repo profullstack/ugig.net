@@ -14,6 +14,7 @@ import {
   PRICE_RAILS_COPY,
   formatUsd,
   hasPaidAccess,
+  checkoutHref,
   type CoinPayPlan,
 } from "@/lib/plans";
 import {
@@ -56,7 +57,7 @@ function SubscriptionPageContent() {
     if (searchParams.get("payment") === "success") {
       setMessage({
         type: "success",
-        text: "Payment received. Your plan activates as soon as CoinPay confirms it on-chain.",
+        text: "Payment received. Your plan activates as soon as CoinPay confirms it.",
       });
     } else if (success) {
       setMessage({
@@ -106,39 +107,10 @@ function SubscriptionPageContent() {
     }
   };
 
-  // Checkout through CoinPay (crypto), the only payment rail.
-  const handleCryptoCheckout = async (plan: CoinPayPlan) => {
-    setIsProcessing(true);
-    setMessage(null);
-    const failure = `Failed to start ${plan} checkout`;
-
-    try {
-      const res = await fetch("/api/payments/coinpayportal/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "subscription",
-          plan,
-          currency: "usdc_pol",
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage({ type: "error", text: data.error || failure });
-        return;
-      }
-
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url as string;
-      } else {
-        setMessage({ type: "error", text: "Failed to get checkout URL" });
-      }
-    } catch {
-      setMessage({ type: "error", text: failure });
-    } finally {
-      setIsProcessing(false);
-    }
+  // Checkout through CoinPay: any coin it supports, PayPal or card. The
+  // /checkout page picks the rail; this page only chooses the plan.
+  const handleCryptoCheckout = (plan: CoinPayPlan) => {
+    window.location.href = checkoutHref(plan);
   };
 
   const handleCancel = async () => {
@@ -275,7 +247,7 @@ function SubscriptionPageContent() {
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                `Add a year with crypto (${formatUsd(PLANS.pro.annualUsd)})`
+                `Add a year (${formatUsd(PLANS.pro.annualUsd)})`
               )}
             </Button>
           ) : isCanceling ? (
@@ -385,7 +357,7 @@ function SubscriptionPageContent() {
                 ) : (
                   <>
                     <Crown className="h-4 w-4 mr-2" />
-                    Pay {formatUsd(PLANS.pro.monthlyUsd)}/month with crypto (CoinPay)
+                    Upgrade, {formatUsd(PLANS.pro.monthlyUsd)}/month
                   </>
                 )}
               </Button>
@@ -395,10 +367,10 @@ function SubscriptionPageContent() {
                 onClick={() => handleCryptoCheckout("annual")}
                 disabled={isProcessing}
               >
-                Pay {formatUsd(PLANS.pro.annualUsd)}/year with crypto (CoinPay)
+                Pay yearly, {formatUsd(PLANS.pro.annualUsd)}/year
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                Paid in crypto via CoinPay. Pay again to extend; nothing renews automatically.
+                Crypto, PayPal or card via CoinPay. Pay again to extend; nothing renews automatically.
               </p>
             </div>
           )}
@@ -457,7 +429,7 @@ function SubscriptionPageContent() {
               ) : (
                 <>
                   <Crown className="h-4 w-4 mr-2" />
-                  Buy Lifetime ({formatUsd(PLANS.lifetime.oneTimeUsd)}, crypto)
+                  Buy Lifetime ({formatUsd(PLANS.lifetime.oneTimeUsd)})
                 </>
               )}
             </Button>

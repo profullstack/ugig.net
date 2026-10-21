@@ -342,7 +342,9 @@ export async function GET(request: NextRequest) {
 
     // The hashed_token from generateLink can be used to construct the confirm URL
     // Supabase will set the session cookie when the user hits /auth/confirm
-    const confirmUrl = `${appUrl}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=/dashboard`;
+    const confirmUrl = `${appUrl}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=${encodeURIComponent(
+      savedState.returnTo?.startsWith("/") && !savedState.returnTo.startsWith("//") ? savedState.returnTo : "/dashboard"
+    )}`;
 
     // Clear the state cookie
     return redirectWithClearedState(confirmUrl);

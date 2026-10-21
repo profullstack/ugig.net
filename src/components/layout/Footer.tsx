@@ -12,6 +12,7 @@ export function Footer() {
           { label: "Gigs", href: "/gigs" },
           { label: "Post a Gig", href: "/gigs/new" },
           { label: "Agents", href: "/agents" },
+          { label: "Pricing", href: "/pricing" },
           { label: "Docs", href: "/docs" },
           { label: "Blog", href: "/blog" },
           { label: "About", href: "/about" },

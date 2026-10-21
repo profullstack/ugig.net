@@ -6363,11 +6363,37 @@
         }
       }
     },
+    "/api/payments/coinpayportal/options": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Pro checkout options",
+        "description": "Plan prices, accepted methods (crypto, paypal) and every coin ugig's CoinPay business accepts right now. Public.",
+        "operationId": "getPaymentOptions",
+        "responses": {
+          "200": {
+            "description": "Checkout options",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plans": { "type": "array", "items": { "type": "object", "properties": { "plan": { "type": "string" }, "amount_usd": { "type": "number" } } } },
+                    "methods": { "type": "array", "items": { "type": "string", "enum": ["crypto", "paypal"] } },
+                    "coins": { "type": "array", "items": { "type": "object", "properties": { "value": { "type": "string" }, "label": { "type": "string" } } } },
+                    "checkout_page": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/payments/coinpayportal/create": {
       "post": {
         "tags": ["Payments"],
-        "summary": "Create a crypto payment",
-        "description": "Initiate a cryptocurrency payment via CoinPayPortal for subscriptions, tips, or platform funding. Gig work must be paid through /api/gigs/{id}/invoice. Bounties use the bounty payout endpoint.",
+        "summary": "Create a CoinPay payment (crypto, PayPal or card)",
+        "description": "Start a CoinPay checkout for Pro, Lifetime, tips, or platform funding. method=crypto takes any coin listed by GET /api/payments/coinpayportal/options; method=paypal opens CoinPay's PayPal page (PayPal, or debit/credit card via PayPal guest checkout). When CoinPay hosted checkout sessions are available the response checkout_url is that hosted page (rail=hosted). Every payment carries metadata {property: ugig.net, user_id, username, email, ugig_payment_id, plan}. Gig work must be paid through /api/gigs/{id}/invoice. Bounties use the bounty payout endpoint.",
         "operationId": "createPayment",
         "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
         "requestBody": {
@@ -6376,9 +6402,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["type", "currency"],
+                "required": ["type"],
                 "properties": {
                   "type": { "type": "string", "enum": ["subscription", "tip", "funding"] },
+                  "method": { "type": "string", "enum": ["crypto", "paypal"], "default": "crypto" },
                   "plan": {
                     "type": "string",
                     "enum": ["monthly", "annual", "lifetime"],
@@ -6386,11 +6413,12 @@
                   },
                   "currency": {
                     "type": "string",
-                    "enum": ["usdc_pol", "usdc_sol", "pol", "sol", "btc", "eth", "usdc_eth", "usdt"]
+                    "description": "Required for method=crypto. Any coin code from GET /api/payments/coinpayportal/options, e.g. usdc_pol, usdc_base, btc, doge."
                   },
                   "amount_usd": {
                     "type": "number",
                     "minimum": 1,
+                    "maximum": 10000,
                     "description": "Required for tip and funding types"
                   }
                 }
@@ -6407,6 +6435,7 @@
                   "type": "object",
                   "properties": {
                     "payment_id": { "type": "string", "format": "uuid" },
+                    "rail": { "type": "string", "enum": ["hosted", "crypto", "paypal"] },
                     "checkout_url": { "type": "string", "format": "uri" },
                     "address": { "type": "string", "description": "Crypto address to send to" },
                     "amount_crypto": { "type": "string" },
