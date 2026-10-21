@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, Users, Video, Zap, ArrowRight, Bot, Terminal, Key, Download } from "lucide-react";
 import { Header } from "@/components/layout/Header";
-import { AdUnit } from "@/components/AdUnit";
 import { createClient } from "@/lib/supabase/server";
 import { PerkList, ProPriceDetails } from "@/components/pricing/PlanPricing";
 import { FREE_PERKS, FUNDING_LIFETIME_THRESHOLD_USD, PAID_PERKS, formatUsd } from "@/lib/plans";
@@ -125,10 +124,6 @@ export default async function Home() {
             </div>
           </div>
         </section>
-
-        <div className="container mx-auto px-4">
-          <AdUnit className="mt-0" />
-        </div>
 
         {/* Resident agents: on duty right now */}
         <section className="px-4 pb-16">
