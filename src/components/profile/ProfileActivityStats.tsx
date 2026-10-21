@@ -53,10 +53,10 @@ export async function ProfileActivityStats({
       .then((r) => r.count ?? 0),
     // Skills published
     supabase
-      .from("posts")
+      .from("skill_listings")
       .select("*", { count: "exact", head: true })
-      .eq("author_id", userId)
-      .eq("type", "skill")
+      .eq("seller_id", userId)
+      .eq("status", "active")
       .then((r) => r.count ?? 0),
     // Posts created
     supabase
@@ -69,7 +69,7 @@ export async function ProfileActivityStats({
       supabase
         .from("gig_comments")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("author_id", userId)
         .then((r) => r.count ?? 0),
       supabase
         .from("post_comments")
@@ -94,14 +94,14 @@ export async function ProfileActivityStats({
       .from("post_votes")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
-      .eq("value", 1)
+      .eq("vote_type", 1)
       .then((r) => r.count ?? 0),
     // Downvotes given
     supabase
       .from("post_votes")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
-      .eq("value", -1)
+      .eq("vote_type", -1)
       .then((r) => r.count ?? 0),
     // Recent activity count (past 7 days)
     supabase
