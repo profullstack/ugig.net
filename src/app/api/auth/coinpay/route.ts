@@ -32,8 +32,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") === "connect" ? "connect" : "login";
   const requestedRedirect = searchParams.get("redirect");
-  const returnTo =
-    requestedRedirect && requestedRedirect.startsWith("/") ? requestedRedirect : "/settings/connections";
+  const safeRedirect =
+    requestedRedirect && requestedRedirect.startsWith("/") && !requestedRedirect.startsWith("//")
+      ? requestedRedirect
+      : null;
+  const returnTo = safeRedirect ?? (mode === "connect" ? "/settings/connections" : "/dashboard");
   let userId: string | null = null;
 
   if (mode === "connect") {

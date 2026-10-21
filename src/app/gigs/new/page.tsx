@@ -9,6 +9,7 @@ import {
   FREE_MONTHLY_GIG_POSTS,
   PRO_MONTHLY_PRICE_USD,
   formatUsd,
+  checkoutHref,
   hasPaidAccess,
 } from "@/lib/plans";
 
@@ -88,7 +89,7 @@ export default async function NewGigPage() {
                 to Pro for unlimited posts.
               </p>
               <Link
-                href="/settings/billing"
+                href={checkoutHref("monthly")}
                 className="text-primary hover:underline"
               >
                 Upgrade to Pro - {formatUsd(PRO_MONTHLY_PRICE_USD)}/month

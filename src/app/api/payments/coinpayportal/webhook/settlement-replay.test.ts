@@ -248,7 +248,9 @@ describe("plan carried from create to webhook (bug 3)", () => {
     seedCheckout("cp-renew", { plan: "monthly" });
     await replay("payment.confirmed", { payment_id: "cp-renew", amount_usd: "9" });
     expect(monthsBetween(end, sub()!.current_period_end)).toBe(1);
-    expect(new Date(sub()!.current_period_end).getDate()).toBe(end.getDate());
+    // Same day of month, clamped to the month's last day (Oct 31 -> Nov 30).
+    const next = new Date(end.getFullYear(), end.getMonth() + 2, 0).getDate();
+    expect(new Date(sub()!.current_period_end).getDate()).toBe(Math.min(end.getDate(), next));
   });
 
   it("a Pro payment never downgrades a Lifetime member", async () => {
@@ -281,5 +283,92 @@ describe("failed and expired (bug 4)", () => {
     await replay("payment.confirmed", { payment_id: "cp-late", amount_usd: "9" });
     expect(payment("cp-late").status).toBe("confirmed");
     expect(sub()?.plan).toBe("pro");
+  });
+});
+
+describe("Pro checkout rails (hosted session, PayPal, orphan payments)", () => {
+  const LOCAL = "22222222-2222-4222-8222-222222222222";
+
+  it("settles a hosted-session payment by metadata.ugig_payment_id and links the CoinPay id", async () => {
+    db.tables.payments.push({
+      id: LOCAL,
+      user_id: USER,
+      coinpay_payment_id: null,
+      amount_usd: 90,
+      currency: "hosted",
+      status: "pending",
+      type: "subscription",
+      metadata: { plan: "annual", checkout_session_id: "cs_1" },
+    });
+    await replay("payment.confirmed", {
+      payment_id: "cp-hosted-1",
+      amount_usd: "90",
+      currency: "doge",
+      metadata: { property: "ugig.net", user_id: USER, ugig_payment_id: LOCAL, type: "subscription", plan: "annual" },
+    });
+    const row = db.tables.payments.find((p) => p.id === LOCAL)!;
+    expect(row).toMatchObject({ status: "confirmed", coinpay_payment_id: "cp-hosted-1", currency: "doge" });
+    expect(sub()).toMatchObject({ plan: "pro", status: "active" });
+    expect(monthsBetween(new Date(), sub()!.current_period_end)).toBe(12);
+  });
+
+  it("settles a PayPal Pro payment by its CoinPay transaction id", async () => {
+    db.tables.payments.push({
+      id: LOCAL,
+      user_id: USER,
+      coinpay_payment_id: "pp-txn-9",
+      amount_usd: 100,
+      currency: "paypal",
+      status: "pending",
+      type: "subscription",
+      metadata: { plan: "lifetime", rail: "paypal" },
+    });
+    await replay("payment.confirmed", {
+      payment_id: "pp-txn-9",
+      amount_usd: "100",
+      currency: "USD",
+      metadata: { property: "ugig.net", user_id: USER, ugig_payment_id: LOCAL, type: "subscription", plan: "lifetime" },
+    });
+    expect(sub()).toMatchObject({ plan: "lifetime", status: "active" });
+  });
+
+  it("rebuilds a missing local row from signed metadata and grants Pro", async () => {
+    await replay("payment.confirmed", {
+      payment_id: "cp-orphan-1",
+      amount_usd: "9",
+      metadata: { property: "ugig.net", user_id: USER, ugig_payment_id: LOCAL, type: "subscription", plan: "monthly" },
+    });
+    expect(payment("cp-orphan-1")).toMatchObject({ user_id: USER, status: "confirmed", type: "subscription" });
+    expect(sub()).toMatchObject({ plan: "pro", status: "active" });
+  });
+
+  it("does not grant from an orphan payment below the plan price", async () => {
+    await replay("payment.confirmed", {
+      payment_id: "cp-orphan-2",
+      amount_usd: "1",
+      metadata: { property: "ugig.net", user_id: USER, type: "subscription", plan: "lifetime" },
+    });
+    expect(db.tables.payments).toHaveLength(0);
+    expect(sub()).toMatchObject({ plan: "free" });
+  });
+
+  it("ignores a ugig_payment_id that belongs to another user", async () => {
+    db.tables.payments.push({
+      id: LOCAL,
+      user_id: "33333333-3333-4333-8333-333333333333",
+      coinpay_payment_id: null,
+      amount_usd: 100,
+      currency: "hosted",
+      status: "pending",
+      type: "subscription",
+      metadata: { plan: "lifetime" },
+    });
+    await replay("payment.confirmed", {
+      payment_id: "cp-mismatch",
+      amount_usd: "100",
+      metadata: { property: "ugig.net", user_id: USER, ugig_payment_id: LOCAL, type: "subscription", plan: "lifetime" },
+    });
+    expect(db.tables.payments.find((p) => p.id === LOCAL)!.status).toBe("pending");
+    expect(sub()).toMatchObject({ plan: "free" });
   });
 });

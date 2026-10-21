@@ -11,7 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LoginForm() {
+/** Only same-site paths: "/checkout?plan=monthly" yes, "//evil.com" or "https://..." no. */
+export function safeRedirectPath(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
+  return value;
+}
+
+export function LoginForm({ redirectTo }: { redirectTo?: string | null } = {}) {
+  const next = safeRedirectPath(redirectTo) ?? "/dashboard";
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
@@ -46,7 +53,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(next);
     router.refresh();
   };
 
@@ -149,7 +156,7 @@ export function LoginForm() {
 
       {/* CoinPay OAuth */}
       <a
-        href="/api/auth/coinpay"
+        href={`/api/auth/coinpay${next !== "/dashboard" ? `?redirect=${encodeURIComponent(next)}` : ""}`}
         className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
       >
         <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +178,10 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-primary hover:underline">
+        <Link
+          href={next !== "/dashboard" ? `/signup?redirect=${encodeURIComponent(next)}` : "/signup"}
+          className="text-primary hover:underline"
+        >
           Sign up
         </Link>
       </p>

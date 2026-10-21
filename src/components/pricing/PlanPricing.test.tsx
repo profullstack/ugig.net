@@ -24,10 +24,10 @@ describe("ProPriceDetails", () => {
     const { container } = render(<ProPriceDetails />);
     const text = container.textContent || "";
     expect(text).toContain("$9/month");
-    expect(text).toContain("Paid in crypto, via CoinPay");
+    expect(text).toContain("Paid in crypto, PayPal or card, via CoinPay");
     expect(text).toContain("$90/year");
     expect(text).toContain("$100 one-time");
-    expect(text).not.toMatch(/stripe|card/i);
+    expect(text).not.toMatch(/stripe/i);
     expect(text).toContain("$50+");
     for (const re of REMOVED_COPY) expect(text).not.toMatch(re);
   });
