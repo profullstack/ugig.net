@@ -53,7 +53,7 @@ export async function ProfileActivityStats({
       .then((r) => r.count ?? 0),
     // Skills published
     supabase
-      .from("skill_listings")
+      .from("skill_listings" as any)
       .select("*", { count: "exact", head: true })
       .eq("seller_id", userId)
       .eq("status", "active")
