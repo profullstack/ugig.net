@@ -50,4 +50,28 @@ describe("GET /api/auth/coinpay", () => {
       `redirect_uri=${encodeURIComponent("https://staging.ugig.example/api/callback/oauth")}`
     );
   });
+
+  it.each([
+    "//evil.example",
+    "/%09/evil.example",
+    "/%5Cevil.example",
+    "/\\evil.example",
+    "https://evil.example",
+  ])("stores the default returnTo for redirect=%j", async (bad) => {
+    vi.stubEnv("COINPAY_OAUTH_CLIENT_ID", "coinpay-client");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://ugig.net");
+
+    const res = await GET(req(`https://ugig.net/api/auth/coinpay?redirect=${encodeURIComponent(bad)}`));
+    const state = JSON.parse(res.cookies.get("coinpay_oauth_state")!.value);
+    expect(state.returnTo).toBe("/dashboard");
+  });
+
+  it("keeps a same-site redirect in returnTo", async () => {
+    vi.stubEnv("COINPAY_OAUTH_CLIENT_ID", "coinpay-client");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://ugig.net");
+
+    const res = await GET(req("https://ugig.net/api/auth/coinpay?redirect=%2Fcheckout%3Fplan%3Dannual"));
+    const state = JSON.parse(res.cookies.get("coinpay_oauth_state")!.value);
+    expect(state.returnTo).toBe("/checkout?plan=annual");
+  });
 });

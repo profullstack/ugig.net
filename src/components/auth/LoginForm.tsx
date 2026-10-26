@@ -7,20 +7,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { auth } from "@/lib/api";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/** Only same-site paths: "/checkout?plan=monthly" yes, "//evil.com" or "https://..." no. */
-export function safeRedirectPath(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
-  // Backslashes and tabs/newlines: the URL parser turns "/\\x" and "/\t/x" into "//x".
-  if (/[\\\u0000-\u001f\u007f]/.test(value)) return null;
-  return value;
-}
-
 export function LoginForm({ redirectTo }: { redirectTo?: string | null } = {}) {
-  const next = safeRedirectPath(redirectTo) ?? "/dashboard";
+  const next = safeRedirectPath(redirectTo, "/dashboard");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);

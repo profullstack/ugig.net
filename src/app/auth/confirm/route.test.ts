@@ -17,6 +17,10 @@ describe("resolveMagicLinkRedirect", () => {
     ["leading backslash", "\\example.com"],
     ["mixed slash URL", "/\\example.com"],
     ["empty string", ""],
+    ["encoded tab", "/%09/evil.example"],
+    ["literal tab", "/\t/evil.example"],
+    ["encoded backslash", "/%5Cevil.example"],
+    ["CRLF", "/%0D%0A/evil.example"],
   ])("falls back for %s", (_label, next) => {
     expect(resolveMagicLinkRedirect(appUrl, next)).toBe("https://ugig.net/dashboard");
   });

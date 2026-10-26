@@ -14,20 +14,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { settleInviteBonus } from "@/lib/credits";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export function resolveMagicLinkRedirect(appUrl: string, next: string | null): string {
-  const fallback = new URL("/dashboard", appUrl);
-
-  if (!next?.startsWith("/")) {
-    return fallback.toString();
-  }
-
-  try {
-    const target = new URL(next, fallback.origin);
-    return target.origin === fallback.origin ? target.toString() : fallback.toString();
-  } catch {
-    return fallback.toString();
-  }
+  return new URL(safeRedirectPath(next, "/dashboard"), appUrl).toString();
 }
 
 export async function GET(request: NextRequest) {

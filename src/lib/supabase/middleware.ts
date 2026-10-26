@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession as updateSupabaseSession } from "@profullstack/stack/supabase";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export async function updateSession(request: NextRequest) {
   // Refresh session if expired - required for Server Components.
@@ -18,9 +19,7 @@ export async function updateSession(request: NextRequest) {
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    // Sanitize the redirect path to prevent XSS via URL parameter
-    const safePath = request.nextUrl.pathname.replace(/[<>"']/g, "");
-    url.searchParams.set("redirect", safePath);
+    url.searchParams.set("redirect", safeRedirectPath(request.nextUrl.pathname.replace(/[<>"']/g, ""), "/dashboard"));
     return NextResponse.redirect(url);
   }
 
