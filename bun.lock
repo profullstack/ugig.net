@@ -8,6 +8,7 @@
         "@hookform/resolvers": "^5.2.2",
         "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
         "@profullstack/footer": "latest",
+        "@profullstack/profile": "0.1.1",
         "@profullstack/stack": "^0.1.0",
         "@profullstack/throttle": "^0.3.3",
         "@profullstack/x402-gateway": "^0.11.0",
@@ -329,6 +330,8 @@
     "@profullstack/footer": ["@profullstack/footer@0.2.0", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"], "bin": { "profullstack-footer": "bin/profullstack-footer.js" } }, "sha512-0bpxw5OEsvIdiU8tV5R3zmeAZ8X1rjnZj0vl/mrto+oxN8D6tLjImr5/Ki1ynAUXVRqpz+ejbVlXhORzzLBDkQ=="],
 
     "@profullstack/keys": ["@profullstack/keys@0.1.0", "", {}, "sha512-Vys47LvS5ivhdZu4SYOxh9Le3DEmWhjP0+CtrU45RhXAbY0ZFG/2Dk9V1bIIUGDp8UWMJqctvUD21JrNjfh04w=="],
+
+    "@profullstack/profile": ["@profullstack/profile@0.1.1", "", { "peerDependencies": { "@libsql/client": ">=0.6.0", "postgres": "^3.4.0", "react": ">=18" }, "optionalPeers": ["@libsql/client", "postgres", "react"], "bin": { "profile": "src/cli.js" } }, "sha512-Y1Ps1hW8k2oMMwPol/DP1bj+sslTQKMdAfe7a557zHp5S0rg5Av4bo4GqEyQy2iIwsVvQ+nE7QlcWDv2kt+Weg=="],
 
     "@profullstack/referrals": ["@profullstack/referrals@0.1.0", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"] }, "sha512-u66SdBVpsv3kc0N+NWISPoYD5vjCERyv5wfD07iSkZwQeC2IA+ihX5jNA4e7Xr+Y4AUvxLycG+3b4VaROqzgRg=="],
 

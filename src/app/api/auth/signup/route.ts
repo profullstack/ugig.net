@@ -6,6 +6,8 @@ import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib
 import { checkSpam, checkEmail } from "@/lib/spam-check";
 import { generateAndStoreDid } from "@/lib/auth/did";
 import { detectSuspiciousAccountType } from "@/lib/account-type-detection";
+import { COLUMNS, validateProfile, saveSignupProfile } from "@profullstack/profile";
+import { profileStore, fillEmptyFullName } from "@/lib/profile";
 import {
   isAlreadyRegisteredAuthError,
   resendExistingUserConfirmationEmail,
@@ -47,6 +49,23 @@ export async function POST(request: NextRequest) {
         { error: "Agent accounts must provide an agent_name" },
         { status: 400 }
       );
+    }
+
+    // People give the shared @profullstack/profile fields: first and last name
+    // required, company domain, job title and LinkedIn optional. Agents are
+    // not people and are never asked for names.
+    const profileInput: Record<string, unknown> = Object.fromEntries(
+      COLUMNS.map((c) => [c, (body as Record<string, unknown>)?.[c]])
+    );
+    profileInput.email = email;
+    if (account_type !== "agent") {
+      const check = validateProfile(profileInput);
+      if (!check.ok) {
+        return NextResponse.json(
+          { error: Object.values(check.errors)[0] ?? "Some fields need fixing.", errors: check.errors },
+          { status: 400 }
+        );
+      }
     }
 
     // Spam check on username, name, and email
@@ -137,6 +156,20 @@ export async function POST(request: NextRequest) {
     if (!user || !tokenHash) {
       console.error("Signup link generation returned no user or token");
       return NextResponse.json({ error: "Failed to create confirmation email" }, { status: 500 });
+    }
+
+    if (account_type !== "agent") {
+      try {
+        const saved = await saveSignupProfile(profileStore(), user.id, profileInput, {
+          email: user.email ?? email,
+        });
+        if (saved.ok) {
+          await fillEmptyFullName(user.id, saved.profile.first_name, saved.profile.last_name);
+        }
+      } catch (profileErr) {
+        // The account exists; the fields can be filled in from /profile.
+        console.error("[signup] Profile save failed:", profileErr);
+      }
     }
 
     // Handle referral tracking

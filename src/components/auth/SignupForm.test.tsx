@@ -38,6 +38,12 @@ function fillValidSignupForm() {
   fireEvent.change(screen.getByLabelText("Password"), {
     target: { value: "Strongpass1" },
   });
+  fireEvent.change(screen.getByLabelText("First name"), {
+    target: { value: "Ada" },
+  });
+  fireEvent.change(screen.getByLabelText("Last name"), {
+    target: { value: "Lovelace" },
+  });
 }
 
 describe("SignupForm referral handling", () => {
@@ -61,7 +67,9 @@ describe("SignupForm referral handling", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
 
     await waitFor(() => {
-      expect(signupMock).toHaveBeenCalledWith(expect.objectContaining({ ref: "stored-ref" }));
+      expect(signupMock).toHaveBeenCalledWith(
+        expect.objectContaining({ ref: "stored-ref", first_name: "Ada", last_name: "Lovelace" })
+      );
     });
   });
 

@@ -36,6 +36,8 @@ const mockListUsers = vi.fn();
 const mockActivityInsert = vi.fn();
 const mockCreateClient = vi.fn();
 const mockCreateServiceClient = vi.fn();
+const mockProfileUpsert = vi.fn();
+const mockProfilesUpdate = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: () => mockCreateClient(),
@@ -115,6 +117,18 @@ describe("POST /api/auth/signup", () => {
                 }),
               }),
             }),
+            update: (row: unknown) => ({
+              eq: (col: string, val: unknown) => mockProfilesUpdate(row, col, val),
+            }),
+          };
+        }
+
+        if (table === "user_profiles") {
+          return {
+            upsert: (row: Record<string, unknown>, opts: unknown) => {
+              mockProfileUpsert(row, opts);
+              return { select: () => ({ single: async () => ({ data: row, error: null }) }) };
+            },
           };
         }
 
@@ -158,6 +172,8 @@ describe("POST /api/auth/signup", () => {
         password: "Goodpass1",
         username: "newuser",
         account_type: "human",
+        first_name: "Ada",
+        last_name: "Lovelace",
         ref: "referrer",
       })
     );
@@ -180,6 +196,8 @@ describe("POST /api/auth/signup", () => {
         password: "Goodpass1",
         username: "kdrmtwwz",
         account_type: "human",
+        first_name: "Ada",
+        last_name: "Lovelace",
       })
     );
 
@@ -197,6 +215,8 @@ describe("POST /api/auth/signup", () => {
         password: "Goodpass1",
         username: "newuser",
         account_type: "human",
+        first_name: "Ada",
+        last_name: "Lovelace",
       })
     );
 
@@ -247,6 +267,8 @@ describe("POST /api/auth/signup", () => {
         password: "Goodpass1",
         username: "unusednewuser",
         account_type: "human",
+        first_name: "Ada",
+        last_name: "Lovelace",
       })
     );
 
@@ -266,5 +288,70 @@ describe("POST /api/auth/signup", () => {
         html: "https://ugig.net/auth/confirm?token_hash=resend-token&type=magiclink&next=%2Fdashboard",
       })
     );
+  });
+
+  it("stores the profile fields in user_profiles after creating a person's account", async () => {
+    const res = await POST(
+      makeRequest({
+        email: "Ada@Acme.com",
+        password: "Goodpass1",
+        username: "adalovelace",
+        account_type: "human",
+        first_name: "Ada",
+        last_name: "Lovelace",
+        company_domain: "https://www.acme.com/about",
+        job_title: "VP Engineering",
+        linkedin_url: "in/ada-lovelace",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockProfileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "new-user-id",
+        email: "ada@acme.com",
+        first_name: "Ada",
+        last_name: "Lovelace",
+        company_domain: "acme.com",
+        job_title: "VP Engineering",
+        linkedin_url: "https://www.linkedin.com/in/ada-lovelace",
+      }),
+      { onConflict: "user_id" }
+    );
+    // profiles.full_name was empty, so it is filled from the names.
+    expect(mockProfilesUpdate).toHaveBeenCalledWith({ full_name: "Ada Lovelace" }, "id", "new-user-id");
+  });
+
+  it("refuses a person's signup without first and last name before creating anything", async () => {
+    const res = await POST(
+      makeRequest({
+        email: "new-user@example.com",
+        password: "Goodpass1",
+        username: "newuser",
+        account_type: "human",
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(Object.keys(body.errors)).toEqual(expect.arrayContaining(["first_name", "last_name"]));
+    expect(mockGenerateLink).not.toHaveBeenCalled();
+    expect(mockProfileUpsert).not.toHaveBeenCalled();
+  });
+
+  it("does not ask agents for names or write a person profile for them", async () => {
+    const res = await POST(
+      makeRequest({
+        email: "agent@example.com",
+        password: "Goodpass1",
+        username: "helpful-agent",
+        account_type: "agent",
+        agent_name: "Helpful Agent",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockGenerateLink).toHaveBeenCalled();
+    expect(mockProfileUpsert).not.toHaveBeenCalled();
   });
 });
