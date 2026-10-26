@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label";
 
 /** Only same-site paths: "/checkout?plan=monthly" yes, "//evil.com" or "https://..." no. */
 export function safeRedirectPath(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+  // Backslashes and tabs/newlines: the URL parser turns "/\\x" and "/\t/x" into "//x".
+  if (/[\\\u0000-\u001f\u007f]/.test(value)) return null;
   return value;
 }
 

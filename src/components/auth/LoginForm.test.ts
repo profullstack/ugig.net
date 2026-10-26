@@ -6,7 +6,7 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath("/checkout?plan=annual")).toBe("/checkout?plan=annual");
   });
   it("drops off-site and protocol-relative targets", () => {
-    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "", null, undefined]) {
+    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "/\t/evil.example", "/\n/evil.example", "/x\\y", "", null, undefined]) {
       expect(safeRedirectPath(bad as any)).toBeNull();
     }
   });
