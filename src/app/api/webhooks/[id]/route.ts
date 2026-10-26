@@ -63,7 +63,7 @@ export async function PUT(
 
     const { data: webhook, error } = await supabase
       .from("webhooks")
-      .update(updates)
+      .update(updates as never)
       .eq("id", id)
       .select("id, url, events, active, created_at, updated_at")
       .single();

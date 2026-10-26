@@ -51,7 +51,7 @@ async function handle(request: NextRequest) {
   const { error } = await svc
     .from("notification_settings")
     .upsert(
-      { user_id: userId, [setting]: false, updated_at: new Date().toISOString() },
+      { user_id: userId, [setting]: false, updated_at: new Date().toISOString() } as never,
       { onConflict: "user_id" }
     );
 

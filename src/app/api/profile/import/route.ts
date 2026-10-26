@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       profileUpdates.updated_at = new Date().toISOString();
       const { error: profileError } = await supabase
         .from("profiles")
-        .update(profileUpdates)
+        .update(profileUpdates as never)
         .eq("id", user.id);
 
       if (profileError) {

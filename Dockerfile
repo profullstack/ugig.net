@@ -9,7 +9,7 @@
 # before it) declares no ARG for them, so they are not baked in here. Unchanged on
 # purpose: this commit only swaps the runtime.
 
-FROM oven/bun:1.4.2-slim AS builder
+FROM oven/bun:1.4.4-slim AS builder
 # git: @profullstack/autoblog is a GitHub dependency.
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -21,7 +21,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 
-FROM oven/bun:1.4.2-slim AS runner
+FROM oven/bun:1.4.4-slim AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0

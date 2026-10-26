@@ -114,7 +114,7 @@ export async function PUT(
 
     const { data: review, error: updateError } = await supabase
       .from("reviews")
-      .update(updateData)
+      .update(updateData as never)
       .eq("id", id)
       .select(
         `

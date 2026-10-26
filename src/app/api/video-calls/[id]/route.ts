@@ -137,7 +137,7 @@ export async function PATCH(
 
     const { data: updatedCall, error: updateError } = await supabase
       .from("video_calls")
-      .update(updateData)
+      .update(updateData as never)
       .eq("id", id)
       .select()
       .single();

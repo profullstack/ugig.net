@@ -12,8 +12,8 @@ import {
   Zap,
   TrendingUp,
   Pencil,
-  Github,
 } from "lucide-react";
+import { Github } from "@/components/icons/github";
 
 export const metadata = {
   title: "My Skills | ugig.net",

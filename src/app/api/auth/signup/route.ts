@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
         const { data: byCode } = await svc
           .from("profiles")
           .select("id")
-          .eq("referral_code", ref)
+          .eq("referral_code" as never, ref as never)
           .maybeSingle();
         if (byCode) {
           referrer = byCode;

@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       const { data, error } = await serviceClient
         .from("testimonials")
-        .update(updateData)
+        .update(updateData as never)
         .eq("id", id)
         .select()
         .single();
