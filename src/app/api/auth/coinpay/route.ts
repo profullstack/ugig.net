@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "crypto";
 import { getAppUrl } from "@/lib/app-url";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, rateLimitExceeded, getRateLimitIdentifier } from "@/lib/rate-limit";
@@ -31,12 +32,10 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${appUrl}/api/callback/oauth`;
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") === "connect" ? "connect" : "login";
-  const requestedRedirect = searchParams.get("redirect");
-  const safeRedirect =
-    requestedRedirect && requestedRedirect.startsWith("/") && !requestedRedirect.startsWith("//")
-      ? requestedRedirect
-      : null;
-  const returnTo = safeRedirect ?? (mode === "connect" ? "/settings/connections" : "/dashboard");
+  const returnTo = safeRedirectPath(
+    searchParams.get("redirect"),
+    mode === "connect" ? "/settings/connections" : "/dashboard"
+  );
   let userId: string | null = null;
 
   if (mode === "connect") {

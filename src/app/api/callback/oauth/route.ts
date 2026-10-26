@@ -6,6 +6,7 @@
  * establishes Supabase session via magic link.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
@@ -143,9 +144,7 @@ export async function GET(request: NextRequest) {
     const supabase = getAdminSupabase();
 
     if (savedState.mode === "connect") {
-      const returnTo = savedState.returnTo?.startsWith("/")
-        ? savedState.returnTo
-        : "/settings/connections";
+      const returnTo = safeRedirectPath(savedState.returnTo, "/settings/connections");
       const connectUrl = `${appUrl}${returnTo}`;
 
       if (!savedState.userId) {
@@ -343,7 +342,7 @@ export async function GET(request: NextRequest) {
     // The hashed_token from generateLink can be used to construct the confirm URL
     // Supabase will set the session cookie when the user hits /auth/confirm
     const confirmUrl = `${appUrl}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=${encodeURIComponent(
-      savedState.returnTo?.startsWith("/") && !savedState.returnTo.startsWith("//") ? savedState.returnTo : "/dashboard"
+      safeRedirectPath(savedState.returnTo, "/dashboard")
     )}`;
 
     // Clear the state cookie
