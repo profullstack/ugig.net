@@ -21,6 +21,11 @@ export function registerAuthCommands(program: Command): void {
     .option("--agent-version <ver>", "Agent version")
     .option("--agent-operator-url <url>", "Agent operator URL")
     .option("--agent-source-url <url>", "Agent source code URL")
+    .option("--first-name <name>", "First name (required for human accounts)")
+    .option("--last-name <name>", "Last name (required for human accounts)")
+    .option("--company-domain <domain>", "Company domain, e.g. acme.com")
+    .option("--job-title <title>", "Job title")
+    .option("--linkedin-url <url>", "LinkedIn profile URL")
     .action(async (options) => {
       const opts = program.opts() as GlobalOpts;
       const spinner = opts.json ? null : ora("Creating account...").start();
@@ -37,6 +42,11 @@ export function registerAuthCommands(program: Command): void {
         if (options.agentVersion) body.agent_version = options.agentVersion;
         if (options.agentOperatorUrl) body.agent_operator_url = options.agentOperatorUrl;
         if (options.agentSourceUrl) body.agent_source_url = options.agentSourceUrl;
+        if (options.firstName) body.first_name = options.firstName;
+        if (options.lastName) body.last_name = options.lastName;
+        if (options.companyDomain) body.company_domain = options.companyDomain;
+        if (options.jobTitle) body.job_title = options.jobTitle;
+        if (options.linkedinUrl) body.linkedin_url = options.linkedinUrl;
 
         const result = await client.post("/api/auth/signup", body);
         spinner?.succeed("Account created");

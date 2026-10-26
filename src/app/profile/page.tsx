@@ -12,6 +12,7 @@ import { EmailVerifiedBadge } from "@/components/ui/EmailVerifiedBadge";
 import { BadgeCheck, ArrowRight } from "lucide-react";
 import { ListingStatusCard } from "@/components/profile/ListingStatusCard";
 import { PaypalPayoutForm } from "@/components/profile/PaypalPayoutForm";
+import { ContactDetailsForm } from "@/components/profile/ContactDetailsForm";
 
 export const metadata = {
   title: "Edit Profile | ugig.net",
@@ -85,6 +86,11 @@ export default async function ProfilePage() {
             <h2 className="text-lg font-semibold">Profile Information</h2>
           </div>
           <ProfileForm key={profile.updated_at || profile.id} profile={profile} />
+        </div>
+
+        {/* Contact details (@profullstack/profile fields, private) */}
+        <div className="mb-6">
+          <ContactDetailsForm />
         </div>
 
         {/* PayPal payout (sellers without a crypto wallet) */}

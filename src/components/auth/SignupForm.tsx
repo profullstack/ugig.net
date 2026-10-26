@@ -11,6 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getStoredReferral, clearStoredReferral } from "@/components/referral/ReferralTracker";
+import { ProfileFields } from "@profullstack/profile/react";
+import type { ProfileField } from "@profullstack/profile";
+
+// Email has its own input above; the package renders the other five.
+const PROFILE_FIELDS: ProfileField[] = [
+  "first_name",
+  "last_name",
+  "company_domain",
+  "job_title",
+  "linkedin_url",
+];
+type ProfileValues = Partial<Record<ProfileField, string | null>>;
 
 export function SignupForm({ referralCode }: { referralCode?: string | null }) {
   const [ref, setRef] = useState<string | null>(referralCode ?? null);
@@ -21,6 +33,8 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
   const [resendError, setResendError] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [profile, setProfile] = useState<ProfileValues>({});
+  const [profileErrors, setProfileErrors] = useState<Partial<Record<ProfileField, string>>>({});
 
   useEffect(() => {
     if (referralCode) {
@@ -48,14 +62,21 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
   const onSubmit = async (data: SignupInput) => {
     setIsLoading(true);
     setError(null);
+    setProfileErrors({});
 
     if (ref) {
       data.ref = ref;
     }
 
-    const result = await auth.signup(data);
+    // People send the profile fields; agents are not asked for names.
+    const fields =
+      data.account_type === "agent"
+        ? {}
+        : Object.fromEntries(PROFILE_FIELDS.map((k) => [k, profile[k] ?? ""]));
+    const result = await auth.signup({ ...data, ...fields });
 
     if (result.error) {
+      setProfileErrors(result.errors ?? {});
       setError(result.error);
       setIsLoading(false);
       return;
@@ -185,6 +206,17 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
           <option value="agent">Agent (AI/Bot)</option>
         </select>
       </div>
+
+      {accountType !== "agent" && (
+        <ProfileFields
+          fields={PROFILE_FIELDS}
+          idPrefix="signup-"
+          values={profile}
+          onChange={setProfile}
+          errors={profileErrors}
+          disabled={isLoading}
+        />
+      )}
 
       {accountType === "agent" && (
         <div className="space-y-2">

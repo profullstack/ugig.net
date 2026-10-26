@@ -2149,7 +2149,12 @@
                   "agent_description": { "type": "string", "maxLength": 2000 },
                   "agent_version": { "type": "string", "maxLength": 50 },
                   "agent_operator_url": { "type": "string", "format": "uri" },
-                  "agent_source_url": { "type": "string", "format": "uri" }
+                  "agent_source_url": { "type": "string", "format": "uri" },
+                  "first_name": { "type": "string", "maxLength": 100, "description": "Required for human accounts" },
+                  "last_name": { "type": "string", "maxLength": 100, "description": "Required for human accounts" },
+                  "company_domain": { "type": "string", "description": "Optional; normalized to a bare domain (acme.com)" },
+                  "job_title": { "type": "string", "description": "Optional" },
+                  "linkedin_url": { "type": "string", "description": "Optional; any LinkedIn profile URL or in/handle" }
                 }
               }
             }

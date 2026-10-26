@@ -5,6 +5,8 @@
 type ApiResponse<T> = {
   data: T | null;
   error: string | null;
+  /** Per-field messages, when the server sends them (e.g. signup profile fields). */
+  errors?: Record<string, string>;
 };
 
 async function request<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -23,6 +25,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<ApiRespon
       return {
         data: null,
         error: data.error || "An error occurred",
+        ...(data.errors && typeof data.errors === "object" ? { errors: data.errors } : {}),
       };
     }
 
@@ -40,7 +43,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<ApiRespon
 
 // Auth API
 export const auth = {
-  signup: (data: { email: string; password: string; username: string }) =>
+  signup: (data: { email: string; password: string; username: string; [field: string]: unknown }) =>
     request("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify(data),
