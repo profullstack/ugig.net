@@ -228,4 +228,19 @@ describe("invites", () => {
     // The second invite was not burned by erin's refused attempt.
     expect((await acceptInvite("frank", two.code, deps)).ok).toBe(true);
   });
+
+  it("two simultaneous accepts of different invites: one wins and pays, the other is already_invited and stays unused", async () => {
+    addUser("gina", { username: "gina", ageDays: 60 });
+    const a = await createInvite("alice", "", deps);
+    const g = await createInvite("gina", "", deps);
+    addUser("erin", { username: "erin", ageDays: 1 });
+    const [r1, r2] = await Promise.all([acceptInvite("erin", a.code, deps), acceptInvite("erin", g.code, deps)]);
+    expect([r1, r2].filter((r) => r.ok)).toHaveLength(1);
+    expect([r1, r2].find((r) => !r.ok)).toMatchObject({ ok: false, reason: "already_invited" });
+    // Exactly one inviter is paid; the losing invite is still spendable by someone else.
+    expect([sub("alice"), sub("gina")].filter(Boolean)).toHaveLength(1);
+    const loser = r1.ok ? g : a;
+    addUser("frank", { username: "frank", ageDays: 1 });
+    expect((await acceptInvite("frank", loser.code, deps)).ok).toBe(true);
+  });
 });

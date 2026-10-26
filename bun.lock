@@ -6,7 +6,7 @@
       "name": "ugig.net",
       "dependencies": {
         "@hookform/resolvers": "^6.0.0",
-        "@profullstack/affiliates": "^0.2.0",
+        "@profullstack/affiliates": "^0.3.0",
         "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
         "@profullstack/footer": "latest",
         "@profullstack/profile": "0.1.6",
@@ -329,7 +329,7 @@
 
     "@posthog/types": ["@posthog/types@1.416.1", "", {}, "sha512-PG06HE2axHNyyZ9CKSSHKSW4pWfQwEtPA1dewFqIwggcIgk1BsQ+tHSNqvZz+IvE2WnBZ8OcOkF9SWI55VxQfA=="],
 
-    "@profullstack/affiliates": ["@profullstack/affiliates@0.2.0", "", { "dependencies": { "@profullstack/referrals": "^0.1.0" }, "bin": { "affiliates": "dist/cli.js" } }, "sha512-fbP5uiS8Pa5g8mk5WFD79U4Cj7BUPH6Qy0tQP7ZXE9gfxHOHirHASmZ/rAk8MqnmzGOZTuwq9WwOHbmoFV2TSA=="],
+    "@profullstack/affiliates": ["@profullstack/affiliates@0.3.0", "", { "dependencies": { "@profullstack/referrals": "^0.1.0" }, "bin": { "affiliates": "dist/cli.js" } }, "sha512-bp0iREciWetDWrQYOsa6SJRTzviekKwgJQuATT7vql+4equu7pN76q8tb3SP1oBMczydsv6rYUMvPpS6+QT7yQ=="],
 
     "@profullstack/autoblog": ["@profullstack/autoblog@github:profullstack/autoblog#75e54af", {}, "profullstack-autoblog-75e54af", "sha512-f/YwwiVTzKz659+6RHgeGueSdUrWAnon5OHT1YfOI5TdLZPDrLFGE88051fzQXAlsBrkDK1jrm216OIrKygnRA=="],
 

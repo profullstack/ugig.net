@@ -39,7 +39,7 @@
   "homepage": "https://github.com/profullstack/ugig.net#readme",
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
-    "@profullstack/affiliates": "^0.2.0",
+    "@profullstack/affiliates": "^0.3.0",
     "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.6",
