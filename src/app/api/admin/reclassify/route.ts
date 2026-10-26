@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error } = await svc
       .from("profiles")
-      .update(updateData)
+      .update(updateData as never)
       .eq("id", user_id)
       .select()
       .single();

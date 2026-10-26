@@ -10,7 +10,6 @@ import { SKILL_CATEGORIES, SKILL_FEE_RATES } from "@/lib/constants";
 import { SellerFeeNotice } from "@/components/marketplace/FeeNotices";
 import {
   Loader2,
-  Github,
   ChevronRight,
   CheckCircle,
   AlertCircle,
@@ -19,6 +18,7 @@ import {
   ExternalLink,
   Zap,
 } from "lucide-react";
+import { Github } from "@/components/icons/github";
 import type { RepoSkillPreview } from "@/lib/skills/repo-import";
 
 type Step = "url" | "preview" | "importing" | "done";

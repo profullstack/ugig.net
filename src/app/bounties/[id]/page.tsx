@@ -9,9 +9,9 @@ import {
   Users,
   Clock,
   Lock,
-  Github,
   Archive,
 } from "lucide-react";
+import { Github } from "@/components/icons/github";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { PriceBox, PriceBoxRow } from "@/components/ui/PriceBox";
 import { formatBountyPayout, type BountyStatus } from "@/lib/bounties";

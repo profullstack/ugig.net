@@ -108,7 +108,7 @@ async function findOrCreateUser(
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .eq("email" as never, email as never)
       .maybeSingle();
 
     if (existing) {
