@@ -840,7 +840,8 @@ export type Database = {
             | "new_follower"
             | "endorsement_received"
             | "mention"
-            | "review_request";
+            | "review_request"
+            | "referral_reward";
           title: string;
           body: string | null;
           data: Json;
@@ -862,7 +863,8 @@ export type Database = {
             | "new_follower"
             | "endorsement_received"
             | "mention"
-            | "review_request";
+            | "review_request"
+            | "referral_reward";
           title: string;
           body?: string | null;
           data?: Json;
@@ -884,7 +886,8 @@ export type Database = {
             | "new_follower"
             | "endorsement_received"
             | "mention"
-            | "review_request";
+            | "review_request"
+            | "referral_reward";
           title?: string;
           body?: string | null;
           data?: Json;
@@ -1807,7 +1810,8 @@ export type Database = {
         | "new_follower"
         | "endorsement_received"
         | "mention"
-        | "review_request";
+        | "review_request"
+            | "referral_reward";
       payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
       payment_type: "subscription" | "gig_payment" | "tip";
       verification_type: "manual" | "auto" | "premium";

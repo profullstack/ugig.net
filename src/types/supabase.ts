@@ -1696,6 +1696,7 @@ export type Database = {
         | "new_follower"
         | "mention"
         | "review_request"
+        | "referral_reward"
       payment_status:
         | "pending"
         | "confirmed"
@@ -1880,6 +1881,7 @@ export const Constants = {
         "new_follower",
         "mention",
         "review_request",
+        "referral_reward",
       ],
       payment_status: [
         "pending",

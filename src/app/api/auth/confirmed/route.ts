@@ -20,6 +20,8 @@ import { generateAndStoreDid } from "@/lib/auth/did";
 import { createUserLnWallet } from "@/lib/lightning/create-wallet";
 import { safeParseBody } from "@/lib/sanitize";
 import { timingSafeStringEqual } from "@/lib/security/constant-time";
+import { checkFreshConfirmation, claimConfirmation } from "@/lib/auth/confirmation-claim";
+import { spamReason } from "@/lib/credits";
 
 type AuthWebhookPayload = {
   type?: string;
@@ -79,17 +81,31 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = record?.id;
-    const email = record?.email;
 
-    if (!userId || !email) {
+    if (!userId || !record?.email) {
       return NextResponse.json({ error: "Missing user data" }, { status: 400 });
     }
 
     // Use service client — this is called by a DB webhook, no user session
     const supabase = createServiceClient();
+
+    // Safe by construction, not just by secret: the user must have confirmed
+    // their email in auth.users within the last few minutes (the body is not
+    // trusted), and the flow below runs at most once per user, ever.
+    const fresh = await checkFreshConfirmation(supabase as any, userId);
+    if (!fresh.ok) {
+      console.warn(`[Auth Confirmed] Ignored for ${userId}: ${fresh.reason}`);
+      return NextResponse.json({ ok: true, skipped: true, reason: fresh.reason });
+    }
+    if (!(await claimConfirmation(supabase as any, userId))) {
+      return NextResponse.json({ ok: true, skipped: true, reason: "already_processed" });
+    }
+    // The address from auth.users, not the one in the request body.
+    const email = fresh.user.email;
+
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, full_name, account_type, did")
+      .select("username, full_name, account_type, did, agent_name, is_spam")
       .eq("id", userId)
       .single();
 
@@ -140,7 +156,12 @@ export async function POST(request: NextRequest) {
     console.log(`[Auth Confirmed] Welcome email sent to ${email} (${accountType})`, result);
 
     // ── Referral reward: 25 sats each on account activation ──
-    try {
+    // pay_referral_reward is itself once per referred user; spam accounts
+    // (the same checks as the invite bonus) are not paid at all.
+    const rewardHeld = spamReason(profile as any, email);
+    if (rewardHeld) {
+      console.warn(`[Auth Confirmed] Referral reward held for ${userId}: ${rewardHeld}`);
+    } else try {
       const REFERRAL_REWARD = 25;
       const { data: rewards, error: rewardError } = await (supabase as any).rpc(
         "pay_referral_reward",
@@ -160,13 +181,16 @@ export async function POST(request: NextRequest) {
         const referrerId = reward.referrer_id;
 
         // Notify referrer
-        await (supabase as any).from("notifications").insert({
+        const { error: notifyError } = await (supabase as any).from("notifications").insert({
           user_id: referrerId,
           type: "referral_reward",
           title: "Referral reward! \u{1F389}",
           body: `${name || email} activated their account! You both earned ${REFERRAL_REWARD} sats.`,
           data: { amount_sats: REFERRAL_REWARD, referred_user_id: userId },
         });
+        if (notifyError) {
+          console.error("[Auth Confirmed] Referrer notification failed:", notifyError);
+        }
 
         console.log(`[Auth Confirmed] Referral reward: ${REFERRAL_REWARD} sats each to ${referrerId} and ${userId}`);
       }
