@@ -24,8 +24,26 @@ const PROFILE_FIELDS: ProfileField[] = [
 ];
 type ProfileValues = Partial<Record<ProfileField, string | null>>;
 
-export function SignupForm({ referralCode }: { referralCode?: string | null }) {
+function readInviteCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|;\s*)ugig_invite=([^;]+)/);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}
+
+export function SignupForm({
+  referralCode,
+  inviteCode,
+}: {
+  referralCode?: string | null;
+  inviteCode?: string | null;
+}) {
   const [ref, setRef] = useState<string | null>(referralCode ?? null);
+  const [invite, setInvite] = useState<string | null>(inviteCode ?? null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [signupEmail, setSignupEmail] = useState("");
@@ -44,6 +62,10 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
 
     setRef(getStoredReferral());
   }, [referralCode]);
+
+  useEffect(() => {
+    setInvite(inviteCode ?? readInviteCookie());
+  }, [inviteCode]);
 
   const {
     register,
@@ -66,6 +88,9 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
 
     if (ref) {
       data.ref = ref;
+    }
+    if (invite) {
+      data.invite = invite;
     }
 
     // People send the profile fields; agents are not asked for names.
@@ -142,6 +167,11 @@ export function SignupForm({ referralCode }: { referralCode?: string | null }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {invite && (
+        <div className="p-3 text-sm text-primary bg-primary/10 rounded-md">
+          You were invited. Confirm your email after signing up and you both get days of Pro.
+        </div>
+      )}
       {ref && (
         <div className="p-3 text-sm text-primary bg-primary/10 rounded-md flex items-center gap-2">
           <span>👋</span>

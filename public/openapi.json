@@ -24,6 +24,7 @@
     }
   ],
   "tags": [
+    { "name": "Credits & Invites", "description": "Redeem credit codes for days of Pro; scarce invites that give both people Pro days" },
     { "name": "Auth", "description": "Authentication — signup, login, logout, password reset" },
     { "name": "Profile", "description": "Current user profile management" },
     { "name": "Users", "description": "Public user profiles, follow, endorse" },
@@ -6283,6 +6284,498 @@
             "description": "Unauthorized",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/credits/redeem": {
+      "post": {
+        "tags": [
+          "Credits & Invites"
+        ],
+        "summary": "Redeem a credit code",
+        "description": "Redeem a credit code (`CR-XXXX-XXXX-XXXX-XXXX`, case, spaces and dashes ignored) for days of Pro. The days extend the same subscription a CoinPay payment does. Lifetime members keep Lifetime.",
+        "operationId": "redeemCreditCode",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "example": "CR-7K3M-QX9D-2F8H-W4TN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redeemed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "object",
+                      "properties": {
+                        "unit": {
+                          "type": "string",
+                          "example": "pro_days"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 30
+                        }
+                      }
+                    },
+                    "plan": {
+                      "type": "string",
+                      "example": "pro"
+                    },
+                    "current_period_end": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused. `reason` is invalid, expired, used_up, already_redeemed or revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invites": {
+      "get": {
+        "tags": [
+          "Credits & Invites"
+        ],
+        "summary": "My invites",
+        "description": "Invite quota (3 per account), the invites you sent (codes are only returned once, at creation), whether you can invite yet (accounts unlock invites at 7 days old), the bonus size, and your open referral link. Also settles any invite bonus that has become due.",
+        "operationId": "listInvites",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invite overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quota": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "used": {
+                          "type": "integer"
+                        },
+                        "left": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "invites": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "integer"
+                          },
+                          "expiresAt": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "usedAt": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "note": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "open",
+                              "used",
+                              "expired",
+                              "revoked"
+                            ]
+                          },
+                          "usedByUsername": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "bonus": {
+                            "type": "string",
+                            "enum": [
+                              "granted",
+                              "pending"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "canInvite": {
+                      "type": "boolean"
+                    },
+                    "unlocksAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "bonusDays": {
+                      "type": "integer",
+                      "example": 7
+                    },
+                    "referral": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "link": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Credits & Invites"
+        ],
+        "summary": "Create an invite",
+        "description": "Create one single-use invite (expires in 30 days). The plaintext code and its `/i/<code>` URL are in this response only.",
+        "operationId": "createInvite",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Private note: who it is for"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invite created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invite": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "INV-7K3M-QX9D-2F8H"
+                        },
+                        "url": {
+                          "type": "string",
+                          "example": "https://ugig.net/i/INV-7K3M-QX9D-2F8H"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account too new (reason too_new) or flagged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No invites left (reason no_invites_left)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invites/{id}": {
+      "delete": {
+        "tags": [
+          "Credits & Invites"
+        ],
+        "summary": "Withdraw an unused invite",
+        "description": "The invite stops working and its slot is refunded.",
+        "operationId": "revokeInvite",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawn"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your invite",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already used",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invites/accept": {
+      "post": {
+        "tags": [
+          "Credits & Invites"
+        ],
+        "summary": "Accept an invite",
+        "description": "Join on an invite. Only accounts up to 7 days old, once per account. Both people get the bonus days of Pro once the new account has confirmed its email and passes the spam checks; `bonus` says whether that already happened.",
+        "operationId": "acceptInvite",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "example": "INV-7K3M-QX9D-2F8H"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "bonus": {
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "pending"
+                      ]
+                    },
+                    "bonus_days": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused. `reason` is invalid, expired, used, self, revoked, already_invited or not_new.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
             }
           }
         }

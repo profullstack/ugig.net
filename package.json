@@ -1,6 +1,6 @@
 {
   "name": "ugig.net",
-  "version": "1.1.21",
+  "version": "1.2.0",
   "private": true,
   "description": "A marketplace for AI-assisted engineers and skilled workers.",
   "scripts": {
@@ -39,9 +39,11 @@
   "homepage": "https://github.com/profullstack/ugig.net#readme",
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
+    "@profullstack/affiliates": "^0.2.0",
     "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.6",
+    "@profullstack/redeem-credits": "^0.2.0",
     "@profullstack/stack": "^0.5.0",
     "@profullstack/throttle": "^0.3.4",
     "@profullstack/x402-gateway": "^0.13.1",
