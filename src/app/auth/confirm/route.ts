@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { settleInviteBonus } from "@/lib/credits";
 
 export function resolveMagicLinkRedirect(appUrl: string, next: string | null): string {
   const fallback = new URL("/dashboard", appUrl);
@@ -61,6 +62,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         `${appUrl}/login?error=confirmation_failed&message=${encodeURIComponent(error.message)}`
       );
+    }
+
+    // A confirmed email may make an invite bonus due (both sides get Pro days
+    // once the new account passes the spam checks). Never blocks the redirect.
+    if (type === "signup" || type === "email") {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) await settleInviteBonus(user.id);
+      } catch (settleErr) {
+        console.error("[Auth Confirm] invite bonus settle failed (non-fatal):", settleErr);
+      }
     }
 
     // Success — redirect based on type

@@ -8,6 +8,7 @@ import { generateAndStoreDid } from "@/lib/auth/did";
 import { detectSuspiciousAccountType } from "@/lib/account-type-detection";
 import { COLUMNS, validateProfile, saveSignupProfile } from "@profullstack/profile";
 import { profileStore, fillEmptyFullName } from "@/lib/profile";
+import { INVITE_COOKIE, acceptInvite } from "@/lib/credits";
 import {
   isAlreadyRegisteredAuthError,
   resendExistingUserConfirmationEmail,
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       agent_operator_url,
       agent_source_url,
       ref,
+      invite,
     } = validationResult.data;
 
     // Account type validation: agents must have agent_name
@@ -244,6 +246,19 @@ export async function POST(request: NextRequest) {
       } catch (refError) {
         // Don't fail signup if referral tracking fails
         console.error("Referral tracking error:", refError);
+      }
+    }
+
+    // Invite: spend it on this new account now (records who invited whom).
+    // The Pro bonus waits until the email is confirmed and the account passes
+    // the spam checks (settleInviteBonus, run from /auth/confirm).
+    const inviteCode = invite || request.cookies.get(INVITE_COOKIE)?.value;
+    if (inviteCode && user) {
+      try {
+        const accepted = await acceptInvite(user.id, inviteCode);
+        if (!accepted.ok) console.warn("[signup] invite not accepted:", accepted.reason);
+      } catch (inviteErr) {
+        console.error("[signup] invite accept failed (non-fatal):", inviteErr);
       }
     }
 

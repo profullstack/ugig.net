@@ -284,6 +284,67 @@ function addMonths(date: Date, months: number): Date {
   return d;
 }
 
+type ProRow = {
+  id: string;
+  plan: string | null;
+  status: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  stripe_subscription_id: string | null;
+};
+
+/**
+ * Extend a user's Pro through the subscriptions row, the one place paid access
+ * lives. Extends from the current end date while a CoinPay-style Pro is still
+ * running, otherwise from now. Never touches a Lifetime plan (returns null).
+ */
+async function extendPro(
+  supabase: Db,
+  userId: string,
+  advance: (from: Date) => Date,
+  extra: Record<string, unknown> = {}
+): Promise<{ periodEnd: Date } | null> {
+  const now = new Date();
+
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("id, plan, status, current_period_start, current_period_end, stripe_subscription_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const existing = data as ProRow | null;
+
+  if (existing?.plan === "lifetime") return null;
+
+  const currentEnd = existing?.current_period_end ? new Date(existing.current_period_end) : null;
+  const stillRunning =
+    existing?.plan === "pro" &&
+    existing.status === "active" &&
+    !existing.stripe_subscription_id &&
+    currentEnd !== null &&
+    currentEnd > now;
+
+  const periodStart = stillRunning && existing?.current_period_start
+    ? existing.current_period_start
+    : now.toISOString();
+  const periodEnd = advance(stillRunning && currentEnd ? currentEnd : now);
+
+  await supabase.from("subscriptions").upsert(
+    {
+      user_id: userId,
+      ...extra,
+      status: "active",
+      plan: "pro",
+      current_period_start: periodStart,
+      current_period_end: periodEnd.toISOString(),
+      cancel_at_period_end: false,
+      updated_at: now.toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  return { periodEnd };
+}
+
 /**
  * Grant months of CoinPay-billed Pro. Paying early extends from the current
  * end date instead of from today. Never touches a Lifetime plan.
@@ -298,48 +359,18 @@ export async function extendCoinPayPro(
     amountUsd: number;
   }
 ) {
-  const now = new Date();
   const months = COINPAY_PLAN_PERIOD_MONTHS[p.plan];
+  const result = await extendPro(supabase, p.userId, (from) => addMonths(from, months), {
+    coinpay_payment_id: p.coinpayPaymentId,
+  });
 
-  const { data: existing } = await supabase
-    .from("subscriptions")
-    .select("id, plan, status, current_period_start, current_period_end, stripe_subscription_id")
-    .eq("user_id", p.userId)
-    .maybeSingle();
-
-  if (existing?.plan === "lifetime") {
+  if (!result) {
     console.warn("[coinpay] Pro payment from a Lifetime member; plan left unchanged", {
       payment_id: p.paymentId,
     });
     return;
   }
-
-  const currentEnd = existing?.current_period_end ? new Date(existing.current_period_end) : null;
-  const stillRunning =
-    existing?.plan === "pro" &&
-    existing.status === "active" &&
-    !existing.stripe_subscription_id &&
-    currentEnd !== null &&
-    currentEnd > now;
-
-  const periodStart = stillRunning && existing?.current_period_start
-    ? existing.current_period_start
-    : now.toISOString();
-  const periodEnd = addMonths(stillRunning && currentEnd ? currentEnd : now, months);
-
-  await supabase.from("subscriptions").upsert(
-    {
-      user_id: p.userId,
-      coinpay_payment_id: p.coinpayPaymentId,
-      status: "active",
-      plan: "pro",
-      current_period_start: periodStart,
-      current_period_end: periodEnd.toISOString(),
-      cancel_at_period_end: false,
-      updated_at: now.toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  const { periodEnd } = result;
 
   await supabase.from("notifications").insert({
     user_id: p.userId,
@@ -353,6 +384,33 @@ export async function extendCoinPayPro(
       current_period_end: periodEnd.toISOString(),
     },
   });
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Grant days of Pro (a redeemed credit code, an invite bonus). The same
+ * subscriptions row and expiry as paid CoinPay Pro: the expire-subscriptions
+ * cron drops it to Free once the days run out. Lifetime members keep Lifetime
+ * (returns null). `source` is recorded in the notification for support.
+ */
+export async function extendProDays(
+  supabase: Db,
+  p: { userId: string; days: number; source: string; title?: string; body?: (until: string) => string }
+): Promise<{ periodEnd: Date } | null> {
+  if (!Number.isFinite(p.days) || p.days <= 0) throw new TypeError("days must be a positive number");
+  const result = await extendPro(supabase, p.userId, (from) => new Date(from.getTime() + p.days * DAY_MS));
+  if (!result) return null;
+
+  const until = result.periodEnd.toISOString().slice(0, 10);
+  await supabase.from("notifications").insert({
+    user_id: p.userId,
+    type: "payment_received",
+    title: p.title ?? `${p.days} days of Pro added`,
+    body: p.body ? p.body(until) : `Your Pro plan is active until ${until}. Enjoy unlimited gig posts!`,
+    data: { source: p.source, pro_days: p.days, current_period_end: result.periodEnd.toISOString() },
+  });
+  return result;
 }
 
 /**

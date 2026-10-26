@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useDialog } from "@/components/providers/DialogProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subscriptions as subscriptionsApi } from "@/lib/api";
+import { RedeemCodeCard } from "@/components/credits/RedeemCodeCard";
 import {
   FUNDING_LIFETIME_THRESHOLD_USD,
   PAID_PERKS,
@@ -73,16 +74,16 @@ function SubscriptionPageContent() {
   }, [searchParams]);
 
   // Fetch subscription
-  useEffect(() => {
-    async function fetchSubscription() {
-      const result = await subscriptionsApi.get();
-      if (!result.error && result.data) {
-        const data = result.data as { data: SubscriptionData };
-        setSubscription(data.data);
-      }
-      setIsLoading(false);
+  const fetchSubscription = async () => {
+    const result = await subscriptionsApi.get();
+    if (!result.error && result.data) {
+      const data = result.data as { data: SubscriptionData };
+      setSubscription(data.data);
     }
+    setIsLoading(false);
+  };
 
+  useEffect(() => {
     fetchSubscription();
   }, []);
 
@@ -434,6 +435,19 @@ function SubscriptionPageContent() {
               )}
             </Button>
           )}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <RedeemCodeCard onRedeemed={fetchSubscription} />
+        <div className="p-6 rounded-lg border border-border">
+          <h2 className="text-lg font-semibold mb-2">Invites</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            You have a few invites to hand out. When someone new joins on one, you both get days of Pro.
+          </p>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/invites">Your invites</Link>
+          </Button>
         </div>
       </div>
     </div>
