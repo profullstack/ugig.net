@@ -28,6 +28,7 @@ const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
   call_scheduled: <Video className="h-4 w-4" />,
   new_review: <Star className="h-4 w-4" />,
   review_request: <Star className="h-4 w-4" />,
+  referral_reward: <DollarSign className="h-4 w-4" />,
   gig_update: <Briefcase className="h-4 w-4" />,
   payment_received: <DollarSign className="h-4 w-4" />,
 };
@@ -138,6 +139,8 @@ export function NotificationBell() {
           : data?.gig_id
             ? `/gigs/${data.gig_id}`
             : "/dashboard";
+      case "referral_reward":
+        return "/dashboard/referrals";
       case "review_request":
         // "Rate @x for <gig>": the review form on the gig page
         return data?.gig_id ? `/gigs/${data.gig_id}#review` : "/dashboard";

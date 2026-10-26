@@ -20,9 +20,28 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve({ from: mockFrom })),
 }));
 
+const mockGetUserById = vi.fn();
 vi.mock("@/lib/supabase/service", () => ({
-  createServiceClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
+  createServiceClient: vi.fn(() => ({
+    from: mockFrom,
+    rpc: mockRpc,
+    auth: { admin: { getUserById: mockGetUserById } },
+  })),
 }));
+
+function authUser(overrides?: { email?: string; confirmedAt?: string | null }) {
+  return {
+    data: {
+      user: {
+        id: "user-123",
+        email: overrides?.email ?? "test@example.com",
+        email_confirmed_at:
+          overrides && "confirmedAt" in overrides ? overrides.confirmedAt : new Date().toISOString(),
+      },
+    },
+    error: null,
+  };
+}
 
 // ── Email mock ─────────────────────────────────────────────────────
 
@@ -115,6 +134,75 @@ describe("POST /api/auth/confirmed", () => {
     mockUpdateEq.mockResolvedValue({ error: null });
     mockInsert.mockResolvedValue({ error: null });
     mockRpc.mockResolvedValue({ data: [], error: null });
+    mockGetUserById.mockResolvedValue(authUser());
+  });
+
+  describe("replay protection", () => {
+    beforeEach(() => {
+      mockSingle.mockResolvedValue({
+        data: { username: "testuser", full_name: "Test User", account_type: "human", did: "did:key:zX" },
+        error: null,
+      });
+    });
+
+    it("claims the user once before running the welcome flow", async () => {
+      await POST(makeRequest(confirmationPayload()));
+      expect(mockFrom).toHaveBeenCalledWith("auth_confirmed_processed");
+      expect(mockInsert).toHaveBeenCalledWith({ user_id: "user-123" });
+    });
+
+    it("does nothing for a user that was already processed", async () => {
+      mockInsert.mockResolvedValueOnce({ error: { code: "23505", message: "duplicate key value" } });
+
+      const res = await POST(makeRequest(confirmationPayload()));
+      const json = await res.json();
+
+      expect(json.skipped).toBe(true);
+      expect(json.reason).toBe("already_processed");
+      expect(mockSendEmail).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("ignores a confirmation older than the window", async () => {
+      mockGetUserById.mockResolvedValue(authUser({ confirmedAt: "2026-02-13T00:00:00Z" }));
+
+      const res = await POST(makeRequest(confirmationPayload()));
+      const json = await res.json();
+
+      expect(json.reason).toBe("stale_confirmation");
+      expect(mockInsert).not.toHaveBeenCalled();
+      expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+
+    it("ignores a user auth.users says is not confirmed, whatever the body says", async () => {
+      mockGetUserById.mockResolvedValue(authUser({ confirmedAt: null }));
+
+      const res = await POST(makeRequest(confirmationPayload()));
+      expect((await res.json()).reason).toBe("not_confirmed");
+      expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+
+    it("ignores an unknown user", async () => {
+      mockGetUserById.mockResolvedValue({ data: { user: null }, error: { message: "not found" } });
+
+      const res = await POST(makeRequest(confirmationPayload()));
+      expect((await res.json()).reason).toBe("user_not_found");
+      expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+
+    it("emails the auth.users address, not the one in the body", async () => {
+      await POST(makeRequest(confirmationPayload({ email: "attacker@evil.example" })));
+      expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "test@example.com" }));
+    });
+
+    it("holds the referral reward for a spam-flagged account", async () => {
+      mockSingle.mockResolvedValue({
+        data: { username: "testuser", full_name: "Test", account_type: "human", did: "did:key:zX", is_spam: true },
+        error: null,
+      });
+      await POST(makeRequest(confirmationPayload()));
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
   });
 
   describe("email confirmation", () => {
@@ -214,7 +302,7 @@ describe("POST /api/auth/confirmed", () => {
     it("pays through the atomic referral reward function", async () => {
       mockSingle.mockResolvedValue({
         data: {
-          username: null,
+          username: "referreduser",
           full_name: "Referred User",
           account_type: "human",
           did: "did:key:zExistingDid",
@@ -248,7 +336,7 @@ describe("POST /api/auth/confirmed", () => {
     it("does not notify when the referral reward was already paid", async () => {
       mockSingle.mockResolvedValue({
         data: {
-          username: null,
+          username: "referreduser",
           full_name: "Referred User",
           account_type: "human",
           did: "did:key:zExistingDid",

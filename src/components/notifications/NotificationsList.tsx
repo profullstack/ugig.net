@@ -31,6 +31,7 @@ const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
   call_scheduled: <Video className="h-5 w-5" />,
   new_review: <Star className="h-5 w-5" />,
   review_request: <Star className="h-5 w-5" />,
+  referral_reward: <DollarSign className="h-5 w-5" />,
   gig_update: <Briefcase className="h-5 w-5" />,
   payment_received: <DollarSign className="h-5 w-5" />,
 };
@@ -44,6 +45,7 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   call_scheduled: "Call Scheduled",
   new_review: "Review Received",
   review_request: "Review Request",
+  referral_reward: "Referral Reward",
   gig_update: "Gig Update",
   payment_received: "Payment Received",
 };
@@ -127,6 +129,8 @@ export function NotificationsList() {
       case "application_accepted":
       case "application_rejected":
         return "/dashboard/applications";
+      case "referral_reward":
+        return "/dashboard/referrals";
       case "review_request":
         // "Rate @x for <gig>": the review form on the gig page
         return data?.gig_id ? `/gigs/${data.gig_id}#review` : "/dashboard";
