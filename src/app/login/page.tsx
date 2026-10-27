@@ -42,6 +42,8 @@ export default async function LoginPage({
               ? "Invalid confirmation link. Please request a new one."
               : error === "confirmation_failed"
               ? "Email confirmation failed. The link may have expired."
+              : error === "coinpay_email_in_use"
+              ? "A ugig account already uses this CoinPay account's email. Sign in with your password (or reset it), then connect CoinPay from Settings → Connections."
               : error?.startsWith("coinpay_")
               ? `CoinPay login failed (${error}${detail ? ': ' + detail : ''}). Please try again or use email/password.`
               : "An error occurred. Please try again."}

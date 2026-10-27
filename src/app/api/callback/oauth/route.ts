@@ -2,16 +2,18 @@
  * CoinPay OAuth Callback
  * GET /api/auth/coinpay/callback?code=...&state=...
  *
- * Exchanges code for tokens, fetches userinfo, finds/creates user,
- * establishes Supabase session via magic link.
+ * Exchanges code for tokens, fetches userinfo, finds the account bound to the
+ * CoinPay sub (or creates one), establishes Supabase session via magic link.
+ * The CoinPay email is unverified and never selects an existing account.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@supabase/supabase-js";
-import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
 import { getAppUrl } from "@/lib/app-url";
 import { logIdentityEvent } from "@/lib/coinpay-disconnect";
+import { resolveCoinpayLogin } from "@/lib/coinpay-login";
+import { getAuthContext } from "@/lib/auth/get-user";
 
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 const USERINFO_URL = "https://coinpayportal.com/api/oauth/userinfo";
@@ -151,6 +153,14 @@ export async function GET(request: NextRequest) {
         return redirectWithClearedState(`${connectUrl}?coinpay=expired`);
       }
 
+      // The state cookie is plain JSON the browser can rewrite, so its userId
+      // is only a hint: the link goes to the account signed in right now, and
+      // only when that is the account that started the connect flow.
+      const current = await getAuthContext(request);
+      if (!current || current.user.id !== savedState.userId) {
+        return redirectWithClearedState(`${connectUrl}?coinpay=expired`);
+      }
+
       const { data: existingIdentity } = await supabase
         .from("oauth_identities")
         .select("id, user_id")
@@ -216,122 +226,73 @@ export async function GET(request: NextRequest) {
       return redirectWithClearedState(`${connectUrl}?coinpay=connected`);
     }
 
-    // Check if this CoinPay identity is already linked
-    const { data: existingIdentity } = await supabase
-      .from("oauth_identities")
-      .select("id, user_id")
-      .eq("provider", "coinpay")
-      .eq("provider_user_id", sub)
-      .single();
+    // Login: the account is chosen by the CoinPay sub, never by the
+    // (unverified) CoinPay email. See lib/coinpay-login.ts.
+    const login = await resolveCoinpayLogin(supabase, {
+      sub,
+      email,
+      name,
+      metadata: identityMetadata,
+    });
 
-    let userId: string;
+    if (login.kind === "email_in_use") {
+      return redirectWithClearedState(`${loginUrl}?error=coinpay_email_in_use`);
+    }
+    if (login.kind === "error") {
+      console.error("[CoinPay OAuth] Login failed:", login.detail);
+      return redirectWithClearedState(
+        `${loginUrl}?error=coinpay_create_failed&detail=${encodeURIComponent(login.detail)}`
+      );
+    }
 
-    if (existingIdentity) {
-      // Existing linked user
-      userId = existingIdentity.user_id;
-      await supabase
-        .from("oauth_identities")
-        .update({
-          email,
-          metadata: identityMetadata,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingIdentity.id);
-    } else {
-      // Try to create user first; if email exists, look them up
-      const randomPassword = randomBytes(32).toString("hex");
-      const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
-        email,
-        password: randomPassword,
-        email_confirm: true,
-        user_metadata: { full_name: name, oauth_provider: "coinpay" },
+    const userId = login.userId;
+    const sessionEmail = login.email;
+
+    if (login.kind === "created") {
+      // Create profile for new user
+      const username = generateUsername(email, name);
+      await supabase.from("profiles").insert({
+        id: userId,
+        username,
+        full_name: name || null,
+        profile_completed: false,
       });
 
-      if (createErr) {
-        if (
-          (createErr as any).code === "email_exists" ||
-          createErr.message?.includes("already been registered")
-        ) {
-          // User exists — find them via listUsers with page iteration
-          let existingUser: any = null;
-          let page = 1;
-          while (!existingUser) {
-            const {
-              data: { users },
-            } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
-            if (!users || users.length === 0) break;
-            existingUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-            page++;
-          }
-          if (!existingUser) {
-            console.error("[CoinPay OAuth] User exists but couldn't find by email:", email);
-            return NextResponse.redirect(
-              `${loginUrl}?error=coinpay_create_failed&detail=user_lookup_failed`
-            );
-          }
-          userId = existingUser.id;
-        } else {
-          console.error("[CoinPay OAuth] Failed to create user:", createErr?.message);
-          return NextResponse.redirect(
-            `${loginUrl}?error=coinpay_create_failed&detail=${encodeURIComponent(createErr?.message || "unknown")}`
-          );
-        }
-      } else {
-        userId = newUser.user!.id;
-
-        // Create profile for new user
-        const username = generateUsername(email, name);
-        await supabase.from("profiles").insert({
-          id: userId,
-          username,
-          full_name: name || null,
-          profile_completed: false,
+      // Send welcome email with password setup link
+      try {
+        const { data: resetLink } = await supabase.auth.admin.generateLink({
+          type: "recovery",
+          email: sessionEmail,
         });
+        const resetUrl = resetLink?.properties?.hashed_token
+          ? `${appUrl}/auth/confirm?token_hash=${resetLink.properties.hashed_token}&type=recovery&next=/reset-password`
+          : `${appUrl}/forgot-password`;
 
-        // Send welcome email with password setup link
-        try {
-          const { data: resetLink } = await supabase.auth.admin.generateLink({
-            type: "recovery",
-            email,
-          });
-          const resetUrl = resetLink?.properties?.hashed_token
-            ? `${appUrl}/auth/confirm?token_hash=${resetLink.properties.hashed_token}&type=recovery&next=/reset-password`
-            : `${appUrl}/forgot-password`;
-
-          await sendEmail({
-            to: email,
-            subject: "Welcome to ugig.net — Set your password",
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #667eea;">Welcome to ugig.net${name ? `, ${name}` : ""}! 🎉</h2>
-                <p>Your account has been created via CoinPay. You can always log in using CoinPay, but if you'd like to set a password for direct login, click below:</p>
-                <p style="margin: 25px 0;">
-                  <a href="${resetUrl}" style="background: #667eea; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Set Your Password</a>
-                </p>
-                <p style="color: #6b7280; font-size: 14px;">This link expires in 24 hours. If you don't need a password, you can ignore this — CoinPay login will always work.</p>
-              </div>
-            `,
-            text: `Welcome to ugig.net! Set your password here: ${resetUrl}`,
-          });
-        } catch (emailErr) {
-          console.error("[CoinPay OAuth] Welcome email failed (non-fatal):", emailErr);
-        }
+        await sendEmail({
+          to: sessionEmail,
+          subject: "Welcome to ugig.net — Set your password",
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #667eea;">Welcome to ugig.net${name ? `, ${name}` : ""}! 🎉</h2>
+              <p>Your account has been created via CoinPay. You can always log in using CoinPay, but if you'd like to set a password for direct login, click below:</p>
+              <p style="margin: 25px 0;">
+                <a href="${resetUrl}" style="background: #667eea; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Set Your Password</a>
+              </p>
+              <p style="color: #6b7280; font-size: 14px;">This link expires in 24 hours. If you don't need a password, you can ignore this — CoinPay login will always work.</p>
+            </div>
+          `,
+          text: `Welcome to ugig.net! Set your password here: ${resetUrl}`,
+        });
+      } catch (emailErr) {
+        console.error("[CoinPay OAuth] Welcome email failed (non-fatal):", emailErr);
       }
-
-      // Link the OAuth identity
-      await supabase.from("oauth_identities").insert({
-        user_id: userId,
-        provider: "coinpay",
-        provider_user_id: sub,
-        email,
-        metadata: identityMetadata,
-      });
     }
 
     // Generate magic link to establish session
+    // For the account's OWN address: the CoinPay email may differ from it.
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: "magiclink",
-      email,
+      email: sessionEmail,
     });
 
     if (linkErr || !linkData) {
