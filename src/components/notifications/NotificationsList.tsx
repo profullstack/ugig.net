@@ -117,6 +117,8 @@ export function NotificationsList() {
   const getNotificationLink = (notification: Notification): string => {
     const data = notification.data as Record<string, string> | null;
     const type = notification.type as string;
+    // A notice that names its own page (e.g. "reconnect CoinPay") goes there.
+    if (data?.link && data.link.startsWith("/") && !data.link.startsWith("//")) return data.link;
     switch (type) {
       case "new_message":
         return data?.conversation_id

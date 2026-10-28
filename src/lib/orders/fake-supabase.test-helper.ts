@@ -15,6 +15,7 @@ export function fakeSupabase(tables: Record<string, Record<string, unknown>[]> =
     b.select = vi.fn(() => b);
     b.order = vi.fn(() => b);
     b.limit = vi.fn(() => b);
+    b.range = vi.fn(() => b);
     b.or = vi.fn(() => b);
     b.eq = vi.fn((col: string, val: unknown) => {
       rows = rows.filter((r) => r[col] === val);

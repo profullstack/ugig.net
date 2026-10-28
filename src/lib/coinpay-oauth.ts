@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { coinpayLinkFault, markCoinpayLinkBroken } from "@/lib/coinpay-link-health";
 
 function metadataObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -67,17 +68,32 @@ export function mergeRefreshedCoinpayMetadata(
   };
 }
 
-async function refreshCoinpayToken(
+/**
+ * What a refresh attempt came to.
+ *
+ * `rejected` means CoinPay refused the refresh token itself (invalid_grant):
+ * the link is dead until its owner reconnects. Anything else (CoinPay down, a
+ * 5xx, a timeout, our own client config) is `transient`: the stored refresh
+ * token is still good and the next attempt may well work, so it must never be
+ * reported to the seller as a dead link.
+ */
+export type CoinpayRefreshResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; failure: "rejected" | "transient" };
+
+export async function refreshCoinpayToken(
   refreshToken: string,
   identityId: string,
-  previousMetadata: unknown
-): Promise<string | null> {
+  previousMetadata: unknown,
+  fetchImpl: typeof fetch = fetch
+): Promise<CoinpayRefreshResult> {
   const clientId = process.env.COINPAY_OAUTH_CLIENT_ID;
   const clientSecret = process.env.COINPAY_OAUTH_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
+  if (!clientId || !clientSecret) return { ok: false, failure: "transient" };
 
+  const serviceSupabase = createServiceClient();
   try {
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetchImpl(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -86,28 +102,55 @@ async function refreshCoinpayToken(
         client_id: clientId,
         client_secret: clientSecret,
       }),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!res.ok) {
-      console.error("[coinpay-oauth] token refresh failed:", res.status, await res.text().catch(() => ""));
-      return null;
+      const text = await res.text().catch(() => "");
+      console.error("[coinpay-oauth] token refresh failed:", res.status, text);
+      let error = "";
+      try {
+        error = String(JSON.parse(text)?.error ?? "");
+      } catch {
+        // not JSON: a gateway or proxy page, so not CoinPay's verdict on the token
+      }
+      if (res.status !== 400 || error !== "invalid_grant") return { ok: false, failure: "transient" };
+
+      // CoinPay rotates refresh tokens, and two requests refreshing the same
+      // link at once both send the old one: the loser gets invalid_grant even
+      // though the link is fine. If the row now holds a different refresh token
+      // and a live access token, the other request won; use its token.
+      const { data } = await (serviceSupabase as any)
+        .from("oauth_identities")
+        .select("metadata")
+        .eq("id", identityId)
+        .maybeSingle();
+      const now = metadataObject(data?.metadata);
+      const nowAccess = typeof now.access_token === "string" ? now.access_token.trim() : "";
+      const nowExpires = typeof now.expires_at === "string" ? Date.parse(now.expires_at) : NaN;
+      if (now.refresh_token !== refreshToken && nowAccess && Number.isFinite(nowExpires) && nowExpires > Date.now()) {
+        return { ok: true, accessToken: nowAccess };
+      }
+      return { ok: false, failure: "rejected" };
     }
 
     const tokens = await res.json();
     const newMetadata = mergeRefreshedCoinpayMetadata(previousMetadata, tokens ?? {}, refreshToken);
-    if (!newMetadata) return null;
+    if (!newMetadata) return { ok: false, failure: "transient" };
     const newAccessToken = newMetadata.access_token as string;
 
-    const serviceSupabase = createServiceClient();
-    await (serviceSupabase as any)
+    const { error } = await (serviceSupabase as any)
       .from("oauth_identities")
       .update({ metadata: newMetadata, updated_at: new Date().toISOString() })
       .eq("id", identityId);
+    // CoinPay has already revoked the old refresh token. Losing the new one
+    // here would kill the link, so say so loudly.
+    if (error) console.error("[coinpay-oauth] could not store refreshed CoinPay tokens:", error.message);
 
-    return newAccessToken;
+    return { ok: true, accessToken: newAccessToken };
   } catch (err) {
     console.error("[coinpay-oauth] token refresh error:", err);
-    return null;
+    return { ok: false, failure: "transient" };
   }
 }
 
@@ -126,6 +169,12 @@ export interface CoinpayLink {
   state: CoinpayLinkState;
   /** Present only when state is "connected". */
   accessToken: string | null;
+  /**
+   * True when the link is fine but CoinPay could not be reached to refresh it
+   * just now. State is still "needs_reconnect" for callers that only gate, but
+   * nobody should be told to reconnect.
+   */
+  temporary?: boolean;
 }
 
 /**
@@ -139,9 +188,12 @@ export interface CoinpayLink {
  */
 export async function getCoinpayLink(userId: string): Promise<CoinpayLink> {
   const token = await resolveCoinpayToken(userId);
-  return token.accessToken === null
-    ? { state: token.hadIdentity ? "needs_reconnect" : "none", accessToken: null }
-    : { state: "connected", accessToken: token.accessToken };
+  if (token.accessToken !== null) return { state: "connected", accessToken: token.accessToken };
+  return {
+    state: token.hadIdentity ? "needs_reconnect" : "none",
+    accessToken: null,
+    ...(token.transient ? { temporary: true } : {}),
+  };
 }
 
 export async function getConnectedCoinpayAccessToken(userId: string): Promise<string | null> {
@@ -150,11 +202,11 @@ export async function getConnectedCoinpayAccessToken(userId: string): Promise<st
 
 async function resolveCoinpayToken(
   userId: string
-): Promise<{ accessToken: string | null; hadIdentity: boolean }> {
+): Promise<{ accessToken: string | null; hadIdentity: boolean; transient?: boolean }> {
   const serviceSupabase = createServiceClient();
   const { data } = await (serviceSupabase as any)
     .from("oauth_identities")
-    .select("id, metadata")
+    .select("id, user_id, metadata")
     .eq("user_id", userId)
     .eq("provider", "coinpay")
     .order("updated_at", { ascending: false })
@@ -174,18 +226,29 @@ async function resolveCoinpayToken(
   // to reconnect CoinPay — the connections page uses the same predicate.
   if (!coinpayLinkCanReadWallets(metadata)) return { accessToken: null, hadIdentity };
 
+  // A link CoinPay already refused stays dead until its owner reconnects; no
+  // point asking again on every page view.
+  if (coinpayLinkFault(metadata)) return { accessToken: null, hadIdentity };
+
   // Proactively refresh if the token is expired or about to expire.
-  const expiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
-  const isExpired = expiresAt ? Date.now() >= new Date(expiresAt).getTime() - EXPIRY_BUFFER_MS : false;
+  const expiresAtMs = typeof metadata.expires_at === "string" ? Date.parse(metadata.expires_at) : NaN;
+  const isExpired = Number.isFinite(expiresAtMs) ? Date.now() >= expiresAtMs - EXPIRY_BUFFER_MS : false;
 
   if (isExpired) {
     const refreshToken = typeof metadata.refresh_token === "string" ? metadata.refresh_token.trim() : "";
-    if (refreshToken && data?.id) {
-      const refreshed = await refreshCoinpayToken(refreshToken, data.id, data.metadata);
-      if (refreshed) return { accessToken: refreshed, hadIdentity };
+    if (!refreshToken) {
+      if (data?.id) await markCoinpayLinkBroken(serviceSupabase as any, data, "no_refresh_token");
+      return { accessToken: null, hadIdentity };
     }
-    // Refresh failed — the stored token is likely unusable; signal reconnect needed.
-    return { accessToken: null, hadIdentity };
+    const refreshed = await refreshCoinpayToken(refreshToken, data.id, data.metadata);
+    if (refreshed.ok) return { accessToken: refreshed.accessToken, hadIdentity };
+    if (refreshed.failure === "rejected") {
+      await markCoinpayLinkBroken(serviceSupabase as any, data, "refresh_rejected");
+      return { accessToken: null, hadIdentity };
+    }
+    // CoinPay unreachable. Inside the early-refresh window the old token still works.
+    if (Date.now() < expiresAtMs) return { accessToken, hadIdentity };
+    return { accessToken: null, hadIdentity, transient: true };
   }
 
   return { accessToken, hadIdentity };
@@ -206,6 +269,7 @@ export function storedCoinpayLinkState(
 ): CoinpayLinkState {
   if (!hasIdentity) return "none";
   if (!coinpayLinkCanReadWallets(metadata)) return "needs_reconnect";
+  if (coinpayLinkFault(metadata)) return "needs_reconnect";
   const meta = metadataObject(metadata);
   const expiresAt = typeof meta.expires_at === "string" ? Date.parse(meta.expires_at) : NaN;
   const expired = Number.isFinite(expiresAt) && now >= expiresAt;

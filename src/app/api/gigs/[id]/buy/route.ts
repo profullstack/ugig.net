@@ -115,7 +115,14 @@ export async function GET(
     sellerPaypalEmail(gig.poster_id),
   ]);
   if (!seller.ok && !paypalEmail) {
-    return NextResponse.json({ buyable: false, reason: sellerNotReadyMessage(seller.reason) });
+    // Said out loud: a listing that looks normal and silently can't be paid is
+    // the bug a seller reported on 2026-10-28.
+    return NextResponse.json({
+      buyable: false,
+      payments_unavailable: true,
+      seller_fix: seller.reason,
+      reason: sellerNotReadyMessage(seller.reason),
+    });
   }
 
   // A seller paid by PayPal only has no coins: card / PayPal is the one way in.

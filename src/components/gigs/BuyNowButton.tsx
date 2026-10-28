@@ -12,6 +12,8 @@ import { QRCodeCanvas } from "@/components/funding/QRCode";
 interface BuyInfo {
   buyable: boolean;
   reason?: string;
+  /** Fixed-price listing whose seller can't be paid right now; `reason` says why. */
+  payments_unavailable?: boolean;
   amount_usd?: number;
   fee_percent?: number;
   escrow_days?: number;
@@ -66,6 +68,18 @@ export function BuyNowButton({ gigId, loggedIn }: BuyNowButtonProps) {
       cancelled = true;
     };
   }, [gigId]);
+
+  if (info && !info.buyable && info.payments_unavailable && info.reason) {
+    return (
+      <p
+        className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
+        data-testid="buy-now-unavailable"
+      >
+        <ShoppingCart className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+        <span>{info.reason}</span>
+      </p>
+    );
+  }
 
   if (!info?.buyable) return null;
 

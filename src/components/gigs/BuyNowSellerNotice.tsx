@@ -10,7 +10,7 @@ interface OwnerBuyInfo {
   seller_ready?: boolean;
   fee_percent?: number;
   reason?: string;
-  fix?: "not_connected" | "needs_reconnect" | "no_wallets";
+  fix?: "not_connected" | "needs_reconnect" | "no_wallets" | "unavailable";
   payout_methods?: { crypto: boolean; paypal: string | null };
   buyer_methods?: ("crypto" | "paypal")[];
 }
@@ -57,14 +57,14 @@ export function BuyNowSellerNotice({ gigId }: { gigId: string }) {
     );
   }
 
-  if (!info.fix) {
+  if (!info.fix || info.fix === "unavailable") {
     return info.reason ? <p className="text-xs text-muted-foreground">Buy now: {info.reason}</p> : null;
   }
 
   // `reason` spells out the API call for agents; people get a sentence and buttons.
   const sentence =
     info.fix === "needs_reconnect"
-      ? "Buy now is off: your CoinPay link can't read your wallet addresses. Reconnect it, or add a payout wallet to your profile."
+      ? "Buy now is off and buyers see \"payments unavailable\": your CoinPay connection expired. Reconnect it once (ugig keeps it refreshed after that), or add a payout wallet to your profile."
       : info.fix === "no_wallets"
         ? "Buy now is off: add a USDC, SOL, POL, ETH, BTC or BCH payout wallet (escrow can't hold USDT on Polygon or Solana)."
         : "Add a payout wallet to your profile, or connect CoinPay, so buyers can pay for this listing with Buy now.";

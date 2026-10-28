@@ -103,7 +103,11 @@ export function orderFeeUsd(amountUsd: number): number {
   return round2(amountUsd * ESCROW_FEE_RATE);
 }
 
-export type SellerNotReadyReason = "not_connected" | "needs_reconnect" | "no_wallets";
+/**
+ * "unavailable" is CoinPay not answering just now: the seller's link is fine
+ * and nobody should be told to reconnect it.
+ */
+export type SellerNotReadyReason = "not_connected" | "needs_reconnect" | "no_wallets" | "unavailable";
 
 export type SellerWalletsResult =
   | { ok: true; wallets: CoinPayGlobalWallet[]; source: "coinpay" | "profile" }
@@ -122,10 +126,13 @@ export async function sellerEscrowWallets(sellerId: string): Promise<SellerWalle
   let reason: SellerNotReadyReason;
   const link = await getCoinpayLink(sellerId);
   if (link.accessToken === null) {
-    reason = link.state === "none" ? "not_connected" : "needs_reconnect";
+    reason = link.state === "none" ? "not_connected" : link.temporary ? "unavailable" : "needs_reconnect";
   } else {
-    const userinfo = await readCoinpayUserinfoWallets(link.accessToken);
-    if (userinfo.status !== "ok") {
+    // A CoinPay 5xx or timeout throws: that is CoinPay being down, not the seller's link.
+    const userinfo = await readCoinpayUserinfoWallets(link.accessToken).catch(() => null);
+    if (userinfo === null) {
+      reason = "unavailable";
+    } else if (userinfo.status !== "ok") {
       reason = "needs_reconnect";
     } else {
       const wallets = userinfo.wallets.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
@@ -146,7 +153,9 @@ export function sellerNotReadyMessage(reason: SellerNotReadyReason): string {
     case "not_connected":
       return "This seller hasn't added a payout wallet yet, so they can't be paid. Message them instead.";
     case "needs_reconnect":
-      return "This seller's CoinPay connection needs to be renewed before they can be paid. Message them instead.";
+      return "Payments are unavailable: this seller's CoinPay connection expired and the seller must reconnect it. Message them instead.";
+    case "unavailable":
+      return "Payments to this seller are briefly unavailable (CoinPay did not answer). Try again in a few minutes.";
     case "no_wallets":
       return "This seller has no payout wallet for a coin escrow supports. Message them instead.";
   }
@@ -177,7 +186,9 @@ function ownerNotReadyBase(reason: SellerNotReadyReason): string {
     case "not_connected":
       return `Add a payout wallet to let buyers pay for this listing with Buy now. ${API_FIX_SENTENCE} Or connect CoinPay in Settings > Connections.`;
     case "needs_reconnect":
-      return `Your CoinPay link can't read your wallet addresses, so Buy now is off. ${API_FIX_SENTENCE} Or reconnect CoinPay in Settings > Connections.`;
+      return `Buy now is off: your CoinPay connection expired or can't read your wallet addresses. Reconnect CoinPay in Settings > Connections (once; ugig keeps it refreshed after that). ${API_FIX_SENTENCE}`;
+    case "unavailable":
+      return "Buy now is paused for a moment: CoinPay did not answer when ugig refreshed your connection. Nothing to do; it retries on the next view.";
     case "no_wallets":
       return `Add a payout wallet in a coin escrow supports (USDT on Polygon or Solana is not one). ${API_FIX_SENTENCE}`;
   }

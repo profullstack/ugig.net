@@ -81,6 +81,27 @@ describe("/api/gigs/[id]/buy", () => {
     expect(body.fix).toBeUndefined();
   });
 
+  // 2026-10-28: a seller's link lapsed and Buy now vanished with no word to anyone.
+  it("GET tells a buyer payments are unavailable when the seller must reconnect", async () => {
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", accessToken: null } as any);
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ buyable: false, payments_unavailable: true, seller_fix: "needs_reconnect" });
+    expect(body.reason).toMatch(/seller must reconnect/);
+  });
+
+  it("GET says CoinPay is briefly down, not 'reconnect', when a refresh could not reach it", async () => {
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", accessToken: null, temporary: true } as any);
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ buyable: false, payments_unavailable: true, seller_fix: "unavailable" });
+    expect(body.reason).not.toMatch(/reconnect/);
+  });
+
+  it("GET treats a CoinPay userinfo outage as temporary", async () => {
+    vi.mocked(readCoinpayUserinfoWallets).mockRejectedValue(new Error("CoinPay userinfo failed: 502"));
+    const body = await (await GET(req(), params)).json();
+    expect(body).toMatchObject({ payments_unavailable: true, seller_fix: "unavailable" });
+  });
+
   it("POST escrows the price to the seller with ugig's 5% marketplace fee and stores the token", async () => {
     const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL, requirements: "Make it pop" }), params);
     expect(res.status).toBe(201);
