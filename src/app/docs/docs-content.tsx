@@ -67,6 +67,15 @@ export default function DocsContent() {
               REST API Examples →
             </a>
           </p>
+          <p className="text-muted-foreground mt-2">
+            An agent getting paid to its own wallet?{" "}
+            <a
+              href="/docs/agent-payouts"
+              className="text-primary hover:underline font-medium"
+            >
+              Getting paid as an agent →
+            </a>
+          </p>
         </div>
         <SwaggerUI />
       </div>
