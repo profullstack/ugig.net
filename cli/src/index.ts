@@ -54,7 +54,7 @@ const program = new Command();
 program
   .name("ugig")
   .description("CLI for the ugig.net freelance marketplace — for humans and AI agents")
-  .version("0.4.0")
+  .version("0.7.0")
   .option("--json", "Output machine-readable JSON", false)
   .option("--api-key <key>", "Override API key for this command")
   .option("--base-url <url>", "Override base URL");

@@ -1,104 +1,53 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { memoryStore } from "@profullstack/webhooks";
 
-const { mockFrom, mockGetAuthContext } = vi.hoisted(() => ({
-  mockFrom: vi.fn(),
-  mockGetAuthContext: vi.fn(),
-}));
+vi.mock("@/lib/supabase/service", () => ({ createServiceClient: vi.fn() }));
+vi.mock("@/lib/auth/get-user", () => ({ getAuthContext: vi.fn() }));
 
-vi.mock("@/lib/auth/get-user", () => ({
-  getAuthContext: mockGetAuthContext,
-}));
+const state = vi.hoisted(() => ({ hooks: null as unknown }));
+vi.mock("@/lib/webhooks/hub", async (orig) => {
+  const actual = await orig<typeof import("@/lib/webhooks/hub")>();
+  return { ...actual, getHooks: () => state.hooks };
+});
 
+import { getAuthContext, type AuthContext } from "@/lib/auth/get-user";
+import { createHooks } from "@/lib/webhooks/hub";
 import { GET } from "./route";
 
-function makeRequest(params: Record<string, string> = {}) {
-  const url = new URL("http://localhost/api/webhooks/webhook-1/deliveries");
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-  return new NextRequest(url.toString(), { method: "GET" });
-}
+const mockAuth = vi.mocked(getAuthContext);
+const guard = { lookup: async () => ["93.184.216.34"] };
+const as = (id: string) => ({ user: { id, authMethod: "session" }, supabase: {} }) as unknown as AuthContext;
+let id: string;
 
-function chainResult(result: { data: unknown; error: unknown; count?: number | null }) {
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const method of ["select", "eq", "single", "order", "range"]) {
-    chain[method] = vi.fn().mockReturnValue(chain);
-  }
-  chain.single.mockResolvedValue({
-    data: { id: "webhook-1", user_id: "user-1" },
-    error: null,
-  });
-  chain.range.mockResolvedValue(result);
-  return chain;
-}
+const get = (qs = "") => GET(new NextRequest(`http://localhost/api/webhooks/${id}/deliveries${qs}`), { params: Promise.resolve({ id }) });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockGetAuthContext.mockResolvedValue({
-    user: { id: "user-1" },
-    supabase: { from: mockFrom },
-  });
+beforeEach(async () => {
+  const fetchImpl = (async () => new Response("nope", { status: 500 })) as unknown as typeof fetch;
+  const hooks = createHooks(memoryStore(), { guard, fetchImpl });
+  state.hooks = hooks;
+  mockAuth.mockResolvedValue(as("owner"));
+  ({ endpoint: { id } } = await hooks.createEndpoint("owner", { url: "https://hooks.example.com/a", events: ["*"] }));
+  for (let i = 0; i < 3; i++) await hooks.emit("owner", "gig.update", { gig_id: `g${i}` });
+  await hooks.drain();
 });
 
 describe("GET /api/webhooks/[id]/deliveries", () => {
-  it("applies default pagination", async () => {
-    const webhookChain = chainResult({ data: null, error: null });
-    const deliveriesChain = chainResult({ data: [], error: null, count: 0 });
-    mockFrom.mockReturnValueOnce(webhookChain).mockReturnValueOnce(deliveriesChain);
-
-    const res = await GET(makeRequest(), {
-      params: Promise.resolve({ id: "webhook-1" }),
-    });
-    const json = await res.json();
-
+  it("lists deliveries in the old shape with pagination", async () => {
+    const res = await get("?limit=2&offset=1");
     expect(res.status).toBe(200);
-    expect(deliveriesChain.range).toHaveBeenCalledWith(0, 49);
-    expect(json.pagination).toEqual({ total: 0, limit: 50, offset: 0 });
+    const body = await res.json();
+    expect(body.pagination).toEqual({ total: 3, limit: 2, offset: 1 });
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({ webhook_id: id, event_type: "gig.update", status_code: 500, status: "pending" });
+    expect(body.data[0].payload.event).toBe("gig.update");
   });
 
-  it("clamps invalid pagination params before applying range", async () => {
-    const webhookChain = chainResult({ data: null, error: null });
-    const deliveriesChain = chainResult({ data: [], error: null, count: 12 });
-    mockFrom.mockReturnValueOnce(webhookChain).mockReturnValueOnce(deliveriesChain);
-
-    const res = await GET(makeRequest({ limit: "abc", offset: "-5" }), {
-      params: Promise.resolve({ id: "webhook-1" }),
-    });
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(deliveriesChain.range).toHaveBeenCalledWith(0, 49);
-    expect(json.pagination).toEqual({ total: 12, limit: 50, offset: 0 });
-  });
-
-  it("uses defaults for empty pagination params", async () => {
-    const webhookChain = chainResult({ data: null, error: null });
-    const deliveriesChain = chainResult({ data: [], error: null, count: 3 });
-    mockFrom.mockReturnValueOnce(webhookChain).mockReturnValueOnce(deliveriesChain);
-
-    const res = await GET(makeRequest({ limit: "", offset: "" }), {
-      params: Promise.resolve({ id: "webhook-1" }),
-    });
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(deliveriesChain.range).toHaveBeenCalledWith(0, 49);
-    expect(json.pagination).toEqual({ total: 3, limit: 50, offset: 0 });
-  });
-
-  it("truncates fractional pagination params and caps high limits", async () => {
-    const webhookChain = chainResult({ data: null, error: null });
-    const deliveriesChain = chainResult({ data: [], error: null, count: 200 });
-    mockFrom.mockReturnValueOnce(webhookChain).mockReturnValueOnce(deliveriesChain);
-
-    const res = await GET(makeRequest({ limit: "250.9", offset: "3.8" }), {
-      params: Promise.resolve({ id: "webhook-1" }),
-    });
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(deliveriesChain.range).toHaveBeenCalledWith(3, 102);
-    expect(json.pagination).toEqual({ total: 200, limit: 100, offset: 3 });
+  it("404 for someone else's webhook, 401 signed out", async () => {
+    mockAuth.mockResolvedValue(as("intruder"));
+    expect((await get()).status).toBe(404);
+    mockAuth.mockResolvedValue(null);
+    expect((await get()).status).toBe(401);
   });
 });

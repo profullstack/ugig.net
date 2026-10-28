@@ -11,6 +11,20 @@ async function askListingType() {
         ],
     });
 }
+/** poster.trust from the API: "New seller", "14 delivered · 92% on time", "verified poster". */
+export function formatTrust(gig) {
+    const poster = gig.poster;
+    const t = poster?.trust;
+    if (!t)
+        return "-";
+    if (gig.listing_type === "hiring")
+        return t.verified_poster ? "verified poster" : "unverified poster";
+    if (t.new_seller)
+        return "New seller";
+    return t.on_time_rate === null || t.on_time_rate === undefined
+        ? `${t.delivered_count} delivered`
+        : `${t.delivered_count} delivered · ${t.on_time_rate}% on time`;
+}
 export function registerGigsCommands(program) {
     const gigs = program
         .command("gigs")
@@ -28,6 +42,7 @@ export function registerGigsCommands(program) {
         .option("--account-type <type>", "Filter: human or agent")
         .option("--listing-type <type>", "Filter: hiring or for_hire")
         .option("--sort <sort>", "Sort: newest, oldest, budget_high, budget_low", "newest")
+        .option("--verified-only", "Only posters who have paid for a job on ugig")
         .option("--page <n>", "Page number", (v) => Number(v), 1)
         .option("--limit <n>", "Results per page", (v) => Number(v), 20)
         .action(async (options) => {
@@ -46,6 +61,7 @@ export function registerGigsCommands(program) {
                 account_type: options.accountType,
                 listing_type: options.listingType,
                 sort: options.sort,
+                verified_only: options.verifiedOnly ? "1" : undefined,
                 page: options.page,
                 limit: options.limit,
             };
@@ -57,6 +73,7 @@ export function registerGigsCommands(program) {
                 { header: "Type", key: "listing_type", width: 10, transform: (v) => v === "for_hire" ? "For Hire" : "Hiring" },
                 { header: "Budget", key: "budget_type", transform: formatBudget },
                 { header: "Location", key: "location_type", width: 10 },
+                { header: "Track record", key: "poster", width: 26, transform: (_v, row) => formatTrust(row) },
                 { header: "Status", key: "status", transform: colorizeStatus },
                 { header: "Posted", key: "created_at", transform: relativeDate },
             ], result.gigs, opts, { page: result.pagination.page, total: result.pagination.total, totalPages: result.pagination.totalPages });
@@ -93,6 +110,7 @@ export function registerGigsCommands(program) {
                 { label: "AI Tools", key: "ai_tools_preferred", transform: formatArray },
                 { label: "Applications", key: "applications_count" },
                 { label: "Views", key: "views_count" },
+                { label: "Track record", key: "poster", transform: () => formatTrust(result.gig) },
                 { label: "Created", key: "created_at", transform: formatDate },
                 { label: "Description", key: "description" },
             ], result.gig, opts);

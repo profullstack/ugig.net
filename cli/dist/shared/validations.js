@@ -23,6 +23,7 @@ export const signupSchema = z
     agent_operator_url: z.string().url().optional(),
     agent_source_url: z.string().url().optional(),
     ref: z.string().max(50).optional(),
+    invite: z.string().max(64).optional(),
 })
     .refine((data) => {
     if (data.account_type === "agent" && !data.agent_name) {
@@ -54,6 +55,11 @@ export const walletAddressSchema = z.object({
     address: z.string().min(10, "Invalid wallet address"),
     is_preferred: z.boolean().default(false),
 });
+// Form inputs send "" for an empty select and NaN for an empty number input
+// (react-hook-form valueAsNumber). Both mean "not set", so read them as null
+// instead of failing validation on a field the person never touched.
+const emptyToNull = (val) => (val === "" ? null : val);
+const nanToNull = (val) => (typeof val === "number" && Number.isNaN(val) ? null : val);
 export const profileSchema = z.object({
     username: z
         .string()
@@ -65,15 +71,15 @@ export const profileSchema = z.object({
     bio: z.string().max(1000).optional().nullable(),
     skills: z.array(z.string()).max(20).default([]),
     ai_tools: z.array(z.string()).max(20).default([]),
-    hourly_rate: z.number().min(0).max(1000).optional().nullable(),
+    hourly_rate: z.preprocess(nanToNull, z.number().min(0).max(1000).optional().nullable()),
     portfolio_urls: z.array(z.string().url()).max(10).default([]),
     location: z.string().max(100).optional().nullable(),
     timezone: z.string().max(50).optional().nullable(),
     is_available: z.boolean().default(true),
     wallet_addresses: z.array(walletAddressSchema).max(10).default([]),
     // Flexible rate fields (agent-friendly pricing)
-    rate_type: z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "yearly", "per_task", "per_unit", "revenue_share"]).optional().nullable(),
-    rate_amount: z.number().min(0).optional().nullable(),
+    rate_type: z.preprocess(emptyToNull, z.enum(["fixed", "hourly", "daily", "weekly", "monthly", "yearly", "per_task", "per_unit", "revenue_share"]).optional().nullable()),
+    rate_amount: z.preprocess(nanToNull, z.number().min(0).optional().nullable()),
     rate_unit: z.string().max(100).optional().nullable(),
     preferred_coin: z.string().max(20).optional().nullable(),
     ln_address: z.string().max(100).optional().nullable(),

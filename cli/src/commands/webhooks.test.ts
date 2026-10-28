@@ -15,6 +15,7 @@ const mockClient = {
   post: vi.fn(),
   get: vi.fn(),
   put: vi.fn(),
+  patch: vi.fn(),
   delete: vi.fn(),
 };
 
@@ -35,9 +36,10 @@ function makeProgram(): Command {
 }
 
 async function run(args: string[]): Promise<void> {
-  const program = makeProgram();
-  await program.parseAsync(["node", "ugig", ...args]);
+  await makeProgram().parseAsync(["node", "ugig", ...args]);
 }
+
+const logged = () => (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => c.join(" ")).join("\n");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -46,54 +48,81 @@ beforeEach(() => {
 });
 
 describe("webhooks list", () => {
-  it("lists webhooks", async () => {
-    mockClient.get.mockResolvedValue({ data: [{ id: "wh-1", url: "https://example.com/hook", events: ["gig.update"], active: true, created_at: new Date().toISOString() }] });
-
+  it("lists endpoints from /api/v1/webhooks", async () => {
+    mockClient.get.mockResolvedValue({ endpoints: [{ id: "wh_1", url: "https://example.com/hook", events: ["gig.update"], enabled: true, created_at: new Date().toISOString() }], event_types: [] });
     await run(["webhooks", "list"]);
-
-    expect(mockClient.get).toHaveBeenCalledWith("/api/webhooks");
+    expect(mockClient.get).toHaveBeenCalledWith("/api/v1/webhooks");
   });
 });
 
 describe("webhooks create", () => {
-  it("creates a webhook", async () => {
-    mockClient.post.mockResolvedValue({ data: { id: "wh-new", secret: "sec123" } });
-
-    await run(["webhooks", "create", "--url", "https://example.com/hook", "--events", "gig.update,message.new"]);
-
-    expect(mockClient.post).toHaveBeenCalledWith("/api/webhooks", {
+  it("creates an endpoint and prints the secret", async () => {
+    mockClient.post.mockResolvedValue({ endpoint: { id: "wh_new" }, secret: "whsec_abc" });
+    await run(["webhooks", "create", "--url", "https://example.com/hook", "--events", "gig.update,message.new", "--description", "ci"]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/v1/webhooks", {
       url: "https://example.com/hook",
       events: ["gig.update", "message.new"],
-      active: true,
+      description: "ci",
     });
+    expect(mockClient.patch).not.toHaveBeenCalled();
+    expect(logged()).toContain("whsec_abc");
+  });
+
+  it("defaults to every event and can create it paused", async () => {
+    mockClient.post.mockResolvedValue({ endpoint: { id: "wh_new" }, secret: "whsec_abc" });
+    mockClient.patch.mockResolvedValue({ id: "wh_new", enabled: false });
+    await run(["webhooks", "create", "--url", "https://example.com/hook", "--inactive"]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/v1/webhooks", { url: "https://example.com/hook", events: ["*"] });
+    expect(mockClient.patch).toHaveBeenCalledWith("/api/v1/webhooks/wh_new", { enabled: false });
   });
 
   it("handles errors", async () => {
     const { handleError } = await import("../helpers.js");
     mockClient.post.mockRejectedValue(new Error("fail"));
-
     await run(["webhooks", "create", "--url", "https://bad.com", "--events", "x"]);
-
     expect(handleError).toHaveBeenCalled();
   });
 });
 
-describe("webhooks update", () => {
-  it("updates a webhook", async () => {
-    mockClient.put.mockResolvedValue({});
+describe("webhooks update / delete", () => {
+  it("patches the endpoint", async () => {
+    mockClient.patch.mockResolvedValue({});
+    await run(["webhooks", "update", "wh_1", "--url", "https://new.com", "--inactive"]);
+    expect(mockClient.patch).toHaveBeenCalledWith("/api/v1/webhooks/wh_1", { url: "https://new.com", enabled: false });
+  });
 
-    await run(["webhooks", "update", "wh-1", "--url", "https://new.com"]);
-
-    expect(mockClient.put).toHaveBeenCalledWith("/api/webhooks/wh-1", { url: "https://new.com" });
+  it("deletes the endpoint", async () => {
+    mockClient.delete.mockResolvedValue({ deleted: true });
+    await run(["webhooks", "delete", "wh_1"]);
+    expect(mockClient.delete).toHaveBeenCalledWith("/api/v1/webhooks/wh_1");
   });
 });
 
-describe("webhooks delete", () => {
-  it("deletes a webhook", async () => {
-    mockClient.delete.mockResolvedValue({});
+describe("webhooks test / secret / rotate / deliveries / retry", () => {
+  it("sends a test", async () => {
+    mockClient.post.mockResolvedValue({ ok: true, status: 204, error: null });
+    await run(["webhooks", "test", "wh_1"]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/v1/webhooks/wh_1/test");
+  });
 
-    await run(["webhooks", "delete", "wh-1"]);
+  it("shows and rotates the secret", async () => {
+    mockClient.get.mockResolvedValue({ secret: "whsec_old" });
+    await run(["webhooks", "secret", "wh_1"]);
+    expect(mockClient.get).toHaveBeenCalledWith("/api/v1/webhooks/wh_1/secret");
+    mockClient.post.mockResolvedValue({ secret: "whsec_new" });
+    await run(["webhooks", "rotate", "wh_1"]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/v1/webhooks/wh_1/rotate");
+    expect(logged()).toContain("whsec_new");
+  });
 
-    expect(mockClient.delete).toHaveBeenCalledWith("/api/webhooks/wh-1");
+  it("lists deliveries for one endpoint or all, and retries one", async () => {
+    mockClient.get.mockResolvedValue({ deliveries: [] });
+    await run(["webhooks", "deliveries", "wh_1", "--limit", "5"]);
+    expect(mockClient.get).toHaveBeenCalledWith("/api/v1/webhooks/wh_1/deliveries", { limit: "5" });
+    await run(["webhooks", "deliveries"]);
+    expect(mockClient.get).toHaveBeenCalledWith("/api/v1/webhooks/deliveries", { limit: "20" });
+    mockClient.post.mockResolvedValue({});
+    await run(["webhooks", "retry", "dlv_1"]);
+    expect(mockClient.post).toHaveBeenCalledWith("/api/v1/webhooks/deliveries/dlv_1/retry");
   });
 });

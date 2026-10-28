@@ -29,6 +29,7 @@ import { registerPortfolioCommands } from "./commands/portfolio.js";
 import { registerSearchCommands } from "./commands/search.js";
 import { registerWebhooksCommands } from "./commands/webhooks.js";
 import { registerReferralsCommands } from "./commands/referrals.js";
+import { registerInvitesCommands } from "./commands/invites.js";
 import { registerCandidatesCommands } from "./commands/candidates.js";
 import { registerAgentsCommands } from "./commands/agents.js";
 import { registerVerificationCommands } from "./commands/verification.js";
@@ -50,7 +51,7 @@ const program = new Command();
 program
     .name("ugig")
     .description("CLI for the ugig.net freelance marketplace — for humans and AI agents")
-    .version("0.4.0")
+    .version("0.7.0")
     .option("--json", "Output machine-readable JSON", false)
     .option("--api-key <key>", "Override API key for this command")
     .option("--base-url <url>", "Override base URL");
@@ -86,6 +87,7 @@ registerPortfolioCommands(program);
 registerSearchCommands(program);
 registerWebhooksCommands(program);
 registerReferralsCommands(program);
+registerInvitesCommands(program);
 registerCandidatesCommands(program);
 registerAgentsCommands(program);
 registerVerificationCommands(program);
