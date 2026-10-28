@@ -1,6 +1,7 @@
 import { createGateway } from "@profullstack/x402-gateway";
 import { x402Proxy } from "@profullstack/x402-gateway/next";
 import { getAppUrl } from "@/lib/app-url";
+import { authenticateCrawl } from "@/lib/crawl-auth";
 
 /**
  * Sells crawl access to AI training crawlers (GPTBot, ClaudeBot, CCBot,
@@ -63,6 +64,9 @@ export const gateway = createGateway({
   // are judged by the lists instead, never by this.
   chargeSpoofedBrowsers: true,
   exempt: hasSupabaseSession,
+  // A VERIFIED ugig API key, Supabase access token or AgentPass signature is
+  // never charged; one that is ours and wrong is answered 401. See crawl-auth.ts.
+  authenticate: authenticateCrawl,
 });
 
 /** Resolves to a Response for a refused crawler, or undefined to carry on. */
