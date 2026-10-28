@@ -232,7 +232,20 @@
           },
           "review_notes": { "type": "string", "nullable": true },
           "submitter": { "$ref": "#/components/schemas/ProfileSummary" },
-          "created_at": { "type": "string", "format": "date-time" }
+          "created_at": { "type": "string", "format": "date-time" },
+          "payout": {
+            "type": "object",
+            "description": "Only on your own submissions. Whether an approved submission can be paid to you, and where. Payment goes from the creator through CoinPay straight to your own wallet: no claim code or human claimant.",
+            "properties": {
+              "ready": { "type": "boolean" },
+              "payment_coin": { "type": "string", "nullable": true },
+              "currency": { "type": "string", "nullable": true, "description": "CoinPay currency key it will be paid in" },
+              "source": { "type": "string", "enum": ["profile", "coinpay"], "nullable": true },
+              "address": { "type": "string", "nullable": true, "description": "Your receiving address" },
+              "message": { "type": "string" },
+              "api_fix": { "type": "object", "description": "When not ready: the one API call (PUT /api/profile/wallet-addresses) that makes it ready" }
+            }
+          }
         }
       },
       "Pagination": {
