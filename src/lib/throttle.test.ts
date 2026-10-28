@@ -47,7 +47,8 @@ async function countUntilLimited(
 
 describe("the site-wide allowance", () => {
   it("meters a page route, which nothing here did before", async () => {
-    expect(await countUntilLimited("/gigs/some-listing", "10.7.0.1", 140)).toBe(100);
+    // 100/min configured; @profullstack/throttle 0.4 applies x5 headroom.
+    expect(await countUntilLimited("/gigs/some-listing", "10.7.0.1", 540)).toBe(500);
   });
 
   it("gives each caller its own allowance", async () => {
@@ -60,6 +61,7 @@ describe("the site-wide allowance", () => {
     const allowed = await countUntilLimited("/api/auth/callback", "10.7.0.4", 40, {
       authorization: "Bearer anything",
     });
+    // A brute-force guard: headroom does not apply.
     expect(allowed).toBe(10);
   });
 
