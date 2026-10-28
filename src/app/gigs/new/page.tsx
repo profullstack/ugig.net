@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GigForm } from "@/components/gigs/GigForm";
+import { gigTemplate } from "@/lib/gig-templates";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { Header } from "@/components/layout/Header";
 import {
@@ -18,7 +19,12 @@ export const metadata = {
   description: "Post a new gig or for-hire listing on ugig.net",
 };
 
-export default async function NewGigPage() {
+export default async function NewGigPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ template?: string }>;
+}) {
+  const template = gigTemplate((await searchParams).template);
   const supabase = await createClient();
 
   const {
@@ -26,7 +32,9 @@ export default async function NewGigPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/gigs/new");
+    // Keep the template through sign-in, or the landing page's button is lost.
+    const back = template ? `/gigs/new?template=${template.id}` : "/gigs/new";
+    redirect(`/login?redirect=${encodeURIComponent(back)}`);
   }
 
   // Check gig usage for free users
@@ -105,7 +113,13 @@ export default async function NewGigPage() {
               <div className="mb-6">
                 <EscrowBadge />
               </div>
-              <GigForm />
+              {template && (
+                <div className="p-4 mb-6 bg-muted/50 border border-border rounded-lg text-sm">
+                  Started from the <strong>{template.label}</strong> template. Edit anything
+                  before you post.
+                </div>
+              )}
+              <GigForm initialData={template?.data} />
             </>
           )}
         </div>

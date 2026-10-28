@@ -157,6 +157,7 @@ function getStaticPages(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/docs`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/docs/cli`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/for-employers`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/pay-per-pr`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/for-candidates`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE_URL}/terms`, changeFrequency: "yearly", priority: 0.2 },
