@@ -5,6 +5,8 @@
  * Exchanges code for tokens, fetches userinfo, finds the account bound to the
  * CoinPay sub (or creates one), establishes Supabase session via magic link.
  * The CoinPay email is unverified and never selects an existing account.
+ * The access/refresh tokens are used for this request only and never stored:
+ * the identity keeps the wallet addresses userinfo returned (see coinpay-oauth).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { safeRedirectPath } from "@/lib/safe-redirect";
@@ -14,6 +16,8 @@ import { getAppUrl } from "@/lib/app-url";
 import { logIdentityEvent } from "@/lib/coinpay-disconnect";
 import { resolveCoinpayLogin } from "@/lib/coinpay-login";
 import { getAuthContext } from "@/lib/auth/get-user";
+// Stores the wallet addresses from userinfo, never the CoinPay tokens.
+import { coinpayIdentityMetadata } from "@/lib/coinpay-oauth";
 
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 const USERINFO_URL = "https://coinpayportal.com/api/oauth/userinfo";
@@ -39,25 +43,6 @@ function getAdminSupabase() {
   // are not in the generated Database types. See lib/auth/api-key.ts.
   admin.realtime.disconnect();
   return admin;
-}
-
-function coinpayIdentityMetadata(
-  tokens: Record<string, unknown>,
-  userinfo: Record<string, unknown>
-) {
-  return {
-    name: typeof userinfo.name === "string" ? userinfo.name : null,
-    coinpay_sub: typeof userinfo.sub === "string" ? userinfo.sub : null,
-    access_token: typeof tokens.access_token === "string" ? tokens.access_token : null,
-    refresh_token: typeof tokens.refresh_token === "string" ? tokens.refresh_token : null,
-    token_type: typeof tokens.token_type === "string" ? tokens.token_type : null,
-    scope: typeof tokens.scope === "string" ? tokens.scope : null,
-    expires_at:
-      typeof tokens.expires_in === "number"
-        ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-        : null,
-    connected_at: new Date().toISOString(),
-  };
 }
 
 function redirectWithClearedState(url: string) {

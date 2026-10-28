@@ -2,12 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/coinpayportal", () => ({
   createPayment: vi.fn(),
-  getCoinpayGlobalWalletTokens: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn(),
 }));
 
 vi.mock("@/lib/coinpay-oauth", () => ({
-  getConnectedCoinpayAccessToken: vi.fn(),
+  getCoinpayLink: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/get-user", () => ({
@@ -16,8 +15,8 @@ vi.mock("@/lib/auth/get-user", () => ({
 
 import { POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createPayment, getCoinpayGlobalWalletTokens, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { createPayment, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 
 const SUBMITTER_SOL_WALLET = "SUBmtr1111111111111111111111111111111111111";
 
@@ -47,10 +46,11 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // By default the submitter has CoinPay connected with a SOL wallet.
-    (getConnectedCoinpayAccessToken as any).mockResolvedValue("submitter-token");
-    (getCoinpayGlobalWalletTokens as any).mockResolvedValue([
-      { currency: "sol", cryptocurrency: "SOL", address: SUBMITTER_SOL_WALLET, label: "My SOL" },
-    ]);
+    // The submitter's wallets as saved when they connected CoinPay.
+    (getCoinpayLink as any).mockResolvedValue({
+      state: "connected",
+      wallets: [{ currency: "sol", cryptocurrency: "SOL", address: SUBMITTER_SOL_WALLET, label: "My SOL" }],
+    });
     (preferredCoinToPaymentCurrency as any).mockReturnValue("sol");
   });
 
@@ -164,7 +164,7 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
       }),
     };
     (getAuthContext as any).mockResolvedValue({ user: { id: CREATOR_ID }, supabase });
-    (getConnectedCoinpayAccessToken as any).mockResolvedValue(null);
+    (getCoinpayLink as any).mockResolvedValue({ state: "none", wallets: null });
 
     const res = await POST(req(), params);
 

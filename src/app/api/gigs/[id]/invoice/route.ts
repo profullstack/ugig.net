@@ -4,7 +4,6 @@ import { getCoinpayLink } from "@/lib/coinpay-oauth";
 import {
   findCoinpayGlobalWallet,
   preferredCoinToPaymentCurrency,
-  readCoinpayUserinfoWallets,
   type CoinPayGlobalWallet,
   type SupportedCurrency,
 } from "@/lib/coinpayportal";
@@ -475,23 +474,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     let workerWallets: CoinPayGlobalWallet[] = [];
     let linkProblem: "none" | "needs_reconnect" | null = null;
     const workerCoinpayLink = await getCoinpayLink(workerId);
-    if (workerCoinpayLink.accessToken === null) {
+    if (!workerCoinpayLink.wallets) {
       linkProblem = workerCoinpayLink.state === "none" ? "none" : "needs_reconnect";
     } else {
-      // The stored scope can claim wallet:read while CoinPay has silently
-      // narrowed the grant (2026-08-16), or the token can be revoked. Both look
-      // "Connected" from our side; only the userinfo call tells the truth.
-      const userinfo = await readCoinpayUserinfoWallets(workerCoinpayLink.accessToken);
-      if (userinfo.status !== "ok") {
-        console.warn(
-          `[invoice] worker CoinPay link unusable: ${userinfo.status}${
-            userinfo.status === "unauthorized" ? ` ${userinfo.httpStatus}` : ""
-          }`
-        );
-        linkProblem = "needs_reconnect";
-      } else {
-        workerWallets = userinfo.wallets;
-      }
+      // The addresses saved when the worker connected CoinPay (no token kept).
+      workerWallets = workerCoinpayLink.wallets;
     }
 
     let walletSource: "coinpay" | "profile" = "coinpay";

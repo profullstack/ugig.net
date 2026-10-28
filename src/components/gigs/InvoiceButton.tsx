@@ -1176,6 +1176,13 @@ function InvoiceForm({
             Refresh
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          These are the addresses saved when you connected CoinPay. Changed them on CoinPay?{" "}
+          <a href="/settings/connections" className="underline">
+            Reconnect
+          </a>{" "}
+          to sync.
+        </p>
 
         {walletsLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

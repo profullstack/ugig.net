@@ -4,9 +4,9 @@ import { isAuthorizedCron } from "@/lib/cron-auth";
 import { sweepCoinpayLinks } from "@/lib/coinpay-link-sweep";
 
 /**
- * POST /api/cron/coinpay-links — keeps sellers' CoinPay links refreshed and
+ * POST /api/cron/coinpay-links — moves CoinPay links onto stored wallet addresses (deleting old tokens) and
  * tells a seller once when theirs has died. Daily via `ugig-cron coinpay-links`.
- * `?dry_run=1` counts without refreshing, writing or sending.
+ * `?dry_run=1` counts (incl. legacyRemaining) without migrating, writing or sending.
  */
 export async function POST(request: NextRequest) {
   if (!isAuthorizedCron(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -29,20 +29,18 @@ function req(body?: unknown) {
   return { json: async () => body } as any;
 }
 const params = { params: Promise.resolve({ id: "g1" }) };
+const sellerWallets = () => [
+  { currency: "sol", cryptocurrency: "SOL", label: null, address: SELLER_SOL, network: null },
+  { currency: "usdt_pol", cryptocurrency: "USDT_POL", label: null, address: "0xabc", network: null },
+];
 
 describe("/api/gigs/[id]/buy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     state.user = { id: "buyer" };
     state.db = fakeSupabase({ gigs: [gig], gig_orders: [] });
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "connected", accessToken: "tok" } as any);
-    vi.mocked(readCoinpayUserinfoWallets).mockResolvedValue({
-      status: "ok",
-      wallets: [
-        { currency: "sol", cryptocurrency: "SOL", label: null, address: SELLER_SOL },
-        { currency: "usdt_pol", cryptocurrency: "USDT_POL", label: null, address: "0xabc" },
-      ],
-    } as any);
+    // The seller's link carries the wallets saved at connect time (no token).
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "connected", wallets: sellerWallets() } as any);
     vi.mocked(createEscrow).mockResolvedValue({
       id: "esc_1", escrow_address: "EscrowAddr1111", amount: 0.33, expires_at: "2026-10-28T00:00:00Z",
       release_token: "esc_secret",
@@ -66,7 +64,7 @@ describe("/api/gigs/[id]/buy", () => {
 
   it("GET tells the owner to connect CoinPay when they haven't", async () => {
     state.user = { id: "seller" };
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", wallets: null } as any);
     const body = await (await GET(req(), params)).json();
     expect(body).toMatchObject({ owner: true, seller_ready: false, fix: "not_connected" });
     expect(body.reason).toMatch(/Add a payout wallet/);
@@ -83,23 +81,23 @@ describe("/api/gigs/[id]/buy", () => {
 
   // 2026-10-28: a seller's link lapsed and Buy now vanished with no word to anyone.
   it("GET tells a buyer payments are unavailable when the seller must reconnect", async () => {
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", accessToken: null } as any);
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", wallets: null } as any);
     const body = await (await GET(req(), params)).json();
     expect(body).toMatchObject({ buyable: false, payments_unavailable: true, seller_fix: "needs_reconnect" });
     expect(body.reason).toMatch(/seller must reconnect/);
   });
 
   it("GET says CoinPay is briefly down, not 'reconnect', when a refresh could not reach it", async () => {
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", accessToken: null, temporary: true } as any);
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "needs_reconnect", wallets: null, temporary: true } as any);
     const body = await (await GET(req(), params)).json();
     expect(body).toMatchObject({ buyable: false, payments_unavailable: true, seller_fix: "unavailable" });
     expect(body.reason).not.toMatch(/reconnect/);
   });
 
-  it("GET treats a CoinPay userinfo outage as temporary", async () => {
-    vi.mocked(readCoinpayUserinfoWallets).mockRejectedValue(new Error("CoinPay userinfo failed: 502"));
+  it("GET never calls CoinPay for the seller's wallets (they are stored, not fetched with a token)", async () => {
     const body = await (await GET(req(), params)).json();
-    expect(body).toMatchObject({ payments_unavailable: true, seller_fix: "unavailable" });
+    expect(body.buyable).toBe(true);
+    expect(readCoinpayUserinfoWallets).not.toHaveBeenCalled();
   });
 
   it("POST escrows the price to the seller with ugig's 5% marketplace fee and stores the token", async () => {
@@ -123,7 +121,7 @@ describe("/api/gigs/[id]/buy", () => {
   });
 
   it("POST refuses when the seller has no CoinPay link", async () => {
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", wallets: null } as any);
     const res = await POST(req({ currency: "sol", refund_address: BUYER_SOL }), params);
     expect(res.status).toBe(409);
     expect(createEscrow).not.toHaveBeenCalled();
@@ -131,7 +129,7 @@ describe("/api/gigs/[id]/buy", () => {
 
   it("GET tells an agent owner the exact API call that turns Buy now on", async () => {
     state.user = { id: "seller" };
-    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+    vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", wallets: null } as any);
     const body = await (await GET(req(), params)).json();
     expect(body.reason).toContain("PUT /api/profile/wallet-addresses");
     expect(body.api_fix).toMatchObject({ method: "PUT", path: "/api/profile/wallet-addresses" });
@@ -141,7 +139,7 @@ describe("/api/gigs/[id]/buy", () => {
 
   describe("seller with no CoinPay link but a profile payout wallet", () => {
     beforeEach(() => {
-      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", wallets: null } as any);
       state.db = fakeSupabase({
         gigs: [gig],
         gig_orders: [],
@@ -263,7 +261,7 @@ describe("/api/gigs/[id]/buy", () => {
     const PAYPAL = "lily@example.com";
     beforeEach(() => {
       process.env.UGIG_PAYPAL_BUY_NOW = "true";
-      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", accessToken: null } as any);
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "none", wallets: null } as any);
       state.db = fakeSupabase({
         gigs: [gig],
         gig_orders: [],
@@ -316,7 +314,7 @@ describe("/api/gigs/[id]/buy", () => {
     });
 
     it("prefers PayPal payout for a PayPal-paid order even when the seller also has a wallet", async () => {
-      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "connected", accessToken: "tok" } as any);
+      vi.mocked(getCoinpayLink).mockResolvedValue({ state: "connected", wallets: sellerWallets() } as any);
       const res = await POST({ json: async () => ({ method: "paypal" }), nextUrl: { origin: "https://ugig.net" } } as any, params);
       expect(res.status).toBe(201);
       expect(state.db.inserts.gig_orders[0]).toMatchObject({ payout_currency: "paypal" });

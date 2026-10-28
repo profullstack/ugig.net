@@ -1,9 +1,87 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  coinpayIdentityMetadata,
   coinpayLinkCanReadWallets,
+  coinpayLinkHasLegacyTokens,
+  coinpayLinkWallets,
   mergeRefreshedCoinpayMetadata,
   storedCoinpayLinkState,
+  withoutCoinpayTokens,
 } from "./coinpay-oauth";
+
+afterEach(() => vi.unstubAllEnvs());
+
+const SOL = "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV";
+const EVM = "0x52908400098527886E0F7030069857D2E4169EE7";
+
+// 2026-10-28: ugig keeps the wallet addresses a CoinPay grant can read, never
+// the grant's tokens (no user secret may be readable by anything on our boxes).
+describe("coinpayIdentityMetadata (OAuth callback)", () => {
+  const tokens = { access_token: "at-secret", refresh_token: "rt-secret", token_type: "Bearer", scope: "openid wallet:read", expires_in: 3600 };
+
+  it("stores the userinfo wallets and no token at all", () => {
+    const m = coinpayIdentityMetadata(tokens, {
+      sub: "sub-1",
+      name: "Ann",
+      wallets: [{ cryptocurrency: "USDC_SOL", wallet_address: SOL, label: "main" }],
+    });
+    const json = JSON.stringify(m);
+    expect(json).not.toContain("at-secret");
+    expect(json).not.toContain("rt-secret");
+    expect(coinpayLinkHasLegacyTokens(m)).toBe(false);
+    expect(m).toMatchObject({ coinpay_sub: "sub-1", name: "Ann", scope: "openid wallet:read" });
+    expect(coinpayLinkWallets(m)).toEqual([
+      { currency: "usdc_sol", cryptocurrency: "USDC_SOL", label: "main", address: SOL, network: null },
+    ]);
+    expect(typeof m.wallets_synced_at).toBe("string");
+    expect(coinpayLinkCanReadWallets(m)).toBe(true);
+  });
+
+  it("a grant without the wallets claim stores no snapshot, so it reads as needs-reconnect", () => {
+    const m = coinpayIdentityMetadata(tokens, { sub: "sub-1" });
+    expect(coinpayLinkWallets(m)).toBeNull();
+    expect(coinpayLinkCanReadWallets(m)).toBe(false);
+    expect(storedCoinpayLinkState(m, true)).toBe("needs_reconnect");
+  });
+
+  it("an empty wallets claim is a connected link with no addresses yet", () => {
+    const m = coinpayIdentityMetadata(tokens, { sub: "s", wallets: [] });
+    expect(coinpayLinkWallets(m)).toEqual([]);
+    expect(storedCoinpayLinkState(m, true)).toBe("connected");
+  });
+});
+
+describe("coinpayLinkWallets", () => {
+  it("drops entries whose address does not fit the coin", () => {
+    const m = {
+      wallets: [
+        { currency: "usdc_sol", address: SOL },
+        { currency: "usdc_eth", address: EVM },
+        { currency: "usdc_sol", address: EVM },
+        { currency: "nope", address: SOL },
+        "junk",
+      ],
+    };
+    expect(coinpayLinkWallets(m)?.map((w) => w.currency)).toEqual(["usdc_sol", "usdc_eth"]);
+  });
+});
+
+describe("withoutCoinpayTokens", () => {
+  it("removes every token field and keeps the rest", () => {
+    const out = withoutCoinpayTokens({ access_token: "a", refresh_token: "r", token_type: "Bearer", expires_at: "x", refreshed_at: "y", coinpay_sub: "s", scope: "wallet:read" });
+    expect(out).toEqual({ coinpay_sub: "s", scope: "wallet:read" });
+  });
+});
+
+describe("LEGACY_KEY_MIGRATION=off", () => {
+  it("a legacy token link is no longer usable; a snapshot link still is", () => {
+    vi.stubEnv("LEGACY_KEY_MIGRATION", "off");
+    const legacy = { access_token: "tok", refresh_token: "rt", scope: "wallet:read", expires_at: "2999-01-01T00:00:00Z" };
+    expect(coinpayLinkCanReadWallets(legacy)).toBe(false);
+    expect(storedCoinpayLinkState(legacy, true)).toBe("needs_reconnect");
+    expect(storedCoinpayLinkState({ wallets: [] }, true)).toBe("connected");
+  });
+});
 
 // The connections page and the invoice gate must agree on what a usable CoinPay
 // link is. They did not: any oauth_identities row rendered as "Connected", while
@@ -152,5 +230,10 @@ describe("storedCoinpayLinkState", () => {
     expect(storedCoinpayLinkState({ ...good, scope: "openid profile email" }, true, now)).toBe(
       "needs_reconnect"
     );
+  });
+
+  it("a wallet snapshot is connected with no token at all; a recorded fault is not", () => {
+    expect(storedCoinpayLinkState({ wallets: [{ currency: "usdc_sol", address: SOL }] }, true, now)).toBe("connected");
+    expect(storedCoinpayLinkState({ wallets: [], link_error: { code: "refresh_rejected" } }, true, now)).toBe("needs_reconnect");
   });
 });

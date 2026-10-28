@@ -2,16 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/coinpayportal", () => ({
   createPayment: vi.fn(),
-  getCoinpayGlobalWalletTokens: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn(),
 }));
-vi.mock("@/lib/coinpay-oauth", () => ({ getConnectedCoinpayAccessToken: vi.fn() }));
+vi.mock("@/lib/coinpay-oauth", () => ({ getCoinpayLink: vi.fn() }));
 vi.mock("@/lib/auth/get-user", () => ({ getAuthContext: vi.fn() }));
 
 import { POST } from "./route";
 import { getAuthContext } from "@/lib/auth/get-user";
-import { createPayment, getCoinpayGlobalWalletTokens, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { createPayment, preferredCoinToPaymentCurrency } from "@/lib/coinpayportal";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 
 const BOUNTY_ID = "8489a861-0999-4107-afca-2592021ac338";
 const SUBMISSION_ID = "d2317730-c56a-49e9-a6e4-dc469b7605f7";
@@ -31,8 +30,7 @@ function chain(result: { data: any; error?: any }) {
 describe("bounty pay profile-wallet fallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getConnectedCoinpayAccessToken as any).mockResolvedValue(null);
-    (getCoinpayGlobalWalletTokens as any).mockResolvedValue([]);
+    (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", wallets: null });
     (preferredCoinToPaymentCurrency as any).mockReturnValue("sol");
   });
 
@@ -75,7 +73,6 @@ describe("bounty pay profile-wallet fallback", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(getCoinpayGlobalWalletTokens).not.toHaveBeenCalled();
     expect(createPayment).toHaveBeenCalledWith(
       expect.objectContaining({
         amount_usd: 1,

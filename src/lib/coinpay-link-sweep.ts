@@ -1,23 +1,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { coinpayLinkCanReadWallets, refreshCoinpayToken } from "@/lib/coinpay-oauth";
+import {
+  coinpayLinkHasLegacyTokens,
+  coinpayLinkWallets,
+  legacyCoinpayTokenMigrationEnabled,
+  migrateLegacyCoinpayIdentity,
+  withoutCoinpayTokens,
+} from "@/lib/coinpay-oauth";
 import { coinpayLinkFault, markCoinpayLinkBroken, type CoinpayLinkFault } from "@/lib/coinpay-link-health";
 
 type Client = SupabaseClient<any, "public", any>;
 
 /**
- * Keeps every CoinPay link alive, and finds the dead ones before a buyer does.
+ * Daily (POST /api/cron/coinpay-links): moves every CoinPay link onto stored
+ * wallet addresses and finds the dead ones before a buyer does.
  *
- * Access tokens last an hour and were only refreshed when someone happened to
- * need one, so a link nobody touched for 30 days lost its refresh token too,
- * and a link CoinPay had stopped honouring was only discovered by a buyer who
- * then saw nothing. Daily (POST /api/cron/coinpay-links):
+ * ugig no longer keeps CoinPay tokens (see coinpay-oauth.ts): a link is the
+ * wallet snapshot taken when its owner connected. So the sweep:
  *
- * - a refresh token not rotated for REFRESH_AFTER_MS is refreshed, which
- *   restarts CoinPay's 30-day refresh-token clock;
- * - a link that cannot be refreshed (refused, no refresh token, no wallet
- *   scope) is marked broken and its seller told once (see coinpay-link-health).
+ * - migrates a link that still holds pre-snapshot plaintext tokens (one
+ *   refresh + userinfo read, then the snapshot is written and the tokens are
+ *   deleted in the same update). A link CoinPay refuses gets its tokens
+ *   deleted and is marked broken; an outage leaves it for the next run;
+ * - with LEGACY_KEY_MIGRATION=off, deletes leftover tokens without reading them;
+ * - marks a link that has neither wallets nor tokens as broken, and tells its
+ *   seller once (see coinpay-link-health).
  */
-export const REFRESH_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface IdentityRow {
   id: string;
@@ -28,46 +35,46 @@ interface IdentityRow {
 
 export interface SweepResult {
   links: number;
-  refreshed: number;
+  migrated: number;
   transient: number;
+  scrubbed: number;
   broken: Record<CoinpayLinkFault, number>;
   notified: number;
+  /** Rows still holding a plaintext CoinPay token after this run. */
+  legacyRemaining: number;
   dryRun: boolean;
 }
 
-function metadataObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
+export type SweepStep =
+  | { action: "ok" }
+  | { action: "migrate" }
+  | { action: "scrub" }
+  | { action: "broken"; fault: CoinpayLinkFault };
 
 /** What the sweep should do with one link, from what is stored. Pure. */
-export function sweepAction(
-  metadata: unknown,
-  now: number
-): { action: "ok" } | { action: "refresh"; refreshToken: string } | { action: "broken"; fault: CoinpayLinkFault } {
-  const meta = metadataObject(metadata);
-  const fault = coinpayLinkFault(meta);
+export function sweepAction(metadata: unknown, legacyEnabled: boolean = legacyCoinpayTokenMigrationEnabled()): SweepStep {
+  if (coinpayLinkHasLegacyTokens(metadata)) return legacyEnabled ? { action: "migrate" } : { action: "scrub" };
+  const fault = coinpayLinkFault(metadata);
   if (fault) return { action: "broken", fault };
-  if (!coinpayLinkCanReadWallets(meta)) return { action: "broken", fault: "missing_scope" };
-  const refreshToken = typeof meta.refresh_token === "string" ? meta.refresh_token.trim() : "";
-  const expiresAt = typeof meta.expires_at === "string" ? Date.parse(meta.expires_at) : NaN;
-  if (!refreshToken) {
-    return Number.isFinite(expiresAt) && expiresAt > now ? { action: "ok" } : { action: "broken", fault: "no_refresh_token" };
-  }
-  const rotatedAt = [meta.refreshed_at, meta.connected_at]
-    .map((v) => (typeof v === "string" ? Date.parse(v) : NaN))
-    .find(Number.isFinite);
-  if (rotatedAt === undefined || now - rotatedAt >= REFRESH_AFTER_MS) return { action: "refresh", refreshToken };
-  return { action: "ok" };
+  if (coinpayLinkWallets(metadata) !== null) return { action: "ok" };
+  return { action: "broken", fault: "missing_scope" };
 }
 
 export async function sweepCoinpayLinks(
   svc: Client,
-  options: { now?: Date; dryRun?: boolean; maxRefresh?: number; refresh?: typeof refreshCoinpayToken } = {}
+  options: {
+    now?: Date;
+    dryRun?: boolean;
+    maxMigrations?: number;
+    migrate?: typeof migrateLegacyCoinpayIdentity;
+    legacyEnabled?: boolean;
+  } = {}
 ): Promise<SweepResult> {
   const now = options.now ?? new Date();
   const dryRun = options.dryRun ?? false;
-  const maxRefresh = options.maxRefresh ?? 300;
-  const refresh = options.refresh ?? refreshCoinpayToken;
+  const maxMigrations = options.maxMigrations ?? 300;
+  const migrate = options.migrate ?? migrateLegacyCoinpayIdentity;
+  const legacyEnabled = options.legacyEnabled ?? legacyCoinpayTokenMigrationEnabled();
 
   const rows: IdentityRow[] = [];
   for (let from = 0; ; from += 1000) {
@@ -82,40 +89,77 @@ export async function sweepCoinpayLinks(
     if (!data || data.length < 1000) break;
   }
 
-  // The gate uses each user's newest link; so does the sweep.
-  const seen = new Set<string>();
-  const links = rows.filter((r) => (seen.has(r.user_id) ? false : (seen.add(r.user_id), true)));
+  // Sellers are told about their newest link only (the one the gate uses);
+  // older rows are still migrated or scrubbed, quietly.
+  const newest = new Set<string>();
+  const seenUsers = new Set<string>();
+  for (const r of rows) if (!seenUsers.has(r.user_id)) (seenUsers.add(r.user_id), newest.add(r.id));
 
   const result: SweepResult = {
-    links: links.length,
-    refreshed: 0,
+    links: newest.size,
+    migrated: 0,
     transient: 0,
+    scrubbed: 0,
     broken: { refresh_rejected: 0, no_refresh_token: 0, missing_scope: 0 },
     notified: 0,
+    legacyRemaining: 0,
     dryRun,
   };
 
-  let refreshes = 0;
-  for (const link of links) {
-    let step = sweepAction(link.metadata, now.getTime());
-    if (step.action === "refresh") {
-      if (dryRun || refreshes >= maxRefresh) continue;
-      refreshes++;
-      const r = await refresh(step.refreshToken, link.id, link.metadata);
-      if (r.ok) {
-        result.refreshed++;
+  const recordOnly: typeof markCoinpayLinkBroken = async (client, identity, fault, at = now) => {
+    const meta = (identity.metadata && typeof identity.metadata === "object" ? identity.metadata : {}) as Record<string, unknown>;
+    const next = { ...meta, link_error: coinpayLinkFault(meta) ? meta.link_error : { code: fault, at: at.toISOString() } };
+    await client.from("oauth_identities").update({ metadata: next }).eq("id", identity.id);
+    return { notified: false };
+  };
+
+  let migrations = 0;
+  for (const link of rows) {
+    const isNewest = newest.has(link.id);
+    const step = sweepAction(link.metadata, legacyEnabled);
+
+    if (step.action === "migrate") {
+      if (dryRun || migrations >= maxMigrations) {
+        result.legacyRemaining++;
         continue;
       }
-      if (r.failure === "transient") {
+      migrations++;
+      let notified = false;
+      const markBroken: typeof markCoinpayLinkBroken = isNewest
+        ? async (...args) => {
+            const r = await markCoinpayLinkBroken(...args);
+            notified = r.notified;
+            return r;
+          }
+        : recordOnly;
+      const r = await migrate(svc, link, { now, markBroken });
+      if (r.kind === "migrated") result.migrated++;
+      else if (r.kind === "transient") {
         result.transient++;
+        result.legacyRemaining++;
+      } else {
+        if (isNewest) result.broken[r.fault]++;
+        if (notified) result.notified++;
+      }
+      continue;
+    }
+
+    if (step.action === "scrub") {
+      if (dryRun) {
+        result.legacyRemaining++;
         continue;
       }
-      step = { action: "broken", fault: "refresh_rejected" };
+      const stripped = withoutCoinpayTokens(link.metadata);
+      const { error } = await svc.from("oauth_identities").update({ metadata: stripped }).eq("id", link.id);
+      if (error) result.legacyRemaining++;
+      else result.scrubbed++;
+      continue;
     }
-    if (step.action !== "broken") continue;
+
+    if (step.action !== "broken" || !isNewest) continue;
     result.broken[step.fault]++;
     // Already told about this breakage: nothing to write.
-    if (dryRun || typeof metadataObject(link.metadata).reconnect_notified_at === "string") continue;
+    if (dryRun || typeof (link.metadata as any)?.reconnect_notified_at === "string") continue;
     const { notified } = await markCoinpayLinkBroken(svc, link, step.fault, now);
     if (notified) result.notified++;
   }

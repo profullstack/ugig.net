@@ -463,7 +463,7 @@ function arrayFromWalletPayload(payload: unknown): unknown[] {
   );
 }
 
-function normalizeGlobalWallets(payload: unknown): CoinPayGlobalWallet[] {
+export function normalizeGlobalWallets(payload: unknown): CoinPayGlobalWallet[] {
   const wallets = new Map<string, CoinPayGlobalWallet>();
 
   for (const item of arrayFromWalletPayload(payload)) {

@@ -18,7 +18,6 @@ vi.mock("@/lib/profile-payout-wallets", async (importOriginal) => {
 });
 
 vi.mock("@/lib/coinpay-oauth", () => ({
-  getConnectedCoinpayAccessToken: vi.fn(),
   getCoinpayLink: vi.fn(),
 }));
 
@@ -61,7 +60,7 @@ import {
   readCoinpayUserinfoWallets,
   resolveSupportedPaymentCurrency,
 } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 import { loadProfilePayoutWallets } from "@/lib/profile-payout-wallets";
 import { invoiceReceivedEmail, sendEmail } from "@/lib/email";
 import { getPullRequestMergeState } from "@/lib/github-app";
@@ -155,10 +154,13 @@ describe("GET /api/gigs/[id]/invoice", () => {
 describe("POST /api/gigs/[id]/invoice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getConnectedCoinpayAccessToken as any).mockResolvedValue("coinpay-access-token");
-    (getCoinpayLink as any).mockResolvedValue({
-      state: "connected",
-      accessToken: "coinpay-access-token",
+    // A link's wallets are stored now; the userinfo mock stands in for what
+    // the link held when it was connected (or migrated from a legacy token).
+    (getCoinpayLink as any).mockImplementation(async () => {
+      const r = await (readCoinpayUserinfoWallets as any)();
+      return r?.status === "ok"
+        ? { state: "connected", wallets: r.wallets }
+        : { state: "needs_reconnect", wallets: null };
     });
     (readCoinpayUserinfoWallets as any).mockResolvedValue({ status: "ok", wallets: [
       {
@@ -301,7 +303,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
       });
 
     it("says reconnect, not connect, for a link that exists but lacks the scope", async () => {
-      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", accessToken: null });
+      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", wallets: null });
       authAsWorker();
 
       const res = await POST(body(), params);
@@ -319,7 +321,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
     });
 
     it("still says connect when there is no link at all", async () => {
-      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", wallets: null });
       authAsWorker();
 
       const res = await POST(body(), params);
@@ -351,7 +353,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
     }
 
     it("returns code coinpay_reconnect_required and a link to the connect flow", async () => {
-      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", accessToken: null });
+      (getCoinpayLink as any).mockResolvedValue({ state: "needs_reconnect", wallets: null });
       const onInsert = authWithInsertSpy(WORKER_ID);
 
       const res = await POST(body(), params);
@@ -379,7 +381,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
 
     it("invoices to the worker's profile payout wallet when there is no CoinPay link", async () => {
       // An agent working from an API key cannot do the OAuth browser flow.
-      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", wallets: null });
       (loadProfilePayoutWallets as any).mockResolvedValueOnce([
         { currency: "sol", cryptocurrency: "SOL", label: "ugig profile wallet", address: "So11111111111111111111111111111111111111112", network: null },
       ]);
@@ -398,7 +400,7 @@ describe("POST /api/gigs/[id]/invoice", () => {
     });
 
     it("names the no-browser API fix when neither a link nor a profile wallet exists", async () => {
-      (getCoinpayLink as any).mockResolvedValue({ state: "none", accessToken: null });
+      (getCoinpayLink as any).mockResolvedValue({ state: "none", wallets: null });
       authWithInsertSpy(WORKER_ID);
       const json = await (await POST(body(), params)).json();
       expect(json.api_fix).toMatchObject({ method: "PUT", path: "/api/profile/wallet-addresses" });
