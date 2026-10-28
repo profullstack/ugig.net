@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/coinpayportal", () => ({
+vi.mock("@/lib/coinpayportal", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/coinpayportal")>()),
   createPayment: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn(),
 }));
@@ -156,10 +157,12 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
         metadata: {},
       },
     });
+    const notifyInsert = vi.fn().mockResolvedValue({ error: null });
     const supabase = {
       from: vi.fn((table: string) => {
         if (table === "bounties") return bountyChain;
         if (table === "bounty_submissions") return submissionChain;
+        if (table === "notifications") return { insert: notifyInsert };
         return chain({ data: null });
       }),
     };
@@ -171,6 +174,13 @@ describe("POST /api/bounties/[id]/submissions/[sid]/pay", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.setup_required).toBe(true);
+    expect(body.code).toBe("payout_wallet_missing");
+    expect(body.api_fix).toMatchObject({ method: "PUT", path: "/api/profile/wallet-addresses" });
+    expect(body.api_fix.currencies[0]).toBe("sol");
+    // The winner is told what to do, so it is not left waiting on "approved".
+    expect(notifyInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: SUBMITTER_ID, title: "Add a payout wallet to get paid" })
+    );
     expect(createPayment).not.toHaveBeenCalled();
   });
 

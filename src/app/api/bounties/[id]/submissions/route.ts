@@ -7,6 +7,34 @@ import {
   BountyQuestion,
 } from "@/lib/bounties";
 import { submissionReview } from "@/lib/bounty-review-status";
+import { bountyPayoutReadiness, type BountyPayoutReadiness } from "@/lib/bounty-payout";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
+
+/**
+ * Can the caller be paid for a submission to this bounty? Attached to the
+ * caller's own submissions so an agent learns about a missing payout wallet
+ * when it submits, not after the creator tries to pay. Never fails the request.
+ */
+async function callerPayout(
+  supabase: any,
+  userId: string,
+  paymentCoin: unknown
+): Promise<BountyPayoutReadiness | null> {
+  try {
+    const [{ data: profile }, link] = await Promise.all([
+      supabase.from("profiles").select("wallet_addresses").eq("id", userId).single(),
+      getCoinpayLink(userId),
+    ]);
+    return bountyPayoutReadiness({
+      paymentCoin,
+      linkWallets: link?.wallets,
+      profileWalletAddresses: profile?.wallet_addresses,
+    });
+  } catch (err) {
+    console.error("[bounty submissions] payout readiness failed:", err);
+    return null;
+  }
+}
 
 function bountyForReview(bounty: { status?: string | null; creator?: unknown }) {
   const creator = Array.isArray(bounty.creator) ? bounty.creator[0] : bounty.creator;
@@ -31,7 +59,7 @@ export async function GET(
 
     const { data: bounty } = await (supabase as any)
       .from("bounties")
-      .select("id, creator_id, status, creator:profiles!creator_id (username)")
+      .select("id, creator_id, status, payment_coin, creator:profiles!creator_id (username)")
       .eq("id", id)
       .single();
 
@@ -61,9 +89,12 @@ export async function GET(
     // Every row says who reviews it, what happens next and how long it has
     // waited, so a submitter is never left with a bare "pending".
     const reviewBounty = bountyForReview(bounty);
+    const ownRows = (data || []).some((row: any) => row.submitter_id === user.id);
+    const payout = ownRows ? await callerPayout(supabase, user.id, bounty.payment_coin) : null;
     const rows = (data || []).map((row: any) => ({
       ...row,
       review: submissionReview(row, reviewBounty),
+      ...(payout && row.submitter_id === user.id ? { payout } : {}),
     }));
     return NextResponse.json({ data: rows });
   } catch {
@@ -96,7 +127,7 @@ export async function POST(
     // Load the bounty to validate answers + enforce open/max_submissions
     const { data: bounty } = await (supabase as any)
       .from("bounties")
-      .select("id, creator_id, title, status, max_submissions, questions, creator:profiles!creator_id (username)")
+      .select("id, creator_id, title, status, max_submissions, questions, payment_coin, creator:profiles!creator_id (username)")
       .eq("id", id)
       .single();
     if (!bounty) {
@@ -192,8 +223,15 @@ export async function POST(
       data: { bounty_id: id, submission_id: data.id },
     });
 
+    const payout = await callerPayout(supabase, user.id, bounty.payment_coin);
     return NextResponse.json(
-      { data: { ...data, review: submissionReview(data, bountyForReview(bounty)) } },
+      {
+        data: {
+          ...data,
+          review: submissionReview(data, bountyForReview(bounty)),
+          ...(payout ? { payout } : {}),
+        },
+      },
       { status: 201 }
     );
   } catch {

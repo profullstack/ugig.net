@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/coinpayportal", () => ({
+vi.mock("@/lib/coinpayportal", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/coinpayportal")>()),
   createPayment: vi.fn(),
   preferredCoinToPaymentCurrency: vi.fn(),
 }));

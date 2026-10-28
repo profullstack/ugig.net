@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
-import {
-  createPayment,
-  preferredCoinToPaymentCurrency,
-  type SupportedCurrency,
-} from "@/lib/coinpayportal";
+import { createPayment } from "@/lib/coinpayportal";
 import { getCoinpayLink } from "@/lib/coinpay-oauth";
+import { bountyPayoutCoin, bountyPayoutReadiness, pickBountyPayoutWallet } from "@/lib/bounty-payout";
 
 // POST /api/bounties/[id]/submissions/[sid]/pay
 // Creator generates a CoinPay in-app payment for an approved submission.
@@ -78,69 +75,58 @@ export async function POST(
 
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ugig.net";
     const businessId = process.env.COINPAY_MERCHANT_ID;
-    const preferredCurrency = preferredCoinToPaymentCurrency(bounty.payment_coin);
-    if (!preferredCurrency) {
+    const coin = bountyPayoutCoin(bounty.payment_coin);
+    if (coin.kind === "unsupported") {
       return NextResponse.json(
-        { error: `Unsupported bounty payment coin: ${String(bounty.payment_coin || "unknown")}` },
+        {
+          error: `Unsupported bounty payment coin: ${coin.coin}. Pay it to the winner directly, outside ugig.`,
+          code: "unsupported_payment_coin",
+        },
         { status: 400 }
       );
     }
 
-    // Prefer the submitter's live CoinPay wallet when OAuth is healthy. If the
-    // provider OAuth client cannot grant wallet:read, fall back to the matching
-    // wallet address that the submitter has already stored on their own uGig
-    // profile. Profile wallet addresses are user-controlled payout coordinates
-    // and are already exposed by the profile wallet-address API specifically so
-    // payers can use them without an OAuth lookup.
-    type PayoutWallet = { currency: SupportedCurrency; address: string; label?: string | null };
-    let payoutWallet: PayoutWallet | null = null;
-
+    // The submitter's own wallet: a live CoinPay link, or the validated payout
+    // wallets on their profile (an API-key agent has no browser to link
+    // CoinPay with). See src/lib/bounty-payout.ts for the order.
     const submitterLink = await getCoinpayLink(submission.submitter_id);
-    if (submitterLink.wallets && submitterLink.wallets.length > 0) {
-      const submitterWallets = submitterLink.wallets;
-      payoutWallet =
-        submitterWallets.find((w) => w.currency === preferredCurrency) || submitterWallets[0] || null;
-    }
+    const { data: submitterProfile } = await (supabase as any)
+      .from("profiles")
+      .select("wallet_addresses")
+      .eq("id", submission.submitter_id)
+      .single();
+    const payoutWallet = pickBountyPayoutWallet({
+      coin,
+      linkWallets: submitterLink.wallets,
+      profileWalletAddresses: submitterProfile?.wallet_addresses,
+    });
 
     if (!payoutWallet) {
-      const { data: submitterProfile } = await (supabase as any)
-        .from("profiles")
-        .select("wallet_addresses")
-        .eq("id", submission.submitter_id)
-        .single();
-
-      const storedWallets = Array.isArray(submitterProfile?.wallet_addresses)
-        ? submitterProfile.wallet_addresses
-        : [];
-      const normalizeCurrency = (value: unknown) =>
-        String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const normalizedPreferred = normalizeCurrency(preferredCurrency);
-      const storedWallet = storedWallets
-        .filter(
-          (w: any) =>
-            w &&
-            typeof w === "object" &&
-            typeof w.address === "string" &&
-            w.address.trim().length > 0 &&
-            normalizeCurrency(w.currency) === normalizedPreferred
-        )
-        .sort((a: any, b: any) => Number(Boolean(b.is_preferred)) - Number(Boolean(a.is_preferred)))[0];
-
-      if (storedWallet) {
-        payoutWallet = {
-          currency: preferredCurrency,
-          address: storedWallet.address.trim(),
-          label: storedWallet.label || `${storedWallet.currency || bounty.payment_coin} profile wallet`,
-        };
+      const readiness = bountyPayoutReadiness({
+        paymentCoin: bounty.payment_coin,
+        linkWallets: submitterLink.wallets,
+        profileWalletAddresses: submitterProfile?.wallet_addresses,
+      });
+      // Tell the winner exactly what to do; otherwise an agent waits forever
+      // on "approved, awaiting payment" without knowing it is the blocker.
+      try {
+        await (supabase as any).from("notifications").insert({
+          user_id: submission.submitter_id,
+          type: "payment_received",
+          title: "Add a payout wallet to get paid",
+          body: `Your submission to "${bounty.title}" was approved, but you have no payout wallet. ${readiness.message}`,
+          data: { bounty_id: bountyId, submission_id: sid, api_fix: readiness.api_fix ?? null },
+        });
+      } catch (notifyErr) {
+        console.error("[bounty pay] could not notify submitter:", notifyErr);
       }
-    }
-
-    if (!payoutWallet) {
       return NextResponse.json(
         {
           error:
-            "The bounty winner must connect CoinPay or add a matching receiving wallet to their uGig profile before they can be paid",
+            "The bounty winner has no payout wallet yet. They have been notified; they can add one with their API key (PUT /api/profile/wallet-addresses) or connect CoinPay.",
+          code: "payout_wallet_missing",
           setup_required: true,
+          api_fix: readiness.api_fix,
         },
         { status: 409 }
       );
@@ -163,6 +149,7 @@ export async function POST(
         payment_currency: paymentCurrency,
         merchant_wallet_address: payoutWallet.address,
         merchant_wallet_label: payoutWallet.label || null,
+        receiver_wallet_source: payoutWallet.source,
         platform: "ugig.net",
       },
     });

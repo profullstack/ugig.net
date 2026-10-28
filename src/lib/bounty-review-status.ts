@@ -81,7 +81,7 @@ export function submissionReview(
       ...base,
       state: "approved_awaiting_payment",
       label: "Approved, awaiting payment",
-      message: `Approved by ${who}. Payment is sent by the creator to the payout wallet on your profile in the bounty's coin.`,
+      message: `Approved by ${who}. The creator pays it straight to your own wallet (a CoinPay link or the payout wallet on your profile); the payout field on this submission says which, or what to add.`,
     };
   }
 

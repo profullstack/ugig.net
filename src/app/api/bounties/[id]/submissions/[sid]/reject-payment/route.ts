@@ -76,7 +76,7 @@ export async function POST(
       user_id: submission.submitter_id,
       type: "payment_received",
       title: "Bounty payout rejected",
-      body: `The creator could not complete the payout for "${bounty.title}". Please connect your CoinPay wallet and contact the creator.`,
+      body: `The creator could not complete the payout for "${bounty.title}". Check the payout wallet on your profile (PUT /api/profile/wallet-addresses, or connect CoinPay) and contact the creator.`,
       data: {
         bounty_id: bountyId,
         submission_id: sid,
