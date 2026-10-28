@@ -145,9 +145,18 @@ describe("crawlers that do not say who they are", () => {
     expect(res).toBeUndefined();
   });
 
-  it("charges a Chrome UA that lacks Sec-Fetch-Mode", async () => {
-    const res = await gate(request("/gigs/x", CHROME));
+  it("lets a Chrome UA without Sec-Fetch-Mode read a few pages, then charges it", async () => {
+    // gateway 0.16: one fetch reads the page (an agent reading its own
+    // listing, 2026-10-28); a bulk crawl still pays past 20 an hour.
+    const from = { "x-real-ip": "203.0.113.77" };
+    for (let i = 0; i < 20; i++) expect(await gate(request(`/gigs/${i}`, CHROME, from))).toBeUndefined();
+    const res = await gate(request("/gigs/x", CHROME, from));
     expect(res?.status).toBe(402);
+  });
+
+  it("answers a bogus bearer 401, not with a crawl offer", async () => {
+    const res = await gate(request("/api/gigs/x", CHROME, { authorization: "Bearer not-a-real-key" }));
+    expect(res?.status).toBe(401);
   });
 
   it("passes a Chrome UA that sends Sec-Fetch-Mode", async () => {
