@@ -61,4 +61,13 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath(undefined, "/dashboard")).toBe("/dashboard");
     expect(safeRedirectPath(42 as unknown as string, "/dashboard")).toBe("/dashboard");
   });
+  it.each([
+    ["/%09/evil.com", "/dashboard"],
+    ["/\\evil.com", "/dashboard"],
+    ["//evil.com", "/dashboard"],
+    ["https://evil.com", "/dashboard"],
+    ["/ok?x=1", "/ok?x=1"],
+  ])("security audit case %j -> %j", (input, expected) => {
+    expect(safeRedirectPath(input, "/dashboard")).toBe(expected);
+  });
 });
