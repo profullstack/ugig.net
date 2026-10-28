@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notifications as notificationsApi } from "@/lib/api";
 import { formatRelativeTime, cn } from "@/lib/utils";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import type { Database } from "@/types/database";
 
 type Notification = Database["public"]["Tables"]["notifications"]["Row"];
@@ -118,7 +119,8 @@ export function NotificationsList() {
     const data = notification.data as Record<string, string> | null;
     const type = notification.type as string;
     // A notice that names its own page (e.g. "reconnect CoinPay") goes there.
-    if (data?.link && data.link.startsWith("/") && !data.link.startsWith("//")) return data.link;
+    const ownLink = safeRedirectPath(data?.link);
+    if (ownLink) return ownLink;
     switch (type) {
       case "new_message":
         return data?.conversation_id
