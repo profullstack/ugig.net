@@ -65,8 +65,14 @@ describe("checkSpam", () => {
       "José García",
       "Mary-Jane Watson",
       "O'Brien",
+      "Иван Петров",
+      "王小明",
       null,
-    ])("allows name: %s", (name) => {
+      // The profile form saves an empty field as "", which must mean "no name",
+      // never "a name with no letters" (check_username_spam, 20261028230000).
+      "",
+      "   ",
+    ])("allows name: %j", (name) => {
       expect(checkSpam("gooduser", name).spam).toBe(false);
     });
   });
@@ -77,6 +83,7 @@ describe("checkSpam", () => {
       ["admin", "impersonation"],
       ["visit http://spam.com", "URL in name"],
       ["aaaaaaa", "repeated chars"],
+      ["!!!", "no letters at all"],
     ])("blocks name: %s (%s)", (name) => {
       expect(checkSpam("gooduser", name).spam).toBe(true);
     });

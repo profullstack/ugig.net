@@ -21,7 +21,7 @@ const SPAM_NAME_PATTERNS = [
   /^[A-Z][a-z]+ [A-Z][a-z]+\d+$/,  // "John Smith123"
   /(.)\1{3,}/,                       // 4+ repeated chars
   /\d{4,}/,                          // 4+ digits in name
-  /^[^a-zA-Z\s\-'.]+$/,             // no letters at all
+  /^[^\p{L}\s\-'.]+$/u,          // no letters (in any script) at all
   /(http|www\.|\.com|\.net|\.org)/i, // URLs in name
   /^(admin|moderator|support|helpdesk|official)/i,
   /[^\x00-\x7F]{10,}/,              // 10+ non-ASCII (excessive unicode)
