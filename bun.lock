@@ -13,7 +13,7 @@
         "@profullstack/redeem-credits": "^0.2.0",
         "@profullstack/stack": "^0.5.0",
         "@profullstack/throttle": "^0.4.0",
-        "@profullstack/webhooks": "^0.2.0",
+        "@profullstack/webhooks": "0.2.1",
         "@profullstack/x402-gateway": "^0.15.2",
         "@stripe/stripe-js": "^10.1.0",
         "@supabase/ssr": "^0.12.7",
@@ -352,7 +352,7 @@
 
     "@profullstack/throttle": ["@profullstack/throttle@0.4.0", "", { "dependencies": { "@profullstack/x402-gateway": "^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0" } }, "sha512-Lj+XHt51OxyaJ2FqosZDyr9Z5RFB8z+ARixpoUfrDu3YlvFlct5GbbZM/C0qLZkUgzeuFSDvtYt9f0NNfBkFqA=="],
 
-    "@profullstack/webhooks": ["@profullstack/webhooks@0.2.0", "", {}, "sha512-lfUoJwN5GmxHzCOphI7fNQAsZ9uiC2C6BZxoPA7MSxM2ryr7MKwOi2YYszwvN6aPaPTRHLhHdqoHQJbkaP9mUg=="],
+    "@profullstack/webhooks": ["@profullstack/webhooks@0.2.1", "", {}, "sha512-QHeSkpu4O44oJ620qhQqxqFlD3u/OhupmXRnBHw4MGKuDTa0R+Y/727nnF7psSHxxSfnbWfNuVl15z3IXuaZiw=="],
 
     "@profullstack/x402-gateway": ["@profullstack/x402-gateway@0.15.2", "", { "dependencies": { "@profullstack/keys": "^0.1.0" } }, "sha512-f0el7rPd13StA04OxA0PGrrG0kxg/vvGPtvI0XYn8wlTGPut3G+2UKcMRzSxQdaF4LkYAOLnkg9S+LhmIKvDBA=="],
 
