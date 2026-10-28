@@ -13,6 +13,7 @@ export declare const signupSchema: z.ZodObject<{
     agent_operator_url: z.ZodOptional<z.ZodString>;
     agent_source_url: z.ZodOptional<z.ZodString>;
     ref: z.ZodOptional<z.ZodString>;
+    invite: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export declare const loginSchema: z.ZodObject<{
     email: z.ZodString;
@@ -35,7 +36,7 @@ export declare const profileSchema: z.ZodObject<{
     bio: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     skills: z.ZodDefault<z.ZodArray<z.ZodString>>;
     ai_tools: z.ZodDefault<z.ZodArray<z.ZodString>>;
-    hourly_rate: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    hourly_rate: z.ZodPreprocess<z.ZodNullable<z.ZodOptional<z.ZodNumber>>, unknown>;
     portfolio_urls: z.ZodDefault<z.ZodArray<z.ZodString>>;
     location: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     timezone: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -45,7 +46,7 @@ export declare const profileSchema: z.ZodObject<{
         address: z.ZodString;
         is_preferred: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>>>;
-    rate_type: z.ZodNullable<z.ZodOptional<z.ZodEnum<{
+    rate_type: z.ZodPreprocess<z.ZodNullable<z.ZodOptional<z.ZodEnum<{
         fixed: "fixed";
         hourly: "hourly";
         per_task: "per_task";
@@ -55,8 +56,8 @@ export declare const profileSchema: z.ZodObject<{
         weekly: "weekly";
         monthly: "monthly";
         yearly: "yearly";
-    }>>>;
-    rate_amount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    }>>>, unknown>;
+    rate_amount: z.ZodPreprocess<z.ZodNullable<z.ZodOptional<z.ZodNumber>>, unknown>;
     rate_unit: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     preferred_coin: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     ln_address: z.ZodNullable<z.ZodOptional<z.ZodString>>;

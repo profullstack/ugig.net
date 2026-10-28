@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import { z } from "zod";
-
-const VALID_EVENTS = [
-  "application.new",
-  "message.new",
-  "gig.update",
-  "review.new",
-] as const;
+import { getHooks, WEBHOOK_EVENT_TYPES } from "@/lib/webhooks/hub";
+import { legacyError, toLegacyWebhook } from "@/lib/webhooks/legacy-api";
 
 const updateWebhookSchema = z.object({
   url: z.string().url("Must be a valid URL").max(2048).optional(),
   events: z
-    .array(z.enum(VALID_EVENTS))
+    .array(z.enum(WEBHOOK_EVENT_TYPES))
     .min(1, "Must subscribe to at least one event")
     .optional(),
   active: z.boolean().optional(),
@@ -23,61 +18,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  const auth = await getAuthContext(request);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
-    const { id } = await params;
-    const auth = await getAuthContext(request);
-    if (!auth) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const body = await request.json().catch(() => null);
+    const parsed = updateWebhookSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const { user, supabase } = auth;
-
-    // Verify ownership
-    const { data: existing } = await supabase
-      .from("webhooks")
-      .select("id, user_id")
-      .eq("id", id)
-      .single();
-
-    if (!existing) {
-      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
-    }
-
-    if (existing.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validationResult = updateWebhookSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: validationResult.error.issues[0].message },
-        { status: 400 }
-      );
-    }
-
-    const updates: Record<string, unknown> = {
-      ...validationResult.data,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: webhook, error } = await supabase
-      .from("webhooks")
-      .update(updates as never)
-      .eq("id", id)
-      .select("id, url, events, active, created_at, updated_at")
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ data: webhook });
-  } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    const { url, events, active } = parsed.data;
+    const endpoint = await getHooks().updateEndpoint(auth.user.id, id, {
+      ...(url !== undefined ? { url } : {}),
+      ...(events !== undefined ? { events } : {}),
+      ...(active !== undefined ? { enabled: active } : {}),
+    });
+    return NextResponse.json({ data: toLegacyWebhook(endpoint) });
+  } catch (err) {
+    return legacyError(err);
   }
 }
 
@@ -86,40 +46,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  const auth = await getAuthContext(request);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
-    const { id } = await params;
-    const auth = await getAuthContext(request);
-    if (!auth) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const { user, supabase } = auth;
-
-    // Verify ownership
-    const { data: existing } = await supabase
-      .from("webhooks")
-      .select("id, user_id")
-      .eq("id", id)
-      .single();
-
-    if (!existing) {
-      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
-    }
-
-    if (existing.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { error } = await supabase.from("webhooks").delete().eq("id", id);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
+    await getHooks().deleteEndpoint(auth.user.id, id);
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return legacyError(err);
   }
 }

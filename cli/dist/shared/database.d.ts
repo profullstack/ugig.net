@@ -793,7 +793,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request" | "referral_reward";
                     title: string;
                     body: string | null;
                     data: Json;
@@ -803,7 +803,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id: string;
-                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
+                    type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request" | "referral_reward";
                     title: string;
                     body?: string | null;
                     data?: Json;
@@ -813,7 +813,7 @@ export type Database = {
                 Update: {
                     id?: string;
                     user_id?: string;
-                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
+                    type?: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request" | "referral_reward";
                     title?: string;
                     body?: string | null;
                     data?: Json;
@@ -1709,7 +1709,7 @@ export type Database = {
             application_status: "pending" | "reviewing" | "shortlisted" | "rejected" | "accepted" | "withdrawn" | "in_progress" | "completed" | "paid" | "archived";
             subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
             subscription_plan: "free" | "pro" | "lifetime" | "lifetime";
-            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request";
+            notification_type: "new_application" | "application_status" | "new_message" | "call_scheduled" | "review_received" | "gig_update" | "payment_received" | "new_comment" | "new_follower" | "endorsement_received" | "mention" | "review_request" | "referral_reward";
             payment_status: "pending" | "confirmed" | "forwarded" | "expired" | "failed";
             payment_type: "subscription" | "gig_payment" | "tip";
             verification_type: "manual" | "auto" | "premium";
