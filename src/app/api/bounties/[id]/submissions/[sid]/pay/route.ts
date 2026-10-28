@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth/get-user";
 import {
   createPayment,
-  getCoinpayGlobalWalletTokens,
   preferredCoinToPaymentCurrency,
   type SupportedCurrency,
 } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken } from "@/lib/coinpay-oauth";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 
 // POST /api/bounties/[id]/submissions/[sid]/pay
 // Creator generates a CoinPay in-app payment for an approved submission.
@@ -96,9 +95,9 @@ export async function POST(
     type PayoutWallet = { currency: SupportedCurrency; address: string; label?: string | null };
     let payoutWallet: PayoutWallet | null = null;
 
-    const submitterToken = await getConnectedCoinpayAccessToken(submission.submitter_id);
-    if (submitterToken) {
-      const submitterWallets = await getCoinpayGlobalWalletTokens({ access_token: submitterToken });
+    const submitterLink = await getCoinpayLink(submission.submitter_id);
+    if (submitterLink.wallets && submitterLink.wallets.length > 0) {
+      const submitterWallets = submitterLink.wallets;
       payoutWallet =
         submitterWallets.find((w) => w.currency === preferredCurrency) || submitterWallets[0] || null;
     }

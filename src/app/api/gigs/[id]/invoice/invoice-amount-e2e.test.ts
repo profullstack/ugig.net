@@ -18,7 +18,6 @@ vi.mock("@/lib/coinpayportal", () => ({
 }));
 
 vi.mock("@/lib/coinpay-oauth", () => ({
-  getConnectedCoinpayAccessToken: vi.fn(),
   getCoinpayLink: vi.fn(),
   getStoredCoinpayLinkState: vi.fn(async () => "connected"),
 }));
@@ -154,7 +153,7 @@ import {
   readCoinpayUserinfoWallets,
   preferredCoinToPaymentCurrency,
 } from "@/lib/coinpayportal";
-import { getConnectedCoinpayAccessToken, getCoinpayLink } from "@/lib/coinpay-oauth";
+import { getCoinpayLink } from "@/lib/coinpay-oauth";
 
 function req(body?: unknown) {
   return { json: () => Promise.resolve(body) } as any;
@@ -167,8 +166,14 @@ describe("invoice money path (sats gig, end to end)", () => {
     (preferredCoinToPaymentCurrency as any).mockImplementation(
       (v: string | null) => v?.toLowerCase() || null
     );
-    (getConnectedCoinpayAccessToken as any).mockResolvedValue("token");
-    (getCoinpayLink as any).mockResolvedValue({ state: "connected", accessToken: "token" });
+    // A link's wallets are stored now; the userinfo mock stands in for what
+    // the link held when it was connected (or migrated from a legacy token).
+    (getCoinpayLink as any).mockImplementation(async () => {
+      const r = await (readCoinpayUserinfoWallets as any)();
+      return r?.status === "ok"
+        ? { state: "connected", wallets: r.wallets }
+        : { state: "needs_reconnect", wallets: null };
+    });
     (readCoinpayUserinfoWallets as any).mockResolvedValue({ status: "ok", wallets: [
       { currency: "sol", cryptocurrency: "SOL", label: "Solana", address: SOL_ADDRESS },
     ] });

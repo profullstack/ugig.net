@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { buttonVariants } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle2, ExternalLink, LinkIcon, RefreshCw } from "lucide-react";
-import { coinpayLinkCanReadWallets } from "@/lib/coinpay-oauth";
+import { coinpayLinkCanReadWallets, coinpayLinkWallets } from "@/lib/coinpay-oauth";
+import { coinpayLinkFault } from "@/lib/coinpay-link-health";
 import { DisconnectCoinpayButton } from "./DisconnectCoinpayButton";
 
 export const metadata = {
@@ -58,11 +59,15 @@ export default async function OAuthConnectionsPage({
   const metadata = metadataObject(coinpayIdentity?.metadata);
   const connectedAt =
     typeof metadata.connected_at === "string" ? metadata.connected_at : coinpayIdentity?.updated_at || null;
-  const tokenExpiresAt = typeof metadata.expires_at === "string" ? metadata.expires_at : null;
-  // A link whose token lacks wallet:read exists but cannot do the one job this
+  // ugig keeps the wallet addresses, not CoinPay tokens: they are read once at
+  // connect time, and reconnecting re-reads them.
+  const syncedWallets = coinpayLinkWallets(metadata);
+  const walletsSyncedAt = typeof metadata.wallets_synced_at === "string" ? metadata.wallets_synced_at : null;
+  // A link that cannot supply wallets exists but cannot do the one job this
   // connection is for. Say so here rather than letting the invoice form be the
   // first place the user finds out.
-  const needsReconnect = Boolean(coinpayIdentity) && !coinpayLinkCanReadWallets(metadata);
+  const needsReconnect =
+    Boolean(coinpayIdentity) && (!coinpayLinkCanReadWallets(metadata) || coinpayLinkFault(metadata) !== null);
   const params = await searchParams;
   const message = statusMessage(params.coinpay, params.linked_to);
 
@@ -102,8 +107,10 @@ export default async function OAuthConnectionsPage({
                 )}
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Connect your CoinPay account so ugig can read your CoinPay global wallet addresses
-                when you pay invoices.
+                Connect your CoinPay account so ugig can pay you at your CoinPay global wallet
+                addresses (Buy now, invoices, bounties). ugig saves the addresses when you connect
+                and does not keep your CoinPay login tokens. Changed your wallets on CoinPay? Click
+                Reconnect to sync them.
               </p>
             </div>
 
@@ -125,9 +132,10 @@ export default async function OAuthConnectionsPage({
 
           {needsReconnect && (
             <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
-              This CoinPay account is linked, but the link was granted without permission to
-              read your wallet addresses, so ugig cannot send invoices with it. Click
-              Reconnect above to re-authorize — nothing else on your account changes.
+              This CoinPay account is linked, but ugig could not read your wallet addresses
+              through it (the grant expired or lacks wallet permission), so buyers and invoices
+              cannot pay you through CoinPay. Click Reconnect above to re-authorize. Nothing
+              else on your account changes.
             </div>
           )}
 
@@ -141,10 +149,25 @@ export default async function OAuthConnectionsPage({
                 <dt className="text-xs font-medium text-muted-foreground">Connected</dt>
                 <dd className="mt-1">{connectedAt ? new Date(connectedAt).toLocaleString() : "Connected"}</dd>
               </div>
-              {tokenExpiresAt && (
-                <div className="rounded-md border border-border bg-background p-3">
-                  <dt className="text-xs font-medium text-muted-foreground">Token expires</dt>
-                  <dd className="mt-1">{new Date(tokenExpiresAt).toLocaleString()}</dd>
+              {syncedWallets !== null && (
+                <div className="rounded-md border border-border bg-background p-3 sm:col-span-2">
+                  <dt className="text-xs font-medium text-muted-foreground">
+                    Payout wallets{walletsSyncedAt ? ` (synced ${new Date(walletsSyncedAt).toLocaleString()})` : ""}
+                  </dt>
+                  <dd className="mt-1">
+                    {syncedWallets.length === 0 ? (
+                      "None set on CoinPay yet. Add global wallet addresses on CoinPay, then Reconnect."
+                    ) : (
+                      <ul className="space-y-1">
+                        {syncedWallets.map((w) => (
+                          <li key={`${w.currency}:${w.address}`} className="break-all">
+                            <span className="font-medium">{w.cryptocurrency}</span>{" "}
+                            <span className="font-mono text-xs">{w.address}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </dd>
                 </div>
               )}
             </dl>

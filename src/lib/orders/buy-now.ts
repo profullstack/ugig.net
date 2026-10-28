@@ -13,7 +13,6 @@ import { getBtcUsdRate, isSatsCoin, satsToUsd } from "@/lib/rates";
 import { getCoinpayLink } from "@/lib/coinpay-oauth";
 import { loadProfilePayoutWallets, payoutWalletApiFix } from "@/lib/profile-payout-wallets";
 import {
-  readCoinpayUserinfoWallets,
   SUPPORTED_CURRENCIES,
   type CoinPayGlobalWallet,
   type SupportedCurrency,
@@ -124,21 +123,15 @@ export type SellerWalletsResult =
  */
 export async function sellerEscrowWallets(sellerId: string): Promise<SellerWalletsResult> {
   let reason: SellerNotReadyReason;
+  // The link's wallets are the addresses saved when the seller connected (no
+  // CoinPay token is stored, so nothing here can act as the seller).
   const link = await getCoinpayLink(sellerId);
-  if (link.accessToken === null) {
+  if (!link.wallets) {
     reason = link.state === "none" ? "not_connected" : link.temporary ? "unavailable" : "needs_reconnect";
   } else {
-    // A CoinPay 5xx or timeout throws: that is CoinPay being down, not the seller's link.
-    const userinfo = await readCoinpayUserinfoWallets(link.accessToken).catch(() => null);
-    if (userinfo === null) {
-      reason = "unavailable";
-    } else if (userinfo.status !== "ok") {
-      reason = "needs_reconnect";
-    } else {
-      const wallets = userinfo.wallets.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
-      if (wallets.length > 0) return { ok: true, wallets, source: "coinpay" };
-      reason = "no_wallets";
-    }
+    const wallets = link.wallets.filter((w) => BUY_NOW_CURRENCIES.includes(w.currency));
+    if (wallets.length > 0) return { ok: true, wallets, source: "coinpay" };
+    reason = "no_wallets";
   }
 
   const profileWallets = await loadProfilePayoutWallets(sellerId, BUY_NOW_CURRENCIES);
