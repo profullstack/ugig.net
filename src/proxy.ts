@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { gate } from "@/lib/crawl-gateway";
 import { meter } from "@/lib/throttle";
+import { LIGHTNING_PAUSED_MESSAGE, isLightningWrite, lightningPaused } from "@/lib/lightning/paused";
 
 const REDIRECTS: Record<string, string> = {
   // Pages now exist at /api-docs, /cli-docs, /openapi, /employers
@@ -110,6 +111,13 @@ export async function proxy(request: NextRequest) {
   // The status page's health check skips the gate, the meter and the session
   // refresh: it must measure the app, not be billed or throttled by it.
   if (request.nextUrl.pathname === "/api/health") return NextResponse.next();
+
+  if (lightningPaused() && isLightningWrite(request.method, request.nextUrl.pathname)) {
+    return NextResponse.json(
+      { error: LIGHTNING_PAUSED_MESSAGE, paused: true },
+      { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "86400" } },
+    );
+  }
 
   // Crawl gateway first: AI training crawlers get 402 Payment Required (or
   // the sales page at /crawl) unless they present a paid pass. People,
