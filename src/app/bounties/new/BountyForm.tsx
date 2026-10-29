@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { PaymentInput } from "@/components/ui/PaymentInputs";
 import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
 
@@ -152,25 +155,26 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <label className="text-sm font-medium">Title</label>
-        <input
+        <Label htmlFor="bounty-title">Title</Label>
+        <Input
+          id="bounty-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Share product feedback on our new dashboard"
-          className="w-full border rounded-md px-3 py-2 bg-background"
           maxLength={200}
         />
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
-        <textarea
+        <Label htmlFor="bounty-description">Description</Label>
+        <Textarea
+          id="bounty-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What is this bounty about? Who should submit? What counts as a good answer?"
           rows={4}
-          className="w-full border rounded-md px-3 py-2 bg-background resize-y"
+          className="resize-y"
           maxLength={10000}
         />
       </div>
@@ -185,30 +189,30 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
       />
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">
-          Max submissions <span className="text-muted-foreground">(optional)</span>
-        </label>
-        <input
+        <Label htmlFor="bounty-max-submissions">
+          Max submissions <span className="text-muted-foreground font-normal">(optional)</span>
+        </Label>
+        <Input
+          id="bounty-max-submissions"
           type="number"
           value={maxSubmissions}
           onChange={(e) => setMaxSubmissions(e.target.value)}
           placeholder="Leave blank for no cap"
           min="1"
           step="1"
-          className="w-full border rounded-md px-3 py-2 bg-background"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">
-          GitHub issue URL <span className="text-muted-foreground">(optional)</span>
-        </label>
-        <input
+        <Label htmlFor="bounty-github-issue">
+          GitHub issue URL <span className="text-muted-foreground font-normal">(optional)</span>
+        </Label>
+        <Input
+          id="bounty-github-issue"
           type="url"
           value={githubIssueUrl}
           onChange={(e) => setGithubIssueUrl(e.target.value)}
           placeholder="https://github.com/owner/repo/issues/123"
-          className="w-full border rounded-md px-3 py-2 bg-background"
         />
         <p className="text-xs text-muted-foreground">
           Link the issue this bounty funds. If the ugig GitHub App is installed on the repo, we
@@ -218,7 +222,7 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="text-sm font-medium">Submission form</label>
+          <Label>Submission form</Label>
           <Button
             type="button"
             size="sm"
@@ -255,12 +259,12 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  <input
+                  <Input
                     type="text"
+                    aria-label={`Question ${idx + 1} text`}
                     value={q.label}
                     onChange={(e) => updateQuestion(q.id, { label: e.target.value })}
                     placeholder="Question text (shown to submitters)"
-                    className="w-full border rounded-md px-3 py-2 bg-background"
                     maxLength={500}
                   />
                   <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -272,15 +276,17 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
                           options: e.target.value === "multiple_choice" ? ["", ""] : [],
                         })
                       }
-                      className="border rounded-md px-2 py-1.5 bg-background"
+                      aria-label={`Question ${idx + 1} type`}
+                      className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="short_text">Short text</option>
                       <option value="long_text">Long text</option>
                       <option value="multiple_choice">Multiple choice</option>
                     </select>
-                    <label className="inline-flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 accent-primary"
                         checked={q.required}
                         onChange={(e) =>
                           updateQuestion(q.id, { required: e.target.checked })
@@ -295,8 +301,9 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
                       <p className="text-xs text-muted-foreground">Options</p>
                       {q.options.map((opt, optIdx) => (
                         <div key={optIdx} className="flex gap-2">
-                          <input
+                          <Input
                             type="text"
+                            aria-label={`Question ${idx + 1} option ${optIdx + 1}`}
                             value={opt}
                             onChange={(e) =>
                               updateQuestion(q.id, {
@@ -306,7 +313,7 @@ export function BountyForm({ initialData, bountyId }: BountyFormProps = {}) {
                               })
                             }
                             placeholder={`Option ${optIdx + 1}`}
-                            className="flex-1 border rounded-md px-2 py-1.5 bg-background text-sm"
+                            className="flex-1"
                           />
                           <button
                             type="button"
