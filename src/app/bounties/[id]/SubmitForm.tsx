@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 interface Question {
@@ -75,34 +78,35 @@ export function SubmitForm({ bountyId, questions }: SubmitFormProps) {
     <div className="space-y-4">
       {questions.map((q, idx) => (
         <div key={q.id} className="space-y-2">
-          <label className="text-sm font-medium">
+          <Label htmlFor={q.type === "multiple_choice" ? undefined : `q-${q.id}`} className="block leading-snug">
             {idx + 1}. {q.label}
             {q.required && <span className="text-destructive ml-1">*</span>}
-          </label>
+          </Label>
           {q.type === "short_text" && (
-            <input
+            <Input
+              id={`q-${q.id}`}
               type="text"
               value={values[q.id] || ""}
               onChange={(e) => setValue(q.id, e.target.value)}
-              className="w-full border rounded-md px-3 py-2 bg-background"
               maxLength={500}
             />
           )}
           {q.type === "long_text" && (
-            <textarea
+            <Textarea
+              id={`q-${q.id}`}
               value={values[q.id] || ""}
               onChange={(e) => setValue(q.id, e.target.value)}
               rows={4}
-              className="w-full border rounded-md px-3 py-2 bg-background resize-y"
+              className="resize-y"
               maxLength={5000}
             />
           )}
           {q.type === "multiple_choice" && (
-            <div className="space-y-1.5">
+            <div role="radiogroup" aria-label={q.label} className="space-y-1.5">
               {(q.options || []).map((opt) => (
                 <label
                   key={opt}
-                  className="flex items-center gap-2 p-2 rounded-md border border-border hover:bg-accent cursor-pointer text-sm"
+                  className="flex items-center gap-3 rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5"
                 >
                   <input
                     type="radio"
@@ -110,6 +114,7 @@ export function SubmitForm({ bountyId, questions }: SubmitFormProps) {
                     value={opt}
                     checked={values[q.id] === opt}
                     onChange={(e) => setValue(q.id, e.target.value)}
+                    className="h-4 w-4 accent-primary"
                   />
                   {opt}
                 </label>
