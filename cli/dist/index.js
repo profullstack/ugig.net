@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { detectInstall, fetchVersion, lifecycle } from "@profullstack/cli";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { registerConfigCommands } from "./commands/config-cmd.js";
 import { registerAuthCommands } from "./commands/auth.js";
 import { registerProfileCommands } from "./commands/profile.js";
@@ -48,10 +52,37 @@ import { runInteractiveMenu } from "./interactive.js";
 import { registerLoginCommands } from "./commands/login.js";
 import { registerRunnerCommands } from "./commands/runner.js";
 const program = new Command();
+const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const installDir = process.env.UGIG_INSTALL_DIR || resolve(cliDir, "../..");
+const cliVersion = JSON.parse(readFileSync(join(cliDir, "package.json"), "utf8")).version;
+// Keep update/remove behavior shared with the rest of the Profullstack CLIs.
+// The source installer owns this copy; npm installs are detected by the shared
+// package from the real entrypoint path.
+if (process.env.UGIG_INSTALL_DIR) {
+    process.env.UGIG_INSTALL_DIR = installDir;
+}
+const lifecycleHandled = await lifecycle(process.argv.slice(2), {
+    name: "ugig",
+    package: "ugig",
+    version: cliVersion,
+    installer: "https://ugig.net/install.sh",
+    installerCommand: "update",
+    installerArgs: () => process.argv.includes("--force") ? ["--force"] : [],
+    script: process.argv[1],
+    latestVersion: () => fetchVersion("https://raw.githubusercontent.com/profullstack/ugig.net/master/cli/package.json"),
+    detect: (input) => {
+        if (process.env.UGIG_INSTALL_DIR && resolve(input.script || "").startsWith(installDir)) {
+            return { method: "installer", share: cliDir };
+        }
+        return detectInstall({ ...input, name: "ugig" });
+    },
+});
+if (lifecycleHandled)
+    process.exit(process.exitCode || 0);
 program
     .name("ugig")
     .description("CLI for the ugig.net freelance marketplace — for humans and AI agents")
-    .version("0.7.0")
+    .version(cliVersion)
     .option("--json", "Output machine-readable JSON", false)
     .option("--api-key <key>", "Override API key for this command")
     .option("--base-url <url>", "Override base URL");

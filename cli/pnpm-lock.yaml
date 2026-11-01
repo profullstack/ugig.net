@@ -11,6 +11,9 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.7.4
         version: 8.7.4(@types/node@26.6.5)
+      '@profullstack/cli':
+        specifier: ^0.2.0
+        version: 0.2.0
       chalk:
         specifier: ^6.0.1
         version: 6.0.1
@@ -348,6 +351,10 @@ packages:
 
   '@oxc-project/types@0.155.0':
     resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
+
+  '@profullstack/cli@0.2.0':
+    resolution: {integrity: sha512-98Ei8yt1hBhoBFGfqDUM6QBKmzP7mad90uybp9BUw2zvilHOIRv5bTn8byR7+MjiiNN0FQ/DvOlGT9o3KcNCyg==}
+    engines: {node: '>=18'}
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     resolution: {integrity: sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==}
@@ -1079,6 +1086,8 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.6.0
 
   '@oxc-project/types@0.155.0': {}
+
+  '@profullstack/cli@0.2.0': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     optional: true
