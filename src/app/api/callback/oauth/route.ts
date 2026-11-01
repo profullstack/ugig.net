@@ -9,6 +9,8 @@
  * the identity keeps the wallet addresses userinfo returned (see coinpay-oauth).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { saveOpenProfileContact } from "@profullstack/profile";
+import { profileStore } from "@/lib/profile";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
@@ -207,6 +209,10 @@ export async function GET(request: NextRequest) {
         event: existingIdentity ? "reconnected" : "connected",
         email,
       });
+      if (typeof userinfo.openprofile_url === "string") {
+        try { await saveOpenProfileContact(profileStore(), savedState.userId, userinfo.openprofile_url); }
+        catch { console.warn("[CoinPay OAuth] OpenProfile import skipped"); }
+      }
 
       return redirectWithClearedState(`${connectUrl}?coinpay=connected`);
     }
