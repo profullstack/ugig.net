@@ -1,6 +1,6 @@
 {
   "name": "ugig",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "CLI tool for the ugig.net freelance marketplace",
   "type": "module",
   "bin": {
@@ -31,6 +31,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@profullstack/cli": "^0.2.0",
     "@inquirer/prompts": "^8.7.4",
     "chalk": "^6.0.1",
     "cli-table3": "^0.6.5",
