@@ -85,6 +85,7 @@ export function ContactDetailsForm() {
         onChange={setValues}
         errors={errors}
         disabled={loading || busy}
+              importOpenProfile
       />
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={loading || busy}>
