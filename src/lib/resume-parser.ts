@@ -34,9 +34,11 @@ export interface ParsedResumeProfile {
   };
 }
 
-// A whole resume is a long JSON answer, and one repair round may follow it.
-const RESUME_MAX_TOKENS = 4000;
-const RESUME_TIMEOUT_MS = 240_000;
+// Peer nodes write about 2 tokens a second (measured 2026-11-07), so the answer
+// has to be short to land inside nginx's 300 s read timeout: no repair round,
+// and the prompt asks for minified JSON with terse descriptions.
+const RESUME_MAX_TOKENS = 1000;
+const RESUME_TIMEOUT_MS = 280_000;
 
 // Parse resume text into structured data: c0mpute first, frontier models as fallback
 async function parseWithAI(text: string): Promise<ParsedResumeProfile> {
@@ -44,7 +46,7 @@ async function parseWithAI(text: string): Promise<ParsedResumeProfile> {
 
 {
   "full_name": "string or null - the person's full name",
-  "bio": "string or null - professional summary or about section (max 500 chars)",
+  "bio": "string or null - professional summary or about section (max 200 chars)",
   "skills": ["array of skill strings - technical skills, tools, languages"],
   "location": "string or null - city, state/country",
   "contact": {
@@ -59,7 +61,7 @@ async function parseWithAI(text: string): Promise<ParsedResumeProfile> {
     {
       "company": "company name",
       "position": "job title",
-      "description": "bullet points of responsibilities/achievements (max 500 chars) or null",
+      "description": "one line on responsibilities/achievements (max 120 chars) or null",
       "start_date": "YYYY-MM-01 format",
       "end_date": "YYYY-MM-01 format or null if current",
       "is_current": true/false,
@@ -69,6 +71,7 @@ async function parseWithAI(text: string): Promise<ParsedResumeProfile> {
 }
 
 Important:
+- Return minified JSON on one line, and leave out any field you have no value for
 - For dates, convert month names to numbers (Jan=01, Feb=02, etc.)
 - If only a year is given, use January (YYYY-01-01)
 - Mark is_current as true for "Present", "Current", "Ongoing", or "Part-time" end dates
@@ -88,6 +91,7 @@ ${text}`;
       name: "ParsedResume",
       maxTokens: RESUME_MAX_TOKENS,
       temperature: 0.1,
+      repairs: 0,
       feature: "resume.parse",
       timeoutMs: RESUME_TIMEOUT_MS,
     });
