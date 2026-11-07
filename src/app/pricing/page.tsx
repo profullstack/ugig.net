@@ -92,6 +92,10 @@ export default function PricingPage() {
               Free to join, free to apply. Upgrade for unlimited gig posts and a lower marketplace
               seller fee. Pay with crypto, PayPal or card, through CoinPay.
             </p>
+            <p className="text-sm text-muted-foreground max-w-2xl mx-auto mt-3">
+              Deposit $99 in your CoinPay wallet and get a free month:{" "}
+              <a href="https://coinpayportal.com/pass" className="underline">CoinPay Pass</a>
+            </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">

@@ -414,6 +414,37 @@ export async function extendProDays(
 }
 
 /**
+ * Pro until `until` (a Profullstack Pass end): the later of the running Pro
+ * end and `until`, never added days, so applying the same pass again or a
+ * shorter one changes nothing. Returns the new end only when it moved;
+ * Lifetime is untouched.
+ */
+export async function extendProUntil(
+  supabase: Db,
+  p: { userId: string; until: Date; source: string }
+): Promise<{ periodEnd: Date } | null> {
+  const end = p.until.getTime();
+  if (!Number.isFinite(end) || end <= Date.now()) return null;
+  let moved = false;
+  const result = await extendPro(supabase, p.userId, (from) => {
+    if (from.getTime() >= end) return from;
+    moved = true;
+    return new Date(end);
+  });
+  if (!result || !moved) return null;
+
+  const until = result.periodEnd.toISOString().slice(0, 10);
+  await supabase.from("notifications").insert({
+    user_id: p.userId,
+    type: "payment_received",
+    title: "CoinPay Pass: Pro unlocked",
+    body: `Your CoinPay Pass gives you Pro until ${until}.`,
+    data: { source: p.source, current_period_end: result.periodEnd.toISOString() },
+  });
+  return result;
+}
+
+/**
  * Set the user's plan to Lifetime (no end date). Idempotent: returns false and
  * sends nothing when the user already has Lifetime.
  */

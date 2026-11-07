@@ -20,6 +20,7 @@ import { resolveCoinpayLogin } from "@/lib/coinpay-login";
 import { getAuthContext } from "@/lib/auth/get-user";
 // Stores the wallet addresses from userinfo, never the CoinPay tokens.
 import { coinpayIdentityMetadata } from "@/lib/coinpay-oauth";
+import { applyCoinpayPass } from "@/lib/coinpay-pass";
 
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 const USERINFO_URL = "https://coinpayportal.com/api/oauth/userinfo";
@@ -213,6 +214,9 @@ export async function GET(request: NextRequest) {
         try { await saveOpenProfileContact(profileStore(), savedState.userId, userinfo.openprofile_url); }
         catch { console.warn("[CoinPay OAuth] OpenProfile import skipped"); }
       }
+      // Profullstack Pass: Pro until it ends, on the account now bound to this sub.
+      try { await applyCoinpayPass(supabase, savedState.userId, userinfo); }
+      catch (passErr) { console.error("[CoinPay OAuth] Pass failed (non-fatal):", passErr); }
 
       return redirectWithClearedState(`${connectUrl}?coinpay=connected`);
     }
@@ -278,6 +282,10 @@ export async function GET(request: NextRequest) {
         console.error("[CoinPay OAuth] Welcome email failed (non-fatal):", emailErr);
       }
     }
+
+    // Profullstack Pass: Pro until it ends, on the account bound to this sub.
+    try { await applyCoinpayPass(supabase, userId, userinfo); }
+    catch (passErr) { console.error("[CoinPay OAuth] Pass failed (non-fatal):", passErr); }
 
     // Generate magic link to establish session
     // For the account's OWN address: the CoinPay email may differ from it.
