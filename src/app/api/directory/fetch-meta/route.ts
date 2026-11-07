@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { toHttpUrl } from "@/lib/meta-url";
-import OpenAI from "openai";
+import { generateListingDescription, generateListingTags } from "@/lib/ai";
 import crypto from "crypto";
 
 
@@ -184,18 +184,19 @@ export async function POST(request: NextRequest) {
     // Extract visible text for AI context
     const pageText = extractVisibleText(html).substring(0, 3000);
 
-    // If description is missing or too short, generate with AI
-    let finalDescription = description;
-    if (!finalDescription || finalDescription.length < 50) {
-      finalDescription = await generateDescriptionWithAI(title, finalDescription, pageText, url);
-    }
-
-    // If we got fewer than 3 tags from meta keywords, use AI to generate them
-    if (tags.length < 3) {
-      const aiTags = await generateTagsWithAI(title, finalDescription, url);
-      const merged = [...new Set([...tags, ...aiTags])].slice(0, 10);
-      tags = merged;
-    }
+    // AI fills in a missing description and thin tags. A peer node takes about
+    // 45 s per answer, so both run together: the form waits on this request.
+    const needsDescription = !description || description.length < 50;
+    const needsTags = tags.length < 3;
+    const [finalDescription, aiTags] = await Promise.all([
+      needsDescription
+        ? generateDescriptionWithAI(title, description, pageText, url)
+        : description,
+      needsTags
+        ? generateTagsWithAI(title, needsDescription ? pageText.substring(0, 500) : description, url)
+        : [],
+    ]);
+    tags = [...new Set([...tags, ...aiTags])].slice(0, 10);
 
     return NextResponse.json({
       title: title.substring(0, 100),
@@ -379,7 +380,7 @@ function decodeEntities(str: string): string {
 }
 
 /**
- * Generate tags for a website using OpenAI based on title, description, and URL.
+ * Generate tags for a website based on title, description, and URL.
  * Falls back to extracting words from the title if AI fails.
  */
 async function generateTagsWithAI(
@@ -388,39 +389,7 @@ async function generateTagsWithAI(
   url: string
 ): Promise<string[]> {
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const prompt = `Given this website, generate 5-8 relevant tags/topics. Return only a JSON array of lowercase tag strings. No explanation.
-
-Title: ${title}
-Description: ${description}
-URL: ${url}`;
-
-    const response = await Promise.race([
-      openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        max_tokens: 200,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI timeout")), 5000)
-      ),
-    ]);
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) return fallbackTags(title);
-
-    const parsed = JSON.parse(content);
-    // Handle both { tags: [...] } and raw array shapes
-    const arr = Array.isArray(parsed) ? parsed : parsed.tags;
-    if (!Array.isArray(arr)) return fallbackTags(title);
-
-    return arr
-      .filter((t: unknown) => typeof t === "string")
-      .map((t: string) => t.trim().toLowerCase())
-      .filter(Boolean)
-      .slice(0, 8);
+    return await generateListingTags({ title, description, url });
   } catch {
     return fallbackTags(title);
   }
@@ -467,29 +436,13 @@ async function generateDescriptionWithAI(
   url: string
 ): Promise<string> {
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const prompt = `Write a concise 1-2 sentence description for this project/website listing in a directory. Be specific about what it does. No marketing fluff. Max 200 characters.
-
-Title: ${title}
-URL: ${url}
-${existingDesc ? `Existing description: ${existingDesc}` : ""}
-Page content: ${pageText.substring(0, 2000)}`;
-
-    const response = await Promise.race([
-      openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 150,
-        temperature: 0.3,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI timeout")), 5000)
-      ),
-    ]);
-
-    const content = response.choices[0]?.message?.content?.trim();
-    if (content && content.length > 20) return content;
+    const content = await generateListingDescription({
+      title,
+      existingDescription: existingDesc,
+      pageText,
+      url,
+    });
+    if (content.length > 20) return content;
     return existingDesc || `${title} — visit ${new URL(url).hostname} to learn more.`;
   } catch {
     return existingDesc || `${title} — visit ${new URL(url).hostname} to learn more.`;

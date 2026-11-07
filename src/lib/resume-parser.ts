@@ -1,6 +1,6 @@
 import { extractText } from "unpdf";
 import mammoth from "mammoth";
-import OpenAI from "openai";
+import { generateObject } from "@profullstack/ai-providers";
 
 export interface ParsedWorkHistory {
   company: string;
@@ -34,18 +34,12 @@ export interface ParsedResumeProfile {
   };
 }
 
-function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
+// A whole resume is a long JSON answer, and one repair round may follow it.
+const RESUME_MAX_TOKENS = 4000;
+const RESUME_TIMEOUT_MS = 240_000;
 
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return new OpenAI({ apiKey });
-}
-
-// Use OpenAI to parse resume text into structured data
-async function parseWithOpenAI(text: string): Promise<ParsedResumeProfile> {
+// Parse resume text into structured data: c0mpute first, frontier models as fallback
+async function parseWithAI(text: string): Promise<ParsedResumeProfile> {
   const prompt = `Parse this resume text and extract structured information. Return a JSON object with the following fields:
 
 {
@@ -88,30 +82,19 @@ Resume text:
 ${text}`;
 
   try {
-    const openai = getOpenAIClient();
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a resume parser. Extract structured data from resume text and return valid JSON only. No markdown, no explanation, just the JSON object.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      response_format: { type: "json_object" },
+    const { object, provider } = await generateObject<Record<string, any>>({
+      system: "You are a resume parser. Extract structured data from resume text and return valid JSON only. No markdown, no explanation, just the JSON object.",
+      user: prompt,
+      name: "ParsedResume",
+      maxTokens: RESUME_MAX_TOKENS,
       temperature: 0.1,
+      feature: "resume.parse",
+      timeoutMs: RESUME_TIMEOUT_MS,
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("Empty response from OpenAI");
-    }
-
-    const parsed = JSON.parse(content);
-    console.log("OpenAI parsed resume:", {
+    const parsed = object;
+    console.log("Parsed resume:", {
+      provider,
       has_full_name: Boolean(parsed.full_name),
       skills_count: parsed.skills?.length || 0,
       work_history_count: parsed.work_history?.length || 0,
@@ -145,7 +128,7 @@ ${text}`;
         : [],
     };
   } catch (error) {
-    console.error("OpenAI parsing error:", error);
+    console.error("Resume AI parsing error:", error);
     throw error;
   }
 }
@@ -175,8 +158,8 @@ export async function parseResumeFile(buffer: Buffer, mimeType: string): Promise
   // Check if experience section exists (for debug info)
   const hasExperienceSection = /(?:work experience|experience|work history|employment|professional experience)/i.test(text);
 
-  // Parse with OpenAI
-  const parsed = await parseWithOpenAI(text);
+  // Parse with AI
+  const parsed = await parseWithAI(text);
 
   // Add debug info
   return {
