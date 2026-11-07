@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import OpenAI from "openai";
+import { generateListingTags } from "@/lib/ai";
 
 const STOP_WORDS = new Set([
   "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ updated: 0, message: "No listings need tags" });
   }
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   let updated = 0;
   const errors: string[] = [];
 
@@ -48,7 +47,6 @@ export async function POST(request: NextRequest) {
     const results = await Promise.allSettled(
       batch.map(async (listing: any) => {
         const tags = await generateTagsForListing(
-          openai,
           listing.title,
           listing.description || "",
           listing.url
@@ -89,42 +87,12 @@ export async function POST(request: NextRequest) {
 }
 
 async function generateTagsForListing(
-  openai: OpenAI,
   title: string,
   description: string,
   url: string
 ): Promise<string[]> {
   try {
-    const prompt = `Given this website, generate 5-8 relevant tags/topics. Return only a JSON array of lowercase tag strings. No explanation.
-
-Title: ${title}
-Description: ${description}
-URL: ${url}`;
-
-    const response = await Promise.race([
-      openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        max_tokens: 200,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI timeout")), 5000)
-      ),
-    ]);
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) return fallbackTags(title);
-
-    const parsed = JSON.parse(content);
-    const arr = Array.isArray(parsed) ? parsed : parsed.tags;
-    if (!Array.isArray(arr)) return fallbackTags(title);
-
-    return arr
-      .filter((t: unknown) => typeof t === "string")
-      .map((t: string) => t.trim().toLowerCase())
-      .filter(Boolean)
-      .slice(0, 8);
+    return await generateListingTags({ title, description, url });
   } catch {
     return fallbackTags(title);
   }

@@ -40,7 +40,8 @@
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
     "@profullstack/affiliates": "^0.3.0",
-    "@profullstack/autoblog": "github:profullstack/autoblog#75e54af",
+    "@profullstack/ai-providers": "0.1.2",
+    "@profullstack/autoblog": "0.5.0",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.8",
     "@profullstack/redeem-credits": "^0.2.0",
@@ -64,7 +65,6 @@
     "marked": "^18.1.1",
     "nanoid": "^6.0.2",
     "next": "16.4.3",
-    "openai": "^7.43.0",
     "postcss": "^8.5.31",
     "posthog-js": "^1.438.23",
     "qrcode.react": "^4.2.0",
