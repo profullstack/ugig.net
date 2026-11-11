@@ -5,6 +5,7 @@ import {
   referralInviteEmail,
   signupConfirmationEmail,
   videoCallInviteEmail,
+  welcomeEmail,
 } from "./email";
 
 describe("videoCallInviteEmail", () => {
@@ -204,5 +205,27 @@ describe("gigExpiredEmail", () => {
     const r = gigExpiredEmail({ posterName: "<b>x</b>", gigTitle: "<script>1</script>", gigId: "g1", applicantCount: 1 });
     expect(r.html).not.toContain("<script>1</script>");
     expect(r.html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("welcomeEmail cross-promo", () => {
+  beforeEach(() => {
+    // The bundled catalog: no network in tests.
+    vi.stubEnv("CROSS_PROMO", "bundled");
+  });
+
+  it("appends the network block after the message, never promoting ugig.net", async () => {
+    const { html, text } = await welcomeEmail({ name: "Ada", email: "ada@example.com" });
+    expect(html).toContain("profullstack.com");
+    expect(html).toContain("utm_campaign=cross-promo");
+    expect(html).toContain("utm_source=ugig.net");
+    // The block sits after the tip and before the footer.
+    expect(html.indexOf("utm_campaign=cross-promo")).toBeGreaterThan(html.indexOf("5x more views"));
+    expect(html.indexOf("utm_campaign=cross-promo")).toBeLessThan(html.indexOf("AI-Powered Gig Marketplace</p>"));
+    expect(text).toContain("utm_campaign=cross-promo");
+    // No promoted link points back at the sender.
+    const links = [...html.matchAll(/href="(https?:\/\/[^"]*utm_campaign=cross-promo[^"]*)"/g)].map((m) => m[1]);
+    expect(links.length).toBeGreaterThan(0);
+    for (const l of links) expect(new URL(l.replace(/&amp;/g, "&")).hostname).not.toMatch(/(^|\.)ugig\.net$/);
   });
 });

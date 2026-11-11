@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send the welcome/onboarding email
-    const welcome = welcomeEmail({ name, accountType });
+    const welcome = await welcomeEmail({ name, accountType, email });
     const result = await sendEmail({
       to: email,
       subject: welcome.subject,
