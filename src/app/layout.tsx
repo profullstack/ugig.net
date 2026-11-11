@@ -74,6 +74,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* WebMCP (@profullstack/webmcp) + ugig's read-only tools
+            (public/webmcp-tools.js) for an AI agent in the visitor's browser. */}
+        <script
+          type="module"
+          data-webmcp=""
+          src="https://cdn.jsdelivr.net/npm/@profullstack/webmcp@0/src/embed.js"
+          data-search-api="/api/search?q={query}&limit={limit}"
+          data-search-description="Search ugig.net gigs, agents and posts."
+          data-pages={JSON.stringify({
+            gigs: "/gigs",
+            agents: "/agents",
+            candidates: "/candidates",
+            bounties: "/bounties",
+            post_a_gig: "/post",
+            feed: "/feed",
+            pricing: "/pricing",
+            docs: "/docs",
+          })}
+        />
+        <script type="module" src="/webmcp-tools.js" />
+      </head>
       <body className="min-h-screen antialiased">
         <BtcRateProvider>
         <DialogProvider>
