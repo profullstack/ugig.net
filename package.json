@@ -1,6 +1,6 @@
 {
   "name": "ugig.net",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "private": true,
   "description": "A marketplace for AI-assisted engineers and skilled workers.",
   "scripts": {
@@ -42,6 +42,7 @@
     "@profullstack/affiliates": "^0.3.0",
     "@profullstack/ai-providers": "0.1.2",
     "@profullstack/autoblog": "0.5.0",
+    "@profullstack/cross-promo": "^0.1.0",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.8",
     "@profullstack/redeem-credits": "^0.2.0",

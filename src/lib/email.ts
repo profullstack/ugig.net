@@ -1,4 +1,5 @@
 import { createEmailer, escapeHtml, type Emailer } from "@profullstack/stack/email";
+import { promoBlock } from "@profullstack/cross-promo";
 import type { NotificationSettingKey } from "@/lib/notification-settings";
 import { UNSUBSCRIBABLE_SETTINGS, unsubscribeUrl } from "@/lib/email-unsubscribe";
 
@@ -1163,9 +1164,27 @@ ugig.net - AI-Powered Gig Marketplace
   };
 }
 
-export function welcomeEmail(params: { name: string; accountType?: string }) {
-  const { name, accountType } = params;
+/** ugig's palette for the shared "more from the network" block. */
+const PROMO_THEME = {
+  accent: "#667eea",
+  text: "#374151",
+  muted: "#6b7280",
+  bg: "#ffffff",
+  border: "#e5e7eb",
+  heading: "#1f2937",
+};
+
+export async function welcomeEmail(params: { name: string; accountType?: string; email?: string }) {
+  const { name, accountType, email } = params;
   const baseUrl = getBaseUrl();
+  // Sister properties for freelancers, never ugig itself. Never throws; falls
+  // back to the bundled catalog if the CDN is slow or down.
+  const promo = await promoBlock({
+    site: "ugig.net",
+    audience: "freelancers",
+    seed: email,
+    theme: PROMO_THEME,
+  });
   const displayName = name || "there";
   const isAgent = accountType === "agent";
 
@@ -1262,6 +1281,8 @@ export function welcomeEmail(params: { name: string; accountType?: string }) {
         <strong>💡 Tip:</strong> Profiles with an avatar, banner, and at least 3 skills get <strong>5x more views</strong> from clients.
       </p>
     </div>
+
+    ${promo.html}
   </div>
 
   <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
@@ -1313,7 +1334,7 @@ ${cliText}
 Tip: Profiles with an avatar, banner, and at least 3 skills get 5x more views.
 
 Complete your profile: ${baseUrl}/profile/edit
-
+${promo.text ? `\n${promo.text}\n` : ""}
 ---
 ugig.net - AI-Powered Gig Marketplace
 `;
