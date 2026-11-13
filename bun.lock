@@ -7,8 +7,8 @@
       "dependencies": {
         "@hookform/resolvers": "^6.0.0",
         "@profullstack/affiliates": "^0.3.0",
-        "@profullstack/ai-providers": "0.1.2",
-        "@profullstack/autoblog": "0.5.0",
+        "@profullstack/ai-providers": "^0.3.1",
+        "@profullstack/autoblog": "0.5.1",
         "@profullstack/cross-promo": "^0.1.0",
         "@profullstack/footer": "latest",
         "@profullstack/profile": "0.1.8",
@@ -333,9 +333,9 @@
 
     "@profullstack/affiliates": ["@profullstack/affiliates@0.3.0", "", { "dependencies": { "@profullstack/referrals": "^0.1.0" }, "bin": { "affiliates": "dist/cli.js" } }, "sha512-bp0iREciWetDWrQYOsa6SJRTzviekKwgJQuATT7vql+4equu7pN76q8tb3SP1oBMczydsv6rYUMvPpS6+QT7yQ=="],
 
-    "@profullstack/ai-providers": ["@profullstack/ai-providers@0.1.2", "", { "bin": { "ai-providers": "src/cli.js" } }, "sha512-nOcKaOhfcDM+RNruA4+znva5xXxI4HF77iqUCgieuou2w8yY8LIF2p5ajSVD4kzFtfIUjC7GhGV8eyOrliHg1w=="],
+    "@profullstack/ai-providers": ["@profullstack/ai-providers@0.3.1", "", { "bin": { "ai-providers": "src/cli.js" } }, "sha512-mihwPJnGfBW52GRloG74bhmSokAdXBrMj/wDqOSxCcoj55n6nhe1c2/498BRuq/D0CyXXdVPe1VmHviWd4jMoA=="],
 
-    "@profullstack/autoblog": ["@profullstack/autoblog@0.5.0", "", { "dependencies": { "@profullstack/ai-providers": "0.1.0" } }, "sha512-KewpX0rM55o+7TMYeU35gqZceQFNF6zmo8zDoZRP5zoPU+XqTRcBlv6bZvl9oQHUXKXAsePJVNZKtDNhTrNEfw=="],
+    "@profullstack/autoblog": ["@profullstack/autoblog@0.5.1", "", { "dependencies": { "@profullstack/ai-providers": "^0.3.1" } }, "sha512-d29ENKNPf5KyWpCek5LPn3RBTuuuAjN1XwxzEC96Hb0dL/7q0EoP0efDOIGtgZMHW/DieTqu06itaMmLai2j/g=="],
 
     "@profullstack/cross-promo": ["@profullstack/cross-promo@0.1.0", "", { "bin": { "cross-promo": "bin/cross-promo.js" } }, "sha512-LQMxZSvApH1T+8WmMu/Nj1LqojXeTw6wAtpLfhuKFwx9eR36hQG/7vVIDkKpmU5zKw7UwARe20MOfFCak2+ejA=="],
 
@@ -1796,8 +1796,6 @@
     "@eslint/config-array/minimatch": ["minimatch@10.2.6", "", { "dependencies": { "brace-expansion": "^5.0.8" } }, "sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A=="],
 
     "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
-
-    "@profullstack/autoblog/@profullstack/ai-providers": ["@profullstack/ai-providers@0.1.0", "", { "bin": { "ai-providers": "src/cli.js" } }, "sha512-vc7aFjozyiwIhREWLhB3xWpUPeGggM348ng5W6j4IA+gxYF3S7TNLoGWrF/ax2NttsK40C801CRkD9JSVA4aOg=="],
 
     "@swagger-api/apidom-parser-adapter-yaml-1-2/tree-sitter": ["tree-sitter@0.22.4", "", { "dependencies": { "node-addon-api": "^8.3.0", "node-gyp-build": "^4.8.4" }, "hasInstallScript": true }, "sha512-usbHZP9/oxNsUY65MQUsduGRqDHQOou1cagUSwjhoSYAmSahjQDAVsh9s+SlZkn8X8+O1FULRGwHu7AFP3kjzg=="],
 

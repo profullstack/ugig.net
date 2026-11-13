@@ -40,8 +40,8 @@
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
     "@profullstack/affiliates": "^0.3.0",
-    "@profullstack/ai-providers": "0.1.2",
-    "@profullstack/autoblog": "0.5.0",
+    "@profullstack/ai-providers": "^0.3.1",
+    "@profullstack/autoblog": "0.5.1",
     "@profullstack/cross-promo": "^0.1.0",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.8",
