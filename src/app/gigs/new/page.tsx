@@ -4,6 +4,13 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GigForm } from "@/components/gigs/GigForm";
 import { gigTemplate } from "@/lib/gig-templates";
+import {
+  parseGigPrefill,
+  prefillFormData,
+  prefillReturnPath,
+  prefillSourceLabel,
+  type PrefillSearchParams,
+} from "@/lib/gig-prefill";
 import { EscrowBadge } from "@/components/gigs/EscrowBadge";
 import { Header } from "@/components/layout/Header";
 import {
@@ -22,9 +29,14 @@ export const metadata = {
 export default async function NewGigPage({
   searchParams,
 }: {
-  searchParams: Promise<{ template?: string }>;
+  searchParams: Promise<PrefillSearchParams>;
 }) {
-  const template = gigTemplate((await searchParams).template);
+  const params = await searchParams;
+  const rawTemplate = params.template;
+  const template = gigTemplate(Array.isArray(rawTemplate) ? rawTemplate[0] : rawTemplate);
+  // title/description/skills from a link elsewhere (e.g. a BufferOverride question).
+  const prefill = parseGigPrefill(params);
+  const sourceLabel = prefillSourceLabel(prefill?.source);
   const supabase = await createClient();
 
   const {
@@ -32,8 +44,9 @@ export default async function NewGigPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    // Keep the template through sign-in, or the landing page's button is lost.
-    const back = template ? `/gigs/new?template=${template.id}` : "/gigs/new";
+    // Keep the template and any pre-fill through sign-in, or the link that
+    // sent the poster here is lost.
+    const back = prefillReturnPath(prefill, template?.id);
     redirect(`/login?redirect=${encodeURIComponent(back)}`);
   }
 
@@ -119,7 +132,20 @@ export default async function NewGigPage({
                   before you post.
                 </div>
               )}
-              <GigForm initialData={template?.data} />
+              {prefill && (
+                <div className="p-4 mb-6 bg-muted/50 border border-border rounded-lg text-sm">
+                  {sourceLabel
+                    ? `Started from a question on ${sourceLabel}. Edit anything before you post.`
+                    : "Started from a shared link. Edit anything before you post."}
+                </div>
+              )}
+              <GigForm
+                initialData={
+                  template || prefill
+                    ? { ...template?.data, ...(prefill ? prefillFormData(prefill) : {}) }
+                    : undefined
+                }
+              />
             </>
           )}
         </div>
