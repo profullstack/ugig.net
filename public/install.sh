@@ -87,6 +87,9 @@ $PKG_MGR run build
 
 # Create symlink
 mkdir -p "$BIN_DIR"
+# Remove first: older installs made $BIN_DIR/ugig a symlink to dist/index.js, and
+# writing through it replaced the built CLI with this shell wrapper.
+rm -f "$BIN_DIR/ugig"
 cat > "$BIN_DIR/ugig" <<WRAPPER
 #!/bin/sh
 UGIG_INSTALL_DIR="$INSTALL_DIR"
