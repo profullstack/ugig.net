@@ -20,6 +20,12 @@ export function resolveMagicLinkRedirect(appUrl: string, next: string | null): s
   return new URL(safeRedirectPath(next, "/dashboard"), appUrl).toString();
 }
 
+/** After a signup confirmation: where they were headed, else login with the success note. */
+export function resolveSignupConfirmRedirect(appUrl: string, next: string | null): string {
+  const target = safeRedirectPath(next, null);
+  return target ? new URL(target, appUrl).toString() : `${appUrl}/login?confirmed=true`;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
@@ -77,8 +83,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(resolveMagicLinkRedirect(appUrl, next));
     }
 
-    // Signup/email confirmation — go to login with success message
-    return NextResponse.redirect(`${appUrl}/login?confirmed=true`);
+    // Signup/email confirmation. verifyOtp signed them in, so when they were on
+    // their way somewhere (a prefilled /gigs/new), send them there; otherwise
+    // to login with the success message.
+    return NextResponse.redirect(resolveSignupConfirmRedirect(appUrl, next));
   } catch (err) {
     console.error("[Auth Confirm] Error:", err);
     return NextResponse.redirect(`${appUrl}/login?error=confirmation_error`);

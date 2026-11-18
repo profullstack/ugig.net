@@ -9,6 +9,7 @@ import { detectSuspiciousAccountType } from "@/lib/account-type-detection";
 import { COLUMNS, validateProfile, saveSignupProfile } from "@profullstack/profile";
 import { profileStore, fillEmptyFullName } from "@/lib/profile";
 import { INVITE_COOKIE, acceptInvite } from "@/lib/credits";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import {
   isAlreadyRegisteredAuthError,
   resendExistingUserConfirmationEmail,
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       agent_source_url,
       ref,
       invite,
+      redirect,
     } = validationResult.data;
 
     // Account type validation: agents must have agent_name
@@ -294,6 +296,8 @@ export async function POST(request: NextRequest) {
       appUrl,
       tokenHash,
       type: "signup",
+      // Keep where they were going (e.g. a prefilled /gigs/new) through confirmation.
+      next: safeRedirectPath(redirect, null) ?? undefined,
     });
 
     if (!emailResult.success || "skipped" in emailResult) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMagicLinkRedirect } from "./route";
+import { resolveMagicLinkRedirect, resolveSignupConfirmRedirect } from "./route";
 
 describe("resolveMagicLinkRedirect", () => {
   const appUrl = "https://ugig.net";
@@ -28,4 +28,21 @@ describe("resolveMagicLinkRedirect", () => {
   it("falls back when next is missing", () => {
     expect(resolveMagicLinkRedirect(appUrl, null)).toBe("https://ugig.net/dashboard");
   });
+});
+
+describe("resolveSignupConfirmRedirect", () => {
+  const appUrl = "https://ugig.net";
+
+  it("sends a confirmed signup on to a prefilled gig form", () => {
+    expect(resolveSignupConfirmRedirect(appUrl, "/gigs/new?utm_source=bufferoverride&prefill=eyJ0IjoiYSJ9")).toBe(
+      "https://ugig.net/gigs/new?utm_source=bufferoverride&prefill=eyJ0IjoiYSJ9"
+    );
+  });
+
+  it.each([null, "", "https://example.com", "//example.com", "/%0D%0A/evil.example"])(
+    "falls back to login with the success note for %s",
+    (next) => {
+      expect(resolveSignupConfirmRedirect(appUrl, next)).toBe("https://ugig.net/login?confirmed=true");
+    }
+  );
 });

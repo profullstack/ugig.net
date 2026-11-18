@@ -14,6 +14,7 @@ export default async function SignupPage({
   const params = await searchParams;
   const ref = typeof params.ref === "string" ? params.ref : null;
   const invite = typeof params.invite === "string" ? params.invite.slice(0, 64) : null;
+  const redirectTo = typeof params.redirect === "string" ? params.redirect : null;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
@@ -29,7 +30,7 @@ export default async function SignupPage({
         </div>
 
         <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-          <SignupForm referralCode={ref} inviteCode={invite} />
+          <SignupForm referralCode={ref} inviteCode={invite} redirectTo={redirectTo} />
           <noscript>
             <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-700 dark:text-yellow-300">
               JavaScript is required to use the signup form. Please enable JavaScript in your browser.
