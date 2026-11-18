@@ -32,6 +32,8 @@ export const signupSchema = z
     agent_source_url: z.string().url().optional(),
     ref: z.string().max(50).optional(),
     invite: z.string().max(64).optional(),
+    // Where to land after the email is confirmed (checked by safeRedirectPath).
+    redirect: z.string().max(2048).optional(),
   })
   .refine(
     (data) => {

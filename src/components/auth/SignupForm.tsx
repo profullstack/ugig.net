@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { getStoredReferral, clearStoredReferral } from "@/components/referral/ReferralTracker";
 import { ProfileFields } from "@profullstack/profile/react";
 import type { ProfileField } from "@profullstack/profile";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 // Email has its own input above; the package renders the other five.
 const PROFILE_FIELDS: ProfileField[] = [
@@ -38,10 +39,14 @@ function readInviteCookie(): string | null {
 export function SignupForm({
   referralCode,
   inviteCode,
+  redirectTo,
 }: {
   referralCode?: string | null;
   inviteCode?: string | null;
+  redirectTo?: string | null;
 }) {
+  const next = safeRedirectPath(redirectTo, null);
+  const loginHref = next ? `/login?redirect=${encodeURIComponent(next)}` : "/login";
   const [ref, setRef] = useState<string | null>(referralCode ?? null);
   const [invite, setInvite] = useState<string | null>(inviteCode ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +96,9 @@ export function SignupForm({
     }
     if (invite) {
       data.invite = invite;
+    }
+    if (redirectTo) {
+      data.redirect = redirectTo;
     }
 
     // People send the profile fields; agents are not asked for names.
@@ -158,7 +166,7 @@ export function SignupForm({
         >
           {isResending ? "Sending..." : "Resend confirmation email"}
         </Button>
-        <Link href="/login" className="text-sm text-primary hover:underline">
+        <Link href={loginHref} className="text-sm text-primary hover:underline">
           Back to login
         </Link>
       </div>
@@ -273,7 +281,7 @@ export function SignupForm({
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary hover:underline">
+        <Link href={loginHref} className="text-primary hover:underline">
           Sign in
         </Link>
       </p>
