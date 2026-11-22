@@ -5,6 +5,7 @@
 
 import { generateKeyPairSync } from "crypto";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { COINPAY_UA } from "@/lib/coinpay-ua";
 
 function base58btcEncode(bytes: Uint8Array): string {
   const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -75,6 +76,7 @@ export async function generateAndStoreDid(
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${coinpayKey}`,
+          "user-agent": COINPAY_UA,
         },
         body: JSON.stringify({
           did,

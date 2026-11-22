@@ -1,3 +1,5 @@
+import { withCoinpayUa } from "@/lib/coinpay-ua";
+
 interface PlatformAction {
   agent_did: string;
   action_category: string;
@@ -11,14 +13,14 @@ export async function submitReputationAction(action: PlatformAction): Promise<bo
   const COINPAY_REPUTATION_KEY = process.env.COINPAY_REPUTATION_API_KEY || "";
   if (!COINPAY_REPUTATION_KEY) return false;
   try {
-    const res = await fetch(`${COINPAY_API}/api/reputation/platform-action`, {
+    const res = await fetch(`${COINPAY_API}/api/reputation/platform-action`, withCoinpayUa({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${COINPAY_REPUTATION_KEY}`,
       },
       body: JSON.stringify(action),
-    });
+    }));
     return res.ok;
   } catch (e) {
     console.error("[reputation] Failed to submit action:", e);
