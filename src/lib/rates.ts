@@ -2,6 +2,8 @@
 // (the canonical `amount_usd` CoinPay charges). Mirrors the source the client
 // /api/rates/btc route and SatsToUsd component use, with a short in-process cache.
 
+import { withCoinpayUa } from "@/lib/coinpay-ua";
+
 let cached: { rate: number; ts: number } | null = null;
 const CACHE_MS = 5 * 60 * 1000; // 5 min
 
@@ -19,9 +21,9 @@ export async function getBtcUsdRate(): Promise<number | null> {
     return cached.rate;
   }
   try {
-    const res = await fetch("https://coinpayportal.com/api/rates?coin=BTC", {
+    const res = await fetch("https://coinpayportal.com/api/rates?coin=BTC", withCoinpayUa({
       next: { revalidate: 300 },
-    });
+    }));
     const data = await res.json();
     if (data.success && data.rate) {
       cached = { rate: data.rate, ts: Date.now() };

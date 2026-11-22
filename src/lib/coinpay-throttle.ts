@@ -21,6 +21,8 @@
  * them.
  */
 
+import { withCoinpayUa } from "@/lib/coinpay-ua";
+
 const WINDOW_MS = 60_000;
 
 /**
@@ -230,7 +232,7 @@ export async function coinpayFetch(
 
     let response: Response;
     try {
-      response = await fetch(url, init);
+      response = await fetch(url, withCoinpayUa(init));
     } catch (err) {
       // A dropped connection mid-batch is as transient as a 429 and just as
       // wrong to record as "this invoice cannot be paid".

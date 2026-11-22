@@ -1,4 +1,5 @@
 import { FUNDING_LIFETIME_THRESHOLD_USD } from "@/lib/plans";
+import { withCoinpayUa } from "@/lib/coinpay-ua";
 
 /**
  * Funding tier definitions matching docs/funding.md
@@ -55,9 +56,9 @@ export async function getBtcRate(): Promise<number> {
     return btcRateCache.rate;
   }
 
-  const res = await fetch("https://coinpayportal.com/api/rates?coin=BTC", {
+  const res = await fetch("https://coinpayportal.com/api/rates?coin=BTC", withCoinpayUa({
     cache: "no-store",
-  });
+  }));
   const data = await res.json();
 
   if (!data.success || !data.rate) {
@@ -130,10 +131,10 @@ export async function getFundingAddresses(): Promise<FundingAddressMap> {
     throw new Error("CoinPay credentials are required for funding addresses");
   }
 
-  const res = await fetch(`${COINPAY_API}/businesses`, {
+  const res = await fetch(`${COINPAY_API}/businesses`, withCoinpayUa({
     headers: { Authorization: `Bearer ${apiKey}` },
     cache: "no-store",
-  });
+  }));
 
   if (!res.ok) {
     throw new Error(`CoinPay businesses API failed: ${res.status}`);

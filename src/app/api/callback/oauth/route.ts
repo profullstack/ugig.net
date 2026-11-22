@@ -21,6 +21,7 @@ import { getAuthContext } from "@/lib/auth/get-user";
 // Stores the wallet addresses from userinfo, never the CoinPay tokens.
 import { coinpayIdentityMetadata } from "@/lib/coinpay-oauth";
 import { applyCoinpayPass } from "@/lib/coinpay-pass";
+import { COINPAY_UA } from "@/lib/coinpay-ua";
 
 const TOKEN_URL = "https://coinpayportal.com/api/oauth/token";
 const USERINFO_URL = "https://coinpayportal.com/api/oauth/userinfo";
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
     const redirectUri = `${appUrl}/api/callback/oauth`;
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "user-agent": COINPAY_UA },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch userinfo
     const userinfoRes = await fetch(USERINFO_URL, {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
+      headers: { Authorization: `Bearer ${tokens.access_token}`, "user-agent": COINPAY_UA },
     });
 
     if (!userinfoRes.ok) {
