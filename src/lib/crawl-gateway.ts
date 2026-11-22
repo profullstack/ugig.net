@@ -63,7 +63,11 @@ export const gateway = createGateway({
   // string. Declared bots (Googlebot's evergreen UA, Bingbot, "compatible;")
   // are judged by the lists instead, never by this.
   chargeSpoofedBrowsers: true,
-  exempt: hasSupabaseSession,
+  // These are SHAPES (the Supabase cookie's name), which any client can
+  // send, so they are a hint, never a pass (x402-gateway 0.18.3 `sessionCookie`):
+  // they spare an odd browser string, but GPTBot wearing one is still charged.
+  // They used to be `exempt`, which let a forged one read free.
+  sessionCookie: hasSupabaseSession,
   // A VERIFIED ugig API key, Supabase access token or AgentPass signature is
   // never charged; one that is ours and wrong is answered 401. See crawl-auth.ts.
   authenticate: authenticateCrawl,

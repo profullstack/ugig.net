@@ -163,7 +163,11 @@ describe("crawlers that do not say who they are", () => {
     expect(await gate(request("/gigs/x", CHROME, { "sec-fetch-mode": "navigate" }))).toBeUndefined();
   });
 
-  it("never charges a signed-in visitor, whatever the client looks like", async () => {
+  it("charges a declared crawler with a forged session cookie (x402-gateway 0.18.3 sessionCookie)", async () => {
+    expect((await gate(request("/gigs/x", GPTBOT, { cookie: SESSION_COOKIE })))?.status).toBe(402);
+  });
+
+  it("does not judge a signed-in visitor by their client string", async () => {
     expect(await gate(request("/gigs/x", CHROME, { cookie: SESSION_COOKIE }))).toBeUndefined();
     expect(
       await gate(request("/gigs/x", CHROME, { cookie: `theme=dark; sb-abcdefghijklmnop-auth-token.0=chunk; sb-abcdefghijklmnop-auth-token.1=chunk` })),
